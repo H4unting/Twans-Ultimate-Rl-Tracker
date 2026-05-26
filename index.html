@@ -15,32 +15,25 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#0a0a14;color:#e0e0f0;mi
 .tab{padding:7px 18px;border-radius:6px;border:1px solid #2a2a4a;background:transparent;color:#888;cursor:pointer;font-size:13px;font-weight:600;transition:all .2s}
 .tab.active{background:#e65c00;color:#fff;border-color:#e65c00}
 .tab:hover:not(.active){background:#1e1e3a;color:#ccc}
-.sync-dot{width:8px;height:8px;border-radius:50%;background:#555;margin-left:8px;transition:background .3s;flex-shrink:0}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:#555;transition:background .3s;flex-shrink:0}
 .sync-dot.live{background:#00c851}
 .sync-dot.saving{background:#ffd700}
+.sync-dot.error{background:#ff4444}
 .page{display:none;padding:20px 24px;max-width:1200px;margin:0 auto}
 .page.active{display:block}
-
 .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:20px}
 .stat-card{background:#111128;border:1px solid #1e1e3a;border-radius:10px;padding:14px 16px;border-left:3px solid}
-.stat-card.gold{border-left-color:#ffd700}
-.stat-card.teal{border-left-color:#00e5ff}
-.stat-card.green{border-left-color:#00c851}
-.stat-card.red{border-left-color:#ff4444}
+.stat-card.gold{border-left-color:#ffd700}.stat-card.teal{border-left-color:#00e5ff}
+.stat-card.green{border-left-color:#00c851}.stat-card.red{border-left-color:#ff4444}
 .stat-card.orange{border-left-color:#e65c00}
 .stat-label{font-size:11px;color:#666;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
 .stat-val{font-size:22px;font-weight:700}
-.stat-val.gold{color:#ffd700}
-.stat-val.teal{color:#00e5ff}
-.stat-val.green{color:#00c851}
-.stat-val.red{color:#ff4444}
-.stat-val.orange{color:#e65c00}
-
+.stat-val.gold{color:#ffd700}.stat-val.teal{color:#00e5ff}
+.stat-val.green{color:#00c851}.stat-val.red{color:#ff4444}.stat-val.orange{color:#e65c00}
 .section-title{font-size:13px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:1px;margin:20px 0 10px}
 .chart-box{background:#111128;border:1px solid #1e1e3a;border-radius:10px;padding:16px;margin-bottom:16px}
 .chart-row{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px}
 @media(max-width:600px){.chart-row{grid-template-columns:1fr}}
-
 .log-table{width:100%;border-collapse:collapse;font-size:13px}
 .log-table th{background:#0d0d22;color:#666;font-weight:600;padding:9px 10px;text-align:left;border-bottom:1px solid #1e1e3a;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
 .log-table td{padding:8px 10px;border-bottom:1px solid #131325;color:#ccc}
@@ -48,10 +41,8 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#0a0a14;color:#e0e0f0;mi
 .badge{display:inline-block;padding:2px 9px;border-radius:4px;font-size:12px;font-weight:700}
 .badge.W{background:#00c85122;color:#00c851;border:1px solid #00c85155}
 .badge.L{background:#ff444422;color:#ff4444;border:1px solid #ff444455}
-.pos{color:#00c851;font-weight:600}
-.neg{color:#ff4444;font-weight:600}
+.pos{color:#00c851;font-weight:600}.neg{color:#ff4444;font-weight:600}
 .note-cell{color:#888;font-size:11px;font-style:italic;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-
 .add-form{background:#111128;border:1px solid #1e1e3a;border-radius:10px;padding:20px;margin-bottom:20px}
 .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:14px}
 .form-group label{display:block;font-size:11px;color:#666;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
@@ -59,22 +50,15 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#0a0a14;color:#e0e0f0;mi
 .form-group input:focus,.form-group select:focus{outline:none;border-color:#e65c00}
 .form-group select option{background:#0a0a14}
 .btn{padding:9px 20px;border-radius:6px;border:none;cursor:pointer;font-size:13px;font-weight:600;transition:all .2s}
-.btn-primary{background:#e65c00;color:#fff}
-.btn-primary:hover{background:#ff6d1a}
+.btn-primary{background:#e65c00;color:#fff}.btn-primary:hover{background:#ff6d1a}
 .btn-primary:disabled{background:#555;cursor:not-allowed}
-.btn-danger{background:#ff444422;color:#ff4444;border:1px solid #ff444444;margin-left:8px}
-.btn-danger:hover{background:#ff444433}
-
 .team-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
 @media(max-width:500px){.team-grid{grid-template-columns:1fr}}
 .player-card{background:#111128;border:1px solid #1e1e3a;border-radius:12px;padding:20px}
 .player-name{font-size:18px;font-weight:700;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid #1e1e3a}
-.player-name.ant{color:#e65c00}
-.player-name.try{color:#00e5ff}
+.player-name.ant{color:#e65c00}.player-name.try{color:#00e5ff}
 .mini-stat{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #0d0d22;font-size:13px}
-.mini-stat:last-child{border:none}
-.mini-label{color:#888}
-.mini-val{font-weight:600;color:#e0e0f0}
+.mini-stat:last-child{border:none}.mini-label{color:#888}.mini-val{font-weight:600}
 .empty{color:#555;font-size:13px;text-align:center;padding:30px;font-style:italic}
 .player-selector{display:flex;gap:8px;margin-bottom:16px}
 .pselector{padding:6px 16px;border-radius:6px;border:1px solid #2a2a4a;background:transparent;color:#888;cursor:pointer;font-size:13px;font-weight:600;transition:all .2s}
@@ -82,15 +66,12 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#0a0a14;color:#e0e0f0;mi
 .pselector.active.try{background:#00e5ff22;color:#00e5ff;border-color:#00e5ff}
 .pselector:hover:not(.active){background:#1e1e3a;color:#ccc}
 .toast{position:fixed;bottom:24px;right:24px;background:#1e1e3a;border:1px solid #2a2a4a;border-radius:8px;padding:12px 18px;font-size:13px;color:#e0e0f0;opacity:0;transition:opacity .3s;pointer-events:none;z-index:999}
-.toast.show{opacity:1}
-.toast.success{border-color:#00c851;color:#00c851}
-.toast.error{border-color:#ff4444;color:#ff4444}
+.toast.show{opacity:1}.toast.success{border-color:#00c851;color:#00c851}.toast.error{border-color:#ff4444;color:#ff4444}
 .delete-btn{background:none;border:none;color:#333;cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px;transition:color .2s}
 .delete-btn:hover{color:#ff4444}
 </style>
 </head>
 <body>
-
 <div class="top-bar">
   <div class="logo">RL <span>GRIND</span></div>
   <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#555">
@@ -109,14 +90,14 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#0a0a14;color:#e0e0f0;mi
   <p class="section-title">Team Overview</p>
   <div class="team-grid" id="team-grid"><div class="empty">Loading...</div></div>
   <p class="section-title">MMR Progress</p>
-  <div class="chart-box" style="height:260px"><canvas id="teamChart" role="img" aria-label="Combined MMR progress">MMR Progress</canvas></div>
+  <div class="chart-box" style="height:260px"><canvas id="teamChart"></canvas></div>
 </div>
 
 <div id="page-anthony" class="page">
   <div class="stat-grid" id="anthony-stats"></div>
   <div class="chart-row">
-    <div class="chart-box" style="height:220px"><canvas id="anthonyMMR" role="img" aria-label="Anthony MMR progress">Anthony MMR</canvas></div>
-    <div class="chart-box" style="height:220px"><canvas id="anthonyWL" role="img" aria-label="Anthony wins vs losses">W/L</canvas></div>
+    <div class="chart-box" style="height:220px"><canvas id="anthonyMMR"></canvas></div>
+    <div class="chart-box" style="height:220px"><canvas id="anthonyWL"></canvas></div>
   </div>
   <p class="section-title">Match Log</p>
   <div style="overflow-x:auto"><table class="log-table" id="anthony-log"></table></div>
@@ -125,8 +106,8 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#0a0a14;color:#e0e0f0;mi
 <div id="page-trystan" class="page">
   <div class="stat-grid" id="trystan-stats"></div>
   <div class="chart-row">
-    <div class="chart-box" style="height:220px"><canvas id="trystanMMR" role="img" aria-label="Trystan MMR progress">Trystan MMR</canvas></div>
-    <div class="chart-box" style="height:220px"><canvas id="trystanWL" role="img" aria-label="Trystan wins vs losses">W/L</canvas></div>
+    <div class="chart-box" style="height:220px"><canvas id="trystanMMR"></canvas></div>
+    <div class="chart-box" style="height:220px"><canvas id="trystanWL"></canvas></div>
   </div>
   <p class="section-title">Match Log</p>
   <div style="overflow-x:auto"><table class="log-table" id="trystan-log"></table></div>
@@ -162,108 +143,136 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#0a0a14;color:#e0e0f0;mi
 
 <div class="toast" id="toast"></div>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, doc, onSnapshot, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+<script>
+const SUPABASE_URL = 'https://pwuxocijdnuhhghufizn.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_919ylKPlMM_VhEZ2bz44Fg_val_3Jp8';
 
-const firebaseConfig = {
-  apiKey: "AIzaSyDAfeuOrnzRWBfSFdtQqQorSNxt3DzTKEo",
-  authDomain: "twans-rl-tracker.firebaseapp.com",
-  projectId: "twans-rl-tracker",
-  storageBucket: "twans-rl-tracker.firebasestorage.app",
-  messagingSenderId: "54058497730",
-  appId: "1:54058497730:web:fc84fb9f96de20f5caad5b"
-};
+const SEED_ANTHONY = [
+  {date:'05/25/26',session:1,match:1,mode:"1's",result:'L',goals:4,assists:0,saves:3,startMMR:809,endMMR:797,mmrDiff:-12,notes:''},
+  {date:'05/25/26',session:1,match:2,mode:"1's",result:'W',goals:4,assists:0,saves:1,startMMR:797,endMMR:807,mmrDiff:10,notes:''},
+  {date:'05/25/26',session:1,match:3,mode:"1's",result:'W',goals:13,assists:0,saves:1,startMMR:807,endMMR:817,mmrDiff:10,notes:''},
+  {date:'05/25/26',session:1,match:4,mode:"1's",result:'L',goals:2,assists:0,saves:4,startMMR:817,endMMR:807,mmrDiff:-10,notes:''},
+  {date:'05/25/26',session:1,match:5,mode:"1's",result:'W',goals:5,assists:0,saves:3,startMMR:807,endMMR:817,mmrDiff:10,notes:''},
+  {date:'05/25/26',session:1,match:6,mode:"1's",result:'W',goals:5,assists:0,saves:1,startMMR:817,endMMR:827,mmrDiff:10,notes:''},
+  {date:'05/25/26',session:1,match:7,mode:"1's",result:'L',goals:6,assists:0,saves:2,startMMR:827,endMMR:817,mmrDiff:-10,notes:'Gave away possesion way too much.'},
+  {date:'05/25/26',session:1,match:8,mode:"1's",result:'L',goals:6,assists:0,saves:2,startMMR:817,endMMR:807,mmrDiff:-10,notes:'Got too comfortable.'},
+  {date:'05/25/26',session:1,match:9,mode:"1's",result:'W',goals:5,assists:0,saves:2,startMMR:807,endMMR:817,mmrDiff:10,notes:''},
+  {date:'05/25/26',session:1,match:10,mode:"1's",result:'W',goals:7,assists:0,saves:5,startMMR:817,endMMR:826,mmrDiff:9,notes:''},
+  {date:'05/25/26',session:1,match:11,mode:"1's",result:'L',goals:8,assists:0,saves:2,startMMR:826,endMMR:817,mmrDiff:-9,notes:'His words got into my head (disabled chat)'},
+  {date:'05/25/26',session:1,match:12,mode:"1's",result:'W',goals:4,assists:0,saves:0,startMMR:817,endMMR:826,mmrDiff:9,notes:''},
+  {date:'05/15/26',session:1,match:13,mode:"1's",result:'W',goals:11,assists:0,saves:5,startMMR:826,endMMR:835,mmrDiff:9,notes:''},
+];
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const docRef = doc(db, "tracker", "data");
-
-const SEED = {
-  anthony: [
-    {date:'05/25/26',session:1,match:1,mode:"1's",result:'L',goals:4,assists:0,saves:3,startMMR:809,endMMR:797,mmrDiff:-12,notes:''},
-    {date:'05/25/26',session:1,match:2,mode:"1's",result:'W',goals:4,assists:0,saves:1,startMMR:797,endMMR:807,mmrDiff:10,notes:''},
-    {date:'05/25/26',session:1,match:3,mode:"1's",result:'W',goals:13,assists:0,saves:1,startMMR:807,endMMR:817,mmrDiff:10,notes:''},
-    {date:'05/25/26',session:1,match:4,mode:"1's",result:'L',goals:2,assists:0,saves:4,startMMR:817,endMMR:807,mmrDiff:-10,notes:''},
-    {date:'05/25/26',session:1,match:5,mode:"1's",result:'W',goals:5,assists:0,saves:3,startMMR:807,endMMR:817,mmrDiff:10,notes:''},
-    {date:'05/25/26',session:1,match:6,mode:"1's",result:'W',goals:5,assists:0,saves:1,startMMR:817,endMMR:827,mmrDiff:10,notes:''},
-    {date:'05/25/26',session:1,match:7,mode:"1's",result:'L',goals:6,assists:0,saves:2,startMMR:827,endMMR:817,mmrDiff:-10,notes:'Gave away possesion way too much.'},
-    {date:'05/25/26',session:1,match:8,mode:"1's",result:'L',goals:6,assists:0,saves:2,startMMR:817,endMMR:807,mmrDiff:-10,notes:'Got too comfortable.'},
-    {date:'05/25/26',session:1,match:9,mode:"1's",result:'W',goals:5,assists:0,saves:2,startMMR:807,endMMR:817,mmrDiff:10,notes:''},
-    {date:'05/25/26',session:1,match:10,mode:"1's",result:'W',goals:7,assists:0,saves:5,startMMR:817,endMMR:826,mmrDiff:9,notes:''},
-    {date:'05/25/26',session:1,match:11,mode:"1's",result:'L',goals:8,assists:0,saves:2,startMMR:826,endMMR:817,mmrDiff:-9,notes:'His words got into my head (disabled chat)'},
-    {date:'05/25/26',session:1,match:12,mode:"1's",result:'W',goals:4,assists:0,saves:0,startMMR:817,endMMR:826,mmrDiff:9,notes:''},
-    {date:'05/15/26',session:1,match:13,mode:"1's",result:'W',goals:11,assists:0,saves:5,startMMR:826,endMMR:835,mmrDiff:9,notes:''},
-  ],
-  trystan: []
-};
-
-let liveData = null;
+let liveData = {anthony: [], trystan: []};
 let logPlayer = 'anthony';
 let charts = {};
 
-function setSyncStatus(status) {
+// ── Supabase API helpers ────────────────────────────────────────────────────
+async function sbFetch(path, method='GET', body=null) {
+  const opts = {
+    method,
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': method === 'POST' ? 'resolution=merge-duplicates' : ''
+    }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(SUPABASE_URL + '/rest/v1/' + path, opts);
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(err);
+  }
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+async function loadData() {
+  const rows = await sbFetch('tracker?select=*');
+  if (!rows || rows.length === 0) {
+    // First time — seed Anthony's data
+    await saveData({anthony: SEED_ANTHONY, trystan: []});
+    return {anthony: SEED_ANTHONY, trystan: []};
+  }
+  const anthony = rows.find(r=>r.player==='anthony');
+  const trystan = rows.find(r=>r.player==='trystan');
+  return {
+    anthony: anthony ? anthony.games : [],
+    trystan: trystan ? trystan.games : []
+  };
+}
+
+async function saveData(data) {
+  setSyncStatus('saving');
+  try {
+    await sbFetch('tracker', 'POST', [
+      {player: 'anthony', games: data.anthony},
+      {player: 'trystan', games: data.trystan}
+    ]);
+    setSyncStatus('live');
+  } catch(e) {
+    setSyncStatus('error');
+    showToast('Save failed: ' + e.message, 'error');
+    throw e;
+  }
+}
+
+// ── UI helpers ──────────────────────────────────────────────────────────────
+function setSyncStatus(s) {
   const dot = document.getElementById('sync-dot');
   const label = document.getElementById('sync-label');
-  if (status === 'live') { dot.className='sync-dot live'; label.textContent='Live'; }
-  else if (status === 'saving') { dot.className='sync-dot saving'; label.textContent='Saving...'; }
-  else { dot.className='sync-dot'; label.textContent='Connecting...'; }
+  const map = {live:['live','Live'],saving:['saving','Saving...'],error:['error','Error'],'':['',' Offline']};
+  const [cls,txt] = map[s]||['',''];
+  dot.className = 'sync-dot ' + cls;
+  label.textContent = txt;
 }
 
 function showToast(msg, type='success') {
   const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = 'toast show ' + type;
-  setTimeout(()=>{ t.className='toast'; }, 2500);
+  t.textContent = msg; t.className = 'toast show ' + type;
+  setTimeout(()=>{ t.className='toast'; }, 2800);
 }
 
 function calcStats(games) {
-  if (!games || !games.length) return {currentMMR:0,totalGames:0,wins:0,losses:0,winRate:0,totalMMRGain:0,avgMMRSession:0,bestGame:'-',worstGame:'-'};
+  if (!games||!games.length) return {currentMMR:0,totalGames:0,wins:0,losses:0,winRate:0,totalMMRGain:0,avgMMRSession:0,bestGame:'-',worstGame:'-'};
   const wins = games.filter(g=>g.result==='W').length;
   const losses = games.filter(g=>g.result==='L').length;
-  const wl = wins + losses;
-  const currentMMR = games[games.length-1].endMMR;
+  const wl = wins+losses;
   const totalMMRGain = games.reduce((s,g)=>s+(g.mmrDiff||0),0);
   const sessions = new Set(games.map(g=>g.session+'|'+g.date)).size;
-  const avgMMRSession = sessions ? Math.round(totalMMRGain / sessions * 10) / 10 : 0;
   const diffs = games.map(g=>g.mmrDiff||0);
   return {
-    currentMMR, totalGames: games.length, wins, losses,
+    currentMMR: games[games.length-1].endMMR,
+    totalGames: games.length, wins, losses,
     winRate: wl ? Math.round(wins/wl*1000)/10 : 0,
-    totalMMRGain, avgMMRSession,
+    totalMMRGain,
+    avgMMRSession: sessions ? Math.round(totalMMRGain/sessions*10)/10 : 0,
     bestGame: diffs.length ? Math.max(...diffs) : '-',
     worstGame: diffs.length ? Math.min(...diffs) : '-'
   };
 }
 
-function renderStats(id, stats) {
-  const cards = [
-    {label:'Current MMR', val:stats.currentMMR, cls:'gold'},
-    {label:'Total Games', val:stats.totalGames, cls:'teal'},
-    {label:'Wins', val:stats.wins, cls:'green'},
-    {label:'Losses', val:stats.losses, cls:'red'},
-    {label:'Win Rate', val:stats.winRate+'%', cls:'orange'},
-    {label:'MMR Gain', val:(stats.totalMMRGain>=0?'+':'')+stats.totalMMRGain, cls:stats.totalMMRGain>=0?'green':'red'},
-    {label:'Avg/Session', val:(typeof stats.avgMMRSession==='number'?(stats.avgMMRSession>=0?'+':'')+stats.avgMMRSession:'-'), cls:stats.avgMMRSession>=0?'green':'red'},
-    {label:'Best Game', val:(stats.bestGame!=='-'&&stats.bestGame>0?'+':'')+stats.bestGame, cls:'green'},
-    {label:'Worst Game', val:stats.worstGame, cls:'red'},
-  ];
-  document.getElementById(id).innerHTML = cards.map(c=>`
-    <div class="stat-card ${c.cls}">
-      <div class="stat-label">${c.label}</div>
-      <div class="stat-val ${c.cls}">${c.val}</div>
-    </div>`).join('');
+function renderStats(id, s) {
+  document.getElementById(id).innerHTML = [
+    {label:'Current MMR', val:s.currentMMR, cls:'gold'},
+    {label:'Total Games', val:s.totalGames, cls:'teal'},
+    {label:'Wins', val:s.wins, cls:'green'},
+    {label:'Losses', val:s.losses, cls:'red'},
+    {label:'Win Rate', val:s.winRate+'%', cls:'orange'},
+    {label:'MMR Gain', val:(s.totalMMRGain>=0?'+':'')+s.totalMMRGain, cls:s.totalMMRGain>=0?'green':'red'},
+    {label:'Avg/Session', val:(s.avgMMRSession>=0?'+':'')+s.avgMMRSession, cls:s.avgMMRSession>=0?'green':'red'},
+    {label:'Best Game', val:(s.bestGame!=='-'&&s.bestGame>0?'+':'')+s.bestGame, cls:'green'},
+    {label:'Worst Game', val:s.worstGame, cls:'red'},
+  ].map(c=>`<div class="stat-card ${c.cls}"><div class="stat-label">${c.label}</div><div class="stat-val ${c.cls}">${c.val}</div></div>`).join('');
 }
 
-function renderLog(tableId, games, limit, showDelete) {
+function renderLog(tableId, games, limit, player) {
   const t = document.getElementById(tableId);
   const rows = limit ? [...games].reverse().slice(0,limit) : [...games].reverse();
-  if (!rows.length) { t.innerHTML=`<tr><td colspan="10" class="empty">No games logged yet</td></tr>`; return; }
-  t.innerHTML = `<thead><tr>
-    <th>#</th><th>Date</th><th>Mode</th><th>Result</th>
-    <th>Goals</th><th>Saves</th><th>Start</th><th>End</th><th>+/-</th><th>Notes</th>
-    ${showDelete?'<th></th>':''}
-  </tr></thead><tbody>${rows.map(g=>`<tr>
+  if (!rows.length) { t.innerHTML=`<tr><td colspan="11" class="empty">No games logged yet</td></tr>`; return; }
+  t.innerHTML = `<thead><tr><th>#</th><th>Date</th><th>Mode</th><th>Result</th><th>Goals</th><th>Saves</th><th>Start</th><th>End</th><th>+/-</th><th>Notes</th>${player?'<th></th>':''}</tr></thead>
+  <tbody>${rows.map(g=>`<tr>
     <td style="color:#555">${g.match}</td>
     <td style="color:#777">${g.date}</td>
     <td style="color:#777">${g.mode}</td>
@@ -272,16 +281,13 @@ function renderLog(tableId, games, limit, showDelete) {
     <td>${g.startMMR}</td><td>${g.endMMR}</td>
     <td class="${(g.mmrDiff||0)>=0?'pos':'neg'}">${(g.mmrDiff||0)>=0?'+':''}${g.mmrDiff||0}</td>
     <td class="note-cell" title="${g.notes||''}">${g.notes||''}</td>
-    ${showDelete?`<td><button class="delete-btn" onclick="deleteGame('${showDelete}',${g.match})" title="Delete">✕</button></td>`:''}
+    ${player?`<td><button class="delete-btn" onclick="deleteGame('${player}',${g.match})">✕</button></td>`:''}
   </tr>`).join('')}</tbody>`;
 }
 
 function renderTeamGrid(data) {
-  const a = calcStats(data.anthony);
-  const t = calcStats(data.trystan);
-  document.getElementById('team-grid').innerHTML = [
-    ['Anthony','ant',a,'#e65c00'],['Trystan','try',t,'#00e5ff']
-  ].map(([name,cls,s,col])=>`
+  const a = calcStats(data.anthony), t = calcStats(data.trystan);
+  document.getElementById('team-grid').innerHTML = [['Anthony','ant',a],['Trystan','try',t]].map(([name,cls,s])=>`
     <div class="player-card">
       <div class="player-name ${cls}">${name}</div>
       <div class="mini-stat"><span class="mini-label">Current MMR</span><span class="mini-val" style="color:#ffd700">${s.currentMMR}</span></div>
@@ -293,44 +299,36 @@ function renderTeamGrid(data) {
     </div>`).join('');
 }
 
-function destroyChart(id){ if(charts[id]){charts[id].destroy();delete charts[id];} }
+function dc(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
 
 function mmrChart(id, games, color) {
-  destroyChart(id);
-  const ctx = document.getElementById(id).getContext('2d');
-  charts[id] = new Chart(ctx, {
+  dc(id);
+  if (!document.getElementById(id)) return;
+  charts[id] = new Chart(document.getElementById(id).getContext('2d'), {
     type:'line',
-    data:{
-      labels: games.map(g=>'#'+g.match),
-      datasets:[{label:'MMR',data:games.map(g=>g.endMMR),borderColor:color,backgroundColor:color+'18',borderWidth:2,pointRadius:3,pointBackgroundColor:color,fill:true,tension:0.3}]
-    },
+    data:{labels:games.map(g=>'#'+g.match),datasets:[{label:'MMR',data:games.map(g=>g.endMMR),borderColor:color,backgroundColor:color+'18',borderWidth:2,pointRadius:3,pointBackgroundColor:color,fill:true,tension:0.3}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
-      scales:{
-        x:{ticks:{color:'#555',font:{size:10},maxTicksLimit:12},grid:{color:'#1a1a2e'}},
-        y:{ticks:{color:'#555',font:{size:10}},grid:{color:'#1a1a2e'}}
-      }}
+      scales:{x:{ticks:{color:'#555',font:{size:10},maxTicksLimit:12},grid:{color:'#1a1a2e'}},y:{ticks:{color:'#555',font:{size:10}},grid:{color:'#1a1a2e'}}}}
   });
 }
 
 function wlChart(id, stats) {
-  destroyChart(id);
-  const ctx = document.getElementById(id).getContext('2d');
-  charts[id] = new Chart(ctx, {
+  dc(id);
+  if (!document.getElementById(id)) return;
+  charts[id] = new Chart(document.getElementById(id).getContext('2d'), {
     type:'doughnut',
-    data:{labels:['Wins','Losses'],datasets:[{data:[stats.wins,stats.losses],backgroundColor:['#00c851','#ff4444'],borderWidth:0}]},
-    options:{responsive:true,maintainAspectRatio:false,cutout:'65%',
-      plugins:{legend:{display:true,position:'bottom',labels:{color:'#888',font:{size:11},padding:12}}}}
+    data:{labels:['Wins','Losses'],datasets:[{data:[stats.wins||0,stats.losses||0],backgroundColor:['#00c851','#ff4444'],borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{display:true,position:'bottom',labels:{color:'#888',font:{size:11},padding:12}}}}
   });
 }
 
 function teamChart(aGames, tGames) {
-  destroyChart('teamChart');
-  const ctx = document.getElementById('teamChart').getContext('2d');
+  dc('teamChart');
   const len = Math.max(aGames.length, tGames.length);
-  charts['teamChart'] = new Chart(ctx, {
+  charts['teamChart'] = new Chart(document.getElementById('teamChart').getContext('2d'), {
     type:'line',
     data:{
-      labels: Array.from({length:len},(_,i)=>'Match '+(i+1)),
+      labels:Array.from({length:len},(_,i)=>'Match '+(i+1)),
       datasets:[
         {label:'Anthony',data:aGames.map(g=>g.endMMR),borderColor:'#e65c00',backgroundColor:'#e65c0015',borderWidth:2,pointRadius:3,pointBackgroundColor:'#e65c00',fill:true,tension:0.3},
         {label:'Trystan',data:tGames.map(g=>g.endMMR),borderColor:'#00e5ff',backgroundColor:'#00e5ff15',borderWidth:2,pointRadius:3,pointBackgroundColor:'#00e5ff',fill:true,tension:0.3,borderDash:[5,3]}
@@ -338,10 +336,7 @@ function teamChart(aGames, tGames) {
     },
     options:{responsive:true,maintainAspectRatio:false,
       plugins:{legend:{display:true,position:'top',labels:{color:'#888',font:{size:11},usePointStyle:true,padding:16}}},
-      scales:{
-        x:{ticks:{color:'#555',font:{size:10},maxTicksLimit:12},grid:{color:'#1a1a2e'}},
-        y:{ticks:{color:'#555',font:{size:10}},grid:{color:'#1a1a2e'}}
-      }}
+      scales:{x:{ticks:{color:'#555',font:{size:10},maxTicksLimit:12},grid:{color:'#1a1a2e'}},y:{ticks:{color:'#555',font:{size:10}},grid:{color:'#1a1a2e'}}}}
   });
 }
 
@@ -365,16 +360,6 @@ function renderAll(data) {
   }
 }
 
-async function saveData(data) {
-  setSyncStatus('saving');
-  try {
-    await setDoc(docRef, { anthony: data.anthony, trystan: data.trystan });
-    showToast('Game saved!', 'success');
-  } catch(e) {
-    showToast('Save failed — check connection', 'error');
-  }
-}
-
 window.deleteGame = async function(player, matchNum) {
   if (!liveData) return;
   if (!confirm('Delete this game?')) return;
@@ -382,39 +367,45 @@ window.deleteGame = async function(player, matchNum) {
   data[player] = data[player].filter(g=>g.match!==matchNum);
   data[player].forEach((g,i)=>g.match=i+1);
   await saveData(data);
+  renderAll(data);
+  showToast('Game deleted');
 };
 
 window.addGame = async function() {
   if (!liveData) return;
   const btn = document.getElementById('add-btn');
-  btn.disabled = true;
-  const data = JSON.parse(JSON.stringify(liveData));
-  const games = data[logPlayer];
-  const rawDate = document.getElementById('f-date').value;
-  const d = rawDate ? new Date(rawDate+'T12:00:00') : new Date();
-  const dateStr = `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}/${String(d.getFullYear()).slice(-2)}`;
-  const startMMR = parseInt(document.getElementById('f-startmmr').value)||0;
-  const endMMR = parseInt(document.getElementById('f-endmmr').value)||0;
-  games.push({
-    date: dateStr,
-    session: parseInt(document.getElementById('f-session').value)||1,
-    match: games.length+1,
-    mode: document.getElementById('f-mode').value,
-    result: document.getElementById('f-result').value,
-    goals: parseInt(document.getElementById('f-goals').value)||0,
-    assists: parseInt(document.getElementById('f-assists').value)||0,
-    saves: parseInt(document.getElementById('f-saves').value)||0,
-    startMMR, endMMR, mmrDiff: endMMR-startMMR,
-    notes: document.getElementById('f-notes').value.trim()
-  });
-  await saveData(data);
-  document.getElementById('f-goals').value=0;
-  document.getElementById('f-assists').value=0;
-  document.getElementById('f-saves').value=0;
-  document.getElementById('f-startmmr').value=endMMR;
-  document.getElementById('f-endmmr').value='';
-  document.getElementById('f-notes').value='';
-  btn.disabled = false;
+  btn.disabled = true; btn.textContent = 'Saving...';
+  try {
+    const data = JSON.parse(JSON.stringify(liveData));
+    const games = data[logPlayer];
+    const rawDate = document.getElementById('f-date').value;
+    const d = rawDate ? new Date(rawDate+'T12:00:00') : new Date();
+    const dateStr = `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}/${String(d.getFullYear()).slice(-2)}`;
+    const startMMR = parseInt(document.getElementById('f-startmmr').value)||0;
+    const endMMR = parseInt(document.getElementById('f-endmmr').value)||0;
+    games.push({
+      date:dateStr, session:parseInt(document.getElementById('f-session').value)||1,
+      match:games.length+1, mode:document.getElementById('f-mode').value,
+      result:document.getElementById('f-result').value,
+      goals:parseInt(document.getElementById('f-goals').value)||0,
+      assists:parseInt(document.getElementById('f-assists').value)||0,
+      saves:parseInt(document.getElementById('f-saves').value)||0,
+      startMMR, endMMR, mmrDiff:endMMR-startMMR,
+      notes:document.getElementById('f-notes').value.trim()
+    });
+    await saveData(data);
+    renderAll(data);
+    showToast('Game logged!');
+    document.getElementById('f-goals').value=0;
+    document.getElementById('f-assists').value=0;
+    document.getElementById('f-saves').value=0;
+    document.getElementById('f-startmmr').value=endMMR;
+    document.getElementById('f-endmmr').value='';
+    document.getElementById('f-notes').value='';
+  } catch(e) {
+    showToast('Failed to save', 'error');
+  }
+  btn.disabled=false; btn.textContent='+ Log Game';
 };
 
 window.selectLogPlayer = function(p) {
@@ -423,11 +414,7 @@ window.selectLogPlayer = function(p) {
   document.getElementById('ps-trystan').className='pselector'+(p==='trystan'?' active try':'');
   if (liveData) {
     renderLog('log-preview', liveData[logPlayer], 6, false);
-    if (liveData[logPlayer].length) {
-      document.getElementById('f-startmmr').value = liveData[logPlayer][liveData[logPlayer].length-1].endMMR;
-    } else {
-      document.getElementById('f-startmmr').value = '';
-    }
+    document.getElementById('f-startmmr').value = liveData[logPlayer].length ? liveData[logPlayer][liveData[logPlayer].length-1].endMMR : '';
   }
 };
 
@@ -436,22 +423,28 @@ window.showPage = function(id, btn) {
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   if (btn) btn.classList.add('active');
+  if (!liveData) return;
+  if (id==='anthony') { mmrChart('anthonyMMR',liveData.anthony,'#e65c00'); wlChart('anthonyWL',calcStats(liveData.anthony)); }
+  if (id==='trystan') { mmrChart('trystanMMR',liveData.trystan,'#00e5ff'); wlChart('trystanWL',calcStats(liveData.trystan)); }
+  if (id==='dashboard') teamChart(liveData.anthony, liveData.trystan);
 };
 
 document.getElementById('f-date').value = new Date().toISOString().slice(0,10);
 
-onSnapshot(docRef, (snap) => {
-  setSyncStatus('live');
-  if (snap.exists()) {
-    renderAll(snap.data());
-  } else {
-    setDoc(docRef, SEED).then(()=>renderAll(SEED));
-  }
-}, (err) => {
+// ── Boot ────────────────────────────────────────────────────────────────────
+(async () => {
   setSyncStatus('');
-  document.getElementById('sync-label').textContent = 'Offline';
-  showToast('Connection error', 'error');
-});
+  try {
+    const data = await loadData();
+    setSyncStatus('live');
+    renderAll(data);
+  } catch(e) {
+    setSyncStatus('error');
+    document.getElementById('sync-label').textContent = 'Connection failed';
+    document.getElementById('team-grid').innerHTML = `<div class="empty" style="color:#ff4444">Could not connect to database. Check your internet connection.</div>`;
+    showToast('Connection failed', 'error');
+  }
+})();
 </script>
 </body>
 </html>
