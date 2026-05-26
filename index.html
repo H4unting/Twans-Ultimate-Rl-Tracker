@@ -168,14 +168,14 @@ let logPlayer = 'anthony';
 let charts = {};
 
 // ── Supabase API helpers ────────────────────────────────────────────────────
-async function sbFetch(path, method='GET', body=null) {
+async function sbFetch(path, method='GET', body=null, extra={}) {
   const opts = {
     method,
     headers: {
       'apikey': SUPABASE_KEY,
       'Authorization': 'Bearer ' + SUPABASE_KEY,
       'Content-Type': 'application/json',
-      'Prefer': method === 'POST' ? 'resolution=merge-duplicates,return=minimal' : ''
+      ...extra
     }
   };
   if (body) opts.body = JSON.stringify(body);
@@ -206,10 +206,12 @@ async function loadData() {
 async function saveData(data) {
   setSyncStatus('saving');
   try {
-    await sbFetch('Tracker?on_conflict=Player', 'POST', [
+    // Delete existing rows then insert fresh
+    await sbFetch('Tracker?Player=in.(anthony,trystan)', 'DELETE');
+    await sbFetch('Tracker', 'POST', [
       {Player: 'anthony', games: data.anthony},
       {Player: 'trystan', games: data.trystan}
-    ]);
+    ], {'Prefer': 'return=minimal'});
     setSyncStatus('live');
   } catch(e) {
     setSyncStatus('error');
