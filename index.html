@@ -189,7 +189,7 @@ async function sbFetch(path, method='GET', body=null) {
 }
 
 async function loadData() {
-  const rows = await sbFetch('tracker?select=Player,games');
+  const rows = await sbFetch('Tracker?select=Player,games');
   if (!rows || rows.length === 0) {
     // First time — seed Anthony's data
     await saveData({anthony: SEED_ANTHONY, trystan: []});
@@ -206,7 +206,7 @@ async function loadData() {
 async function saveData(data) {
   setSyncStatus('saving');
   try {
-    await sbFetch('tracker?on_conflict=Player', 'POST', [
+    await sbFetch('Tracker?on_conflict=Player', 'POST', [
       {Player: 'anthony', games: data.anthony},
       {Player: 'trystan', games: data.trystan}
     ]);
