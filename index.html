@@ -206,12 +206,21 @@ async function loadData() {
 async function saveData(data) {
   setSyncStatus('saving');
   try {
-    // Delete existing rows then insert fresh
-    await sbFetch('Tracker?Player=in.(anthony,trystan)', 'DELETE');
-    await sbFetch('Tracker', 'POST', [
-      {Player: 'anthony', games: data.anthony},
-      {Player: 'trystan', games: data.trystan}
-    ], {'Prefer': 'return=minimal'});
+    // Check if rows exist
+    const rows = await sbFetch('Tracker?select=id,Player');
+    const aRow = rows && rows.find(r=>r.Player==='anthony');
+    const tRow = rows && rows.find(r=>r.Player==='trystan');
+
+    if (aRow) {
+      await sbFetch('Tracker?id=eq.'+aRow.id, 'PATCH', {games: data.anthony});
+    } else {
+      await sbFetch('Tracker', 'POST', [{Player:'anthony', games:data.anthony}], {'Prefer':'return=minimal'});
+    }
+    if (tRow) {
+      await sbFetch('Tracker?id=eq.'+tRow.id, 'PATCH', {games: data.trystan});
+    } else {
+      await sbFetch('Tracker', 'POST', [{Player:'trystan', games:data.trystan}], {'Prefer':'return=minimal'});
+    }
     setSyncStatus('live');
   } catch(e) {
     setSyncStatus('error');
