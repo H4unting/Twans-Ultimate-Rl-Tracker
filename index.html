@@ -358,34 +358,102 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#0a0a14;color:#e0e0f0;mi
 
 <script>
 // ── RANKS ────────────────────────────────────────────────────────────────────
-const RANKS=[
-  {name:'Bronze I',   mmr:0,   color:'#cd7f32',tier:'bronze'},
-  {name:'Bronze II',  mmr:55,  color:'#cd7f32',tier:'bronze'},
-  {name:'Bronze III', mmr:110, color:'#cd7f32',tier:'bronze'},
-  {name:'Silver I',   mmr:165, color:'#c0c0c0',tier:'silver'},
-  {name:'Silver II',  mmr:220, color:'#c0c0c0',tier:'silver'},
-  {name:'Silver III', mmr:275, color:'#c0c0c0',tier:'silver'},
-  {name:'Gold I',     mmr:330, color:'#ffd700',tier:'gold'},
-  {name:'Gold II',    mmr:385, color:'#ffd700',tier:'gold'},
-  {name:'Gold III',   mmr:440, color:'#ffd700',tier:'gold'},
-  {name:'Platinum I', mmr:495, color:'#5dade2',tier:'plat'},
-  {name:'Platinum II',mmr:550, color:'#5dade2',tier:'plat'},
-  {name:'Platinum III',mmr:610,color:'#5dade2',tier:'plat'},
-  {name:'Diamond I',  mmr:670, color:'#76d7ea',tier:'diamond'},
-  {name:'Diamond II', mmr:730, color:'#76d7ea',tier:'diamond'},
-  {name:'Diamond III',mmr:790, color:'#76d7ea',tier:'diamond'},
-  {name:'Champion I', mmr:855, color:'#9b59b6',tier:'champ'},
-  {name:'Champion II',mmr:920, color:'#9b59b6',tier:'champ'},
-  {name:'Champion III',mmr:990,color:'#9b59b6',tier:'champ'},
-  {name:'Grand Champion I',  mmr:1075,color:'#e74c3c',tier:'gc'},
-  {name:'Grand Champion II', mmr:1160,color:'#e74c3c',tier:'gc'},
-  {name:'Grand Champion III',mmr:1250,color:'#e74c3c',tier:'gc'},
-  {name:'Supersonic Legend', mmr:1350,color:'#f39c12',tier:'ssl'},
-];
-function getRank(mmr){
-  if(!mmr) return RANKS[0];
-  for(let i=RANKS.length-1;i>=0;i--){if(mmr>=RANKS[i].mmr)return RANKS[i];}
-  return RANKS[0];
+// Per-playlist MMR thresholds (community-verified 2025/26)
+// 1v1 runs ~75 MMR lower per rank than 2v2/3v3 baseline
+// 3v3 runs ~25 MMR higher per rank than 2v2 baseline
+// Source: theglobalgaming.com + electronmagazine.com research
+const RANK_DATA = {
+  // 2v2 Doubles — baseline values from theglobalgaming.com table
+  '2s': [
+    {name:'Bronze I',          mmr:0,    color:'#cd7f32',tier:'bronze'},
+    {name:'Bronze II',         mmr:172,  color:'#cd7f32',tier:'bronze'},
+    {name:'Bronze III',        mmr:233,  color:'#cd7f32',tier:'bronze'},
+    {name:'Silver I',          mmr:295,  color:'#c0c0c0',tier:'silver'},
+    {name:'Silver II',         mmr:355,  color:'#c0c0c0',tier:'silver'},
+    {name:'Silver III',        mmr:415,  color:'#c0c0c0',tier:'silver'},
+    {name:'Gold I',            mmr:475,  color:'#ffd700',tier:'gold'},
+    {name:'Gold II',           mmr:535,  color:'#ffd700',tier:'gold'},
+    {name:'Gold III',          mmr:595,  color:'#ffd700',tier:'gold'},
+    {name:'Platinum I',        mmr:655,  color:'#5dade2',tier:'plat'},
+    {name:'Platinum II',       mmr:714,  color:'#5dade2',tier:'plat'},
+    {name:'Platinum III',      mmr:772,  color:'#5dade2',tier:'plat'},
+    {name:'Diamond I',         mmr:835,  color:'#76d7ea',tier:'diamond'},
+    {name:'Diamond II',        mmr:915,  color:'#76d7ea',tier:'diamond'},
+    {name:'Diamond III',       mmr:995,  color:'#76d7ea',tier:'diamond'},
+    {name:'Champion I',        mmr:1075, color:'#9b59b6',tier:'champ'},
+    {name:'Champion II',       mmr:1195, color:'#9b59b6',tier:'champ'},
+    {name:'Champion III',      mmr:1315, color:'#9b59b6',tier:'champ'},
+    {name:'Grand Champion I',  mmr:1435, color:'#e74c3c',tier:'gc'},
+    {name:'Grand Champion II', mmr:1575, color:'#e74c3c',tier:'gc'},
+    {name:'Grand Champion III',mmr:1709, color:'#e74c3c',tier:'gc'},
+    {name:'Supersonic Legend', mmr:1861, color:'#f39c12',tier:'ssl'},
+  ],
+  // 3v3 Standard — ~25 MMR higher per rank than 2v2
+  '3s': [
+    {name:'Bronze I',          mmr:0,    color:'#cd7f32',tier:'bronze'},
+    {name:'Bronze II',         mmr:196,  color:'#cd7f32',tier:'bronze'},
+    {name:'Bronze III',        mmr:258,  color:'#cd7f32',tier:'bronze'},
+    {name:'Silver I',          mmr:320,  color:'#c0c0c0',tier:'silver'},
+    {name:'Silver II',         mmr:380,  color:'#c0c0c0',tier:'silver'},
+    {name:'Silver III',        mmr:440,  color:'#c0c0c0',tier:'silver'},
+    {name:'Gold I',            mmr:500,  color:'#ffd700',tier:'gold'},
+    {name:'Gold II',           mmr:560,  color:'#ffd700',tier:'gold'},
+    {name:'Gold III',          mmr:620,  color:'#ffd700',tier:'gold'},
+    {name:'Platinum I',        mmr:680,  color:'#5dade2',tier:'plat'},
+    {name:'Platinum II',       mmr:740,  color:'#5dade2',tier:'plat'},
+    {name:'Platinum III',      mmr:800,  color:'#5dade2',tier:'plat'},
+    {name:'Diamond I',         mmr:860,  color:'#76d7ea',tier:'diamond'},
+    {name:'Diamond II',        mmr:940,  color:'#76d7ea',tier:'diamond'},
+    {name:'Diamond III',       mmr:1020, color:'#76d7ea',tier:'diamond'},
+    {name:'Champion I',        mmr:1100, color:'#9b59b6',tier:'champ'},
+    {name:'Champion II',       mmr:1220, color:'#9b59b6',tier:'champ'},
+    {name:'Champion III',      mmr:1340, color:'#9b59b6',tier:'champ'},
+    {name:'Grand Champion I',  mmr:1460, color:'#e74c3c',tier:'gc'},
+    {name:'Grand Champion II', mmr:1600, color:'#e74c3c',tier:'gc'},
+    {name:'Grand Champion III',mmr:1735, color:'#e74c3c',tier:'gc'},
+    {name:'Supersonic Legend', mmr:1886, color:'#f39c12',tier:'ssl'},
+  ],
+  // 1v1 Duel — ~75 MMR lower per rank than 2v2
+  '1s': [
+    {name:'Bronze I',          mmr:0,    color:'#cd7f32',tier:'bronze'},
+    {name:'Bronze II',         mmr:116,  color:'#cd7f32',tier:'bronze'},
+    {name:'Bronze III',        mmr:168,  color:'#cd7f32',tier:'bronze'},
+    {name:'Silver I',          mmr:220,  color:'#c0c0c0',tier:'silver'},
+    {name:'Silver II',         mmr:275,  color:'#c0c0c0',tier:'silver'},
+    {name:'Silver III',        mmr:335,  color:'#c0c0c0',tier:'silver'},
+    {name:'Gold I',            mmr:390,  color:'#ffd700',tier:'gold'},
+    {name:'Gold II',           mmr:450,  color:'#ffd700',tier:'gold'},
+    {name:'Gold III',          mmr:510,  color:'#ffd700',tier:'gold'},
+    {name:'Platinum I',        mmr:570,  color:'#5dade2',tier:'plat'},
+    {name:'Platinum II',       mmr:628,  color:'#5dade2',tier:'plat'},
+    {name:'Platinum III',      mmr:686,  color:'#5dade2',tier:'plat'},
+    {name:'Diamond I',         mmr:748,  color:'#76d7ea',tier:'diamond'},
+    {name:'Diamond II',        mmr:828,  color:'#76d7ea',tier:'diamond'},
+    {name:'Diamond III',       mmr:908,  color:'#76d7ea',tier:'diamond'},
+    {name:'Champion I',        mmr:990,  color:'#9b59b6',tier:'champ'},
+    {name:'Champion II',       mmr:1110, color:'#9b59b6',tier:'champ'},
+    {name:'Champion III',      mmr:1230, color:'#9b59b6',tier:'champ'},
+    {name:'Grand Champion I',  mmr:1350, color:'#e74c3c',tier:'gc'},
+    {name:'Grand Champion II', mmr:1490, color:'#e74c3c',tier:'gc'},
+    {name:'Grand Champion III',mmr:1624, color:'#e74c3c',tier:'gc'},
+    {name:'Supersonic Legend', mmr:1776, color:'#f39c12',tier:'ssl'},
+  ],
+};
+// fallback — use 2v2 table for 'all' playlist view
+RANK_DATA['all'] = RANK_DATA['2s'];
+
+function getRank(mmr, mode){
+  const modeKey = mode==="1's"?'1s': mode==="3's"?'3s':'2s';
+  const table = RANK_DATA[modeKey]||RANK_DATA['2s'];
+  if(!mmr) return table[0];
+  for(let i=table.length-1;i>=0;i--){if(mmr>=table[i].mmr)return table[i];}
+  return table[0];
+}
+function getRankForPlaylist(mmr, playlist){
+  const table = RANK_DATA[playlist]||RANK_DATA['2s'];
+  if(!mmr) return table[0];
+  for(let i=table.length-1;i>=0;i--){if(mmr>=table[i].mmr)return table[i];}
+  return table[0];
 }
 function rankSVG(tier,size=20){
   const s={
@@ -400,8 +468,8 @@ function rankSVG(tier,size=20){
   };
   return `<svg width="${size}" height="${size}" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">${s[tier]||s.bronze}</svg>`;
 }
-function rankBadgeHTML(mmr,size=18){
-  const r=getRank(mmr);
+function rankBadgeHTML(mmr,size=18,mode="2's"){
+  const r=getRank(mmr,mode);
   return `<span class="rank-badge" style="border-color:${r.color}44;color:${r.color};background:${r.color}11">${rankSVG(r.tier,size)}&nbsp;${r.name}</span>`;
 }
 
@@ -539,9 +607,10 @@ window.setEditResult=function(r){
 
 // ── RENDER STATS ──────────────────────────────────────────────────────────────
 function renderStats(id,s,playlist='all'){
-  const plLabel=playlist==='all'?'':` <span style="color:#555;font-size:12px;font-weight:400">(${playlist})</span>`;
+  const modeLabel={'1s':"1's",'2s':"2's",'3s':"3's",'all':"2's"}; // use 2s as default for 'all'
+  const rankMode = modeLabel[playlist]||"2's";
   document.getElementById(id).innerHTML=[
-    {label:'Current MMR',val:s.currentMMR,cls:'gold',extra:rankBadgeHTML(s.currentMMR)},
+    {label:'Current MMR',val:s.currentMMR,cls:'gold',extra:s.currentMMR?rankBadgeHTML(s.currentMMR,18,rankMode):''},
     {label:'Total Games',val:s.totalGames,cls:'teal'},
     {label:'Wins',val:s.wins,cls:'green'},
     {label:'Losses',val:s.losses,cls:'red'},
@@ -566,18 +635,24 @@ function renderLog(tableId,games,limit,player){
     <td><span class="badge ${g.result}">${g.result==='W'?'WIN':'LOSS'}</span></td>
     <td>${g.goals}</td><td>${g.saves}</td>
     <td>${g.startMMR}</td>
-    <td><span style="margin-right:4px">${g.endMMR}</span>${rankSVG(getRank(g.endMMR).tier,14)}</td>
+    <td><span style="margin-right:4px">${g.endMMR}</span>${rankSVG(getRank(g.endMMR,g.mode).tier,14)}</td>
     <td class="${(g.mmrDiff||0)>=0?'pos':'neg'}">${(g.mmrDiff||0)>=0?'+':''}${g.mmrDiff||0}</td>
     <td style="max-width:190px">${renderInlineTags(g.tags||[])}${g.notes?`<div class="note-cell" style="margin-top:${(g.tags&&g.tags.length)?'3px':'0'}">${g.notes}</div>`:''}</td>
     <td style="white-space:nowrap">${player?`<button class="action-btn edit" onclick="openEditModal('${player}',${g.match})" title="Edit">✏️</button><button class="action-btn del" onclick="deleteGame('${player}',${g.match})" title="Delete">🗑️</button>`:''}</td>
   </tr>`).join('')}</tbody>`;
 }
 
+function getPrimaryMode(games){
+  if(!games||!games.length) return "2's";
+  const counts={};games.forEach(g=>{counts[g.mode]=(counts[g.mode]||0)+1;});
+  return Object.entries(counts).sort((a,b)=>b[1]-a[1])[0][0];
+}
 function renderTeamGrid(data){
   const a=calcStats(data.anthony),t=calcStats(data.trystan);
-  document.getElementById('team-grid').innerHTML=[['Anthony','ant',a],['Trystan','try',t]].map(([name,cls,s])=>`
+  const aMode=getPrimaryMode(data.anthony), tMode=getPrimaryMode(data.trystan);
+  document.getElementById('team-grid').innerHTML=[['Anthony','ant',a,aMode],['Trystan','try',t,tMode]].map(([name,cls,s,mode])=>`
     <div class="player-card">
-      <div class="player-name ${cls}">${name}${s.currentMMR?'&nbsp;'+rankBadgeHTML(s.currentMMR,15):''}</div>
+      <div class="player-name ${cls}">${name}${s.currentMMR?'&nbsp;'+rankBadgeHTML(s.currentMMR,15,mode):''}</div>
       <div class="mini-stat"><span class="mini-label">Current MMR</span><span class="mini-val" style="color:#ffd700">${s.currentMMR}</span></div>
       <div class="mini-stat"><span class="mini-label">Games</span><span class="mini-val">${s.totalGames}</span></div>
       <div class="mini-stat"><span class="mini-label">W / L</span><span class="mini-val"><span style="color:#00c851">${s.wins}W</span> / <span style="color:#ff4444">${s.losses}L</span></span></div>
@@ -753,7 +828,7 @@ window.endSession=function(){
     <div class="modal-stat"><div class="val" style="color:${wr>=50?'#00c851':'#ff4444'}">${wr}%</div><div class="lbl">Win Rate</div></div>
     <div class="modal-stat"><div class="val" style="color:${mmrGain>=0?'#00c851':'#ff4444'}">${mmrGain>=0?'+':''}${mmrGain}</div><div class="lbl">MMR Change</div></div>
     <div class="modal-stat"><div class="val" style="color:#ffd700">${endMMR}</div><div class="lbl">Ending MMR</div></div>
-    <div class="modal-stat" style="grid-column:1/-1">${rankBadgeHTML(endMMR,22)}</div>`;
+    <div class="modal-stat" style="grid-column:1/-1">${rankBadgeHTML(endMMR,22,sg[0].mode)}</div>`;
   document.getElementById('modal-top-tag').innerHTML=topTag
     ?`Top mistake: <span>${topTag[0]}</span> <span style="color:#555">(${topTag[1]}x)</span>`
     :`<span style="color:#555">No mistakes tagged 🎉</span>`;
