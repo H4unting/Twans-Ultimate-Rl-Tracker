@@ -140,22 +140,18 @@ export function getRankIconKey(rankName) {
   return `${tier.toLowerCase()}-${DIVISION_NUM[div] || 1}`;
 }
 
-/** Local png in assets/ranks/ on GitHub */
-export function getRankIconSrc(rankName) {
-  const key = getRankIconKey(rankName);
-  return `assets/ranks/${key}.png`;
-}
+/** Icons hosted in your GitHub repo — absolute URL so paths always work */
+const RANK_ICON_BASE = 'https://raw.githubusercontent.com/H4unting/Twans-Ultimate-Rl-Tracker/main/assets/ranks/';
 
-function getRankIconCdn(rankName) {
-  const key = getRankIconKey(rankName);
-  return RANK_ICON_CDN[key] ?? RANK_ICON_CDN['bronze-1'];
+export function getRankIconSrc(rankName) {
+  return `${RANK_ICON_BASE}${getRankIconKey(rankName)}.png`;
 }
 
 /** Real RL rank icon — pass rank object { name } or rank name string */
 export function rankIconHTML(rankOrName, size = 20) {
   const name = typeof rankOrName === 'string' ? rankOrName : rankOrName.name;
   const src = getRankIconSrc(name);
-  const fallback = getRankIconCdn(name);
+  const fallback = RANK_ICON_CDN[getRankIconKey(name)] ?? RANK_ICON_CDN['bronze-1'];
   return `<img class="rank-icon" src="${src}" alt="${name}" width="${size}" height="${size}" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${fallback}'">`;
 }
 
