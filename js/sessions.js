@@ -91,8 +91,8 @@ function tickSessionTimer() {
 function getLiveSessionStats() {
   const player = state.session.player || state.logPlayer;
   const sessionNum = state.session.sessionNum || parseInt(document.getElementById('f-session')?.value, 10) || 1;
-  const games = (state.data[player] ?? []).filter(g => g.session === sessionNum);
-  return { ...getSessionStats(games), games, sessionNum, player };
+  const sessionGames = (state.data[player] ?? []).filter(g => g.session === sessionNum);
+  return { ...getSessionStats(sessionGames), sessionNum, player };
 }
 
 export function updateSessionBar() {
