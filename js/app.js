@@ -9,7 +9,7 @@ import { loadData } from './supabase.js';
 import { applyFilters, DEFAULT_FILTERS } from './filters.js';
 import { calcStats } from './utils.js';
 import { addGame, updateGame, deleteGame, getLastMMR } from './matches.js';
-import { startSession, endSession, closeSessionModalAndContinue, initSessionUI, refreshSessionUI } from './sessions.js';
+import { startSession, endSession, closeSessionModal, closeSessionModalAndContinue, initSessionUI, refreshSessionUI } from './sessions.js';
 import { mmrChart, wlChart, sessionChart, teamChart } from './charts.js';
 import { renderAnalytics } from './analytics.js';
 import {
@@ -21,7 +21,11 @@ import {
 // ── Global handlers for inline HTML onclick fallbacks ─────────────────────────
 window.__endSession = () => endSession();
 window.showPage = (id, btn) => navigate(id, btn);
-window.closeSessionModal = () => closeSessionModalAndContinue();
+window.startNextSession = () => closeSessionModalAndContinue();
+window.goToDashboardFromSession = () => {
+  closeSessionModal();
+  navigate('dashboard', document.querySelector('.tab[data-page="dashboard"]'));
+};
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 
@@ -151,7 +155,6 @@ function wireLogForm() {
   document.getElementById('wl-win')?.addEventListener('click', () => setResult('W'));
   document.getElementById('wl-loss')?.addEventListener('click', () => setResult('L'));
   document.getElementById('add-btn')?.addEventListener('click', handleAddGame);
-  document.getElementById('session-start-btn')?.addEventListener('click', startSession);
 }
 
 function setResult(r) {
