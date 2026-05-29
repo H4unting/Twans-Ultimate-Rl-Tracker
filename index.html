@@ -26,6 +26,8 @@
     <button class="tab" data-page="trystan">Trystan</button>
     <button class="tab" data-page="log">+ Log Game</button>
     <button class="tab" data-page="analytics">Analytics</button>
+    <button class="tab" data-page="reports">Reports</button>
+    <button class="tab" data-page="coach">Coach</button>
   </div>
 </div>
 
@@ -121,12 +123,29 @@
   <div id="analytics-filters"></div>
   <p class="section-title">Insights</p>
   <div class="insight-grid" id="insight-cards"></div>
+  <div id="action-items"></div>
   <div id="coach-report"></div>
   <div class="analytics-grid" id="analytics-content"></div>
   <p class="section-title">Rolling Win Rate</p>
   <div class="chart-box"><canvas id="rollingChart"></canvas></div>
   <p class="section-title">Tag Trends (per 5 games)</p>
   <div class="chart-box"><canvas id="trendChart"></canvas></div>
+</div>
+
+<!-- REPORTS -->
+<div id="page-reports" class="page">
+  <p class="section-title">Weekly Reports</p>
+  <div class="reports-week-nav" id="reports-week-nav"></div>
+  <div class="reports-weekly-grid" id="reports-weekly"></div>
+  <p class="section-title">Goals</p>
+  <div class="goals-editor" id="goals-editor"></div>
+</div>
+
+<!-- COACHING MODE -->
+<div id="page-coach" class="page">
+  <p class="section-title">Coaching Dashboard</p>
+  <p class="page-desc">Read-only coach view — priority actions, weekly progress, and goal tracking for both players.</p>
+  <div class="coach-grid" id="coach-content"></div>
 </div>
 
 <!-- LIVE SESSION PANEL (sticky) -->
