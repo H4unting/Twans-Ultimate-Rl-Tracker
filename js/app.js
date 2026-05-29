@@ -4,14 +4,17 @@
  */
 
 import { PLAYERS, getPlayerMeta } from './config.js';
-import { state, subscribe, setData, setSyncStatus } from './state.js';
-import { loadData } from './supabase.js';
+import { state, subscribe, setData, setSyncStatus, setGoals } from './state.js';
+import { loadData, loadSettings, saveSettings } from './supabase.js';
 import { applyFilters, DEFAULT_FILTERS } from './filters.js';
 import { calcStats } from './utils.js';
 import { addGame, updateGame, deleteGame, getLastMMR } from './matches.js';
 import { startSession, endSession, closeSessionModal, closeSessionModalAndContinue, initSessionUI, refreshSessionUI } from './sessions.js';
 import { mmrChart, wlChart, sessionChart, teamChart } from './charts.js';
 import { renderAnalytics } from './analytics.js';
+import { renderReportsPage } from './reports-ui.js';
+import { renderCoachingPage } from './coaching.js';
+import { loadGoalsLocal } from './goals.js';
 import {
   showToast, setSyncUI, renderStats, renderLog, renderTeamGrid,
   renderPlaylistTabs, renderFilterBar, showPage, setPlayerSelector,
@@ -43,8 +46,9 @@ async function init() {
   initSessionUI();
 
   try {
-    const data = await loadData();
+    const [data, settings] = await Promise.all([loadData(), loadSettings()]);
     setData(data);
+    setGoals(settings.goals ?? loadGoalsLocal());
     renderAll();
     showLoading(false);
   } catch (e) {
@@ -66,7 +70,7 @@ function getPlayerGames(playerId) {
 }
 
 function renderAll() {
-  renderTeamGrid(state.data);
+  renderTeamGrid(state.data, state.goals);
   teamChart(state.data.anthony ?? [], state.data.trystan ?? []);
 
   PLAYERS.forEach(p => {
@@ -96,6 +100,27 @@ function renderAll() {
   });
   refreshSessionUI();
   wireLogTableActions();
+  renderReportsPageContent();
+  renderCoachingPage(state.data, state.goals);
+}
+
+function renderReportsPageContent() {
+  renderReportsPage(
+    state.data,
+    state.goals,
+    state.reportsWeekOffset,
+    offset => {
+      state.reportsWeekOffset = offset;
+      renderReportsPageContent();
+    },
+    async nextGoals => {
+      setGoals(nextGoals);
+      await saveSettings({ goals: nextGoals });
+      renderTeamGrid(state.data, state.goals);
+      renderCoachingPage(state.data, state.goals);
+      showToast('Goals saved!');
+    },
+  );
 }
 
 function renderPlayerPage(playerId) {
@@ -129,6 +154,8 @@ function navigate(pageId, btn) {
   showPage(pageId, btn);
   if (pageId === 'dashboard') teamChart(state.data.anthony ?? [], state.data.trystan ?? []);
   if (pageId === 'analytics') renderAnalytics(getAnalyticsGames());
+  if (pageId === 'reports') renderReportsPageContent();
+  if (pageId === 'coach') renderCoachingPage(state.data, state.goals);
   if (pageId === 'log') refreshSessionUI();
   PLAYERS.forEach(p => {
     if (pageId === p.id) renderPlayerPage(p.id);

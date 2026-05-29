@@ -35,6 +35,8 @@ export const state = {
     editingMatch: null,
     currentResult: 'W',
   },
+  goals: {},
+  reportsWeekOffset: 0,
 };
 
 const listeners = new Set();
@@ -57,5 +59,10 @@ export function setSyncStatus(status) {
 export function setData(data) {
   state.data = data;
   state.loading = false;
+  notify();
+}
+
+export function setGoals(goals) {
+  state.goals = goals;
   notify();
 }

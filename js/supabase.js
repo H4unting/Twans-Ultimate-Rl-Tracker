@@ -3,6 +3,9 @@
 import { SUPABASE_URL, SUPABASE_KEY, SEED_ANTHONY, SCHEMA_VERSION, PLAYERS } from './config.js';
 import { normalizePlayerGames } from './utils.js';
 import { setSyncStatus } from './state.js';
+import { loadGoalsLocal, saveGoalsLocal } from './goals.js';
+
+const SETTINGS_KEY = 'app_settings';
 
 async function sbFetch(path, method = 'GET', body = null, extra = {}) {
   const opts = {
@@ -57,6 +60,35 @@ export async function loadData() {
   } catch (e) {
     setSyncStatus('error');
     throw e;
+  }
+}
+
+/** Load goals from Supabase settings table, fallback to localStorage */
+export async function loadSettings() {
+  try {
+    const rows = await sbFetch(`${SETTINGS_KEY}?select=data&limit=1`);
+    if (rows?.[0]?.data?.goals) {
+      saveGoalsLocal(rows[0].data.goals);
+      return rows[0].data;
+    }
+  } catch {
+    /* settings table may not exist yet */
+  }
+  return { goals: loadGoalsLocal() };
+}
+
+export async function saveSettings(settings) {
+  if (settings.goals) saveGoalsLocal(settings.goals);
+  try {
+    const rows = await sbFetch(`${SETTINGS_KEY}?select=id&limit=1`);
+    const payload = { data: settings, updated_at: new Date().toISOString() };
+    if (rows?.[0]?.id) {
+      await sbFetch(`${SETTINGS_KEY}?id=eq.${rows[0].id}`, 'PATCH', payload);
+    } else {
+      await sbFetch(SETTINGS_KEY, 'POST', [payload], { Prefer: 'return=minimal' });
+    }
+  } catch {
+    /* localStorage fallback already saved */
   }
 }
 

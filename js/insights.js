@@ -82,7 +82,7 @@ export function getImprovementTrend(games) {
 
 /** Build full performance insight report for UI */
 export function getPerformanceInsights(games) {
-  if (!games?.length) return { cards: [], report: [] };
+  if (!games?.length) return { cards: [], report: [], actionItems: [] };
 
   const base = calcInsights(games);
   const correlations = getTagLossCorrelations(games);
@@ -92,14 +92,17 @@ export function getPerformanceInsights(games) {
   const rolling5 = getRollingWinrate(games, 5);
   const recentWR = rolling5.length ? rolling5[rolling5.length - 1].winRate : 0;
   const stats = calcStats(games);
+  const tilt = detectTilt(games);
+  const grind = getGrindRecommendation(games, stats, tilt);
 
-  const cards = buildInsightCards(base, improvement, recurring, recentWR);
-  const report = buildCoachReport(base, correlations, recurring, improvement, breakdown, tagTotal, stats);
+  const cards = buildInsightCards(base, improvement, recurring, recentWR, tilt, grind);
+  const report = buildCoachReport(base, correlations, recurring, improvement, breakdown, tagTotal, stats, tilt, grind);
+  const actionItems = buildActionItems(correlations, recurring, improvement, tilt, grind, stats);
 
-  return { cards, report, correlations, recurring, improvement };
+  return { cards, report, actionItems, correlations, recurring, improvement, tilt, grind };
 }
 
-function buildInsightCards(base, improvement, recurring, recentWR) {
+function buildInsightCards(base, improvement, recurring, recentWR, tilt, grind) {
   if (!base) return [];
   const trendIcon = base.trend === 'up' ? '📈' : base.trend === 'down' ? '📉' : '➡️';
   const trendColor = base.trend === 'up' ? 'ic-green' : base.trend === 'down' ? 'ic-red' : 'ic-teal';
@@ -123,10 +126,18 @@ function buildInsightCards(base, improvement, recurring, recentWR) {
       icon: '🔁', label: 'Recurring Issue', val: recurring[0].tag,
       sub: `${recurring[0].count}× in last 5 games`, cls: 'ic-purple',
     },
+    tilt.active && {
+      icon: '😤', label: 'Tilt Detected', val: `${tilt.lossStreak}L streak`,
+      sub: tilt.mentalTags.length ? tilt.mentalTags.join(', ') : 'Take a break', cls: 'ic-red',
+    },
+    grind && {
+      icon: grind.icon, label: 'Grind Status', val: grind.title,
+      sub: grind.sub, cls: grind.cls,
+    },
   ].filter(Boolean);
 }
 
-function buildCoachReport(base, correlations, recurring, improvement, breakdown, tagTotal, stats) {
+function buildCoachReport(base, correlations, recurring, improvement, breakdown, tagTotal, stats, tilt, grind) {
   const lines = [];
   if (base.topLossTag) {
     lines.push({ type: 'warning', text: `"${base.topLossTag[0]}" appears in ${base.topLossTag[1]} losses — prioritize fixing this.` });
@@ -153,5 +164,75 @@ function buildCoachReport(base, correlations, recurring, improvement, breakdown,
   if (stats.streak.type === 'L' && stats.streak.count >= 3) {
     lines.push({ type: 'warning', text: `${stats.streak.count}-game loss streak — consider ending session.` });
   }
+  if (tilt.active) {
+    lines.push({ type: 'warning', text: `Tilt signals detected: ${tilt.lossStreak}-loss streak${tilt.mentalTags.length ? ` with ${tilt.mentalTags.join(', ')}` : ''}. Stop and reset.` });
+  }
+  if (grind?.severity === 'stop') {
+    lines.push({ type: 'warning', text: grind.sub });
+  } else if (grind?.severity === 'good') {
+    lines.push({ type: 'positive', text: grind.sub });
+  }
   return lines;
+}
+
+/** Detect tilt: loss streak + mental tags in recent games */
+export function detectTilt(games, windowSize = 4) {
+  const recent = games.slice(-windowSize);
+  let lossStreak = 0;
+  for (let i = games.length - 1; i >= 0; i--) {
+    if (games[i].result === 'L') lossStreak++;
+    else break;
+  }
+  const mentalTags = [];
+  recent.forEach(g => {
+    (g.tags || []).forEach(t => {
+      if (TAG_DEFINITIONS[t]?.cat === 'men' && !mentalTags.includes(t)) mentalTags.push(t);
+    });
+  });
+  const active = lossStreak >= 3 || (lossStreak >= 2 && mentalTags.length >= 1);
+  return { active, lossStreak, mentalTags };
+}
+
+/** Should the player keep grinding or stop? */
+export function getGrindRecommendation(games, stats, tilt) {
+  const last5 = games.slice(-5);
+  const last5mmr = last5.reduce((s, g) => s + (g.mmrDiff || 0), 0);
+  const last5wr = last5.length ? last5.filter(g => g.result === 'W').length / last5.length : 0;
+
+  if (tilt?.active) {
+    return { severity: 'stop', icon: '🛑', title: 'Stop Grinding', sub: 'Tilt detected — take 15 min off before queueing again.', cls: 'ic-red' };
+  }
+  if (stats.streak.type === 'L' && stats.streak.count >= 4) {
+    return { severity: 'stop', icon: '🛑', title: 'Stop Grinding', sub: `${stats.streak.count} losses in a row — session quality is dropping.`, cls: 'ic-red' };
+  }
+  if (last5.length >= 4 && last5mmr <= -20) {
+    return { severity: 'stop', icon: '⚠️', title: 'Slow Down', sub: `Last 5 games: ${last5mmr} MMR. Review tags before continuing.`, cls: 'ic-red' };
+  }
+  if (last5.length >= 3 && last5wr >= 0.6 && last5mmr > 0) {
+    return { severity: 'good', icon: '🔥', title: 'Keep Going', sub: `Hot streak — ${Math.round(last5wr * 100)}% WR and +${last5mmr} MMR in last ${last5.length}.`, cls: 'ic-green' };
+  }
+  return { severity: 'neutral', icon: '➡️', title: 'Steady', sub: 'Performance is normal — stay focused on your goal tag.', cls: 'ic-teal' };
+}
+
+function buildActionItems(correlations, recurring, improvement, tilt, grind, stats) {
+  const items = [];
+  if (grind?.severity === 'stop') {
+    items.push({ priority: 1, type: 'stop', text: grind.sub });
+  }
+  if (recurring.length) {
+    items.push({ priority: 2, type: 'focus', text: `Drill: ${recurring[0].tag} — appeared ${recurring[0].count}× in last 5 games.` });
+  }
+  if (correlations[0]?.correlation >= 60) {
+    items.push({ priority: 3, type: 'fix', text: `Fix ${correlations[0].tag} — linked to ${correlations[0].correlation}% of tagged losses.` });
+  }
+  if (improvement.direction === 'declining') {
+    items.push({ priority: 4, type: 'review', text: `Win rate down ${Math.abs(improvement.delta)}% overall — review recent VODs or training pack.` });
+  }
+  if (stats.streak.type === 'W' && stats.streak.count >= 3) {
+    items.push({ priority: 5, type: 'positive', text: `${stats.streak.count}-game win streak — maintain discipline, don't overcommit.` });
+  }
+  if (!items.length) {
+    items.push({ priority: 99, type: 'info', text: 'Keep logging games and tagging mistakes for sharper coaching insights.' });
+  }
+  return items.sort((a, b) => a.priority - b.priority);
 }

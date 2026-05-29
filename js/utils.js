@@ -242,3 +242,59 @@ export function getTagTrendBuckets(games, bucketSize = 5) {
   }
   return buckets;
 }
+
+// ── Weekly grouping ───────────────────────────────────────────────────────────
+
+/** Monday-start week containing the given date */
+export function getWeekStart(date) {
+  const d = new Date(date);
+  d.setHours(12, 0, 0, 0);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return d;
+}
+
+export function getWeekEnd(weekStart) {
+  const d = new Date(weekStart);
+  d.setDate(d.getDate() + 6);
+  return d;
+}
+
+export function formatWeekLabel(weekStart, weekEnd) {
+  const opts = { month: 'short', day: 'numeric' };
+  const a = weekStart.toLocaleDateString('en-US', opts);
+  const b = weekEnd.toLocaleDateString('en-US', { ...opts, year: weekStart.getFullYear() !== weekEnd.getFullYear() ? 'numeric' : undefined });
+  return `${a} – ${b}`;
+}
+
+export function getWeekKey(date) {
+  const ws = getWeekStart(date);
+  return `${ws.getFullYear()}-${String(ws.getMonth() + 1).padStart(2, '0')}-${String(ws.getDate()).padStart(2, '0')}`;
+}
+
+export function groupGamesByWeek(games) {
+  const map = {};
+  games.forEach(g => {
+    const d = parseDisplayDate(g.date);
+    if (!d) return;
+    const key = getWeekKey(d);
+    if (!map[key]) {
+      const ws = getWeekStart(d);
+      map[key] = { key, weekStart: ws, weekEnd: getWeekEnd(ws), games: [] };
+    }
+    map[key].games.push(g);
+  });
+  return Object.values(map).sort((a, b) => b.weekStart - a.weekStart);
+}
+
+export function getGamesInWeek(games, weekOffset = 0) {
+  const now = new Date();
+  const targetStart = getWeekStart(now);
+  targetStart.setDate(targetStart.getDate() - weekOffset * 7);
+  const targetEnd = getWeekEnd(targetStart);
+  return games.filter(g => {
+    const d = parseDisplayDate(g.date);
+    return d && d >= targetStart && d <= targetEnd;
+  });
+}

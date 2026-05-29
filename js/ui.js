@@ -3,6 +3,7 @@
 import { TAG_CATS, TAG_COLORS, TAG_GROUPS, PLAYERS, PLAYLISTS } from './config.js';
 import { getRank, rankIconHTML, rankBadgeHTML } from './ranks.js';
 import { calcStats, getPrimaryMode } from './utils.js';
+import { getGoalProgress } from './goals.js';
 import { getUniqueSessions } from './filters.js';
 
 export function showToast(msg, type = 'success') {
@@ -110,12 +111,20 @@ export function renderLog(tableId, games, limit, player) {
       </tr>`).join('')}</tbody>`;
 }
 
-export function renderTeamGrid(data) {
+export function renderTeamGrid(data, goals = {}) {
   const grid = document.getElementById('team-grid');
   if (!grid) return;
   grid.innerHTML = PLAYERS.map(p => {
     const s = calcStats(data[p.id] ?? []);
     const mode = getPrimaryMode(data[p.id] ?? []);
+    const goalItems = goals[p.id] ? getGoalProgress(data[p.id] ?? [], goals[p.id]) : [];
+    const goalsHTML = goalItems.length ? `
+      <div class="dashboard-goals">
+        ${goalItems.slice(0, 2).map(g => `
+          <div class="goal-mini"><span>${g.label}: ${g.display}</span>
+            <div class="goal-progress-track"><div class="goal-progress-fill${g.met ? ' met' : ''}" style="width:${g.pct}%"></div></div>
+          </div>`).join('')}
+      </div>` : '';
     return `
       <div class="player-card">
         <div class="player-name ${p.cls}">${p.name}${s.currentMMR ? '&nbsp;' + rankBadgeHTML(s.currentMMR, 15, mode) : ''}</div>
@@ -125,6 +134,7 @@ export function renderTeamGrid(data) {
         <div class="mini-stat"><span class="mini-label">Win Rate</span><span class="mini-val" style="color:#e65c00">${s.winRate}%</span></div>
         <div class="mini-stat"><span class="mini-label">MMR Gain</span><span class="mini-val ${s.totalMMRGain >= 0 ? 'pos' : 'neg'}">${s.totalMMRGain >= 0 ? '+' : ''}${s.totalMMRGain}</span></div>
         <div class="mini-stat"><span class="mini-label">Streak</span><span class="mini-val">${s.streak.count > 1 ? `<span class="streak-badge ${s.streak.type === 'W' ? 'win' : 'loss'}">${s.streak.type === 'W' ? '🔥' : '💀'} ${s.streak.count}</span>` : '—'}</span></div>
+        ${goalsHTML}
       </div>`;
   }).join('');
 }
@@ -224,6 +234,21 @@ export function renderCoachReport(lines) {
     <div class="coach-report">
       <h3>Coach Notes</h3>
       ${lines.map(l => `<div class="coach-line coach-${l.type}">${l.text}</div>`).join('')}
+    </div>`;
+}
+
+export function renderActionItems(items) {
+  const el = document.getElementById('action-items');
+  if (!el) return;
+  if (!items?.length) { el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <div class="coach-report action-items-block">
+      <h3>Priority Actions</h3>
+      ${items.slice(0, 5).map(item => `
+        <div class="coach-action coach-action-${item.type}">
+          <span class="coach-action-priority">${item.priority <= 2 ? '!' : '·'}</span>
+          ${item.text}
+        </div>`).join('')}
     </div>`;
 }
 

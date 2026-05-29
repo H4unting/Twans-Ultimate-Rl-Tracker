@@ -4,12 +4,13 @@ import { TAG_CATS, TAG_COLORS } from './config.js';
 import { countTags, getTagCategoryBreakdown, getTagTrendBuckets } from './utils.js';
 import { getPerformanceInsights } from './insights.js';
 import { rollingChart, trendChart } from './charts.js';
-import { renderInsightCards, renderCoachReport, barRows } from './ui.js';
+import { renderInsightCards, renderCoachReport, renderActionItems, barRows } from './ui.js';
 
 export function renderAnalytics(games) {
-  const { cards, report, correlations } = getPerformanceInsights(games);
+  const { cards, report, correlations, actionItems } = getPerformanceInsights(games);
   renderInsightCards(cards);
   renderCoachReport(report);
+  renderActionItems(actionItems);
 
   const tagCount = countTags(games);
   const lossTagCount = countTags(games, { lossesOnly: true });
