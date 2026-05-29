@@ -21,14 +21,54 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#0a0a14;color:#e0e0f0;mi
 .page.active{display:block}
 /* STATS */
 .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:20px}
-.stat-card{background:#111128;border:1px solid #1e1e3a;border-radius:10px;padding:14px 16px;border-left:3px solid}
+.stat-card{background:#111128;border:1px solid #1e1e3a;border-radius:10px;padding:14px 16px;border-left:3px solid;transition:transform .15s,box-shadow .15s}
+.stat-card:hover{transform:translateY(-2px);box-shadow:0 4px 20px #00000066}
 .stat-card.gold{border-left-color:#ffd700}.stat-card.teal{border-left-color:#00e5ff}
 .stat-card.green{border-left-color:#00c851}.stat-card.red{border-left-color:#ff4444}
 .stat-card.orange{border-left-color:#e65c00}.stat-card.purple{border-left-color:#a855f7}
+.stat-card.gold:hover{box-shadow:0 4px 20px #ffd70022}
+.stat-card.green:hover{box-shadow:0 4px 20px #00c85122}
+.stat-card.orange:hover{box-shadow:0 4px 20px #e65c0022}
+.stat-card.teal:hover{box-shadow:0 4px 20px #00e5ff22}
 .stat-label{font-size:11px;color:#666;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
-.stat-val{font-size:22px;font-weight:700}
+.stat-val{font-size:22px;font-weight:700;transition:color .3s}
 .stat-val.gold{color:#ffd700}.stat-val.teal{color:#00e5ff}.stat-val.green{color:#00c851}
 .stat-val.red{color:#ff4444}.stat-val.orange{color:#e65c00}.stat-val.purple{color:#a855f7}
+/* SESSION BANNER */
+.session-banner{background:linear-gradient(135deg,#0d1a0d,#111128);border:1px solid #00c85144;border-radius:10px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.session-banner.inactive{border-color:#2a2a4a;background:#111128}
+.session-live-dot{width:10px;height:10px;border-radius:50%;background:#00c851;box-shadow:0 0 8px #00c851;animation:pulse 1.5s infinite;flex-shrink:0}
+.session-live-dot.inactive{background:#555;box-shadow:none;animation:none}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(1.2)}}
+.session-info{flex:1;min-width:0}
+.session-title{font-size:13px;font-weight:700;color:#e0e0f0;margin-bottom:2px}
+.session-sub{font-size:11px;color:#555}
+.session-stats{display:flex;gap:16px;flex-wrap:wrap}
+.session-stat .sv{font-size:18px;font-weight:700}
+.session-stat .sl{font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.5px}
+.btn-start{background:#00c85122;color:#00c851;border:1px solid #00c85155;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;transition:all .2s}
+.btn-start:hover{background:#00c85133;box-shadow:0 0 12px #00c85133}
+.btn-stop{background:#ff444422;color:#ff4444;border:1px solid #ff444455;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;transition:all .2s}
+.btn-stop:hover{background:#ff444433;box-shadow:0 0 12px #ff444433}
+/* INSIGHT CARDS */
+.insight-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px}
+.insight-card{background:#111128;border:1px solid #1e1e3a;border-radius:10px;padding:16px;transition:transform .15s,box-shadow .15s;position:relative;overflow:hidden}
+.insight-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:2px 2px 0 0}
+.insight-card.ic-orange::before{background:#e65c00}
+.insight-card.ic-teal::before{background:#00e5ff}
+.insight-card.ic-green::before{background:#00c851}
+.insight-card.ic-red::before{background:#ff4444}
+.insight-card.ic-purple::before{background:#a855f7}
+.insight-card.ic-gold::before{background:#ffd700}
+.insight-card:hover{transform:translateY(-2px);box-shadow:0 6px 24px #00000055}
+.insight-icon{font-size:20px;margin-bottom:8px}
+.insight-label{font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.insight-val{font-size:15px;font-weight:700;color:#e0e0f0;margin-bottom:2px;line-height:1.3}
+.insight-sub{font-size:11px;color:#555}
+/* ROLLING CHART TOGGLE */
+.rolling-toggle{display:flex;gap:6px;margin-bottom:10px}
+.rtog{padding:4px 12px;border-radius:5px;border:1px solid #2a2a4a;background:transparent;color:#666;cursor:pointer;font-size:11px;font-weight:600;transition:all .15s}
+.rtog.active{background:#e65c0022;color:#e65c00;border-color:#e65c00}
 .section-title{font-size:13px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:1px;margin:20px 0 10px}
 .chart-box{background:#111128;border:1px solid #1e1e3a;border-radius:10px;padding:16px;margin-bottom:16px}
 .chart-row{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px}
@@ -142,6 +182,43 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#0a0a14;color:#e0e0f0;mi
 .streak-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700}
 .streak-badge.win{background:#00c85120;color:#00c851;border:1px solid #00c85140}
 .streak-badge.loss{background:#ff444420;color:#ff4444;border:1px solid #ff444440}
+/* SESSION TIMER BAR */
+.session-bar{background:#111128;border:1px solid #1e1e3a;border-radius:10px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;transition:border-color .3s,box-shadow .3s}
+.session-bar.active{border-color:#e65c00;box-shadow:0 0 18px #e65c0018}
+.session-live-dot{width:9px;height:9px;border-radius:50%;background:#333;flex-shrink:0;transition:all .3s}
+.session-live-dot.active{background:#00c851;box-shadow:0 0 8px #00c85188;animation:pulse-dot 1.5s infinite}
+@keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+.session-bar-info{flex:1;min-width:0}
+.session-bar-title{font-size:13px;font-weight:600;color:#555;transition:color .3s}
+.session-bar-title.active{color:#e0e0f0}
+.session-live-stats{display:flex;gap:14px;flex-wrap:wrap;margin-top:4px;font-size:12px}
+.slive-item{color:#555}.slive-item .slv{font-weight:700}
+.slive-item.pos .slv{color:#00c851}.slive-item.neg .slv{color:#ff4444}
+.slive-item.neutral .slv{color:#00e5ff}.slive-item.time .slv{color:#ffd700}
+.session-btn{padding:7px 16px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;border:none;transition:all .2s;white-space:nowrap}
+.session-btn.start{background:#e65c00;color:#fff}.session-btn.start:hover{background:#ff6d1a}
+.session-btn.end{background:#ff444418;color:#ff4444;border:1px solid #ff444440}.session-btn.end:hover{background:#ff444430}
+/* INSIGHT CARDS */
+.insight-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:20px}
+.insight-card{background:#111128;border:1px solid #1e1e3a;border-radius:10px;padding:15px 16px;position:relative;overflow:hidden;transition:transform .15s,box-shadow .15s;cursor:default}
+.insight-card:hover{transform:translateY(-2px);box-shadow:0 6px 24px #00000055}
+.insight-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:2px 2px 0 0}
+.insight-card.ic-orange::before{background:linear-gradient(90deg,#e65c00,#ff9500)}
+.insight-card.ic-orange:hover{box-shadow:0 6px 24px #e65c0022}
+.insight-card.ic-green::before{background:linear-gradient(90deg,#00c851,#00e5a0)}
+.insight-card.ic-green:hover{box-shadow:0 6px 24px #00c85122}
+.insight-card.ic-teal::before{background:linear-gradient(90deg,#00e5ff,#0099ff)}
+.insight-card.ic-teal:hover{box-shadow:0 6px 24px #00e5ff22}
+.insight-card.ic-purple::before{background:linear-gradient(90deg,#a855f7,#e855f7)}
+.insight-card.ic-purple:hover{box-shadow:0 6px 24px #a855f722}
+.insight-card.ic-red::before{background:linear-gradient(90deg,#ff4444,#ff8844)}
+.insight-card.ic-red:hover{box-shadow:0 6px 24px #ff444422}
+.insight-card.ic-gold::before{background:linear-gradient(90deg,#ffd700,#ff9900)}
+.insight-card.ic-gold:hover{box-shadow:0 6px 24px #ffd70022}
+.insight-icon{font-size:22px;margin-bottom:6px}
+.insight-label{font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px}
+.insight-val{font-size:17px;font-weight:700;color:#e0e0f0;line-height:1.2}
+.insight-sub{font-size:11px;color:#444;margin-top:4px}
 .toast{position:fixed;bottom:24px;right:24px;background:#1e1e3a;border:1px solid #2a2a4a;border-radius:8px;padding:12px 18px;font-size:13px;color:#e0e0f0;opacity:0;transition:opacity .3s;pointer-events:none;z-index:200}
 .toast.show{opacity:1}.toast.success{border-color:#00c851;color:#00c851}.toast.error{border-color:#ff4444;color:#ff4444}
 </style>
@@ -214,14 +291,20 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#0a0a14;color:#e0e0f0;mi
     <button class="pselector active ant" id="ps-anthony" onclick="selectLogPlayer('anthony')">Anthony</button>
     <button class="pselector try" id="ps-trystan" onclick="selectLogPlayer('trystan')">Trystan</button>
   </div>
+  <!-- SESSION TIMER BAR -->
+  <div class="session-bar" id="session-bar">
+    <div class="session-live-dot" id="session-live-dot"></div>
+    <div class="session-bar-info">
+      <div class="session-bar-title" id="session-bar-title">No active session</div>
+      <div class="session-live-stats" id="session-live-stats"></div>
+    </div>
+    <button class="session-btn start" id="session-start-btn" onclick="startSession()">▶ Start Session</button>
+  </div>
   <div class="add-form">
     <div class="form-grid">
       <div class="form-group"><label>Date</label><input type="date" id="f-date"></div>
       <div class="form-group"><label>Session #</label>
-        <div style="display:flex;gap:6px;align-items:center">
-          <input type="number" id="f-session" min="1" value="1" style="flex:1">
-          <button class="btn-end-session" onclick="endSession()">End Session</button>
-        </div>
+          <input type="number" id="f-session" min="1" value="1">
       </div>
       <div class="form-group"><label>Mode</label>
         <select id="f-mode"><option>1's</option><option>2's</option><option>3's</option></select>
@@ -281,7 +364,11 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#0a0a14;color:#e0e0f0;mi
     <button class="pselector active ant" id="ap-anthony" onclick="selectAnalyticsPlayer('anthony')">Anthony</button>
     <button class="pselector try" id="ap-trystan" onclick="selectAnalyticsPlayer('trystan')">Trystan</button>
   </div>
+  <p class="section-title">Insights</p>
+  <div class="insight-grid" id="insight-cards"></div>
   <div class="analytics-grid" id="analytics-content"></div>
+  <p class="section-title">Rolling Win Rate</p>
+  <div class="chart-box" style="height:220px"><canvas id="rollingChart"></canvas></div>
   <p class="section-title">Tag Trends (per 5 games)</p>
   <div class="chart-box" style="height:240px"><canvas id="trendChart"></canvas></div>
 </div>
@@ -499,6 +586,8 @@ let logPlayer='anthony',analyticsPlayer='anthony';
 let charts={},selectedTags=[],currentResult='W';
 let editingPlayer=null,editingMatch=null,editSelectedTags=[];
 let playerPlaylist={anthony:'all',trystan:'all'};
+// Session timer state
+let sessionActive=false,sessionStartTime=null,sessionTimerInterval=null,sessionStartMMR=null;
 
 // ── SUPABASE ──────────────────────────────────────────────────────────────────
 async function sbFetch(path,method='GET',body=null,extra={}){
@@ -701,7 +790,96 @@ function teamChart(aGames,tGames){
 }
 
 // ── ANALYTICS ─────────────────────────────────────────────────────────────────
+function calcInsights(games){
+  if(!games||!games.length) return null;
+  // Session map
+  const sessionMap={};
+  games.forEach(g=>{
+    const k=g.session+'|'+g.date;
+    if(!sessionMap[k])sessionMap[k]={gain:0,wins:0,losses:0,games:[]};
+    sessionMap[k].gain+=(g.mmrDiff||0);
+    if(g.result==='W')sessionMap[k].wins++;else sessionMap[k].losses++;
+    sessionMap[k].games.push(g);
+  });
+  const sessions=Object.values(sessionMap);
+  const bestSession=sessions.length?sessions.reduce((b,s)=>s.gain>b.gain?s:b,sessions[0]):null;
+  const worstSession=sessions.length?sessions.reduce((b,s)=>s.gain<b.gain?s:b,sessions[0]):null;
+  // Mode stats
+  const modeMap={};
+  games.forEach(g=>{if(!modeMap[g.mode])modeMap[g.mode]={wins:0,losses:0};if(g.result==='W')modeMap[g.mode].wins++;else modeMap[g.mode].losses++;});
+  const bestMode=Object.entries(modeMap).map(([m,s])=>({mode:m,wr:s.wins+s.losses?s.wins/(s.wins+s.losses):0,games:s.wins+s.losses})).sort((a,b)=>b.wr-a.wr)[0];
+  // Tag
+  const tagCount={},lossTagCount={};
+  games.forEach(g=>{(g.tags||[]).forEach(t=>{tagCount[t]=(tagCount[t]||0)+1;if(g.result==='L')lossTagCount[t]=(lossTagCount[t]||0)+1;});});
+  const topTag=Object.entries(tagCount).sort((a,b)=>b[1]-a[1])[0];
+  const topLossTag=Object.entries(lossTagCount).sort((a,b)=>b[1]-a[1])[0];
+  // Trend: compare last 5 vs previous 5
+  const last5=games.slice(-5),prev5=games.slice(-10,-5);
+  const last5wr=last5.filter(g=>g.result==='W').length/Math.max(last5.length,1);
+  const prev5wr=prev5.length?prev5.filter(g=>g.result==='W').length/prev5.length:null;
+  const trend=prev5wr===null?'neutral':last5wr>prev5wr+0.1?'up':last5wr<prev5wr-0.1?'down':'stable';
+  const avgMMRSess=sessions.length?Math.round(sessions.reduce((s,x)=>s+x.gain,0)/sessions.length):0;
+  return{bestSession,worstSession,bestMode,topTag,topLossTag,trend,last5wr,prev5wr,avgMMRSess};
+}
+
+function renderInsightCards(games){
+  const el=document.getElementById('insight-cards');
+  if(!el)return;
+  const ins=calcInsights(games);
+  if(!ins||!games.length){el.innerHTML=`<div style="color:#555;font-size:13px;font-style:italic;padding:12px">Log more games to see insights.</div>`;return;}
+  const trendIcon=ins.trend==='up'?'📈':ins.trend==='down'?'📉':'➡️';
+  const trendColor=ins.trend==='up'?'ic-green':ins.trend==='down'?'ic-red':'ic-teal';
+  const trendText=ins.trend==='up'?'Improving':'Declining';
+  const cards=[
+    ins.topTag?{icon:'🏷️',label:'Top Mistake',val:ins.topTag[0],sub:`${ins.topTag[1]}× logged`,cls:'ic-orange'}:null,
+    ins.topLossTag?{icon:'💀',label:'Top Loss Reason',val:ins.topLossTag[0],sub:`${ins.topLossTag[1]}× in losses`,cls:'ic-red'}:null,
+    ins.bestMode?{icon:'🏆',label:'Best Mode',val:ins.bestMode.mode,sub:`${Math.round(ins.bestMode.wr*100)}% win rate · ${ins.bestMode.games}g`,cls:'ic-green'}:null,
+    ins.bestSession?{icon:'⚡',label:'Best Session',val:`${ins.bestSession.gain>=0?'+':''}${ins.bestSession.gain} MMR`,sub:`${ins.bestSession.wins}W ${ins.bestSession.losses}L`,cls:'ic-gold'}:null,
+    ins.worstSession?{icon:'💥',label:'Worst Session',val:`${ins.worstSession.gain} MMR`,sub:`${ins.worstSession.wins}W ${ins.worstSession.losses}L`,cls:'ic-red'}:null,
+    {icon:'📊',label:'Avg MMR / Session',val:`${ins.avgMMRSess>=0?'+':''}${ins.avgMMRSess}`,sub:`over ${Object.keys({}).length||'all'} sessions`,cls:'ic-teal'},
+    {icon:trendIcon,label:'Recent Trend',val:trendText,sub:`Last 5: ${Math.round(ins.last5wr*100)}% WR`,cls:trendColor},
+  ].filter(Boolean);
+  el.innerHTML=cards.map(c=>`
+    <div class="insight-card ${c.cls}">
+      <div class="insight-icon">${c.icon}</div>
+      <div class="insight-label">${c.label}</div>
+      <div class="insight-val">${c.val}</div>
+      <div class="insight-sub">${c.sub}</div>
+    </div>`).join('');
+}
+
+function renderRollingChart(games){
+  dc('rollingChart');if(!document.getElementById('rollingChart'))return;
+  if(games.length<3)return;
+  const window5=[],window10=[],labels=[];
+  for(let i=0;i<games.length;i++){
+    const w5=games.slice(Math.max(0,i-4),i+1);
+    const w10=games.slice(Math.max(0,i-9),i+1);
+    window5.push(Math.round(w5.filter(g=>g.result==='W').length/w5.length*100));
+    window10.push(Math.round(w10.filter(g=>g.result==='W').length/w10.length*100));
+    labels.push('#'+(i+1));
+  }
+  charts['rollingChart']=new Chart(document.getElementById('rollingChart').getContext('2d'),{
+    type:'line',
+    data:{labels,datasets:[
+      {label:'5-Game WR%',data:window5,borderColor:'#e65c00',backgroundColor:'#e65c0015',borderWidth:2,pointRadius:2,pointBackgroundColor:'#e65c00',fill:true,tension:0.4},
+      {label:'10-Game WR%',data:window10,borderColor:'#00e5ff',backgroundColor:'transparent',borderWidth:2,pointRadius:0,fill:false,tension:0.4,borderDash:[4,3]},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:true,position:'top',labels:{color:'#888',font:{size:11},usePointStyle:true,padding:14}},
+        tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${ctx.parsed.y}%`}}},
+      scales:{
+        x:{ticks:{color:'#555',font:{size:10},maxTicksLimit:12},grid:{color:'#1a1a2e'}},
+        y:{min:0,max:100,ticks:{color:'#555',font:{size:10},callback:v=>v+'%'},grid:{color:'#1a1a2e'},
+          // Draw 50% line
+          afterDraw(chart){const ctx2=chart.ctx,yScale=chart.scales.y,y50=yScale.getPixelForValue(50);ctx2.save();ctx2.strokeStyle='#ffffff18';ctx2.lineWidth=1;ctx2.setLineDash([4,4]);ctx2.beginPath();ctx2.moveTo(chart.chartArea.left,y50);ctx2.lineTo(chart.chartArea.right,y50);ctx2.stroke();ctx2.restore();}
+        }
+      }}
+  });
+}
+
 function renderAnalytics(games){
+  renderInsightCards(games);
   const tagCount={},lossTagCount={};
   games.forEach(g=>{(g.tags||[]).forEach(tag=>{tagCount[tag]=(tagCount[tag]||0)+1;if(g.result==='L')lossTagCount[tag]=(lossTagCount[tag]||0)+1;});});
   const sorted=Object.entries(tagCount).sort((a,b)=>b[1]-a[1]);
@@ -728,6 +906,7 @@ function renderAnalytics(games){
         <div class="bar-track"><div class="bar-fill" style="width:${Math.round(total/allTotal*100)}%;background:${cmap[cat]}"></div></div>
         <div class="bar-count">${total}</div></div>`;
     }).join('')}<div style="margin-top:8px;font-size:11px;color:#555">Total: ${Object.values(tagCount).reduce((a,b)=>a+b,0)}</div></div>`;
+  renderRollingChart(games);
   renderTrendChart(games);
 }
 function renderTrendChart(games){
@@ -810,28 +989,89 @@ window.saveEdit=async function(){
 };
 
 // ── SESSION MODAL ─────────────────────────────────────────────────────────────
+// ── SESSION TIMER ─────────────────────────────────────────────────────────────
+function formatDuration(ms){
+  const s=Math.floor(ms/1000),m=Math.floor(s/60),h=Math.floor(m/60);
+  if(h>0)return`${h}h ${m%60}m`;
+  if(m>0)return`${m}m ${s%60}s`;
+  return`${s}s`;
+}
+function updateSessionBar(){
+  const bar=document.getElementById('session-bar');
+  const dot=document.getElementById('session-live-dot');
+  const title=document.getElementById('session-bar-title');
+  const stats=document.getElementById('session-live-stats');
+  const startBtn=document.getElementById('session-start-btn');
+  if(!sessionActive){
+    bar.classList.remove('active');dot.classList.remove('active');
+    title.textContent='No active session';title.classList.remove('active');
+    stats.innerHTML='';
+    startBtn.className='session-btn start';startBtn.textContent='▶ Start Session';
+    startBtn.onclick=startSession;
+    return;
+  }
+  bar.classList.add('active');dot.classList.add('active');
+  title.classList.add('active');
+  const sessionNum=parseInt(document.getElementById('f-session').value)||1;
+  const games=liveData[logPlayer]||[];
+  const sg=games.filter(g=>g.session===sessionNum);
+  const wins=sg.filter(g=>g.result==='W').length;
+  const losses=sg.filter(g=>g.result==='L').length;
+  const mmrGain=sg.reduce((s,g)=>s+(g.mmrDiff||0),0);
+  const elapsed=Date.now()-sessionStartTime;
+  title.textContent=`Session ${sessionNum} — Live`;
+  stats.innerHTML=`
+    <span class="slive-item time">⏱ <span class="slv" id="session-timer">${formatDuration(elapsed)}</span></span>
+    <span class="slive-item neutral">🎮 <span class="slv">${sg.length} games</span></span>
+    <span class="slive-item ${wins>losses?'pos':losses>wins?'neg':'neutral'}">W/L: <span class="slv">${wins}/${losses}</span></span>
+    <span class="slive-item ${mmrGain>=0?'pos':'neg'}">MMR: <span class="slv">${mmrGain>=0?'+':''}${mmrGain}</span></span>`;
+  startBtn.className='session-btn end';startBtn.textContent='■ End Session';
+  startBtn.onclick=endSession;
+}
+window.startSession=function(){
+  sessionActive=true;
+  sessionStartTime=Date.now();
+  const games=liveData[logPlayer]||[];
+  sessionStartMMR=games.length?games[games.length-1].endMMR:null;
+  if(sessionTimerInterval)clearInterval(sessionTimerInterval);
+  sessionTimerInterval=setInterval(()=>{
+    const el=document.getElementById('session-timer');
+    if(el)el.textContent=formatDuration(Date.now()-sessionStartTime);
+  },1000);
+  updateSessionBar();
+  showToast('Session started! 🚀');
+};
 window.endSession=function(){
   const games=liveData[logPlayer];
   const sessionNum=parseInt(document.getElementById('f-session').value)||1;
   const sg=games.filter(g=>g.session===sessionNum);
   if(!sg.length){showToast('No games in this session yet','error');return;}
+  // Stop timer
+  if(sessionTimerInterval){clearInterval(sessionTimerInterval);sessionTimerInterval=null;}
+  const elapsed=sessionActive&&sessionStartTime?Date.now()-sessionStartTime:0;
+  sessionActive=false;updateSessionBar();
   const wins=sg.filter(g=>g.result==='W').length,losses=sg.filter(g=>g.result==='L').length;
   const mmrGain=sg.reduce((s,g)=>s+(g.mmrDiff||0),0);
   const wl=wins+losses,wr=wl?Math.round(wins/wl*100):0;
   const tagCount={};sg.forEach(g=>(g.tags||[]).forEach(t=>tagCount[t]=(tagCount[t]||0)+1));
   const topTag=Object.entries(tagCount).sort((a,b)=>b[1]-a[1])[0];
   const endMMR=sg[sg.length-1].endMMR;
+  // Best streak in session
+  let bestStreak=0,cur=0,lastR='';
+  sg.forEach(g=>{if(g.result===lastR)cur++;else{cur=1;lastR=g.result;}if(g.result==='W')bestStreak=Math.max(bestStreak,cur);});
   document.getElementById('modal-title').textContent=`Session ${sessionNum} Complete`;
-  document.getElementById('modal-sub').textContent=`${logPlayer.charAt(0).toUpperCase()+logPlayer.slice(1)} · ${sg[0].date}`;
+  document.getElementById('modal-sub').textContent=`${logPlayer.charAt(0).toUpperCase()+logPlayer.slice(1)} · ${sg[0].date}${elapsed?` · ${formatDuration(elapsed)}`:''}`;
   document.getElementById('modal-stats').innerHTML=`
     <div class="modal-stat"><div class="val" style="color:#00e5ff">${sg.length}</div><div class="lbl">Games</div></div>
     <div class="modal-stat"><div class="val" style="color:${wr>=50?'#00c851':'#ff4444'}">${wr}%</div><div class="lbl">Win Rate</div></div>
     <div class="modal-stat"><div class="val" style="color:${mmrGain>=0?'#00c851':'#ff4444'}">${mmrGain>=0?'+':''}${mmrGain}</div><div class="lbl">MMR Change</div></div>
-    <div class="modal-stat"><div class="val" style="color:#ffd700">${endMMR}</div><div class="lbl">Ending MMR</div></div>
+    <div class="modal-stat"><div class="val" style="color:#ffd700">${endMMR}</div><div class="lbl">End MMR</div></div>
+    <div class="modal-stat"><div class="val" style="color:#e65c00">${bestStreak}</div><div class="lbl">Best Win Streak</div></div>
+    <div class="modal-stat"><div class="val" style="color:#a855f7">${elapsed?formatDuration(elapsed):'—'}</div><div class="lbl">Duration</div></div>
     <div class="modal-stat" style="grid-column:1/-1">${rankBadgeHTML(endMMR,22,sg[0].mode)}</div>`;
   document.getElementById('modal-top-tag').innerHTML=topTag
-    ?`Top mistake: <span>${topTag[0]}</span> <span style="color:#555">(${topTag[1]}x)</span>`
-    :`<span style="color:#555">No mistakes tagged 🎉</span>`;
+    ?`🏷️ Top mistake this session: <span>${topTag[0]}</span> <span style="color:#555">(${topTag[1]}x)</span>`
+    :`<span style="color:#555">No mistakes tagged this session 🎉</span>`;
   document.getElementById('session-modal').classList.add('open');
   document.getElementById('f-session').value=sessionNum+1;
 };
@@ -839,6 +1079,14 @@ window.closeSessionModal=function(){
   document.getElementById('session-modal').classList.remove('open');
   const games=liveData[logPlayer];
   if(games.length)document.getElementById('f-startmmr').value=games[games.length-1].endMMR;
+  // Auto-start next session
+  sessionActive=true;sessionStartTime=Date.now();
+  if(sessionTimerInterval)clearInterval(sessionTimerInterval);
+  sessionTimerInterval=setInterval(()=>{
+    const el=document.getElementById('session-timer');
+    if(el)el.textContent=formatDuration(Date.now()-sessionStartTime);
+  },1000);
+  updateSessionBar();
 };
 
 // ── ACTIONS ───────────────────────────────────────────────────────────────────
@@ -888,7 +1136,8 @@ window.addGame=async function(){
     document.getElementById('f-goals').value=0;document.getElementById('f-assists').value=0;
     document.getElementById('f-saves').value=0;document.getElementById('f-startmmr').value=endMMR;
     document.getElementById('f-endmmr').value='';document.getElementById('f-notes').value='';
-    clearTags();
+    document.getElementById('f-endmmr').focus();
+    clearTags();updateSessionBar();
   }catch(e){showToast('Failed to save','error');}
   btn.disabled=false;btn.textContent='+ Log Game';
 };
@@ -914,6 +1163,7 @@ window.showPage=function(id,btn){
   if(id==='trystan'){const f=filterByPlaylist(liveData.trystan,tpl);mmrChart('trystanMMR',f,'#00e5ff');wlChart('trystanWL',calcStats(f));sessionChart('trystanSession',f,'#00e5ff');}
   if(id==='dashboard')teamChart(liveData.anthony,liveData.trystan);
   if(id==='analytics')renderAnalytics(liveData[analyticsPlayer]);
+  if(id==='log')updateSessionBar();
 };
 
 document.getElementById('f-date').value=new Date().toISOString().slice(0,10);
