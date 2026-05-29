@@ -103,8 +103,8 @@ export function getRankForPlaylist(mmr, playlist) {
 
 const DIVISION_NUM = { I: 1, II: 2, III: 3 };
 
-/** Official RL rank icons (Rocket League Wiki) — works without uploading assets/ */
-const RANK_ICON_URLS = {
+/** CDN backup if local png missing */
+const RANK_ICON_CDN = {
   'bronze-1': 'https://static.wikia.nocookie.net/rocketleague/images/6/6c/Bronze1_rank_icon.png/revision/latest/scale-to-width-down/64',
   'bronze-2': 'https://static.wikia.nocookie.net/rocketleague/images/5/5d/Bronze2_rank_icon.png/revision/latest/scale-to-width-down/64',
   'bronze-3': 'https://static.wikia.nocookie.net/rocketleague/images/7/7a/Bronze3_rank_icon.png/revision/latest/scale-to-width-down/64',
@@ -129,7 +129,7 @@ const RANK_ICON_URLS = {
   'supersonic-legend': 'https://static.wikia.nocookie.net/rocketleague/images/2/2d/Supersonic_Legend_rank_icon.png/revision/latest/scale-to-width-down/64',
 };
 
-/** Map rank display name → icon key */
+/** Map rank display name → icon filename key */
 export function getRankIconKey(rankName) {
   if (rankName === 'Supersonic Legend') return 'supersonic-legend';
   if (rankName.startsWith('Grand Champion')) {
@@ -140,16 +140,23 @@ export function getRankIconKey(rankName) {
   return `${tier.toLowerCase()}-${DIVISION_NUM[div] || 1}`;
 }
 
+/** Local png in assets/ranks/ on GitHub */
 export function getRankIconSrc(rankName) {
   const key = getRankIconKey(rankName);
-  return RANK_ICON_URLS[key] ?? RANK_ICON_URLS['bronze-1'];
+  return `assets/ranks/${key}.png`;
+}
+
+function getRankIconCdn(rankName) {
+  const key = getRankIconKey(rankName);
+  return RANK_ICON_CDN[key] ?? RANK_ICON_CDN['bronze-1'];
 }
 
 /** Real RL rank icon — pass rank object { name } or rank name string */
 export function rankIconHTML(rankOrName, size = 20) {
   const name = typeof rankOrName === 'string' ? rankOrName : rankOrName.name;
   const src = getRankIconSrc(name);
-  return `<img class="rank-icon" src="${src}" alt="${name}" width="${size}" height="${size}" loading="lazy" decoding="async">`;
+  const fallback = getRankIconCdn(name);
+  return `<img class="rank-icon" src="${src}" alt="${name}" width="${size}" height="${size}" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${fallback}'">`;
 }
 
 /** @deprecated Use rankIconHTML(rank) — kept so old call sites don't break */
