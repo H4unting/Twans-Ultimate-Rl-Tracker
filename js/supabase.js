@@ -45,13 +45,19 @@ function dataToPayload(data) {
 }
 
 export async function loadData() {
-  const rows = await sbFetch('Tracker?select=id,Player,games');
-  if (!rows?.length) {
-    const seed = { anthony: SEED_ANTHONY, trystan: [] };
-    await saveData(seed);
-    return seed;
+  try {
+    const rows = await sbFetch('Tracker?select=id,Player,games');
+    if (!rows?.length) {
+      const seed = { anthony: SEED_ANTHONY, trystan: [] };
+      await saveData(seed);
+      return seed;
+    }
+    setSyncStatus('live');
+    return rowToData(rows);
+  } catch (e) {
+    setSyncStatus('error');
+    throw e;
   }
-  return rowToData(rows);
 }
 
 export async function saveData(data) {

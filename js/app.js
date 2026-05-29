@@ -30,6 +30,7 @@ async function init() {
   document.getElementById('f-date').value = new Date().toISOString().slice(0, 10);
 
   subscribe(() => setSyncUI(state.syncStatus));
+  setSyncUI(state.syncStatus);
 
   wireNavigation();
   wireLogForm();

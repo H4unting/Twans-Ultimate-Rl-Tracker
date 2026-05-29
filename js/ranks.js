@@ -101,21 +101,65 @@ export function getRankForPlaylist(mmr, playlist) {
   return table[0];
 }
 
+const DIVISION_NUM = { I: 1, II: 2, III: 3 };
+
+/** Official RL rank icons (Rocket League Wiki) — works without uploading assets/ */
+const RANK_ICON_URLS = {
+  'bronze-1': 'https://static.wikia.nocookie.net/rocketleague/images/6/6c/Bronze1_rank_icon.png/revision/latest/scale-to-width-down/64',
+  'bronze-2': 'https://static.wikia.nocookie.net/rocketleague/images/5/5d/Bronze2_rank_icon.png/revision/latest/scale-to-width-down/64',
+  'bronze-3': 'https://static.wikia.nocookie.net/rocketleague/images/7/7a/Bronze3_rank_icon.png/revision/latest/scale-to-width-down/64',
+  'silver-1': 'https://static.wikia.nocookie.net/rocketleague/images/d/d5/Silver1_rank_icon.png/revision/latest/scale-to-width-down/64',
+  'silver-2': 'https://static.wikia.nocookie.net/rocketleague/images/f/f8/Silver2_rank_icon.png/revision/latest/scale-to-width-down/64',
+  'silver-3': 'https://static.wikia.nocookie.net/rocketleague/images/7/7c/Silver3_rank_icon.png/revision/latest/scale-to-width-down/64',
+  'gold-1': 'https://static.wikia.nocookie.net/rocketleague/images/8/8e/Gold1_rank_icon.png/revision/latest/scale-to-width-down/64',
+  'gold-2': 'https://static.wikia.nocookie.net/rocketleague/images/b/be/Gold2_rank_icon.png/revision/latest/scale-to-width-down/64',
+  'gold-3': 'https://static.wikia.nocookie.net/rocketleague/images/b/b1/Gold3_rank_icon.png/revision/latest/scale-to-width-down/64',
+  'platinum-1': 'https://static.wikia.nocookie.net/rocketleague/images/7/77/Platinum1_rank_icon.png/revision/latest/scale-to-width-down/64',
+  'platinum-2': 'https://static.wikia.nocookie.net/rocketleague/images/e/e4/Platinum2_rank_icon.png/revision/latest/scale-to-width-down/64',
+  'platinum-3': 'https://static.wikia.nocookie.net/rocketleague/images/7/78/Platinum3_rank_icon.png/revision/latest/scale-to-width-down/64',
+  'diamond-1': 'https://static.wikia.nocookie.net/rocketleague/images/1/1d/Diamond1_rank_icon.png/revision/latest/scale-to-width-down/64',
+  'diamond-2': 'https://static.wikia.nocookie.net/rocketleague/images/b/b6/Diamond2_rank_icon.png/revision/latest/scale-to-width-down/64',
+  'diamond-3': 'https://static.wikia.nocookie.net/rocketleague/images/7/7a/Diamond3_rank_icon.png/revision/latest/scale-to-width-down/64',
+  'champion-1': 'https://static.wikia.nocookie.net/rocketleague/images/a/a7/Champion1_rank_icon.png/revision/latest/scale-to-width-down/64',
+  'champion-2': 'https://static.wikia.nocookie.net/rocketleague/images/0/07/Champion2_rank_icon.png/revision/latest/scale-to-width-down/64',
+  'champion-3': 'https://static.wikia.nocookie.net/rocketleague/images/d/d9/Champion3_rank_icon.png/revision/latest/scale-to-width-down/64',
+  'grand-champion-1': 'https://static.wikia.nocookie.net/rocketleague/images/d/d4/Grand_champion1_rank_icon.png/revision/latest/scale-to-width-down/64',
+  'grand-champion-2': 'https://static.wikia.nocookie.net/rocketleague/images/6/6a/Grand_champion2_rank_icon.png/revision/latest/scale-to-width-down/64',
+  'grand-champion-3': 'https://static.wikia.nocookie.net/rocketleague/images/0/0c/Grand_champion3_rank_icon.png/revision/latest/scale-to-width-down/64',
+  'supersonic-legend': 'https://static.wikia.nocookie.net/rocketleague/images/2/2d/Supersonic_Legend_rank_icon.png/revision/latest/scale-to-width-down/64',
+};
+
+/** Map rank display name → icon key */
+export function getRankIconKey(rankName) {
+  if (rankName === 'Supersonic Legend') return 'supersonic-legend';
+  if (rankName.startsWith('Grand Champion')) {
+    const div = rankName.replace('Grand Champion ', '');
+    return `grand-champion-${DIVISION_NUM[div] || 1}`;
+  }
+  const [tier, div] = rankName.split(' ');
+  return `${tier.toLowerCase()}-${DIVISION_NUM[div] || 1}`;
+}
+
+export function getRankIconSrc(rankName) {
+  const key = getRankIconKey(rankName);
+  return RANK_ICON_URLS[key] ?? RANK_ICON_URLS['bronze-1'];
+}
+
+/** Real RL rank icon — pass rank object { name } or rank name string */
+export function rankIconHTML(rankOrName, size = 20) {
+  const name = typeof rankOrName === 'string' ? rankOrName : rankOrName.name;
+  const src = getRankIconSrc(name);
+  return `<img class="rank-icon" src="${src}" alt="${name}" width="${size}" height="${size}" loading="lazy" decoding="async">`;
+}
+
+/** @deprecated Use rankIconHTML(rank) — kept so old call sites don't break */
 export function rankSVG(tier, size = 20) {
-  const shapes = {
-    bronze: '<polygon points="10,2 18,7 18,13 10,18 2,13 2,7" fill="#cd7f32" stroke="#a0622a" stroke-width="1.5"/>',
-    silver: '<polygon points="10,2 18,7 18,13 10,18 2,13 2,7" fill="#c0c0c0" stroke="#888" stroke-width="1.5"/>',
-    gold: '<polygon points="10,1 19,7 19,13 10,19 1,13 1,7" fill="#ffd700" stroke="#c8a000" stroke-width="1.5"/><circle cx="10" cy="10" r="3" fill="#c8a000"/>',
-    plat: '<polygon points="10,1 19,6 19,14 10,19 1,14 1,6" fill="#5dade2" stroke="#2980b9" stroke-width="1.5"/><polygon points="10,5 14,8 14,12 10,15 6,12 6,8" fill="#2980b9"/>',
-    diamond: '<polygon points="10,1 19,10 10,19 1,10" fill="#76d7ea" stroke="#1abc9c" stroke-width="1.5"/><polygon points="10,5 15,10 10,15 5,10" fill="#1abc9c"/>',
-    champ: '<polygon points="10,1 19,6 19,14 10,19 1,14 1,6" fill="#9b59b6" stroke="#6c3483" stroke-width="1.5"/><circle cx="10" cy="10" r="3" fill="#d7bde2"/>',
-    gc: '<polygon points="10,1 18,5 20,14 14,19 6,19 0,14 2,5" fill="#e74c3c" stroke="#c0392b" stroke-width="1.5"/><circle cx="10" cy="10" r="3" fill="#fadbd8"/>',
-    ssl: '<circle cx="10" cy="10" r="9" fill="#f39c12" stroke="#d68910" stroke-width="1.5"/><polygon points="10,3 12,8 17,8 13,11 15,16 10,13 5,16 7,11 3,8 8,8" fill="#d68910"/>',
-  };
-  return `<svg width="${size}" height="${size}" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">${shapes[tier] ?? shapes.bronze}</svg>`;
+  const fallback = { bronze: 'Bronze I', silver: 'Silver I', gold: 'Gold I', plat: 'Platinum I', diamond: 'Diamond I', champ: 'Champion I', gc: 'Grand Champion I', ssl: 'Supersonic Legend' };
+  return rankIconHTML(fallback[tier] ?? 'Bronze I', size);
 }
 
 export function rankBadgeHTML(mmr, size = 18, mode = "2's") {
   const r = getRank(mmr, mode);
-  return `<span class="rank-badge" style="border-color:${r.color}44;color:${r.color};background:${r.color}11">${rankSVG(r.tier, size)}&nbsp;${r.name}</span>`;
+  const iconSize = Math.round(size * 1.2);
+  return `<span class="rank-badge" style="border-color:${r.color}44;color:${r.color};background:${r.color}11">${rankIconHTML(r, iconSize)}<span class="rank-badge-name">${r.name}</span></span>`;
 }

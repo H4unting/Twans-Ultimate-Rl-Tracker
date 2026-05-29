@@ -1,7 +1,7 @@
 /** DOM rendering, toasts, modals, filters UI */
 
 import { TAG_CATS, TAG_COLORS, TAG_GROUPS, PLAYERS, PLAYLISTS } from './config.js';
-import { getRank, rankSVG, rankBadgeHTML } from './ranks.js';
+import { getRank, rankIconHTML, rankBadgeHTML } from './ranks.js';
 import { calcStats, getPrimaryMode } from './utils.js';
 import { getUniqueSessions } from './filters.js';
 
@@ -14,7 +14,12 @@ export function showToast(msg, type = 'success') {
 }
 
 export function setSyncUI(status) {
-  const map = { live: ['live', 'Live'], saving: ['saving', 'Saving...'], error: ['error', 'Error'], connecting: ['', 'Connecting...'] };
+  const map = {
+    live: ['live', 'Live'],
+    saving: ['saving', 'Saving...'],
+    error: ['error', 'Error'],
+    connecting: ['connecting', 'Connecting...'],
+  };
   const [cls, txt] = map[status] ?? ['', 'Offline'];
   const dot = document.getElementById('sync-dot');
   const label = document.getElementById('sync-label');
@@ -96,7 +101,7 @@ export function renderLog(tableId, games, limit, player) {
         <td><span class="badge ${g.result}">${g.result === 'W' ? 'WIN' : 'LOSS'}</span></td>
         <td>${g.goals}</td><td>${g.saves}</td>
         <td>${g.startMMR}</td>
-        <td><span style="margin-right:4px">${g.endMMR}</span>${rankSVG(getRank(g.endMMR, g.mode).tier, 14)}</td>
+        <td><span style="margin-right:4px">${g.endMMR}</span>${rankIconHTML(getRank(g.endMMR, g.mode), 22)}</td>
         <td class="${(g.mmrDiff || 0) >= 0 ? 'pos' : 'neg'}">${(g.mmrDiff || 0) >= 0 ? '+' : ''}${g.mmrDiff || 0}</td>
         <td style="max-width:190px">${renderInlineTags(g.tags)}${g.notes ? `<div class="note-cell">${g.notes}</div>` : ''}</td>
         <td style="white-space:nowrap">${player ? `

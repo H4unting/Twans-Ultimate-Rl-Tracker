@@ -61,6 +61,7 @@ body:not(.is-loading) .loading-overlay { opacity: 0; visibility: hidden; pointer
 .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); transition: background 0.3s; }
 .sync-dot.live { background: var(--green); }
 .sync-dot.saving { background: var(--gold); animation: pulse-dot 1s infinite; }
+.sync-dot.connecting { background: var(--gold); animation: pulse-dot 1.2s infinite; }
 .sync-dot.error { background: var(--red); }
 
 .tabs { display: flex; gap: 4px; margin-left: auto; flex-wrap: wrap; }
@@ -244,11 +245,21 @@ body:not(.is-loading) .loading-overlay { opacity: 0; visibility: hidden; pointer
 .inline-tag.off { background: #e65c0015; color: var(--accent); border: 1px solid #e65c0022; }
 .inline-tag.men { background: #a855f715; color: var(--purple); border: 1px solid #a855f722; }
 
-/* Rank */
-.rank-badge {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 3px 9px; border-radius: 6px; font-size: 12px; font-weight: 700; border: 1px solid;
+/* Rank icons */
+.rank-icon {
+  vertical-align: middle;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.45));
+  transition: transform 0.15s ease;
 }
+.rank-badge:hover .rank-icon { transform: scale(1.08); }
+.rank-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px 4px 6px; border-radius: 8px;
+  font-size: 12px; font-weight: 700; border: 1px solid;
+}
+.rank-badge-name { line-height: 1.2; white-space: nowrap; }
 
 /* Team */
 .team-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
