@@ -41,13 +41,14 @@ export function endSession(onComplete) {
     return;
   }
 
+  // Capture elapsed before clearing timer/state
+  const elapsed = state.session.active && state.session.startTime
+    ? Date.now() - state.session.startTime : 0;
+
   if (state.session.timerId) {
     clearInterval(state.session.timerId);
     state.session.timerId = null;
   }
-
-  const elapsed = state.session.active && state.session.startTime
-    ? Date.now() - state.session.startTime : 0;
 
   state.session.active = false;
   notify();
@@ -63,7 +64,7 @@ export function endSession(onComplete) {
   if (onComplete) onComplete(nextSession);
 }
 
-export function closeSessionModalAndContinue() {
+export function closeSessionModal() {
   document.getElementById('session-modal')?.classList.remove('open');
   const player = state.logPlayer;
   const games = state.data[player] ?? [];
@@ -71,6 +72,10 @@ export function closeSessionModalAndContinue() {
     const el = document.getElementById('f-startmmr');
     if (el) el.value = games[games.length - 1].endMMR;
   }
+}
+
+export function closeSessionModalAndContinue() {
+  closeSessionModal();
   startSession();
 }
 
