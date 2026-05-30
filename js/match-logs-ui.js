@@ -1,6 +1,6 @@
 /** Match logs — session groups, quick filters, expand/collapse */
 
-import { groupSessionsForHistory, formatDisplayDate } from './utils.js';
+import { formatDisplayDate } from './utils.js';
 import { getGamesInWeek } from './utils.js';
 import { renderInlineTags } from './ui.js';
 import { getRank, rankIconHTML } from './ranks.js';
@@ -51,6 +51,24 @@ export function renderQuickFilters(containerId, onChange) {
   });
 }
 
+/** Group filtered games by session # — keeps game arrays intact */
+function groupForMatchLogs(games) {
+  const map = new Map();
+  games.forEach(g => {
+    const sn = parseInt(g.session, 10) || 1;
+    if (!map.has(sn)) map.set(sn, []);
+    map.get(sn).push(g);
+  });
+  return [...map.entries()]
+    .map(([sessionNum, sessionGames]) => {
+      const wins = sessionGames.filter(x => x.result === 'W').length;
+      const losses = sessionGames.filter(x => x.result === 'L').length;
+      const mmrGain = sessionGames.reduce((s, x) => s + (x.mmrDiff || 0), 0);
+      return { sessionNum, sessionGames, wins, losses, mmrGain };
+    })
+    .sort((a, b) => b.sessionNum - a.sessionNum);
+}
+
 export function renderGroupedMatchLogs(games, editable = false) {
   const el = document.getElementById('matchlogs-list');
   if (!el) return;
@@ -60,12 +78,12 @@ export function renderGroupedMatchLogs(games, editable = false) {
     return;
   }
 
-  const sessions = groupSessionsForHistory(games).sort((a, b) => b.sessionNum - a.sessionNum);
+  const sessions = groupForMatchLogs(games);
 
   el.innerHTML = sessions.map(sess => {
     const gainCls = sess.mmrGain >= 0 ? 'pos' : 'neg';
     const gainStr = `${sess.mmrGain >= 0 ? '+' : ''}${sess.mmrGain} MMR`;
-    const ordered = [...sess.games].reverse();
+    const ordered = [...sess.sessionGames].reverse();
     return `
       <section class="session-log-group">
         <header class="session-log-head ${gainCls}">
