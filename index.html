@@ -29,7 +29,7 @@
 <!-- APP -->
 <div id="app-shell" class="hidden">
   <div class="top-bar">
-    <div class="logo">RL <span>GRIND</span></div>
+    <button type="button" class="logo logo-home-btn" id="logo-home-btn" aria-label="Go to Home">RL <span>GRIND</span></button>
     <div class="sync-status">
       <div class="sync-dot" id="sync-dot"></div>
       <span id="sync-label">Connecting...</span>
@@ -202,6 +202,11 @@
         <div class="session-bar-info">
           <div class="session-bar-title" id="session-bar-title">No active session</div>
           <div class="session-live-stats" id="session-live-stats"></div>
+          <div class="session-num-setter" id="session-num-setter">
+            <label class="session-num-label" for="dock-session-num">Session #</label>
+            <input type="number" id="dock-session-num" class="session-num-input" min="1" value="1" inputmode="numeric" aria-label="Session number">
+            <button type="button" class="session-num-btn" id="session-num-apply">Set</button>
+          </div>
         </div>
         <span class="live-bridge-status" id="live-bridge-status" title="Automatic stats from Rocket League">Auto stats off</span>
         <button type="button" class="auto-log-toggle active" id="auto-log-toggle" aria-pressed="true" title="Auto-save games when a match ends">Auto-log</button>

@@ -345,6 +345,7 @@ async function handleAutoLog(match) {
     startMMR = parseInt(priorEnd, 10);
     endMMR = Math.max(0, startMMR + delta);
   } else {
+    // No logged history in this playlist — placeholder until MMR is confirmed
     startMMR = 0;
     endMMR = delta;
     showToast(`First ${logMode} log — confirm your real MMR after the match`, 'error');
@@ -578,6 +579,7 @@ async function init() {
   setSyncUI(state.syncStatus);
 
   wireNavigation();
+  document.getElementById('logo-home-btn')?.addEventListener('click', () => navigate('dashboard', 'home'));
   wireKeyboardShortcuts();
   document.getElementById('dash-view-all-logs')?.addEventListener('click', () => {
     navigate('log', 'home');

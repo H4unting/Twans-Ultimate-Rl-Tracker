@@ -34,6 +34,8 @@ export function getLoggingSessionNum() {
   if (state.session.active && state.session.sessionNum) {
     return state.session.sessionNum;
   }
+  const fromDock = parseInt(document.getElementById('dock-session-num')?.value, 10);
+  if (fromDock) return fromDock;
   const fromForm = parseInt(document.getElementById('f-session')?.value, 10);
   if (fromForm) return fromForm;
   return getNextSessionNum() || 1;
@@ -75,6 +77,8 @@ export function getSessionDurationMs(sessionNum) {
 function syncSessionField(num) {
   const el = document.getElementById('f-session');
   if (el) el.value = num;
+  const dock = document.getElementById('dock-session-num');
+  if (dock) dock.value = num;
   state.session.sessionNum = num;
 }
 
@@ -182,12 +186,27 @@ export function resetSessionCounter(num = 1) {
 }
 
 export function initSessionUI() {
+  if (!initSessionUI.wired) {
+    initSessionUI.wired = true;
+    document.getElementById('session-num-apply')?.addEventListener('click', () => {
+      const num = parseInt(document.getElementById('dock-session-num')?.value, 10);
+      if (!num || num < 1) {
+        showToast('Enter a valid session number', 'error');
+        return;
+      }
+      resetSessionCounter(num);
+    });
+    document.getElementById('dock-session-num')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('session-num-apply')?.click();
+    });
+  }
   updateSessionBar();
   updateLivePanel();
 }
 
 export function startSession({ silent = false, sessionNum } = {}) {
   const num = sessionNum
+    ?? parseInt(document.getElementById('dock-session-num')?.value, 10)
     ?? parseInt(document.getElementById('f-session')?.value, 10)
     ?? getNextSessionNum()
     ?? 1;
@@ -309,12 +328,10 @@ export function updateSessionBar() {
       title.textContent = `Ready — Session ${next}`;
       title.classList.remove('active');
     }
-    if (stats) {
-      stats.innerHTML = `
-        <span class="slive-item neutral">Tap ▶ Start before you queue</span>
-        <button type="button" class="btn-link session-reset-link" id="session-reset-btn">Reset to Session 1</button>`;
-      document.getElementById('session-reset-btn').onclick = () => resetSessionCounter(1);
-    }
+    document.getElementById('session-num-setter')?.classList.remove('hidden');
+    const dockInput = document.getElementById('dock-session-num');
+    if (dockInput && document.activeElement !== dockInput) dockInput.value = next;
+    if (stats) stats.innerHTML = '<span class="slive-item neutral">Tap ▶ Start when ready</span>';
     if (startBtn) {
       startBtn.className = 'session-btn start';
       startBtn.textContent = '▶ Start';
@@ -329,6 +346,7 @@ export function updateSessionBar() {
   bar.classList.add('active');
   dot?.classList.add('active');
   document.querySelector('.quick-dock-inner')?.classList.add('session-live');
+  document.getElementById('session-num-setter')?.classList.add('hidden');
   title?.classList.add('active');
   if (title) title.textContent = `Session ${live.sessionNum} — Live`;
   if (stats) {
