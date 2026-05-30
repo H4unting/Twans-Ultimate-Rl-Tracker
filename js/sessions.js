@@ -1,10 +1,11 @@
 /** Session management — live grind panel, timer, session summaries */
 
-import { state, notify } from './state.js';
+import { state, notify, getUserDisplay } from './state.js';
 import { getSessionStats, formatDuration } from './utils.js';
-import { getPlayerMeta } from './config.js';
+import { getAuthUser } from './auth.js';
 import { rankBadgeHTML } from './ranks.js';
 import { showToast } from './ui.js';
+import { getLastMMR } from './matches.js';
 
 export function initSessionUI() {
   updateSessionBar();
@@ -12,14 +13,12 @@ export function initSessionUI() {
 }
 
 export function startSession() {
-  const player = state.logPlayer;
-  const games = state.data[player] ?? [];
+  const games = state.games;
   state.session = {
     ...state.session,
     active: true,
     startTime: Date.now(),
     startMMR: games.length ? games[games.length - 1].endMMR : null,
-    player,
     sessionNum: parseInt(document.getElementById('f-session')?.value, 10) || 1,
   };
   if (state.session.timerId) clearInterval(state.session.timerId);
@@ -31,17 +30,14 @@ export function startSession() {
 }
 
 export function endSession(onComplete) {
-  const player = state.session.player || state.logPlayer;
-  const games = state.data[player] ?? [];
   const sessionNum = state.session.sessionNum || parseInt(document.getElementById('f-session')?.value, 10) || 1;
-  const sg = games.filter(g => g.session === sessionNum);
+  const sg = state.games.filter(g => g.session === sessionNum);
 
   if (!sg.length) {
     showToast('No games in this session yet', 'error');
     return;
   }
 
-  // Capture elapsed before clearing timer/state
   const elapsed = state.session.active && state.session.startTime
     ? Date.now() - state.session.startTime : 0;
 
@@ -54,23 +50,20 @@ export function endSession(onComplete) {
   notify();
   updateSessionBar();
   updateLivePanel();
-
-  showSessionModal(player, sessionNum, sg, elapsed);
+  showSessionModal(sessionNum, sg, elapsed);
 
   const nextSession = sessionNum + 1;
   const fSession = document.getElementById('f-session');
   if (fSession) fSession.value = nextSession;
-
   if (onComplete) onComplete(nextSession);
 }
 
 export function closeSessionModal() {
   document.getElementById('session-modal')?.classList.remove('open');
-  const player = state.logPlayer;
-  const games = state.data[player] ?? [];
-  if (games.length) {
+  const last = getLastMMR();
+  if (last !== '') {
     const el = document.getElementById('f-startmmr');
-    if (el) el.value = games[games.length - 1].endMMR;
+    if (el) el.value = last;
   }
 }
 
@@ -80,19 +73,18 @@ export function closeSessionModalAndContinue() {
 }
 
 function tickSessionTimer() {
-  const el = document.getElementById('session-timer');
-  const panelTimer = document.getElementById('live-panel-timer');
   const elapsed = Date.now() - state.session.startTime;
   const text = formatDuration(elapsed);
+  const el = document.getElementById('session-timer');
+  const panelTimer = document.getElementById('live-panel-timer');
   if (el) el.textContent = text;
   if (panelTimer) panelTimer.textContent = text;
 }
 
 function getLiveSessionStats() {
-  const player = state.session.player || state.logPlayer;
   const sessionNum = state.session.sessionNum || parseInt(document.getElementById('f-session')?.value, 10) || 1;
-  const sessionGames = (state.data[player] ?? []).filter(g => g.session === sessionNum);
-  return { ...getSessionStats(sessionGames), sessionNum, player };
+  const sessionGames = state.games.filter(g => g.session === sessionNum);
+  return { ...getSessionStats(sessionGames), sessionNum };
 }
 
 export function updateSessionBar() {
@@ -138,7 +130,6 @@ export function updateSessionBar() {
   }
 }
 
-/** Sticky floating live session panel */
 export function updateLivePanel() {
   const panel = document.getElementById('live-session-panel');
   if (!panel) return;
@@ -149,7 +140,7 @@ export function updateLivePanel() {
   }
 
   const live = getLiveSessionStats();
-  const meta = getPlayerMeta(live.player);
+  const display = getUserDisplay(getAuthUser());
   const streak = live.streak;
   const elapsed = Date.now() - (state.session.startTime || Date.now());
 
@@ -159,7 +150,7 @@ export function updateLivePanel() {
     <div class="live-panel-body">
       <div class="live-panel-header">
         <span class="live-panel-title">🔴 LIVE · Session ${live.sessionNum}</span>
-        <span class="live-panel-player" style="color:${meta.color}">${meta.name}</span>
+        <span class="live-panel-player" style="color:${display.color}">${display.name}</span>
       </div>
       <div class="live-panel-stats">
         <div class="live-stat"><span class="live-stat-val" id="live-panel-timer">${formatDuration(elapsed)}</span><span class="live-stat-lbl">Time</span></div>
@@ -171,7 +162,7 @@ export function updateLivePanel() {
     <button class="live-panel-end" onclick="window.__endSession()" title="End session">■</button>`;
 }
 
-function showSessionModal(player, sessionNum, sg, elapsed) {
+function showSessionModal(sessionNum, sg, elapsed) {
   const wins = sg.filter(g => g.result === 'W').length;
   const losses = sg.filter(g => g.result === 'L').length;
   const mmrGain = sg.reduce((s, g) => s + (g.mmrDiff || 0), 0);
@@ -188,9 +179,9 @@ function showSessionModal(player, sessionNum, sg, elapsed) {
     if (g.result === 'W') bestStreak = Math.max(bestStreak, cur);
   });
 
-  const meta = getPlayerMeta(player);
+  const display = getUserDisplay(getAuthUser());
   document.getElementById('modal-title').textContent = `Session ${sessionNum} Complete`;
-  document.getElementById('modal-sub').textContent = `${meta.name} · ${sg[0].date}${elapsed ? ` · ${formatDuration(elapsed)}` : ''}`;
+  document.getElementById('modal-sub').textContent = `${display.name} · ${sg[0].date}${elapsed ? ` · ${formatDuration(elapsed)}` : ''}`;
   document.getElementById('modal-stats').innerHTML = `
     <div class="modal-stat"><div class="val" style="color:#00e5ff">${sg.length}</div><div class="lbl">Games</div></div>
     <div class="modal-stat"><div class="val" style="color:${wr >= 50 ? '#00c851' : '#ff4444'}">${wr}%</div><div class="lbl">Win Rate</div></div>

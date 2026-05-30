@@ -1,27 +1,20 @@
-/** Supabase persistence — normalized matches table with Tracker JSON fallback */
+/** Supabase persistence — auth-scoped user data */
 
-import { SUPABASE_URL, SUPABASE_KEY, SEED_ANTHONY, SCHEMA_VERSION, PLAYERS } from './config.js';
+import { SUPABASE_URL, SUPABASE_KEY, LEGACY_PLAYERS } from './config.js';
 import {
   normalizePlayerGames, normalizeGame, parseDisplayDate, formatDisplayDate,
 } from './utils.js';
 import { setSyncStatus } from './state.js';
-import { loadGoalsLocal, saveGoalsLocal } from './goals.js';
-
-const SETTINGS_KEY = 'app_settings';
-
-/** @type {'matches' | 'tracker'} */
-let storageBackend = 'tracker';
-
-export function getStorageBackend() {
-  return storageBackend;
-}
+import { DEFAULT_GOALS } from './goals.js';
+import { getAccessToken, getAuthUser } from './auth.js';
 
 async function sbFetch(path, method = 'GET', body = null, extra = {}) {
+  const token = getAccessToken() ?? SUPABASE_KEY;
   const opts = {
     method,
     headers: {
       apikey: SUPABASE_KEY,
-      Authorization: `Bearer ${SUPABASE_KEY}`,
+      Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
       ...extra,
     },
@@ -32,42 +25,6 @@ async function sbFetch(path, method = 'GET', body = null, extra = {}) {
   const text = await res.text();
   return text ? JSON.parse(text) : null;
 }
-
-// ── Tracker JSON blob (legacy) ────────────────────────────────────────────────
-
-function trackerRowsToData(rows) {
-  const data = Object.fromEntries(PLAYERS.map(p => [p.id, []]));
-  if (!rows?.length) return data;
-  rows.forEach(row => {
-    const key = row.Player?.toLowerCase();
-    if (key && data[key] !== undefined) {
-      data[key] = normalizePlayerGames(row.games);
-    }
-  });
-  return data;
-}
-
-async function loadFromTracker() {
-  const rows = await sbFetch('Tracker?select=id,Player,games');
-  if (!rows?.length) return null;
-  return trackerRowsToData(rows);
-}
-
-async function saveToTracker(data) {
-  const rows = await sbFetch('Tracker?select=id,Player');
-  for (const player of PLAYERS) {
-    const games = data[player.id] ?? [];
-    const existing = rows?.find(r => r.Player === player.id);
-    const payload = { games };
-    if (existing) {
-      await sbFetch(`Tracker?id=eq.${existing.id}`, 'PATCH', payload);
-    } else {
-      await sbFetch('Tracker', 'POST', [{ Player: player.id, games }], { Prefer: 'return=minimal' });
-    }
-  }
-}
-
-// ── Normalized matches table ──────────────────────────────────────────────────
 
 function matchRowToGame(row) {
   const raw = row.played_at ?? '';
@@ -90,23 +47,13 @@ function matchRowToGame(row) {
   });
 }
 
-function matchesRowsToData(rows) {
-  const data = Object.fromEntries(PLAYERS.map(p => [p.id, []]));
-  (rows ?? []).forEach(row => {
-    const key = row.player?.toLowerCase();
-    if (key && data[key] !== undefined) data[key].push(matchRowToGame(row));
-  });
-  PLAYERS.forEach(p => { data[p.id] = normalizePlayerGames(data[p.id]); });
-  return data;
-}
-
-function gameToMatchRow(playerId, game) {
+function gameToMatchRow(userId, game) {
   const d = parseDisplayDate(game.date);
   const played_at = d
     ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
     : new Date().toISOString().slice(0, 10);
   return {
-    player: playerId,
+    user_id: userId,
     match_num: game.match,
     session: game.session,
     played_at,
@@ -122,88 +69,47 @@ function gameToMatchRow(playerId, game) {
   };
 }
 
-async function loadFromMatches() {
-  const rows = await sbFetch('matches?select=*&order=player.asc,match_num.asc');
-  return matchesRowsToData(rows);
+export async function loadProfile() {
+  const user = getAuthUser();
+  if (!user) return null;
+
+  let rows = await sbFetch(`profiles?id=eq.${user.id}&select=*`);
+  if (rows?.[0]) return rows[0];
+
+  const meta = user.user_metadata ?? {};
+  const profile = {
+    id: user.id,
+    display_name: meta.full_name || meta.name || user.email?.split('@')[0],
+    avatar_url: meta.avatar_url || meta.picture || null,
+    accent_color: '#e65c00',
+    legacy_claimed: null,
+  };
+
+  await sbFetch('profiles', 'POST', [profile], {
+    Prefer: 'resolution=merge-duplicates,return=minimal',
+  });
+
+  rows = await sbFetch(`profiles?id=eq.${user.id}&select=*`);
+  return rows?.[0] ?? profile;
 }
 
-async function saveToMatches(data) {
-  for (const player of PLAYERS) {
-    const games = normalizePlayerGames(data[player.id] ?? []);
-    await sbFetch(`matches?player=eq.${player.id}`, 'DELETE');
-    if (games.length) {
-      const rows = games.map(g => gameToMatchRow(player.id, g));
-      await sbFetch('matches', 'POST', rows, {
-        Prefer: 'resolution=merge-duplicates,return=minimal',
-      });
-    }
-  }
+export async function loadGames() {
+  const user = getAuthUser();
+  if (!user) return [];
+  const rows = await sbFetch(`matches?user_id=eq.${user.id}&select=*&order=match_num.asc`);
+  return normalizePlayerGames((rows ?? []).map(matchRowToGame));
 }
 
-async function matchesTableAvailable() {
-  try {
-    await sbFetch('matches?select=id&limit=0');
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function hasAnyGames(data) {
-  return PLAYERS.some(p => (data[p.id] ?? []).length > 0);
-}
-
-const SEED = { anthony: SEED_ANTHONY, trystan: [] };
-
-// ── Public API ────────────────────────────────────────────────────────────────
-
-export async function loadData() {
-  try {
-    if (await matchesTableAvailable()) {
-      storageBackend = 'matches';
-      const existing = await sbFetch('matches?select=id&limit=1');
-
-      if (existing?.length) {
-        const data = await loadFromMatches();
-        setSyncStatus('live');
-        return data;
-      }
-
-      // Empty matches table — pull from Tracker if populated, then migrate
-      const trackerData = await loadFromTracker();
-      if (trackerData && hasAnyGames(trackerData)) {
-        await saveToMatches(trackerData);
-        setSyncStatus('live');
-        return trackerData;
-      }
-
-      await saveToMatches(SEED);
-      setSyncStatus('live');
-      return SEED;
-    }
-
-    storageBackend = 'tracker';
-    const trackerData = await loadFromTracker();
-    if (!trackerData) {
-      await saveToTracker(SEED);
-      setSyncStatus('live');
-      return SEED;
-    }
-    setSyncStatus('live');
-    return trackerData;
-  } catch (e) {
-    setSyncStatus('error');
-    throw e;
-  }
-}
-
-export async function saveData(data) {
+export async function saveGames(games) {
+  const user = getAuthUser();
+  if (!user) throw new Error('Not signed in');
   setSyncStatus('saving');
   try {
-    if (storageBackend === 'matches') {
-      await saveToMatches(data);
-    } else {
-      await saveToTracker(data);
+    const normalized = normalizePlayerGames(games);
+    await sbFetch(`matches?user_id=eq.${user.id}`, 'DELETE');
+    if (normalized.length) {
+      const rows = normalized.map(g => gameToMatchRow(user.id, g));
+      await sbFetch('matches', 'POST', rows, { Prefer: 'return=minimal' });
     }
     setSyncStatus('live');
   } catch (e) {
@@ -212,40 +118,71 @@ export async function saveData(data) {
   }
 }
 
-/** Load goals from Supabase settings table, fallback to localStorage */
 export async function loadSettings() {
+  const user = getAuthUser();
+  if (!user) return { goals: { ...DEFAULT_GOALS } };
   try {
-    const rows = await sbFetch(`${SETTINGS_KEY}?select=data&limit=1`);
+    const rows = await sbFetch(`user_settings?user_id=eq.${user.id}&select=data`);
     if (rows?.[0]?.data?.goals) {
-      saveGoalsLocal(rows[0].data.goals);
-      return rows[0].data;
+      return { goals: { ...DEFAULT_GOALS, ...rows[0].data.goals } };
     }
   } catch {
-    /* settings table may not exist yet */
+    /* table may not exist yet */
   }
-  return { goals: loadGoalsLocal() };
+  return { goals: { ...DEFAULT_GOALS } };
 }
 
 export async function saveSettings(settings) {
-  if (settings.goals) saveGoalsLocal(settings.goals);
+  const user = getAuthUser();
+  if (!user) return;
   try {
-    const rows = await sbFetch(`${SETTINGS_KEY}?select=id&limit=1`);
-    const payload = { data: settings, updated_at: new Date().toISOString() };
-    if (rows?.[0]?.id) {
-      await sbFetch(`${SETTINGS_KEY}?id=eq.${rows[0].id}`, 'PATCH', payload);
-    } else {
-      await sbFetch(SETTINGS_KEY, 'POST', [payload], { Prefer: 'return=minimal' });
-    }
+    const payload = { user_id: user.id, data: settings, updated_at: new Date().toISOString() };
+    await sbFetch('user_settings', 'POST', [payload], {
+      Prefer: 'resolution=merge-duplicates,return=minimal',
+    });
   } catch {
-    /* localStorage fallback already saved */
+    /* fallback silently */
   }
 }
 
-/** Wrap data for export/debug */
-export function dataToPayload(data) {
-  return {
-    schemaVersion: SCHEMA_VERSION,
-    storageBackend,
-    players: Object.fromEntries(PLAYERS.map(p => [p.id, data[p.id] ?? []])),
-  };
+/** One-time import from legacy Tracker JSON blob */
+export async function claimLegacyData(legacyId) {
+  const user = getAuthUser();
+  if (!user) throw new Error('Not signed in');
+  const legacy = LEGACY_PLAYERS.find(p => p.id === legacyId);
+  if (!legacy) throw new Error('Unknown legacy profile');
+
+  const rows = await sbFetch(`Tracker?Player=eq.${legacyId}&select=games`);
+  const games = normalizePlayerGames(rows?.[0]?.games ?? []);
+  if (!games.length) throw new Error(`No legacy data found for ${legacy.name}`);
+
+  await saveGames(games);
+  await sbFetch(`profiles?id=eq.${user.id}`, 'PATCH', { legacy_claimed: legacyId });
+  return games;
+}
+
+export async function loadUserGroups() {
+  const user = getAuthUser();
+  if (!user) return [];
+  try {
+    const members = await sbFetch(`group_members?user_id=eq.${user.id}&select=role,group_id,groups(id,name,invite_code,created_at)`);
+    return (members ?? []).map(m => ({ ...m.groups, role: m.role }));
+  } catch {
+    return [];
+  }
+}
+
+export async function loadUserData() {
+  setSyncStatus('connecting');
+  try {
+    const profile = await loadProfile();
+    const games = await loadGames();
+    const settings = await loadSettings();
+    const groups = await loadUserGroups();
+    setSyncStatus('live');
+    return { profile, games, goals: settings.goals, groups };
+  } catch (e) {
+    setSyncStatus('error');
+    throw e;
+  }
 }

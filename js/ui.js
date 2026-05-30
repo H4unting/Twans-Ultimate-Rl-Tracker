@@ -1,8 +1,8 @@
 /** DOM rendering, toasts, modals, filters UI */
 
-import { TAG_CATS, TAG_COLORS, TAG_GROUPS, PLAYERS, PLAYLISTS } from './config.js';
+import { TAG_CATS, TAG_COLORS, TAG_GROUPS, PLAYLISTS } from './config.js';
 import { getRank, rankIconHTML, rankBadgeHTML } from './ranks.js';
-import { calcStats, getPrimaryMode } from './utils.js';
+import { calcStats } from './utils.js';
 import { getGoalProgress } from './goals.js';
 import { getUniqueSessions } from './filters.js';
 
@@ -80,7 +80,7 @@ export function renderStats(containerId, stats, playlist = 'all') {
     </div>`).join('');
 }
 
-export function renderLog(tableId, games, limit, player) {
+export function renderLog(tableId, games, limit, editable = false) {
   const t = document.getElementById(tableId);
   if (!t) return;
   const rows = limit ? [...games].reverse().slice(0, limit) : [...games].reverse();
@@ -105,42 +105,80 @@ export function renderLog(tableId, games, limit, player) {
         <td><span style="margin-right:4px">${g.endMMR}</span>${rankIconHTML(getRank(g.endMMR, g.mode), 22)}</td>
         <td class="${(g.mmrDiff || 0) >= 0 ? 'pos' : 'neg'}">${(g.mmrDiff || 0) >= 0 ? '+' : ''}${g.mmrDiff || 0}</td>
         <td style="max-width:190px">${renderInlineTags(g.tags)}${g.notes ? `<div class="note-cell">${g.notes}</div>` : ''}</td>
-        <td style="white-space:nowrap">${player ? `
-          <button class="action-btn edit" data-player="${player}" data-match="${g.match}" title="Edit">✏️</button>
-          <button class="action-btn del" data-player="${player}" data-match="${g.match}" title="Delete">🗑️</button>` : ''}</td>
+        <td style="white-space:nowrap">${editable ? `
+          <button class="action-btn edit" data-match="${g.match}" title="Edit">✏️</button>
+          <button class="action-btn del" data-match="${g.match}" title="Delete">🗑️</button>` : ''}</td>
       </tr>`).join('')}</tbody>`;
 }
 
-export function renderTeamGrid(data, goals = {}) {
-  const grid = document.getElementById('team-grid');
-  if (!grid) return;
-  grid.innerHTML = PLAYERS.map(p => {
-    const s = calcStats(data[p.id] ?? []);
-    const mode = getPrimaryMode(data[p.id] ?? []);
-    const goalItems = goals[p.id] ? getGoalProgress(data[p.id] ?? [], goals[p.id]) : [];
-    const goalsHTML = goalItems.length ? `
-      <div class="dashboard-goals">
-        ${goalItems.slice(0, 2).map(g => `
-          <div class="goal-mini"><span>${g.label}: ${g.display}</span>
-            <div class="goal-progress-track"><div class="goal-progress-fill${g.met ? ' met' : ''}" style="width:${g.pct}%"></div></div>
-          </div>`).join('')}
-      </div>` : '';
-    return `
-      <div class="player-card">
-        <div class="player-name ${p.cls}">${p.name}${s.currentMMR ? '&nbsp;' + rankBadgeHTML(s.currentMMR, 15, mode) : ''}</div>
-        <div class="mini-stat"><span class="mini-label">Current MMR</span><span class="mini-val" style="color:#ffd700">${s.currentMMR}</span></div>
-        <div class="mini-stat"><span class="mini-label">Games</span><span class="mini-val">${s.totalGames}</span></div>
-        <div class="mini-stat"><span class="mini-label">W / L</span><span class="mini-val"><span style="color:#00c851">${s.wins}W</span> / <span style="color:#ff4444">${s.losses}L</span></span></div>
-        <div class="mini-stat"><span class="mini-label">Win Rate</span><span class="mini-val" style="color:#e65c00">${s.winRate}%</span></div>
-        <div class="mini-stat"><span class="mini-label">MMR Gain</span><span class="mini-val ${s.totalMMRGain >= 0 ? 'pos' : 'neg'}">${s.totalMMRGain >= 0 ? '+' : ''}${s.totalMMRGain}</span></div>
-        <div class="mini-stat"><span class="mini-label">Streak</span><span class="mini-val">${s.streak.count > 1 ? `<span class="streak-badge ${s.streak.type === 'W' ? 'win' : 'loss'}">${s.streak.type === 'W' ? '🔥' : '💀'} ${s.streak.count}</span>` : '—'}</span></div>
-        ${goalsHTML}
-      </div>`;
-  }).join('');
+export function renderAuthBar(display, onSignOut) {
+  const el = document.getElementById('user-bar');
+  if (!el) return;
+  const avatar = display.avatar
+    ? `<img class="user-avatar" src="${display.avatar}" alt="">`
+    : `<span class="user-avatar user-avatar-fallback">${display.name.charAt(0)}</span>`;
+  el.innerHTML = `
+    ${avatar}
+    <span class="user-name">${display.name}</span>
+    <button class="btn-signout" type="button" id="sign-out-btn">Sign out</button>`;
+  el.querySelector('#sign-out-btn')?.addEventListener('click', onSignOut);
 }
 
-export function renderPlaylistTabs(playerId, activePlaylist, onSelect) {
-  const container = document.getElementById(`${playerId}-pl-tabs`);
+export function renderWelcomeHeader(display, stats) {
+  const el = document.getElementById('welcome-header');
+  if (!el) return;
+  el.innerHTML = `
+    <h1 class="welcome-title">Hey, <span style="color:${display.color}">${display.name}</span></h1>
+    <p class="welcome-sub">${stats.totalGames ? `${stats.totalGames} games tracked · ${stats.winRate}% win rate` : 'Log your first game to start tracking'}</p>`;
+}
+
+export function renderLegacyImportBanner(profile, onClaim) {
+  const el = document.getElementById('legacy-import');
+  if (!el) return;
+  if (profile?.legacy_claimed) {
+    el.innerHTML = '';
+    el.classList.add('hidden');
+    return;
+  }
+  el.classList.remove('hidden');
+  el.innerHTML = `
+    <div class="legacy-banner">
+      <div>
+        <strong>Import your old stats?</strong>
+        <p>If you used this tracker before sign-in, link your previous profile once.</p>
+      </div>
+      <div class="legacy-btns">
+        <button class="btn btn-cancel btn-sm" type="button" data-legacy="anthony">I'm Anthony</button>
+        <button class="btn btn-cancel btn-sm" type="button" data-legacy="trystan">I'm Trystan</button>
+      </div>
+    </div>`;
+  el.querySelectorAll('[data-legacy]').forEach(btn => {
+    btn.addEventListener('click', () => onClaim(btn.dataset.legacy));
+  });
+}
+
+export function renderGoalProgress(containerId, games, goals) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const items = getGoalProgress(games, goals);
+  if (!items.length) {
+    el.innerHTML = '<div class="empty" style="padding:12px">Set goals on the Reports page</div>';
+    return;
+  }
+  el.innerHTML = items.map(g => `
+    <div class="goal-progress-row">
+      <div class="goal-progress-head"><span>${g.label}</span><span class="goal-progress-val">${g.display}</span></div>
+      <div class="goal-progress-track"><div class="goal-progress-fill${g.met ? ' met' : ''}" style="width:${g.pct}%"></div></div>
+    </div>`).join('');
+}
+
+export function showLoginScreen(show) {
+  document.getElementById('login-screen')?.classList.toggle('hidden', !show);
+  document.getElementById('app-shell')?.classList.toggle('hidden', show);
+}
+
+export function renderPlaylistTabs(containerId, activePlaylist, onSelect) {
+  const container = document.getElementById(containerId);
   if (!container) return;
   container.innerHTML = PLAYLISTS.map(pl => `
     <button class="pl-tab${pl.id === activePlaylist ? ' active' : ''}" data-playlist="${pl.id}">${pl.label}</button>
@@ -274,8 +312,5 @@ export function showPage(pageId, btn) {
 }
 
 export function setPlayerSelector(prefix, activeId) {
-  PLAYERS.forEach(p => {
-    const el = document.getElementById(`${prefix}-${p.id}`);
-    if (el) el.className = 'pselector' + (p.id === activeId ? ` active ${p.cls}` : '');
-  });
+  /* legacy no-op — personal app has no player selector */
 }

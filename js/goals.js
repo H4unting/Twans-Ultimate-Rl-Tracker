@@ -1,9 +1,6 @@
-/** Player goal system — targets + progress tracking */
+/** Personal goal targets */
 
-import { PLAYERS } from './config.js';
 import { getGamesInWeek, calcStats } from './utils.js';
-
-const STORAGE_KEY = 'rl-grind-goals';
 
 export const DEFAULT_GOALS = {
   mmrTarget: 0,
@@ -12,90 +9,42 @@ export const DEFAULT_GOALS = {
   focusTag: '',
 };
 
-export function getDefaultGoals() {
-  return Object.fromEntries(PLAYERS.map(p => [p.id, { ...DEFAULT_GOALS }]));
-}
-
-export function loadGoalsLocal() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return getDefaultGoals();
-    const parsed = JSON.parse(raw);
-    const defaults = getDefaultGoals();
-    PLAYERS.forEach(p => {
-      defaults[p.id] = { ...DEFAULT_GOALS, ...parsed[p.id] };
-    });
-    return defaults;
-  } catch {
-    return getDefaultGoals();
-  }
-}
-
-export function saveGoalsLocal(goals) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(goals));
-}
-
 export function getGoalProgress(games, goals) {
+  const g = goals ?? DEFAULT_GOALS;
   const weekGames = getGamesInWeek(games, 0);
   const stats = calcStats(games);
   const weekStats = calcStats(weekGames);
   const currentMMR = stats.currentMMR || 0;
-
   const items = [];
 
-  if (goals.mmrTarget > 0) {
-    const pct = Math.min(100, Math.round(currentMMR / goals.mmrTarget * 100));
+  if (g.mmrTarget > 0) {
+    const pct = Math.min(100, Math.round(currentMMR / g.mmrTarget * 100));
     items.push({
-      id: 'mmr',
-      label: 'MMR Target',
-      current: currentMMR,
-      target: goals.mmrTarget,
-      pct,
-      met: currentMMR >= goals.mmrTarget,
-      display: `${currentMMR} / ${goals.mmrTarget}`,
+      id: 'mmr', label: 'MMR Target', pct, met: currentMMR >= g.mmrTarget,
+      display: `${currentMMR} / ${g.mmrTarget}`,
     });
   }
-
-  if (goals.gamesPerWeek > 0) {
+  if (g.gamesPerWeek > 0) {
     const count = weekGames.length;
-    const pct = Math.min(100, Math.round(count / goals.gamesPerWeek * 100));
+    const pct = Math.min(100, Math.round(count / g.gamesPerWeek * 100));
     items.push({
-      id: 'games',
-      label: 'Games This Week',
-      current: count,
-      target: goals.gamesPerWeek,
-      pct,
-      met: count >= goals.gamesPerWeek,
-      display: `${count} / ${goals.gamesPerWeek}`,
+      id: 'games', label: 'Games This Week', pct, met: count >= g.gamesPerWeek,
+      display: `${count} / ${g.gamesPerWeek}`,
     });
   }
-
-  if (goals.winRateTarget > 0 && weekGames.length >= 3) {
-    const pct = Math.min(100, Math.round(weekStats.winRate / goals.winRateTarget * 100));
+  if (g.winRateTarget > 0 && weekGames.length >= 3) {
+    const pct = Math.min(100, Math.round(weekStats.winRate / g.winRateTarget * 100));
     items.push({
-      id: 'wr',
-      label: 'Weekly Win Rate',
-      current: weekStats.winRate,
-      target: goals.winRateTarget,
-      pct,
-      met: weekStats.winRate >= goals.winRateTarget,
-      display: `${weekStats.winRate}% / ${goals.winRateTarget}%`,
+      id: 'wr', label: 'Weekly Win Rate', pct, met: weekStats.winRate >= g.winRateTarget,
+      display: `${weekStats.winRate}% / ${g.winRateTarget}%`,
     });
   }
-
-  if (goals.focusTag) {
-    const tagged = weekGames.filter(g => (g.tags || []).includes(goals.focusTag)).length;
+  if (g.focusTag) {
+    const tagged = weekGames.filter(x => (x.tags || []).includes(g.focusTag)).length;
     items.push({
-      id: 'focus',
-      label: `Reduce "${goals.focusTag}"`,
-      current: tagged,
-      target: 0,
-      pct: weekGames.length ? Math.max(0, 100 - Math.round(tagged / weekGames.length * 100)) : 100,
-      met: tagged === 0,
-      display: `${tagged}× this week`,
-      invert: true,
+      id: 'focus', label: `Reduce "${g.focusTag}"`, pct: weekGames.length ? Math.max(0, 100 - Math.round(tagged / weekGames.length * 100)) : 100,
+      met: tagged === 0, display: `${tagged}× this week`,
     });
   }
-
   return items;
 }

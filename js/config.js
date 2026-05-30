@@ -3,12 +3,16 @@
 export const SUPABASE_URL = 'https://pwuxocijdnuhhghufizn.supabase.co';
 export const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB3dXhvY2lqZG51aGhnaHVmaXpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4MjUyNzMsImV4cCI6MjA5NTQwMTI3M30.FZocCo3mNOVkXXqmfYL0XVrUY6czUYuTTAq8vgBE1EU';
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
-export const PLAYERS = [
+/** Legacy player IDs for one-time data import */
+export const LEGACY_PLAYERS = [
   { id: 'anthony', name: 'Anthony', color: '#e65c00', cls: 'ant' },
   { id: 'trystan', name: 'Trystan', color: '#00e5ff', cls: 'try' },
 ];
+
+/** @deprecated — use getUserDisplay() from state.js */
+export const PLAYERS = LEGACY_PLAYERS;
 
 export const PLAYLISTS = [
   { id: 'all', label: 'All Modes', mode: null },

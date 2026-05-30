@@ -1,17 +1,15 @@
-/** Central app state — single source of truth with lightweight pub/sub */
+/** Central app state — auth-first, single-user by default */
 
-import { PLAYERS } from './config.js';
-
-const playerIds = PLAYERS.map(p => p.id);
+import { DEFAULT_GOALS } from './goals.js';
 
 export const state = {
-  data: Object.fromEntries(playerIds.map(id => [id, []])),
+  authReady: false,
+  profile: null,
+  games: [],
   loading: true,
   syncStatus: 'connecting',
   activePage: 'dashboard',
-  logPlayer: playerIds[0],
-  analyticsPlayer: playerIds[0],
-  playerPlaylist: Object.fromEntries(playerIds.map(id => [id, 'all'])),
+  playlist: 'all',
   filters: {
     dateFrom: '',
     dateTo: '',
@@ -24,19 +22,18 @@ export const state = {
     active: false,
     startTime: null,
     startMMR: null,
-    player: playerIds[0],
     sessionNum: 1,
     timerId: null,
   },
   ui: {
     selectedTags: [],
     editTags: [],
-    editingPlayer: null,
     editingMatch: null,
     currentResult: 'W',
   },
-  goals: {},
+  goals: { ...DEFAULT_GOALS },
   reportsWeekOffset: 0,
+  groups: [],
 };
 
 const listeners = new Set();
@@ -56,13 +53,28 @@ export function setSyncStatus(status) {
   notify();
 }
 
-export function setData(data) {
-  state.data = data;
+export function setGames(games) {
+  state.games = games;
   state.loading = false;
+  notify();
+}
+
+export function setProfile(profile) {
+  state.profile = profile;
   notify();
 }
 
 export function setGoals(goals) {
   state.goals = goals;
   notify();
+}
+
+export function getUserDisplay(authUser) {
+  const p = state.profile;
+  const u = authUser;
+  return {
+    name: p?.display_name || u?.user_metadata?.full_name || u?.user_metadata?.name || u?.email?.split('@')[0] || 'Player',
+    avatar: p?.avatar_url || u?.user_metadata?.avatar_url || u?.user_metadata?.picture || null,
+    color: p?.accent_color || '#e65c00',
+  };
 }

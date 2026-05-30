@@ -1,15 +1,13 @@
-/** Match CRUD operations */
+/** Match CRUD — current user's games only */
 
-import { state, setData } from './state.js';
+import { state, setGames } from './state.js';
 import { formatDisplayDate, normalizeGame } from './utils.js';
-import { saveData } from './supabase.js';
+import { saveGames } from './supabase.js';
 import { showToast } from './ui.js';
 import { refreshSessionUI } from './sessions.js';
 
 export async function addGame(formData, selectedTags, onSuccess) {
-  const player = state.logPlayer;
-  const data = JSON.parse(JSON.stringify(state.data));
-  const games = data[player];
+  const games = JSON.parse(JSON.stringify(state.games));
   const d = formData.date ? new Date(formData.date + 'T12:00:00') : new Date();
   const startMMR = parseInt(formData.startMMR, 10) || 0;
   const endMMR = parseInt(formData.endMMR, 10) || 0;
@@ -30,25 +28,25 @@ export async function addGame(formData, selectedTags, onSuccess) {
   });
 
   games.push(game);
-  await saveData(data);
-  setData(data);
+  await saveGames(games);
+  setGames(games);
   showToast(`Game logged! ${game.mmrDiff >= 0 ? '+' : ''}${game.mmrDiff} MMR`);
   refreshSessionUI();
   if (onSuccess) onSuccess(game);
   return game;
 }
 
-export async function updateGame(player, matchNum, formData, selectedTags) {
-  const data = JSON.parse(JSON.stringify(state.data));
-  const idx = data[player].findIndex(g => g.match === matchNum);
+export async function updateGame(matchNum, formData, selectedTags) {
+  const games = JSON.parse(JSON.stringify(state.games));
+  const idx = games.findIndex(g => g.match === matchNum);
   if (idx === -1) throw new Error('Game not found');
 
   const d = formData.date ? new Date(formData.date + 'T12:00:00') : new Date();
   const startMMR = parseInt(formData.startMMR, 10) || 0;
   const endMMR = parseInt(formData.endMMR, 10) || 0;
 
-  data[player][idx] = normalizeGame({
-    ...data[player][idx],
+  games[idx] = normalizeGame({
+    ...games[idx],
     date: formatDisplayDate(d),
     session: parseInt(formData.session, 10) || 1,
     mode: formData.mode,
@@ -62,23 +60,21 @@ export async function updateGame(player, matchNum, formData, selectedTags) {
     tags: [...selectedTags],
   });
 
-  await saveData(data);
-  setData(data);
+  await saveGames(games);
+  setGames(games);
   showToast('Game updated!');
 }
 
-export async function deleteGame(player, matchNum) {
+export async function deleteGame(matchNum) {
   if (!confirm('Delete this game?')) return false;
-  const data = JSON.parse(JSON.stringify(state.data));
-  data[player] = data[player].filter(g => g.match !== matchNum);
-  data[player].forEach((g, i) => { g.match = i + 1; });
-  await saveData(data);
-  setData(data);
+  const games = state.games.filter(g => g.match !== matchNum);
+  games.forEach((g, i) => { g.match = i + 1; });
+  await saveGames(games);
+  setGames(games);
   showToast('Game deleted');
   return true;
 }
 
-export function getLastMMR(player) {
-  const games = state.data[player] ?? [];
-  return games.length ? games[games.length - 1].endMMR : '';
+export function getLastMMR() {
+  return state.games.length ? state.games[state.games.length - 1].endMMR : '';
 }

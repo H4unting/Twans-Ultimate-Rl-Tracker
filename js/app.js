@@ -1,27 +1,25 @@
 /**
- * RL Grind Tracker — main entry point
- * Orchestrates modules; keeps wiring logic here, business logic in feature modules.
+ * RL Grind Tracker — auth-first personal dashboard
  */
 
-import { PLAYERS, getPlayerMeta } from './config.js';
-import { state, subscribe, setData, setSyncStatus, setGoals } from './state.js';
-import { loadData, loadSettings, saveSettings } from './supabase.js';
+import { state, subscribe, setGames, setSyncStatus, setGoals, setProfile, getUserDisplay } from './state.js';
+import { initAuth, signInWithGoogle, signOut, onAuthChange, getAuthUser } from './auth.js';
+import { loadUserData, saveSettings, claimLegacyData } from './supabase.js';
 import { applyFilters, DEFAULT_FILTERS } from './filters.js';
 import { calcStats } from './utils.js';
 import { addGame, updateGame, deleteGame, getLastMMR } from './matches.js';
 import { startSession, endSession, closeSessionModal, closeSessionModalAndContinue, initSessionUI, refreshSessionUI } from './sessions.js';
-import { mmrChart, wlChart, sessionChart, teamChart } from './charts.js';
+import { mmrChart, wlChart, sessionChart } from './charts.js';
 import { renderAnalytics } from './analytics.js';
 import { renderReportsPage } from './reports-ui.js';
-import { renderCoachingPage } from './coaching.js';
-import { loadGoalsLocal } from './goals.js';
+import { renderFocusPage } from './focus.js';
+import { renderGroupsPage } from './groups.js';
 import {
-  showToast, setSyncUI, renderStats, renderLog, renderTeamGrid,
-  renderPlaylistTabs, renderFilterBar, showPage, setPlayerSelector,
-  renderTagChips, showLoading,
+  showToast, setSyncUI, renderStats, renderLog, renderPlaylistTabs, renderFilterBar,
+  showPage, renderTagChips, showLoading, showLoginScreen, renderAuthBar,
+  renderWelcomeHeader, renderLegacyImportBanner, renderGoalProgress,
 } from './ui.js';
 
-// ── Global handlers for inline HTML onclick fallbacks ─────────────────────────
 window.__endSession = () => endSession();
 window.showPage = (id, btn) => navigate(id, btn);
 window.startNextSession = () => closeSessionModalAndContinue();
@@ -30,136 +28,159 @@ window.goToDashboardFromSession = () => {
   navigate('dashboard', document.querySelector('.tab[data-page="dashboard"]'));
 };
 
-// ── Init ──────────────────────────────────────────────────────────────────────
+function getFilteredGames() {
+  const playlist = state.playlist ?? 'all';
+  return applyFilters(state.games, { ...state.filters, playlist });
+}
 
-async function init() {
+function getDisplay() {
+  return getUserDisplay(getAuthUser());
+}
+
+async function bootApp() {
+  showLoginScreen(false);
   showLoading(true);
-  document.getElementById('f-date').value = new Date().toISOString().slice(0, 10);
-
-  subscribe(() => setSyncUI(state.syncStatus));
-  setSyncUI(state.syncStatus);
-
-  wireNavigation();
-  wireLogForm();
-  wireEditModal();
-  wirePlayerSelectors();
-  initSessionUI();
 
   try {
-    const [data, settings] = await Promise.all([loadData(), loadSettings()]);
-    setData(data);
-    setGoals(settings.goals ?? loadGoalsLocal());
+    const { profile, games, goals, groups } = await loadUserData();
+    setProfile(profile);
+    setGames(games);
+    setGoals(goals);
+    state.groups = groups;
+    state.filters = { ...DEFAULT_FILTERS };
+
+    renderAuthBar(getDisplay(), handleSignOut);
     renderAll();
     showLoading(false);
   } catch (e) {
+    console.error(e);
     setSyncStatus('error');
     showLoading(false);
-    document.getElementById('team-grid').innerHTML =
-      '<div class="empty" style="color:#ff4444">Could not connect to Supabase.</div>';
-    showToast('Connection failed', 'error');
+    showToast('Could not load your data', 'error');
   }
 }
 
-// ── Render pipeline ───────────────────────────────────────────────────────────
+function showLoggedOut() {
+  showLoading(false);
+  showLoginScreen(true);
+  const btn = document.getElementById('google-signin-btn');
+  if (btn) btn.onclick = handleGoogleSignIn;
+}
 
-function getPlayerGames(playerId) {
-  const all = state.data[playerId] ?? [];
-  const playlist = state.playerPlaylist[playerId] ?? 'all';
-  const filtered = applyFilters(all, { ...state.filters, playlist });
-  return { all, filtered, playlist };
+async function handleGoogleSignIn() {
+  try {
+    await signInWithGoogle();
+  } catch {
+    showToast('Sign in failed', 'error');
+  }
+}
+
+async function handleSignOut() {
+  await signOut();
+  state.games = [];
+  state.profile = null;
+  showLoginScreen(true);
+}
+
+async function handleLegacyClaim(legacyId) {
+  try {
+    showLoading(true);
+    const games = await claimLegacyData(legacyId);
+    setGames(games);
+    const profile = { ...state.profile, legacy_claimed: legacyId };
+    setProfile(profile);
+    renderAll();
+    showLoading(false);
+    showToast('Stats imported!');
+  } catch (e) {
+    showLoading(false);
+    showToast(e.message || 'Import failed', 'error');
+  }
 }
 
 function renderAll() {
-  renderTeamGrid(state.data, state.goals);
-  teamChart(state.data.anthony ?? [], state.data.trystan ?? []);
+  const games = state.games;
+  const filtered = getFilteredGames();
+  const stats = calcStats(filtered);
+  const display = getDisplay();
 
-  PLAYERS.forEach(p => {
-    const { all, filtered, playlist } = getPlayerGames(p.id);
-    const stats = calcStats(filtered);
-    renderStats(`${p.id}-stats`, stats, playlist);
-    renderLog(`${p.id}-log`, applyFilters(all, state.filters), 0, p.id);
-    renderFilterBar(`${p.id}-filters`, all, { ...state.filters, playlist }, filters => {
-      state.filters = { ...state.filters, ...filters };
-      renderPlayerPage(p.id);
-    });
-    renderPlaylistTabs(p.id, playlist, (pl, btn) => setPlaylist(p.id, pl, btn));
-    mmrChart(`${p.id}MMR`, filtered, p.color);
-    wlChart(`${p.id}WL`, stats);
-    sessionChart(`${p.id}Session`, filtered, p.color);
+  renderWelcomeHeader(display, stats);
+  renderLegacyImportBanner(state.profile, handleLegacyClaim);
+  renderGoalProgress('dash-goals', games, state.goals);
+
+  renderPlaylistTabs('pl-tabs', state.playlist, (pl, btn) => {
+    state.playlist = pl;
+    document.querySelectorAll('#pl-tabs .pl-tab').forEach(b => b.classList.remove('active'));
+    btn?.classList.add('active');
+    renderDashboard();
   });
 
-  renderLog('log-preview', state.data[state.logPlayer] ?? [], 6, null);
-  const lastMMR = getLastMMR(state.logPlayer);
+  renderFilterBar('dash-filters', games, { ...state.filters, playlist: state.playlist }, filters => {
+    state.filters = { ...state.filters, ...filters };
+    renderDashboard();
+  });
+
+  renderStats('dash-stats', stats, state.playlist);
+  mmrChart('dashMMR', filtered, display.color);
+  wlChart('dashWL', stats);
+  sessionChart('dashSession', filtered, display.color);
+  renderLog('dash-log', applyFilters(games, state.filters), 0, true);
+
+  renderLog('log-preview', games, 6, false);
+  const lastMMR = getLastMMR();
   if (lastMMR !== '') document.getElementById('f-startmmr').value = lastMMR;
 
-  renderAnalytics(getAnalyticsGames());
-  const all = state.data[state.analyticsPlayer] ?? [];
-  renderFilterBar('analytics-filters', all, state.filters, filters => {
+  renderFilterBar('analytics-filters', games, state.filters, filters => {
     state.filters = { ...state.filters, ...filters };
-    renderAnalytics(getAnalyticsGames());
+    renderAnalytics(getFilteredGames());
   });
+  renderAnalytics(getFilteredGames());
+
+  renderReportsPageContent();
+  renderFocusPage(games, state.goals, display);
+  renderGroupsPage(state.groups);
+
   refreshSessionUI();
   wireLogTableActions();
-  renderReportsPageContent();
-  renderCoachingPage(state.data, state.goals);
+}
+
+function renderDashboard() {
+  const filtered = getFilteredGames();
+  const stats = calcStats(filtered);
+  const display = getDisplay();
+  renderStats('dash-stats', stats, state.playlist);
+  mmrChart('dashMMR', filtered, display.color);
+  wlChart('dashWL', stats);
+  sessionChart('dashSession', filtered, display.color);
+  renderLog('dash-log', applyFilters(state.games, state.filters), 0, true);
 }
 
 function renderReportsPageContent() {
   renderReportsPage(
-    state.data,
+    state.games,
     state.goals,
+    getDisplay().name,
     state.reportsWeekOffset,
-    offset => {
-      state.reportsWeekOffset = offset;
-      renderReportsPageContent();
-    },
+    offset => { state.reportsWeekOffset = offset; renderReportsPageContent(); },
     async nextGoals => {
       setGoals(nextGoals);
       await saveSettings({ goals: nextGoals });
-      renderTeamGrid(state.data, state.goals);
-      renderCoachingPage(state.data, state.goals);
+      renderGoalProgress('dash-goals', state.games, state.goals);
+      renderFocusPage(state.games, state.goals, getDisplay());
       showToast('Goals saved!');
     },
   );
 }
 
-function renderPlayerPage(playerId) {
-  const { all, filtered, playlist } = getPlayerGames(playerId);
-  const stats = calcStats(filtered);
-  const meta = getPlayerMeta(playerId);
-  renderStats(`${playerId}-stats`, stats, playlist);
-  renderLog(`${playerId}-log`, applyFilters(all, state.filters), 0, playerId);
-  mmrChart(`${playerId}MMR`, filtered, meta.color);
-  wlChart(`${playerId}WL`, stats);
-  sessionChart(`${playerId}Session`, filtered, meta.color);
-  wireLogTableActions();
-}
-
-function getAnalyticsGames() {
-  const all = state.data[state.analyticsPlayer] ?? [];
-  return applyFilters(all, state.filters);
-}
-
-function setPlaylist(playerId, playlist, btn) {
-  state.playerPlaylist[playerId] = playlist;
-  document.querySelectorAll(`#${playerId}-pl-tabs .pl-tab`).forEach(b => b.classList.remove('active'));
-  btn?.classList.add('active');
-  renderPlayerPage(playerId);
-}
-
-// ── Navigation ────────────────────────────────────────────────────────────────
-
 function navigate(pageId, btn) {
   state.activePage = pageId;
   showPage(pageId, btn);
-  if (pageId === 'dashboard') teamChart(state.data.anthony ?? [], state.data.trystan ?? []);
-  if (pageId === 'analytics') renderAnalytics(getAnalyticsGames());
+  if (pageId === 'dashboard') renderDashboard();
+  if (pageId === 'analytics') renderAnalytics(getFilteredGames());
   if (pageId === 'reports') renderReportsPageContent();
-  if (pageId === 'coach') renderCoachingPage(state.data, state.goals);
+  if (pageId === 'focus') renderFocusPage(state.games, state.goals, getDisplay());
+  if (pageId === 'group') renderGroupsPage(state.groups);
   if (pageId === 'log') refreshSessionUI();
-  PLAYERS.forEach(p => {
-    if (pageId === p.id) renderPlayerPage(p.id);
-  });
 }
 
 function wireNavigation() {
@@ -171,14 +192,11 @@ function wireNavigation() {
   });
 }
 
-// ── Log form ──────────────────────────────────────────────────────────────────
-
 function wireLogForm() {
   renderTagChips('log-tags', state.ui.selectedTags, (tag, selected) => {
     if (selected) state.ui.selectedTags.push(tag);
     else state.ui.selectedTags = state.ui.selectedTags.filter(t => t !== tag);
   });
-
   document.getElementById('wl-win')?.addEventListener('click', () => setResult('W'));
   document.getElementById('wl-loss')?.addEventListener('click', () => setResult('L'));
   document.getElementById('add-btn')?.addEventListener('click', handleAddGame);
@@ -210,7 +228,7 @@ async function handleAddGame() {
       document.getElementById('f-goals').value = 0;
       document.getElementById('f-assists').value = 0;
       document.getElementById('f-saves').value = 0;
-      document.getElementById('f-startmmr').value = getLastMMR(state.logPlayer);
+      document.getElementById('f-startmmr').value = getLastMMR();
       document.getElementById('f-endmmr').value = '';
       document.getElementById('f-notes').value = '';
       document.querySelectorAll('#log-tags .tag-chip.selected').forEach(c => c.classList.remove('selected'));
@@ -225,8 +243,6 @@ async function handleAddGame() {
   btn.textContent = '+ Log Game';
 }
 
-// ── Edit modal ────────────────────────────────────────────────────────────────
-
 function wireEditModal() {
   document.getElementById('e-wl-win')?.addEventListener('click', () => setEditResult('W'));
   document.getElementById('e-wl-loss')?.addEventListener('click', () => setEditResult('L'));
@@ -239,15 +255,12 @@ function setEditResult(r) {
   document.getElementById('e-wl-loss').className = 'edit-wl-btn loss' + (r === 'L' ? ' active' : '');
 }
 
-function openEditModal(player, matchNum) {
-  const game = state.data[player]?.find(g => g.match === matchNum);
+function openEditModal(matchNum) {
+  const game = state.games.find(g => g.match === matchNum);
   if (!game) return;
-  state.ui.editingPlayer = player;
   state.ui.editingMatch = matchNum;
   state.ui.editTags = [...(game.tags || [])];
-
-  document.getElementById('edit-modal-sub').textContent =
-    `${getPlayerMeta(player).name} · Match #${matchNum}`;
+  document.getElementById('edit-modal-sub').textContent = `Match #${matchNum}`;
   const [mm, dd, yy] = game.date.split('/');
   document.getElementById('e-date').value = `20${yy}-${mm}-${dd}`;
   document.getElementById('e-session').value = game.session;
@@ -259,7 +272,6 @@ function openEditModal(player, matchNum) {
   document.getElementById('e-endmmr').value = game.endMMR;
   document.getElementById('e-notes').value = game.notes || '';
   setEditResult(game.result);
-
   renderEditTags();
   document.getElementById('edit-modal').classList.add('open');
 }
@@ -281,18 +293,17 @@ function renderEditTags() {
 
 function closeEditModal() {
   document.getElementById('edit-modal').classList.remove('open');
-  state.ui.editingPlayer = null;
   state.ui.editingMatch = null;
 }
 
 async function handleSaveEdit() {
-  const { editingPlayer: player, editingMatch: matchNum, editTags } = state.ui;
-  if (!player || !matchNum) return;
+  const matchNum = state.ui.editingMatch;
+  if (!matchNum) return;
   const btn = document.getElementById('save-edit-btn');
   btn.disabled = true;
   btn.textContent = 'Saving...';
   try {
-    await updateGame(player, matchNum, {
+    await updateGame(matchNum, {
       date: document.getElementById('e-date').value,
       session: document.getElementById('e-session').value,
       mode: document.getElementById('e-mode').value,
@@ -303,7 +314,7 @@ async function handleSaveEdit() {
       startMMR: document.getElementById('e-startmmr').value,
       endMMR: document.getElementById('e-endmmr').value,
       notes: document.getElementById('e-notes').value,
-    }, editTags);
+    }, state.ui.editTags);
     closeEditModal();
     renderAll();
   } catch {
@@ -315,49 +326,33 @@ async function handleSaveEdit() {
 
 function wireLogTableActions() {
   document.querySelectorAll('.action-btn.edit').forEach(btn => {
-    btn.onclick = () => openEditModal(btn.dataset.player, parseInt(btn.dataset.match, 10));
+    btn.onclick = () => openEditModal(parseInt(btn.dataset.match, 10));
   });
   document.querySelectorAll('.action-btn.del').forEach(btn => {
     btn.onclick = async () => {
-      const ok = await deleteGame(btn.dataset.player, parseInt(btn.dataset.match, 10));
+      const ok = await deleteGame(parseInt(btn.dataset.match, 10));
       if (ok) renderAll();
     };
   });
 }
 
-// ── Player selectors ──────────────────────────────────────────────────────────
+async function init() {
+  document.getElementById('f-date').value = new Date().toISOString().slice(0, 10);
+  subscribe(() => setSyncUI(state.syncStatus));
+  setSyncUI(state.syncStatus);
 
-function wirePlayerSelectors() {
-  PLAYERS.forEach(p => {
-    document.getElementById(`ps-${p.id}`)?.addEventListener('click', () => selectLogPlayer(p.id));
-    document.getElementById(`ap-${p.id}`)?.addEventListener('click', () => selectAnalyticsPlayer(p.id));
+  wireNavigation();
+  wireLogForm();
+  wireEditModal();
+  initSessionUI();
+
+  onAuthChange(async (session) => {
+    if (session) await bootApp();
+    else showLoggedOut();
   });
-}
 
-function selectLogPlayer(id) {
-  state.logPlayer = id;
-  setPlayerSelector('ps', id);
-  renderLog('log-preview', state.data[id] ?? [], 6, null);
-  const lastMMR = getLastMMR(id);
-  if (lastMMR !== '') document.getElementById('f-startmmr').value = lastMMR;
-  refreshSessionUI();
+  await initAuth();
+  if (!getAuthUser()) showLoggedOut();
 }
-
-function selectAnalyticsPlayer(id) {
-  state.analyticsPlayer = id;
-  setPlayerSelector('ap', id);
-  const all = state.data[id] ?? [];
-  renderFilterBar('analytics-filters', all, state.filters, filters => {
-    state.filters = { ...state.filters, ...filters };
-    renderAnalytics(getAnalyticsGames());
-  });
-  renderAnalytics(getAnalyticsGames());
-}
-
-// Reset filters helper
-window.resetAllFilters = () => {
-  state.filters = { ...DEFAULT_FILTERS };
-  renderAll();
-};
 
 init();
