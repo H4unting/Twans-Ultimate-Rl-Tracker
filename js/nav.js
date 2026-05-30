@@ -1,5 +1,7 @@
 /** 3-section navigation: Home · Review · Squad */
 
+const TOP_BAR_PAGE_IDS = new Set(['profile']);
+
 export const NAV_SECTIONS = {
   home: {
     label: 'Home',
@@ -72,6 +74,10 @@ export function wireNavigation({ onNavigate, getActivePage }) {
     });
   });
 
+  document.getElementById('top-profile-btn')?.addEventListener('click', () => {
+    onNavigate('profile', 'home');
+  });
+
   return () => updateNavUI(getActivePage());
 }
 
@@ -93,10 +99,14 @@ export function updateNavUI(pageId) {
   });
 
   if (sub && cfg) {
-    sub.innerHTML = cfg.pages.map(p => `
+    sub.innerHTML = cfg.pages
+      .filter(p => !TOP_BAR_PAGE_IDS.has(p.id))
+      .map(p => `
       <button type="button" class="sub-nav-pill${p.id === pageId ? ' active' : ''}" data-page="${p.id}">${p.label}</button>
     `).join('');
   }
+
+  document.getElementById('top-profile-btn')?.classList.toggle('active', pageId === 'profile');
 
   document.querySelectorAll('.mobile-nav-btn[data-section]').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.section === section);

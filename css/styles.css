@@ -89,7 +89,33 @@ body:not(.is-loading) .loading-overlay { opacity: 0; visibility: hidden; pointer
 }
 .logo-home-btn:hover { opacity: 0.88; transform: scale(1.02); }
 .logo-home-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+.top-bar-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 .sync-status { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--dim); }
+.top-profile-btn {
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.top-profile-btn:hover {
+  border-color: #ffffff33;
+  color: var(--text);
+  background: #ffffff08;
+}
+.top-profile-btn.active {
+  border-color: var(--teal);
+  color: var(--teal);
+  background: #00e5ff12;
+}
 .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); transition: background 0.3s; }
 .sync-dot.live { background: var(--green); }
 .sync-dot.saving { background: var(--gold); animation: pulse-dot 1s infinite; }
