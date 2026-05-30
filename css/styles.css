@@ -1799,20 +1799,52 @@ body:not(.logged-out) #login-screen { display: none !important; }
 .home-activity-none { color: #444; }
 .home-activity-date { color: var(--dim); font-size: 12px; white-space: nowrap; }
 
-.home-focus-line {
-  font-size: 13px; color: var(--muted); margin: 0 0 18px; line-height: 1.5;
+.home-focus-card {
+  margin: 0 0 18px;
+  padding: 14px 16px 16px;
+  border-radius: 12px;
+  border: 1px solid #e65c0033;
+  border-left: 4px solid var(--accent);
+  background: linear-gradient(135deg, #e65c0012 0%, #14142e88 100%);
+  box-shadow: 0 0 24px #e65c000f;
 }
-.home-focus-line.muted { color: var(--dim); font-size: 12px; }
+.home-focus-card-empty {
+  border-color: #ffffff12;
+  border-left-color: #ffffff22;
+  background: #00000022;
+  box-shadow: none;
+}
+.home-focus-card-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 8px;
+}
 .home-focus-label {
-  font-size: 11px; font-weight: 600; text-transform: uppercase;
-  letter-spacing: 0.4px; color: var(--dim); margin-right: 6px;
+  font-size: 11px; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.8px; color: var(--accent);
 }
-.home-focus-tag { font-weight: 600; color: var(--text); }
-.home-focus-meta { color: var(--dim); font-size: 12px; }
+.home-focus-more {
+  font-size: 12px; font-weight: 600; color: var(--accent);
+  text-decoration: none; opacity: 0.85;
+}
+.home-focus-more:hover { opacity: 1; text-decoration: underline; }
+.home-focus-tag-name {
+  font-size: 20px; font-weight: 800; color: var(--text);
+  letter-spacing: -0.01em; line-height: 1.25; margin-bottom: 4px;
+}
+.home-focus-stat {
+  font-size: 12px; font-weight: 600; color: #f87171; margin: 0 0 8px;
+}
+.home-focus-tip {
+  font-size: 13px; color: var(--muted); margin: 0; line-height: 1.45;
+  padding-top: 8px; border-top: 1px solid #ffffff0c;
+}
+.home-focus-empty-text {
+  font-size: 13px; color: var(--dim); margin: 6px 0 0; line-height: 1.45;
+}
 
 .home-charts-row {
   display: grid; grid-template-columns: 1fr 140px; gap: 12px;
-  margin-top: 20px; padding-top: 16px; border-top: 1px solid #ffffff08;
+  margin-bottom: 20px;
 }
 .home-chart-box {
   background: #00000022; border: 1px solid #ffffff0a;

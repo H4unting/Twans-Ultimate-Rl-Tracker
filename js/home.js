@@ -3,7 +3,7 @@
 import { calcStats, getPrimaryMode, getGamesInWeek, formatDuration } from './utils.js';
 import { buildWeeklyReport } from './reports.js';
 import { getRank, rankBadgeHTML } from './ranks.js';
-import { getTagLossCorrelations } from './insights.js';
+import { getTagLossCorrelations, ACTION_FOCUS_TIPS } from './insights.js';
 import { TAG_CATS } from './config.js';
 import { state } from './state.js';
 import { getLoggingSessionNum } from './sessions.js';
@@ -126,24 +126,41 @@ export function renderHomeFocus(games) {
   if (!el) return;
 
   if (games.length < 2) {
-    el.innerHTML = `<p class="home-focus-line muted">Today's focus — log a few games and tag losses to see your top mistake here.</p>`;
+    el.innerHTML = `
+      <div class="home-focus-card home-focus-card-empty">
+        <span class="home-focus-label">Today's Focus</span>
+        <p class="home-focus-empty-text">Log a few games and tag losses — your top mistake shows up here.</p>
+      </div>`;
     return;
   }
 
   const correlations = getTagLossCorrelations(games);
   const top = correlations.find(c => c.inLosses >= 1) ?? null;
   if (!top) {
-    el.innerHTML = `<p class="home-focus-line muted">Today's focus — tag mistakes after losses to unlock tips.</p>`;
+    el.innerHTML = `
+      <div class="home-focus-card home-focus-card-empty">
+        <span class="home-focus-label">Today's Focus</span>
+        <p class="home-focus-empty-text">Tag mistakes after losses to unlock your focus area.</p>
+      </div>`;
     return;
   }
 
+  const losses = games.filter(g => g.result === 'L').length;
+  const lossNote = losses
+    ? `${top.inLosses}× in ${losses} loss${losses === 1 ? '' : 'es'}`
+    : `${top.inLosses}× tagged`;
+  const tip = ACTION_FOCUS_TIPS[top.tag] ?? 'Slow down and review before you queue again.';
+
   el.innerHTML = `
-    <p class="home-focus-line">
-      <span class="home-focus-label">Today's focus</span>
-      <span class="home-focus-tag">${top.tag}</span>
-      <span class="home-focus-meta">· ${top.inLosses}× in losses</span>
-      · <a href="#" class="home-link" data-goto="focus">More</a>
-    </p>`;
+    <div class="home-focus-card">
+      <div class="home-focus-card-head">
+        <span class="home-focus-label">Today's Focus</span>
+        <a href="#" class="home-focus-more" data-goto="focus">Details →</a>
+      </div>
+      <div class="home-focus-tag-name">${top.tag}</div>
+      <p class="home-focus-stat">${lossNote}</p>
+      <p class="home-focus-tip">${tip}</p>
+    </div>`;
   wireHomeLinks(el);
 }
 
