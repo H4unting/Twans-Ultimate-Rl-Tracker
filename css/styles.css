@@ -1582,6 +1582,7 @@ body:not(.logged-out) #login-screen { display: none !important; }
   color: #ff9944;
 }
 .session-tag-none { color: var(--dim); }
+.sessions-table .session-dur-col { color: #c4b5fd; font-weight: 600; white-space: nowrap; }
 .sessions-table .pos { color: #4ade80; font-weight: 700; }
 .sessions-table .neg { color: #f87171; font-weight: 700; }
 .btn-link {
