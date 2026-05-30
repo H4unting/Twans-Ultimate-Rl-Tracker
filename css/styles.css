@@ -499,24 +499,35 @@ body.has-quick-dock .live-session-panel { display: none !important; }
 .quick-dock.collapsed .quick-dock-collapsed-tab { display: flex; }
 .quick-dock.collapsed .quick-dock-inner,
 .quick-dock.collapsed .quick-dock-hint { display: none; }
-.dock-collapse-btn {
-  flex-shrink: 0;
-  width: 28px; height: 28px;
-  border-radius: 8px;
-  border: 1px solid #ffffff18;
-  background: #ffffff08;
+.quick-dock-minimize-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+  padding: 6px 12px 4px;
+  border: none;
+  border-bottom: 1px solid #ffffff08;
+  background: #00000033;
   color: var(--dim);
-  font-size: 11px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   cursor: pointer;
-  transition: all 0.12s;
-  line-height: 1;
-  padding: 0;
+  transition: color 0.12s, background 0.12s;
 }
-.dock-collapse-btn:hover {
-  border-color: #ffffff33;
+.quick-dock-minimize-row:hover {
+  background: #ffffff08;
   color: var(--text);
-  background: #ffffff12;
 }
+.quick-dock-minimize-grip {
+  width: 36px;
+  height: 4px;
+  border-radius: 999px;
+  background: #ffffff33;
+}
+.quick-dock-minimize-label { line-height: 1.2; }
 .quick-dock-inner {
   pointer-events: auto;
   max-width: 860px; margin: 0 auto;

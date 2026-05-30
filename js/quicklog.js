@@ -35,6 +35,10 @@ export function collapseDock() {
   setDockCollapsed(true);
 }
 
+export function toggleDockCollapsed() {
+  setDockCollapsed(!isDockCollapsed());
+}
+
 export function updateCollapsedStripLabel() {
   const el = document.getElementById('quick-dock-collapsed-label');
   if (!el) return;
@@ -333,7 +337,9 @@ function wireKeyboard() {
 
     if (typing && e.target?.id !== 'quick-endmmr') return;
 
-    if (e.key === 'w' || e.key === 'W') {
+    if (e.key === 'h' || e.key === 'H') {
+      if (!typing) { e.preventDefault(); toggleDockCollapsed(); }
+    } else if (e.key === 'w' || e.key === 'W') {
       if (!typing) { e.preventDefault(); setQuickResult('W'); }
     } else if (e.key === 'l' || e.key === 'L') {
       if (!typing) { e.preventDefault(); setQuickResult('L'); }
