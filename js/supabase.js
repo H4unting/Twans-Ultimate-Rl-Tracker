@@ -153,7 +153,25 @@ export async function saveSettings(settings) {
 export async function saveProfile(updates) {
   const user = getAuthUser();
   if (!user) throw new Error('Not signed in');
-  await sbFetch(`profiles?id=eq.${user.id}`, 'PATCH', updates);
+
+  try {
+    await sbFetch(`profiles?id=eq.${user.id}`, 'PATCH', updates);
+    return { ok: true, extended: true };
+  } catch (e) {
+    const msg = e?.message ?? '';
+    const missingNewColumns = msg.includes('PGRST204')
+      || msg.includes('primary_color')
+      || msg.includes('secondary_color')
+      || msg.includes('profile_number');
+    if (!missingNewColumns) throw e;
+
+    const legacy = { ...updates };
+    delete legacy.primary_color;
+    delete legacy.secondary_color;
+    delete legacy.profile_number;
+    await sbFetch(`profiles?id=eq.${user.id}`, 'PATCH', legacy);
+    return { ok: true, extended: false };
+  }
 }
 
 /** One-time import from legacy Tracker JSON blob */

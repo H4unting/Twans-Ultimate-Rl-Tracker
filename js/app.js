@@ -78,9 +78,9 @@ async function bootApp() {
   try {
     const { profile, games, goals, groups, bio, rlDisplayName, primaryColor, secondaryColor } = await loadUserData();
     setProfile({
-      ...profile,
-      ...(primaryColor && !profile?.primary_color ? { primary_color: primaryColor } : {}),
-      ...(secondaryColor && !profile?.secondary_color ? { secondary_color: secondaryColor } : {}),
+      ...(profile ?? {}),
+      primary_color: profile?.primary_color || primaryColor || profile?.accent_color || '#e65c00',
+      secondary_color: profile?.secondary_color || secondaryColor || '#4a2060',
     });
     const { games: repaired, changed } = repairPlaylistMMRChain(games);
     if (changed) await saveGames(repaired);
@@ -429,19 +429,6 @@ function getSettingsPayload(overrides = {}) {
 }
 
 async function handleProfileSave({ displayName, rlName, primaryColor, secondaryColor, bio }) {
-  await saveProfile({
-    display_name: displayName,
-    primary_color: primaryColor,
-    secondary_color: secondaryColor,
-    accent_color: primaryColor,
-  });
-  setProfile({
-    ...state.profile,
-    display_name: displayName,
-    primary_color: primaryColor,
-    secondary_color: secondaryColor,
-    accent_color: primaryColor,
-  });
   state.profileBio = bio;
   await saveSettings(getSettingsPayload({
     bio,
@@ -449,8 +436,29 @@ async function handleProfileSave({ displayName, rlName, primaryColor, secondaryC
     primaryColor,
     secondaryColor,
   }));
+
+  const { extended } = await saveProfile({
+    display_name: displayName,
+    primary_color: primaryColor,
+    secondary_color: secondaryColor,
+    accent_color: primaryColor,
+  });
+
+  setProfile({
+    ...state.profile,
+    display_name: displayName,
+    primary_color: primaryColor,
+    secondary_color: secondaryColor,
+    accent_color: primaryColor,
+  });
+
+  saveRlDisplayName(rlName);
+  savePrefs({ rlDisplayName: rlName });
+
   renderAuthBar(getDisplay(), handleSignOut, () => navigate('profile', 'home'));
   renderProfilePageContent();
+
+  return { extended };
 }
 
 function navigate(pageId, section) {

@@ -223,8 +223,12 @@ function wireProfilePage({ onSave, primary, secondary }) {
     savePrefs({ rlDisplayName: rlName });
 
     try {
-      await onSave({ displayName, rlName, primaryColor, secondaryColor, bio });
-      showToast('Profile saved');
+      const result = await onSave({ displayName, rlName, primaryColor, secondaryColor, bio });
+      showToast(
+        result?.extended === false
+          ? 'Profile saved — run profile-customization.sql in Supabase for url# IDs'
+          : 'Profile saved',
+      );
       document.getElementById('profile-edit-panel')?.removeAttribute('open');
     } catch (e) {
       showToast(e?.message || 'Could not save profile', 'error');
