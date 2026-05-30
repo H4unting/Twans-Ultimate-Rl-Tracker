@@ -5,8 +5,18 @@ import { formatDisplayDate, normalizeGame } from './utils.js';
 import { saveGames } from './supabase.js';
 import { showToast } from './ui.js';
 import { refreshSessionUI } from './sessions.js';
+import { isGrindHost } from './env.js';
+
+function requireGrindMode() {
+  if (!isGrindHost()) {
+    showToast('Edits only work on localhost — run start-grind.bat', 'error');
+    return false;
+  }
+  return true;
+}
 
 export async function addGame(formData, selectedTags, onSuccess) {
+  if (!requireGrindMode()) return null;
   const games = JSON.parse(JSON.stringify(state.games));
   const d = formData.date ? new Date(formData.date + 'T12:00:00') : new Date();
   const startMMR = parseInt(formData.startMMR, 10) || 0;
@@ -37,6 +47,7 @@ export async function addGame(formData, selectedTags, onSuccess) {
 }
 
 export async function updateGame(matchNum, formData, selectedTags) {
+  if (!requireGrindMode()) return;
   const games = JSON.parse(JSON.stringify(state.games));
   const idx = games.findIndex(g => g.match === matchNum);
   if (idx === -1) throw new Error('Game not found');
@@ -66,6 +77,7 @@ export async function updateGame(matchNum, formData, selectedTags) {
 }
 
 export async function deleteGame(matchNum) {
+  if (!requireGrindMode()) return false;
   if (!confirm('Delete this game?')) return false;
   const games = state.games.filter(g => g.match !== matchNum);
   games.forEach((g, i) => { g.match = i + 1; });

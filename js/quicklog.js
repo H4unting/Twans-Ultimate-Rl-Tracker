@@ -11,9 +11,9 @@ let quickTags = [];
 
 export function loadPrefs() {
   try {
-    return { lastMode: "2's", dockExpanded: false, ...JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}') };
+    return { lastMode: "2's", ...JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}') };
   } catch {
-    return { lastMode: "2's", dockExpanded: false };
+    return { lastMode: "2's" };
   }
 }
 
@@ -37,7 +37,7 @@ export function showQuickDock() {
 
 export function hideQuickDock() {
   document.getElementById('quick-dock')?.classList.add('hidden');
-  document.body.classList.remove('has-quick-dock', 'quick-dock-expanded');
+  document.body.classList.remove('has-quick-dock');
 }
 
 export function syncQuickFromForm() {
@@ -81,13 +81,35 @@ export function getQuickLogPayload() {
     session: document.getElementById('f-session')?.value,
     mode: getQuickMode(),
     result: getQuickResult(),
-    goals: document.getElementById('f-goals')?.value ?? 0,
-    assists: document.getElementById('f-assists')?.value ?? 0,
-    saves: document.getElementById('f-saves')?.value ?? 0,
+    goals: getQuickStat('goals'),
+    assists: getQuickStat('assists'),
+    saves: getQuickStat('saves'),
     startMMR: document.getElementById('f-startmmr')?.value,
     endMMR: document.getElementById('quick-endmmr')?.value,
     notes: document.getElementById('quick-notes')?.value ?? '',
   };
+}
+
+export function applyLiveStats(stats) {
+  setQuickStat('goals', stats.goals ?? 0);
+  setQuickStat('assists', stats.assists ?? 0);
+  setQuickStat('saves', stats.saves ?? 0);
+}
+
+export function getQuickStat(stat) {
+  return parseInt(document.getElementById(`quick-${stat}-val`)?.textContent ?? '0', 10) || 0;
+}
+
+export function setQuickStat(stat, val) {
+  const n = Math.max(0, parseInt(val, 10) || 0);
+  const el = document.getElementById(`quick-${stat}-val`);
+  if (el) el.textContent = n;
+  const field = document.getElementById(`f-${stat}`);
+  if (field) field.value = n;
+}
+
+function bumpStat(stat, delta) {
+  setQuickStat(stat, getQuickStat(stat) + delta);
 }
 
 export function resetQuickAfterLog() {
@@ -95,26 +117,12 @@ export function resetQuickAfterLog() {
   const qNotes = document.getElementById('quick-notes');
   if (qEnd) { qEnd.value = ''; qEnd.focus(); }
   if (qNotes) qNotes.value = '';
+  setQuickStat('goals', 0);
+  setQuickStat('assists', 0);
+  setQuickStat('saves', 0);
   quickTags = [];
   renderQuickTags();
   syncStartMMR();
-  updateSessionMeta();
-}
-
-export function updateSessionMeta(active, meta = {}) {
-  const btn = document.getElementById('quick-session-btn');
-  const label = document.getElementById('quick-session-meta');
-  if (!btn || !label) return;
-
-  if (active) {
-    btn.textContent = '■ End';
-    btn.className = 'quick-session-btn end';
-    label.innerHTML = meta.html ?? '';
-  } else {
-    btn.textContent = '▶ Session';
-    btn.className = 'quick-session-btn start';
-    label.textContent = meta.hint ?? 'Start when you begin grinding';
-  }
 }
 
 function syncStartMMR() {
@@ -147,17 +155,6 @@ function setQuickResult(r) {
 
 function applyPrefs() {
   setQuickMode(prefs.lastMode ?? "2's");
-  if (prefs.dockExpanded) toggleExpand(true);
-}
-
-function toggleExpand(force) {
-  const extra = document.getElementById('quick-dock-extra');
-  const btn = document.getElementById('quick-expand-btn');
-  const open = force ?? extra?.classList.contains('hidden');
-  extra?.classList.toggle('hidden', !open);
-  document.body.classList.toggle('quick-dock-expanded', open);
-  btn?.setAttribute('aria-expanded', open ? 'true' : 'false');
-  savePrefs({ dockExpanded: open });
 }
 
 function renderQuickTags() {
@@ -198,10 +195,6 @@ function wireDock() {
 
   document.getElementById('quick-log-btn')?.addEventListener('click', () => callbacks.submitQuick?.());
 
-  document.getElementById('quick-expand-btn')?.addEventListener('click', () => toggleExpand());
-
-  document.getElementById('quick-session-btn')?.addEventListener('click', () => callbacks.toggleSession?.());
-
   document.querySelectorAll('#quick-mode-pills button').forEach(btn => {
     btn.addEventListener('click', () => {
       setQuickMode(btn.dataset.mode);
@@ -212,6 +205,12 @@ function wireDock() {
   document.getElementById('f-mode')?.addEventListener('change', e => {
     setQuickMode(e.target.value);
     savePrefs({ lastMode: e.target.value });
+  });
+
+  document.querySelectorAll('.qs-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      bumpStat(btn.dataset.stat, parseInt(btn.dataset.delta, 10));
+    });
   });
 }
 

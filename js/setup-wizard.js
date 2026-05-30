@@ -1,0 +1,174 @@
+/** In-app setup wizard for auto stats + quick log workflow */
+
+import { isGrindHost } from './env.js';
+import { getAuthUser } from './auth.js';
+import { showToast } from './ui.js';
+
+const SETUP_KEY = 'rl-grind-setup';
+
+export function renderSetupWizard(displayName = '') {
+  const el = document.getElementById('setup-wizard');
+  if (!el) return;
+
+  const prefs = loadSetupPrefs();
+  const rlName = getRlDisplayName() || displayName || '';
+  const bridge = isBridgeUp();
+  const isLocal = isGrindHost();
+  const allReady = bridge && isLocal;
+
+  if (allReady && prefs.dismissedWhenReady) {
+    el.innerHTML = '';
+    el.classList.add('hidden');
+    return;
+  }
+
+  el.classList.remove('hidden');
+  el.innerHTML = `
+    <div class="setup-wizard${allReady ? ' setup-ready' : ''}">
+      ${allReady ? '' : `
+      <div class="setup-banner">
+        <span class="setup-banner-icon">👇</span>
+        <div>
+          <strong>Read this once before you grind</strong>
+          <p>Three quick steps on your PC. After that, logging each game takes a few seconds.</p>
+        </div>
+      </div>`}
+      <div class="setup-wizard-head">
+        <div>
+          <span class="setup-kicker">${allReady ? 'All set' : 'One-time setup'}</span>
+          <h3>${allReady ? 'You\'re ready to grind' : 'Auto stats setup'}</h3>
+          <p class="setup-desc">${allReady
+    ? 'Play a match — G/A/S fill in automatically. You only pick W/L and type your End MMR.'
+    : 'Follow steps 1–3 below. Use localhost while playing (not the GitHub link).'}</p>
+        </div>
+        ${allReady ? `<button type="button" class="setup-dismiss" id="setup-dismiss">Got it</button>` : ''}
+      </div>
+      ${allReady ? `
+      <div class="setup-callout setup-callout-success">
+        <strong>While you play:</strong> keep the black <code>start-grind.bat</code> window open.
+        Close it only when you\'re done for the day.
+      </div>
+      <div class="setup-callout setup-callout-workflow">
+        <strong>After each game:</strong> tap <span class="setup-log-chip">W</span> or <span class="setup-log-chip setup-log-chip-loss">L</span>
+        → check G/A/S → pick mode → tap tags if needed → enter <strong>End MMR</strong> → hit <span class="setup-log-chip">LOG</span>
+      </div>` : ''}
+      <ol class="setup-steps${allReady ? ' setup-steps-collapsed hidden' : ''}">
+        <li class="setup-step${prefs.iniDone ? ' done' : ''}" data-step="ini">
+          <span class="setup-step-num">1</span>
+          <div class="setup-step-body">
+            <strong>Enable RL Stats API</strong>
+            <p>Open this file in Notepad:</p>
+            <pre class="setup-code setup-code-path">Rocket League\\TAGame\\Config\\DefaultStatsAPI.ini</pre>
+            <p>Paste or set these lines (change <code>PacketSendRate</code> to <strong>10</strong> if it says 0):</p>
+            <pre class="setup-code">[TAGame.MatchStatsExporter_TA]
+Port=49123
+PacketSendRate=10</pre>
+            <p class="setup-callout setup-callout-tip">Save the file, then fully restart Rocket League.</p>
+            <button type="button" class="btn btn-cancel btn-sm setup-mark" data-mark="iniDone">Mark done</button>
+          </div>
+        </li>
+        <li class="setup-step${rlName ? ' done' : ''}" data-step="name">
+          <span class="setup-step-num">2</span>
+          <div class="setup-step-body">
+            <strong>Your in-game name</strong>
+            <p class="setup-callout setup-callout-tip">Must match your Rocket League display name <em>exactly</em> — same spelling and caps.</p>
+            <input type="text" id="setup-rl-name" class="setup-input" placeholder="e.g. Twan" value="${escapeAttr(rlName)}">
+          </div>
+        </li>
+        <li class="setup-step${bridge ? ' done' : ''}" data-step="bridge">
+          <span class="setup-step-num">3</span>
+          <div class="setup-step-body">
+            <strong>Start the tracker</strong>
+            <p>Double-click this file in your tracker folder:</p>
+            <pre class="setup-code setup-code-highlight" id="setup-bridge-cmd">start-grind.bat</pre>
+            <div class="setup-callout setup-callout-important">
+              <strong>One black window opens.</strong> Leave it open the whole time you play.
+              Your browser opens to localhost automatically — use that tab, not GitHub Pages.
+            </div>
+            <span class="setup-status-pill${bridge ? ' ok' : ''}" id="setup-bridge-pill">${bridge ? '● Bridge connected — you\'re good' : '○ Waiting for start-grind.bat…'}</span>
+          </div>
+        </li>
+      </ol>
+      <div class="setup-footer">
+        ${!allReady ? `
+        <div class="setup-callout setup-callout-workflow">
+          <strong>After setup — between games:</strong>
+          W/L → mode (1's/2's/3's) → G/A/S → tags → End MMR → <span class="setup-log-chip">LOG</span>
+        </div>` : ''}
+        ${!isLocal ? '<p class="setup-warn"><strong>Wrong site for auto-stats.</strong> Open <a href="http://localhost:8080" target="_blank" rel="noopener">localhost:8080</a> via start-grind.bat while grinding.</p>' : ''}
+      </div>
+    </div>`;
+
+  wireSetupWizard();
+  updateBridgePill(bridge);
+}
+
+function loadSetupPrefs() {
+  try {
+    return { iniDone: false, dismissedWhenReady: false, ...JSON.parse(localStorage.getItem(SETUP_KEY) ?? '{}') };
+  } catch {
+    return { iniDone: false, dismissedWhenReady: false };
+  }
+}
+
+function saveSetupPrefs(partial) {
+  const next = { ...loadSetupPrefs(), ...partial };
+  localStorage.setItem(SETUP_KEY, JSON.stringify(next));
+}
+
+function escapeAttr(s) {
+  return String(s).replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+function wireSetupWizard() {
+  document.getElementById('setup-dismiss')?.addEventListener('click', () => {
+    saveSetupPrefs({ dismissedWhenReady: true });
+    document.getElementById('setup-wizard')?.classList.add('hidden');
+  });
+
+  document.querySelectorAll('.setup-mark').forEach(btn => {
+    btn.addEventListener('click', () => {
+      saveSetupPrefs({ [btn.dataset.mark]: true });
+      btn.closest('.setup-step')?.classList.add('done');
+      showToast('Step marked done');
+    });
+  });
+
+  document.getElementById('setup-rl-name')?.addEventListener('change', e => {
+    const name = e.target.value.trim();
+    saveRlDisplayName(name);
+    savePrefs({ rlDisplayName: name });
+    const cmd = document.getElementById('setup-bridge-cmd');
+    if (cmd) cmd.textContent = 'start-grind.bat';
+    if (name) e.target.closest('.setup-step')?.classList.add('done');
+  });
+}
+
+export function refreshSetupWizard(displayName) {
+  renderSetupWizard(displayName);
+}
+
+function updateBridgePill(bridge) {
+  const pill = document.getElementById('setup-bridge-pill');
+  if (pill) {
+    pill.textContent = bridge ? '● Bridge connected — you\'re good' : '○ Waiting for start-grind.bat…';
+    pill.classList.toggle('ok', bridge);
+  }
+  if (bridge) {
+    document.querySelector('.setup-step[data-step="bridge"]')?.classList.add('done');
+    const wizard = document.querySelector('.setup-wizard');
+    if (wizard && !wizard.classList.contains('setup-ready')) {
+      renderSetupWizard(displayNameFromAuth());
+    }
+  }
+}
+
+function displayNameFromAuth() {
+  const u = getAuthUser();
+  return u?.user_metadata?.full_name || u?.user_metadata?.name || u?.email?.split('@')[0] || '';
+}
+
+export function onBridgeStatusChange() {
+  updateBridgePill(isBridgeUp());
+  if (isBridgeUp()) renderSetupWizard(displayNameFromAuth());
+}

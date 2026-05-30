@@ -5,6 +5,7 @@ import { buildWeeklyReport } from './reports.js';
 import { getGoalProgress } from './goals.js';
 import { getPerformanceInsights } from './insights.js';
 import { exportGamesCSV, exportWeeklyReportCSV, printWeeklyReport } from './export.js';
+import { isGrindHost } from './env.js';
 
 export function renderReportsPage(games, goals, displayName, weekOffset, onWeekChange, onGoalsSave) {
   renderWeekNav(weekOffset, onWeekChange);
@@ -28,6 +29,19 @@ function renderGoalsEditor(goals, onGoalsSave) {
   const el = document.getElementById('goals-editor');
   if (!el) return;
   const g = goals ?? {};
+  const readOnly = !isGrindHost();
+
+  if (readOnly) {
+    el.innerHTML = `
+      <div class="goals-readonly">
+        <div class="goals-readonly-row"><span>MMR Target</span><strong>${g.mmrTarget || '—'}</strong></div>
+        <div class="goals-readonly-row"><span>Games / Week</span><strong>${g.gamesPerWeek || 15}</strong></div>
+        <div class="goals-readonly-row"><span>Win Rate Target</span><strong>${g.winRateTarget || 50}%</strong></div>
+        <div class="goals-readonly-row"><span>Focus Tag</span><strong>${g.focusTag || 'None'}</strong></div>
+        <p class="goals-readonly-note">Edit goals on localhost via start-grind.bat</p>
+      </div>`;
+    return;
+  }
 
   el.innerHTML = `
     <div class="goals-form-grid">

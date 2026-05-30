@@ -2,6 +2,7 @@
  * RL Grind Tracker — auth-first personal dashboard
  */
 
+import { isGrindHost, isGlanceMode, applyAppMode } from './env.js';
 import { state, subscribe, setGames, setSyncStatus, setGoals, setProfile, getUserDisplay } from './state.js';
 import { initAuth, signInWithGoogle, signOut, onAuthChange, getAuthUser } from './auth.js';
 import { loadUserData, saveSettings, claimLegacyData, createGroup, joinGroup, leaveGroup, loadUserGroups } from './supabase.js';
@@ -11,8 +12,10 @@ import { addGame, updateGame, deleteGame, getLastMMR } from './matches.js';
 import { startSession, endSession, closeSessionModal, closeSessionModalAndContinue, initSessionUI, refreshSessionUI } from './sessions.js';
 import {
   initQuickLog, showQuickDock, hideQuickDock, getQuickLogPayload,
-  resetQuickAfterLog, updateSessionMeta, loadPrefs, syncFormFromQuick,
+  resetQuickAfterLog, loadPrefs, syncFormFromQuick, applyLiveStats,
 } from './quicklog.js';
+import { initRlLive, stopRlLive } from './rl-live.js';
+import { renderSetupWizard, refreshSetupWizard, onBridgeStatusChange } from './setup-wizard.js';
 import { mmrChart, wlChart, sessionChart } from './charts.js';
 import { renderAnalytics } from './analytics.js';
 import { renderReportsPage } from './reports-ui.js';
@@ -32,9 +35,20 @@ window.goToDashboardFromSession = () => {
   navigate('dashboard', document.querySelector('.tab[data-page="dashboard"]'));
 };
 
+function getDashboardGames() {
+  return applyFilters(state.games, { ...DEFAULT_FILTERS, playlist: state.playlist ?? 'all' });
+}
+
+function getMatchLogsGames() {
+  return applyFilters(state.games, { ...state.filters, playlist: 'all' });
+}
+
+function getAnalyticsGames() {
+  return applyFilters(state.games, { ...state.filters, playlist: state.playlist ?? 'all' });
+}
+
 function getFilteredGames() {
-  const playlist = state.playlist ?? 'all';
-  return applyFilters(state.games, { ...state.filters, playlist });
+  return getDashboardGames();
 }
 
 function getDisplay() {
@@ -54,9 +68,19 @@ async function bootApp() {
     state.filters = { ...DEFAULT_FILTERS };
 
     renderAuthBar(getDisplay(), handleSignOut);
+    applyAppMode();
     applyLogPrefs();
-    showQuickDock();
-    updateQuickSessionDisplay();
+
+    if (isGrindHost()) {
+      showQuickDock();
+      renderSetupWizard(getDisplay().name);
+      initRlLive(applyLiveStats, onBridgeStatusChange);
+    } else {
+      hideQuickDock();
+      document.getElementById('setup-wizard')?.replaceChildren();
+      document.getElementById('setup-wizard')?.classList.add('hidden');
+    }
+
     renderAll();
     showLoading(false);
   } catch (e) {
@@ -112,6 +136,7 @@ async function handleSignOut() {
   state.groups = [];
   resetGroupsUI();
   hideQuickDock();
+  stopRlLive();
   showLoginScreen(true);
 }
 
@@ -148,16 +173,13 @@ function renderAll() {
     renderDashboard();
   });
 
-  renderFilterBar('dash-filters', games, { ...state.filters, playlist: state.playlist }, filters => {
-    state.filters = { ...state.filters, ...filters };
-    renderDashboard();
-  });
-
   renderStats('dash-stats', stats, state.playlist);
   mmrChart('dashMMR', filtered, display.color);
   wlChart('dashWL', stats);
   sessionChart('dashSession', filtered, display.color);
-  renderLog('dash-log', applyFilters(games, state.filters), 0, true);
+  renderLog('dash-log', getDashboardGames(), 10, false);
+
+  renderMatchLogs();
 
   renderLog('log-preview', games, 6, false);
   const lastMMR = getLastMMR();
@@ -165,28 +187,38 @@ function renderAll() {
 
   renderFilterBar('analytics-filters', games, state.filters, filters => {
     state.filters = { ...state.filters, ...filters };
-    renderAnalytics(getFilteredGames());
+    renderAnalytics(getAnalyticsGames());
+    renderMatchLogs();
   });
-  renderAnalytics(getFilteredGames());
+  renderAnalytics(getAnalyticsGames());
 
   renderReportsPageContent();
   renderFocusPage(games, state.goals, display);
   renderGroupsPage(getGroupsCtx());
 
   refreshSessionUI();
-  updateQuickSessionDisplay();
   wireLogTableActions();
 }
 
 function renderDashboard() {
-  const filtered = getFilteredGames();
+  const filtered = getDashboardGames();
   const stats = calcStats(filtered);
   const display = getDisplay();
   renderStats('dash-stats', stats, state.playlist);
   mmrChart('dashMMR', filtered, display.color);
   wlChart('dashWL', stats);
   sessionChart('dashSession', filtered, display.color);
-  renderLog('dash-log', applyFilters(state.games, state.filters), 0, true);
+  renderLog('dash-log', filtered, 10, false);
+}
+
+function renderMatchLogs() {
+  renderFilterBar('matchlogs-filters', state.games, state.filters, filters => {
+    state.filters = { ...state.filters, ...filters };
+    renderMatchLogs();
+    renderAnalytics(getAnalyticsGames());
+  });
+  renderLog('matchlogs-log', getMatchLogsGames(), 0, isGrindHost());
+  wireLogTableActions();
 }
 
 function renderReportsPageContent() {
@@ -207,17 +239,23 @@ function renderReportsPageContent() {
 }
 
 function navigate(pageId, btn) {
+  if (pageId === 'log' && isGlanceMode()) {
+    showToast('Log games on localhost — run start-grind.bat', 'error');
+    pageId = 'dashboard';
+    btn = document.querySelector('.tab[data-page="dashboard"]');
+  }
   state.activePage = pageId;
   showPage(pageId, btn);
   document.querySelectorAll('.mobile-nav-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.page === pageId);
   });
   if (pageId === 'dashboard') renderDashboard();
-  if (pageId === 'analytics') renderAnalytics(getFilteredGames());
+  if (pageId === 'matchlogs') renderMatchLogs();
+  if (pageId === 'analytics') renderAnalytics(getAnalyticsGames());
   if (pageId === 'reports') renderReportsPageContent();
   if (pageId === 'focus') renderFocusPage(state.games, state.goals, getDisplay());
   if (pageId === 'group') renderGroupsPage(getGroupsCtx());
-  if (pageId === 'log') refreshSessionUI();
+  if (pageId === 'log' && isGrindHost()) refreshSetupWizard(getDisplay().name);
 }
 
 function wireNavigation() {
@@ -240,27 +278,6 @@ function applyLogPrefs() {
   const prefs = loadPrefs();
   const fMode = document.getElementById('f-mode');
   if (fMode && prefs.lastMode) fMode.value = prefs.lastMode;
-}
-
-function updateQuickSessionDisplay() {
-  if (!state.session.active) {
-    updateSessionMeta(false);
-    return;
-  }
-  const sessionNum = state.session.sessionNum || parseInt(document.getElementById('f-session')?.value, 10) || 1;
-  const sg = state.games.filter(g => g.session === sessionNum);
-  const wins = sg.filter(g => g.result === 'W').length;
-  const losses = sg.filter(g => g.result === 'L').length;
-  const mmr = sg.reduce((s, g) => s + (g.mmrDiff || 0), 0);
-  updateSessionMeta(true, {
-    html: `<span class="quick-meta-live">S${sessionNum}</span> · ${wins}W-${losses}L · <span class="${mmr >= 0 ? 'pos' : 'neg'}">${mmr >= 0 ? '+' : ''}${mmr}</span>`,
-  });
-}
-
-function toggleQuickSession() {
-  if (state.session.active) endSession();
-  else startSession();
-  updateQuickSessionDisplay();
 }
 
 async function submitGameLog(source = 'form') {
@@ -440,6 +457,7 @@ function wireGoogleSignIn() {
 }
 
 async function init() {
+  applyAppMode();
   wireGoogleSignIn();
   showLoggedOut();
 
@@ -450,18 +468,18 @@ async function init() {
   setSyncUI(state.syncStatus);
 
   wireNavigation();
+  document.getElementById('dash-view-all-logs')?.addEventListener('click', () => {
+    navigate('matchlogs', document.querySelector('.tab[data-page="matchlogs"]'));
+  });
   wireLogForm();
   wireEditModal();
   initSessionUI();
   initQuickLog({
     submitQuick: () => submitGameLog('quick'),
-    toggleSession: toggleQuickSession,
     getLastMMR,
     setFormResult: setResult,
     setSelectedTags: tags => { state.ui.selectedTags = tags; },
   });
-  window.__updateQuickSession = updateQuickSessionDisplay;
-
   onAuthChange(async (session) => {
     if (session) await bootApp();
     else showLoggedOut();

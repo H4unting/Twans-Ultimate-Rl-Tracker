@@ -98,11 +98,12 @@ export function updateSessionBar() {
   if (!state.session.active) {
     bar.classList.remove('active');
     dot?.classList.remove('active');
+    document.querySelector('.quick-dock-inner')?.classList.remove('session-live');
     if (title) { title.textContent = 'No active session'; title.classList.remove('active'); }
     if (stats) stats.innerHTML = '';
     if (startBtn) {
       startBtn.className = 'session-btn start';
-      startBtn.textContent = '▶ Start Session';
+      startBtn.textContent = '▶ Start';
       startBtn.onclick = startSession;
     }
     return;
@@ -113,6 +114,7 @@ export function updateSessionBar() {
 
   bar.classList.add('active');
   dot?.classList.add('active');
+  document.querySelector('.quick-dock-inner')?.classList.add('session-live');
   title?.classList.add('active');
   if (title) title.textContent = `Session ${live.sessionNum} — Live`;
   if (stats) {
@@ -125,7 +127,7 @@ export function updateSessionBar() {
   }
   if (startBtn) {
     startBtn.className = 'session-btn end';
-    startBtn.textContent = '■ End Session';
+    startBtn.textContent = '■ End';
     startBtn.onclick = () => endSession();
   }
 }
@@ -199,5 +201,4 @@ function showSessionModal(sessionNum, sg, elapsed) {
 export function refreshSessionUI() {
   updateSessionBar();
   updateLivePanel();
-  window.__updateQuickSession?.();
 }
