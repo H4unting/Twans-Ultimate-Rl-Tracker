@@ -94,7 +94,7 @@ async function loadMemberDetail(groupId, member, myRole) {
         </div>
       </div>
       ${statMiniHTML(stats, games)}
-      <h4>Recent Games</h4>
+      <h4 class="group-section-label">Recent Games</h4>
       ${recentGamesHTML(games)}
       ${myRole === 'coach' ? insightsHTML(games) : ''}
     </div>`;
@@ -103,46 +103,73 @@ async function loadMemberDetail(groupId, member, myRole) {
 function renderCreateJoinPanel() {
   return `
     <div class="group-actions-grid">
-      <div class="group-panel">
+      <div class="group-panel group-panel-create">
+        <div class="group-panel-icon create">+</div>
         <h3>Create Squad</h3>
-        <p class="coach-sub">Start a duo or team grind. You get an invite code to share.</p>
-        <input type="text" id="group-create-name" class="group-input" placeholder="Squad name (e.g. Team H4unt)" maxlength="40">
-        <button class="btn btn-primary" type="button" id="group-create-btn">Create Squad</button>
+        <p class="group-panel-desc">Start a duo or team grind and get an invite code to share.</p>
+        <label class="group-field-label" for="group-create-name">Squad name</label>
+        <input type="text" id="group-create-name" class="group-input" placeholder="e.g. Team H4unt" maxlength="40">
+        <button class="btn btn-primary group-btn-full" type="button" id="group-create-btn">Create Squad</button>
       </div>
-      <div class="group-panel">
+      <div class="group-panel group-panel-join">
+        <div class="group-panel-icon join">→</div>
         <h3>Join Squad</h3>
-        <p class="coach-sub">Enter an invite code from your duo or coach.</p>
-        <input type="text" id="group-join-code" class="group-input" placeholder="Invite code" maxlength="12" autocapitalize="characters">
-        <div class="group-join-role">
-          <label><input type="radio" name="join-role" value="member" checked> Grind partner</label>
-          <label><input type="radio" name="join-role" value="coach"> Coach</label>
+        <p class="group-panel-desc">Paste an invite code from your duo partner or coach.</p>
+        <label class="group-field-label" for="group-join-code">Invite code</label>
+        <input type="text" id="group-join-code" class="group-input group-input-code" placeholder="AB12CD34" maxlength="12" autocapitalize="characters" spellcheck="false">
+        <span class="group-field-label">Join as</span>
+        <div class="group-role-toggle">
+          <label class="group-role-option">
+            <input type="radio" name="join-role" value="member" checked>
+            <span class="group-role-option-inner">
+              <strong>Grind partner</strong>
+              <small>Share stats with your duo</small>
+            </span>
+          </label>
+          <label class="group-role-option">
+            <input type="radio" name="join-role" value="coach">
+            <span class="group-role-option-inner">
+              <strong>Coach</strong>
+              <small>View grinder stats & notes</small>
+            </span>
+          </label>
         </div>
-        <button class="btn btn-cancel" type="button" id="group-join-btn">Join Squad</button>
+        <button class="btn btn-secondary group-btn-full" type="button" id="group-join-btn">Join Squad</button>
       </div>
     </div>`;
 }
 
+function renderEmptySquads() {
+  return `
+    <div class="group-empty">
+      <div class="group-empty-icon">👥</div>
+      <p>No squads yet</p>
+      <span>Create one above or join with an invite code</span>
+    </div>`;
+}
+
 function renderSquadList(groups, userId) {
-  if (!groups?.length) {
-    return '<div class="empty">You are not in any squads yet. Create one or join with a code.</div>';
-  }
+  if (!groups?.length) return renderEmptySquads();
   return groups.map(g => {
     const id = g.id ?? g.group_id;
     const active = ui.selectedGroupId === id ? ' active' : '';
+    const roleCls = g.role === 'coach' ? 'coach' : g.role === 'owner' ? 'owner' : 'member';
     return `
-      <button class="group-card group-card-btn${active}" type="button" data-group-id="${id}">
-        <div class="group-card-top">
-          <h3>${g.name}</h3>
-          <span class="group-role-badge">${roleLabel(g.role)}</span>
+      <button class="group-squad-card${active}" type="button" data-group-id="${id}">
+        <div class="group-squad-card-top">
+          <span class="group-squad-name">${g.name}</span>
+          <span class="group-role-badge ${roleCls}">${roleLabel(g.role)}</span>
         </div>
-        <div class="coach-sub">Code: <strong class="group-code">${g.invite_code}</strong></div>
+        <div class="group-squad-code-row">
+          <span class="group-code">${g.invite_code}</span>
+          <span class="group-squad-hint">${active ? 'Selected' : 'Tap to open'}</span>
+        </div>
       </button>`;
   }).join('');
 }
 
 function renderSquadDetail(group, members, myRole, userId, memberDetailHTML) {
   const id = group.id ?? group.group_id;
-  const isOwner = group.role === 'owner';
   const rosterHTML = members.map(m => {
     const isSelf = m.user_id === userId;
     const viewable = isSelf || (canViewMemberStats(group.role, m.role) && !isSelf);
@@ -162,23 +189,28 @@ function renderSquadDetail(group, members, myRole, userId, memberDetailHTML) {
   return `
     <div class="group-detail">
       <div class="group-detail-head">
-        <div>
+        <div class="group-detail-title">
           <h3>${group.name}</h3>
-          <div class="coach-sub">
-            Invite code:
-            <strong class="group-code">${group.invite_code}</strong>
-            <button class="btn-copy" type="button" data-copy-code="${group.invite_code}">Copy</button>
+          <div class="group-invite-strip">
+            <span class="group-invite-label">Invite code</span>
+            <code class="group-code-lg">${group.invite_code}</code>
+            <button class="btn-copy" type="button" data-copy-code="${group.invite_code}">Copy code</button>
           </div>
         </div>
-        <button class="btn btn-cancel btn-sm" type="button" id="group-leave-btn" data-group-id="${id}">Leave Squad</button>
+        <button class="btn btn-cancel btn-sm group-leave-btn" type="button" id="group-leave-btn" data-group-id="${id}">Leave squad</button>
       </div>
       <div class="group-detail-grid">
-        <div class="group-roster">
-          <h4>Roster</h4>
+        <div class="group-roster coach-player-card">
+          <h4 class="group-section-label">Roster</h4>
           ${rosterHTML}
         </div>
-        <div class="group-member-view" id="group-member-view">
-          ${memberDetailHTML || '<div class="empty" style="padding:24px">Select a grinder to view their stats</div>'}
+        <div class="group-member-view coach-player-card" id="group-member-view">
+          ${memberDetailHTML || `
+            <div class="group-member-placeholder">
+              <div class="group-member-placeholder-icon">📊</div>
+              <p>Select a grinder from the roster</p>
+              <span>View their stats, recent games, and coach notes</span>
+            </div>`}
         </div>
       </div>
     </div>`;
@@ -192,16 +224,27 @@ export async function renderGroupsPage(ctx) {
   const selectedGroup = groups.find(g => (g.id ?? g.group_id) === ui.selectedGroupId);
 
   el.innerHTML = `
-    <div class="group-hero">
-      <h2>Grind Squads</h2>
-      <p class="page-desc">Team up with a duo partner or invite a coach to track progress together.</p>
-    </div>
-    ${renderCreateJoinPanel()}
-    <div class="group-section">
-      <h3>Your Squads</h3>
-      <div class="group-list" id="group-list">${renderSquadList(groups, userId)}</div>
-    </div>
-    <div id="group-detail-wrap"></div>`;
+    <div class="group-page">
+      <div class="group-hero">
+        <div>
+          <span class="group-hero-kicker">Squad up</span>
+          <h2>Grind Squads</h2>
+          <p class="group-hero-desc">Team up with a duo partner or invite a coach to track progress together.</p>
+        </div>
+        ${groups?.length ? `<div class="group-hero-badge">${groups.length} squad${groups.length === 1 ? '' : 's'}</div>` : ''}
+      </div>
+
+      <div class="group-layout">
+        <div class="group-layout-main">
+          ${renderCreateJoinPanel()}
+          <div id="group-detail-wrap"></div>
+        </div>
+        <aside class="group-sidebar">
+          <h3 class="group-section-label">Your Squads</h3>
+          <div class="group-list" id="group-list">${renderSquadList(groups, userId)}</div>
+        </aside>
+      </div>
+    </div>`;
 
   wireCreateJoin(el, { onCreate, onJoin, onRefresh });
   wireSquadList(el, groups, userId, { onLeave, onRefresh });
@@ -217,7 +260,7 @@ async function wireSquadList(el, groups, userId, { onLeave, onRefresh }) {
     ui.selectedMemberId = null;
     ui.gamesCache = {};
     await renderDetail(detailWrap, groups, userId, { onLeave, onRefresh });
-    el.querySelectorAll('.group-card-btn').forEach(c => {
+    el.querySelectorAll('.group-squad-card').forEach(c => {
       c.classList.toggle('active', c.dataset.groupId === ui.selectedGroupId);
     });
   });
