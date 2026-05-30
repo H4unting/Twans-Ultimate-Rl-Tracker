@@ -281,13 +281,22 @@ export function renderActionItems(items) {
   if (!el) return;
   if (!items?.length) { el.innerHTML = ''; return; }
   el.innerHTML = `
-    <div class="coach-report action-items-block">
-      <h3>Priority Actions</h3>
-      ${items.slice(0, 5).map(item => `
-        <div class="coach-action coach-action-${item.type}">
-          <span class="coach-action-priority">${item.priority <= 2 ? '!' : '·'}</span>
-          ${item.text}
-        </div>`).join('')}
+    <div class="action-items-block">
+      <p class="section-title">Priority Actions</p>
+      <div class="action-item-grid">
+        ${items.slice(0, 5).map(item => {
+          const title = item.tag ?? item.title ?? (item.text?.split('—')[0]?.trim() || 'Focus');
+          return `
+          <div class="action-item-card action-${item.type}">
+            <span class="action-item-kicker">Action Item</span>
+            <h4 class="action-item-title">${title}</h4>
+            ${item.lossPct != null
+              ? `<p class="action-item-stat">Responsible for ${item.lossPct}% of tagged losses.</p>`
+              : `<p class="action-item-stat">${item.text}</p>`}
+            ${item.focus ? `<div class="action-item-focus"><span>Focus</span><p>${item.focus}</p></div>` : ''}
+          </div>`;
+        }).join('')}
+      </div>
     </div>`;
 }
 
@@ -305,11 +314,9 @@ export function showLoading(show) {
   document.body.classList.toggle('is-loading', show);
 }
 
-export function showPage(pageId, btn) {
+export function showPage(pageId) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.getElementById('page-' + pageId)?.classList.add('active');
-  if (btn) btn.classList.add('active');
 }
 
 export function setPlayerSelector(prefix, activeId) {

@@ -6,11 +6,29 @@ import { getPerformanceInsights } from './insights.js';
 import { rollingChart, trendChart } from './charts.js';
 import { renderInsightCards, renderCoachReport, renderActionItems, barRows } from './ui.js';
 
+const MIN_GAMES_FOR_CHARTS = 10;
+
 export function renderAnalytics(games) {
   const { cards, report, correlations, actionItems } = getPerformanceInsights(games);
+
+  renderActionItems(actionItems);
   renderInsightCards(cards);
   renderCoachReport(report);
-  renderActionItems(actionItems);
+
+  const lockEl = document.getElementById('analytics-lock');
+  const chartsWrap = document.getElementById('analytics-charts-wrap');
+  const remaining = MIN_GAMES_FOR_CHARTS - games.length;
+
+  if (games.length < MIN_GAMES_FOR_CHARTS) {
+    if (lockEl) {
+      lockEl.classList.remove('hidden');
+      lockEl.innerHTML = `<div class="analytics-lock-card"><span class="analytics-lock-icon">📈</span><p>Play <strong>${remaining}</strong> more game${remaining === 1 ? '' : 's'} to unlock trend charts.</p><p class="analytics-lock-sub">Insights above still work with your current data.</p></div>`;
+    }
+    chartsWrap?.classList.add('hidden');
+  } else {
+    lockEl?.classList.add('hidden');
+    chartsWrap?.classList.remove('hidden');
+  }
 
   const tagCount = countTags(games);
   const lossTagCount = countTags(games, { lossesOnly: true });
@@ -33,10 +51,10 @@ export function renderAnalytics(games) {
     </div>`).join('') || '<div class="empty" style="padding:12px">Tag more losses for correlations</div>';
 
   document.getElementById('analytics-content').innerHTML = `
-    <div class="analytics-card"><h3>Most Common Mistakes</h3>${barRows(sorted, maxC, cmap)}</div>
-    <div class="analytics-card"><h3>Most Common Loss Reasons</h3>${barRows(lossSorted, maxL, cmap)}<div class="filter-hint">${taggedLossPct}% of losses tagged</div></div>
-    <div class="analytics-card"><h3>Loss Correlations</h3>${corrHTML}<div class="filter-hint">% of tagged instances that were losses</div></div>
-    <div class="analytics-card"><h3>Category Breakdown</h3>
+    <div class="analytics-card analytics-card-compact"><h3>Most Common Mistakes</h3>${barRows(sorted, maxC, cmap)}</div>
+    <div class="analytics-card analytics-card-compact"><h3>Most Common Loss Reasons</h3>${barRows(lossSorted, maxL, cmap)}<div class="filter-hint">${taggedLossPct}% of losses tagged</div></div>
+    <div class="analytics-card analytics-card-compact"><h3>Loss Correlations</h3>${corrHTML}<div class="filter-hint">% of tagged instances that were losses</div></div>
+    <div class="analytics-card analytics-card-compact"><h3>Category Breakdown</h3>
       ${['def', 'off', 'men'].map(cat => {
         const catTotal = sorted.filter(([t]) => TAG_CATS[t] === cat).reduce((s, [, c]) => s + c, 0);
         const labels = { def: 'Defensive', off: 'Offensive', men: 'Mental' };
@@ -49,6 +67,8 @@ export function renderAnalytics(games) {
       <div class="filter-hint">Total: ${total} tags</div>
     </div>`;
 
-  rollingChart('rollingChart', games);
-  trendChart('trendChart', getTagTrendBuckets(games));
+  if (games.length >= MIN_GAMES_FOR_CHARTS) {
+    rollingChart('rollingChart', games);
+    trendChart('trendChart', getTagTrendBuckets(games));
+  }
 }

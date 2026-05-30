@@ -397,4 +397,5 @@ function showSessionModal(sessionNum, sg, elapsed) {
 export function refreshSessionUI() {
   updateSessionBar();
   updateLivePanel();
+  document.dispatchEvent(new CustomEvent('rl-session-ui-refresh'));
 }

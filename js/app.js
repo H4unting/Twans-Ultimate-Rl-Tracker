@@ -17,7 +17,7 @@ import {
 } from './quicklog.js';
 import { initRlLive, stopRlLive, refreshLiveStatus } from './rl-live.js';
 import { renderSetupWizard, refreshSetupWizard, onBridgeStatusChange } from './setup-wizard.js';
-import { mmrChart, wlChart, sessionChart } from './charts.js';
+import { mmrChart, wlChart } from './charts.js';
 import { renderAnalytics } from './analytics.js';
 import { renderReportsPage } from './reports-ui.js';
 import { renderFocusPage } from './focus.js';
@@ -25,18 +25,27 @@ import { initPostMatch, showPostMatchCard } from './post-match.js';
 import { renderGroupsPage, resetGroupsUI } from './groups.js';
 import { renderSessionsPage } from './sessions-ui.js';
 import { exportGamesCSV } from './export.js';
+import { wireNavigation as wireSectionNav, updateNavUI, mountDock } from './nav.js';
+import {
+  renderHomeHero, renderTodayFocus, renderHomeSessionStrip, getSessionSnapshotForHome,
+} from './home.js';
+import {
+  renderGroupedMatchLogs, renderQuickFilters, applyQuickFilter,
+  getActiveQuickFilter, getQuickFilterSessionNum,
+} from './match-logs-ui.js';
 import {
   showToast, setSyncUI, renderStats, renderLog, renderPlaylistTabs, renderFilterBar,
   showPage, renderTagChips, showLoading, showLoginScreen, renderAuthBar,
-  renderWelcomeHeader, renderLegacyImportBanner, renderGoalProgress,
+  renderLegacyImportBanner,
 } from './ui.js';
 
 window.__endSession = () => endSession();
-window.showPage = (id, btn) => navigate(id, btn);
+window.__navigate = (pageId, section) => navigate(pageId, section);
+window.showPage = (id) => navigate(id);
 window.startNextSession = () => closeSessionModalAndContinue();
 window.goToDashboardFromSession = () => {
   closeSessionModal();
-  navigate('dashboard', document.querySelector('.tab[data-page="dashboard"]'));
+  navigate('dashboard');
 };
 
 function getDashboardGames() {
@@ -70,6 +79,7 @@ async function bootApp() {
     setGoals(goals);
     state.groups = groups;
     state.filters = { ...DEFAULT_FILTERS };
+    state.activePage = 'dashboard';
 
     renderAuthBar(getDisplay(), handleSignOut);
     applyAppMode();
@@ -157,15 +167,22 @@ async function handleLegacyClaim(legacyId) {
   }
 }
 
+function renderHome() {
+  const games = getFilteredGames();
+  const display = getDisplay();
+  renderHomeHero(games, state.goals, display);
+  renderTodayFocus(games);
+  renderHomeSessionStrip(getSessionSnapshotForHome());
+}
+
 function renderAll() {
   const games = state.games;
   const filtered = getFilteredGames();
   const stats = calcStats(filtered);
   const display = getDisplay();
 
-  renderWelcomeHeader(display, stats);
   renderLegacyImportBanner(state.profile, handleLegacyClaim);
-  renderGoalProgress('dash-goals', games, state.goals);
+  renderHome();
 
   renderPlaylistTabs('pl-tabs', state.playlist, (pl, btn) => {
     state.playlist = pl;
@@ -177,8 +194,7 @@ function renderAll() {
   renderStats('dash-stats', stats, state.playlist);
   mmrChart('dashMMR', filtered, display.color);
   wlChart('dashWL', stats);
-  sessionChart('dashSession', filtered, display.color);
-  renderLog('dash-log', getDashboardGames(), 10, false);
+  renderLog('dash-log', getDashboardGames(), 5, false);
 
   renderMatchLogs();
 
@@ -200,26 +216,34 @@ function renderAll() {
 
   refreshSessionUI();
   wireLogTableActions();
+  updateNavUI(state.activePage || 'dashboard');
+  mountDock(state.activePage || 'dashboard');
 }
 
 function renderDashboard() {
+  renderHome();
   const filtered = getDashboardGames();
   const stats = calcStats(filtered);
   const display = getDisplay();
   renderStats('dash-stats', stats, state.playlist);
   mmrChart('dashMMR', filtered, display.color);
   wlChart('dashWL', stats);
-  sessionChart('dashSession', filtered, display.color);
-  renderLog('dash-log', filtered, 10, false);
+  renderLog('dash-log', filtered, 5, false);
 }
 
 function renderMatchLogs() {
+  renderQuickFilters('matchlogs-quick-filters', () => renderMatchLogs());
   renderFilterBar('matchlogs-filters', state.games, state.filters, filters => {
     state.filters = { ...state.filters, ...filters };
     renderMatchLogs();
     renderAnalytics(getAnalyticsGames());
   });
-  renderLog('matchlogs-log', getMatchLogsGames(), 0, true);
+  let games = getMatchLogsGames();
+  const qf = getActiveQuickFilter();
+  if (qf !== 'all') {
+    games = applyQuickFilter(games, qf, getQuickFilterSessionNum());
+  }
+  renderGroupedMatchLogs(games, true);
   wireLogTableActions();
 }
 
@@ -227,7 +251,7 @@ function renderSessionsPageContent() {
   renderSessionsPage(state.games, getDisplay().name, {
     onViewSession: sessionNum => {
       state.filters = { ...state.filters, session: String(sessionNum) };
-      navigate('matchlogs', document.querySelector('.tab[data-page="matchlogs"]'));
+      navigate('matchlogs', 'review');
     },
   });
 }
@@ -242,19 +266,18 @@ function renderReportsPageContent() {
     async nextGoals => {
       setGoals(nextGoals);
       await saveSettings({ goals: nextGoals });
-      renderGoalProgress('dash-goals', state.games, state.goals);
+      renderHome();
       renderFocusPage(state.games, state.goals, getDisplay());
       showToast('Goals saved!');
     },
   );
 }
 
-function navigate(pageId, btn) {
+function navigate(pageId, section) {
   state.activePage = pageId;
-  showPage(pageId, btn);
-  document.querySelectorAll('.mobile-nav-btn').forEach(b => {
-    b.classList.toggle('active', b.dataset.page === pageId);
-  });
+  showPage(pageId);
+  updateNavUI(pageId);
+  mountDock(pageId);
   if (pageId === 'dashboard') renderDashboard();
   if (pageId === 'matchlogs') renderMatchLogs();
   if (pageId === 'analytics') renderAnalytics(getAnalyticsGames());
@@ -266,18 +289,28 @@ function navigate(pageId, btn) {
 }
 
 function wireNavigation() {
-  document.querySelectorAll('.tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      const page = tab.dataset.page;
-      if (page) navigate(page, tab);
-    });
+  wireSectionNav({
+    onNavigate: navigate,
+    getActivePage: () => state.activePage || 'dashboard',
   });
-  document.querySelectorAll('.mobile-nav-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const page = btn.dataset.page;
-      const tab = document.querySelector(`.tab[data-page="${page}"]`);
-      if (page) navigate(page, tab);
-    });
+}
+
+function wireKeyboardShortcuts() {
+  document.addEventListener('keydown', e => {
+    if (e.target.closest('input, textarea, select, [contenteditable]')) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const key = e.key.toLowerCase();
+    if (key === 'l') {
+      e.preventDefault();
+      navigate('log', 'home');
+      document.getElementById('quick-endmmr')?.focus();
+    } else if (key === 's') {
+      e.preventDefault();
+      document.getElementById('session-start-btn')?.click();
+    } else if (key === 'f') {
+      e.preventDefault();
+      navigate('focus', 'home');
+    }
   });
 }
 
@@ -532,8 +565,9 @@ async function init() {
   setSyncUI(state.syncStatus);
 
   wireNavigation();
+  wireKeyboardShortcuts();
   document.getElementById('dash-view-all-logs')?.addEventListener('click', () => {
-    navigate('matchlogs', document.querySelector('.tab[data-page="matchlogs"]'));
+    navigate('matchlogs', 'review');
   });
   document.getElementById('matchlogs-export-btn')?.addEventListener('click', () => {
     exportGamesCSV(getMatchLogsGames(), getDisplay().name);
@@ -567,6 +601,9 @@ async function init() {
       },
       onOpen: () => refreshSessionUI(),
     onClose: () => refreshSessionUI(),
+  });
+  document.addEventListener('rl-session-ui-refresh', () => {
+    renderHomeSessionStrip(getSessionSnapshotForHome());
   });
   onAuthChange(async (session) => {
     if (session) await bootApp();

@@ -82,7 +82,7 @@ export function getImprovementTrend(games) {
 
 /** Build full performance insight report for UI */
 export function getPerformanceInsights(games) {
-  if (!games?.length) return { cards: [], report: [], actionItems: [] };
+  if (!games?.length) return { cards: [], report: [], actionItems: [], correlations: [] };
 
   const base = calcInsights(games);
   const correlations = getTagLossCorrelations(games);
@@ -214,16 +214,42 @@ export function getGrindRecommendation(games, stats, tilt) {
   return { severity: 'neutral', icon: '➡️', title: 'Steady', sub: 'Performance is normal — stay focused on your goal tag.', cls: 'ic-teal' };
 }
 
+export const ACTION_FOCUS_TIPS = {
+  'Giving Away Possession': 'Slow down before clearing — look for a safe pass or controlled touch first.',
+  'Bad Positioning': 'Stay goal-side of the play and rotate back post when your teammate commits.',
+  'Overcommitting': 'One challenges, one covers. Ask "am I last back?" before going.',
+  'Weak Recoveries': 'Land on wheels facing the play. Boost to corner before challenging again.',
+  'Tilt': 'Take a breath between games. Queue only when you can tag honestly.',
+  'Autopilot': 'Pick one thing to focus on for the next 3 games only.',
+  'Hesitation': 'Commit faster when you have the beat — half-challenges lose every time.',
+  'Slow Rotations': 'Rotate wide and back — don\'t cut through the middle under pressure.',
+  'Double Commits': 'Call "I got it" or "you" — only one touches the ball.',
+};
+
 function buildActionItems(correlations, recurring, improvement, tilt, grind, stats) {
   const items = [];
+  const losses = stats.losses || 0;
   if (grind?.severity === 'stop') {
-    items.push({ priority: 1, type: 'stop', text: grind.sub });
+    items.push({ priority: 1, type: 'stop', text: grind.sub, title: grind.title ?? 'Stop Grinding' });
   }
   if (recurring.length) {
-    items.push({ priority: 2, type: 'focus', text: `Drill: ${recurring[0].tag} — appeared ${recurring[0].count}× in last 5 games.` });
+    const tag = recurring[0].tag;
+    items.push({
+      priority: 2, type: 'focus', tag,
+      lossPct: null,
+      focus: ACTION_FOCUS_TIPS[tag] ?? `Drill ${tag} — it appeared ${recurring[0].count}× in your last 5 games.`,
+      text: `Drill: ${tag} — appeared ${recurring[0].count}× in last 5 games.`,
+    });
   }
   if (correlations[0]?.correlation >= 60) {
-    items.push({ priority: 3, type: 'fix', text: `Fix ${correlations[0].tag} — linked to ${correlations[0].correlation}% of tagged losses.` });
+    const c = correlations[0];
+    const lossPct = losses ? Math.round(c.inLosses / losses * 100) : c.correlation;
+    items.push({
+      priority: 3, type: 'fix', tag: c.tag,
+      lossPct,
+      focus: ACTION_FOCUS_TIPS[c.tag] ?? 'Review what triggers this after each loss.',
+      text: `Fix ${c.tag} — linked to ${c.correlation}% of tagged losses.`,
+    });
   }
   if (improvement.direction === 'declining') {
     items.push({ priority: 4, type: 'review', text: `Win rate down ${Math.abs(improvement.delta)}% overall — review recent VODs or training pack.` });
