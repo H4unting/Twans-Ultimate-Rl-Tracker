@@ -173,6 +173,7 @@ export function renderGoalProgress(containerId, games, goals) {
 }
 
 export function showLoginScreen(show) {
+  document.body.classList.toggle('logged-out', show);
   document.getElementById('login-screen')?.classList.toggle('hidden', !show);
   document.getElementById('app-shell')?.classList.toggle('hidden', show);
 }

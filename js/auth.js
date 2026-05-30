@@ -1,6 +1,6 @@
 /** Supabase Auth — Google OAuth + session management */
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/+esm';
 import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
@@ -59,11 +59,17 @@ export async function initAuth() {
 }
 
 export async function signInWithGoogle() {
-  const { error } = await supabase.auth.signInWithOAuth({
+  const redirectTo = getRedirectUrl();
+  const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: getRedirectUrl() },
+    options: { redirectTo },
   });
   if (error) throw error;
+  if (data?.url) {
+    window.location.assign(data.url);
+    return;
+  }
+  throw new Error('Google sign-in did not return a redirect URL. Check Supabase Google provider settings.');
 }
 
 export async function signOut() {

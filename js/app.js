@@ -63,15 +63,20 @@ async function bootApp() {
 function showLoggedOut() {
   showLoading(false);
   showLoginScreen(true);
+  wireGoogleSignIn();
   const btn = document.getElementById('google-signin-btn');
-  if (btn) btn.onclick = handleGoogleSignIn;
+  if (btn) btn.disabled = false;
 }
 
 async function handleGoogleSignIn() {
+  const btn = document.getElementById('google-signin-btn');
+  if (btn) btn.disabled = true;
   try {
     await signInWithGoogle();
-  } catch {
-    showToast('Sign in failed', 'error');
+  } catch (e) {
+    console.error(e);
+    showToast(e?.message || 'Sign in failed', 'error');
+    if (btn) btn.disabled = false;
   }
 }
 
@@ -336,8 +341,20 @@ function wireLogTableActions() {
   });
 }
 
+function wireGoogleSignIn() {
+  const btn = document.getElementById('google-signin-btn');
+  if (!btn || btn.dataset.wired) return;
+  btn.dataset.wired = '1';
+  btn.addEventListener('click', handleGoogleSignIn);
+}
+
 async function init() {
-  document.getElementById('f-date').value = new Date().toISOString().slice(0, 10);
+  wireGoogleSignIn();
+  showLoggedOut();
+
+  const dateEl = document.getElementById('f-date');
+  if (dateEl) dateEl.value = new Date().toISOString().slice(0, 10);
+
   subscribe(() => setSyncUI(state.syncStatus));
   setSyncUI(state.syncStatus);
 
@@ -351,8 +368,14 @@ async function init() {
     else showLoggedOut();
   });
 
-  await initAuth();
-  if (!getAuthUser()) showLoggedOut();
+  try {
+    await initAuth();
+    if (!getAuthUser()) showLoggedOut();
+  } catch (e) {
+    console.error(e);
+    showLoggedOut();
+    showToast('Auth setup error — try signing in again', 'error');
+  }
 }
 
 init();
