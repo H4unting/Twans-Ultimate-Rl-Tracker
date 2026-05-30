@@ -168,6 +168,9 @@
     <div id="group-content"></div>
   </div>
 
+  <!-- POST-MATCH CARD (grind mode) -->
+  <div id="post-match-card" class="post-match-card hidden" aria-live="polite"></div>
+
   <!-- QUICK LOG DOCK -->
   <div id="quick-dock" class="quick-dock hidden" aria-label="Quick log">
     <div class="quick-dock-inner">
@@ -223,7 +226,7 @@
       </div>
       <input type="hidden" id="quick-notes" value="">
     </div>
-    <div class="quick-dock-hint">Match ends → auto-log saves W/L, mode, G/A/S, MMR · tap tags if needed · fix MMR in Match Logs</div>
+    <div class="quick-dock-hint">Match ends → auto-log saves · confirm MMR on the card · tap tags · undo if wrong</div>
   </div>
 
   <nav class="mobile-nav" id="mobile-nav" aria-label="Mobile navigation">
@@ -241,6 +244,8 @@
     <h2 id="modal-title">Session Complete</h2>
     <div class="sub" id="modal-sub"></div>
     <div class="modal-stats" id="modal-stats"></div>
+    <div class="modal-games-row" id="modal-games-row"></div>
+    <div class="modal-coach" id="modal-coach"></div>
     <div class="modal-top-tag" id="modal-top-tag"></div>
     <div class="modal-btn-row">
       <button class="btn btn-cancel" type="button" onclick="goToDashboardFromSession()">Back to Dashboard</button>
