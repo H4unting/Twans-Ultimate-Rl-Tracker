@@ -2,7 +2,7 @@
  * RL Grind Tracker — auth-first personal dashboard
  */
 
-import { isGrindHost, isGlanceMode, applyAppMode } from './env.js';
+import { applyAppMode } from './env.js';
 import { state, subscribe, setGames, setSyncStatus, setGoals, setProfile, getUserDisplay } from './state.js';
 import { initAuth, signInWithGoogle, signOut, onAuthChange, getAuthUser } from './auth.js';
 import { loadUserData, saveSettings, claimLegacyData, createGroup, joinGroup, leaveGroup, loadUserGroups } from './supabase.js';
@@ -75,16 +75,10 @@ async function bootApp() {
     applyAppMode();
     applyLogPrefs();
 
-    if (isGrindHost()) {
-      showQuickDock();
-      restoreSessionFromStorage(games);
-      renderSetupWizard(getDisplay().name);
-      initRlLive(applyLiveStats, onBridgeStatusChange, handleAutoLog);
-    } else {
-      hideQuickDock();
-      document.getElementById('setup-wizard')?.replaceChildren();
-      document.getElementById('setup-wizard')?.classList.add('hidden');
-    }
+    showQuickDock();
+    restoreSessionFromStorage(games);
+    renderSetupWizard(getDisplay().name);
+    initRlLive(applyLiveStats, onBridgeStatusChange, handleAutoLog);
 
     renderAll();
     showLoading(false);
@@ -101,6 +95,8 @@ async function bootApp() {
 function showLoggedOut() {
   showLoading(false);
   showLoginScreen(true);
+  hideQuickDock();
+  stopRlLive();
   wireGoogleSignIn();
   const btn = document.getElementById('google-signin-btn');
   if (btn) btn.disabled = false;
@@ -223,7 +219,7 @@ function renderMatchLogs() {
     renderMatchLogs();
     renderAnalytics(getAnalyticsGames());
   });
-  renderLog('matchlogs-log', getMatchLogsGames(), 0, isGrindHost());
+  renderLog('matchlogs-log', getMatchLogsGames(), 0, true);
   wireLogTableActions();
 }
 
@@ -254,11 +250,6 @@ function renderReportsPageContent() {
 }
 
 function navigate(pageId, btn) {
-  if (pageId === 'log' && isGlanceMode()) {
-    showToast('Log games on localhost — run start-grind.bat', 'error');
-    pageId = 'dashboard';
-    btn = document.querySelector('.tab[data-page="dashboard"]');
-  }
   state.activePage = pageId;
   showPage(pageId, btn);
   document.querySelectorAll('.mobile-nav-btn').forEach(b => {
@@ -271,7 +262,7 @@ function navigate(pageId, btn) {
   if (pageId === 'focus') renderFocusPage(state.games, state.goals, getDisplay());
   if (pageId === 'group') renderGroupsPage(getGroupsCtx());
   if (pageId === 'sessions') renderSessionsPageContent();
-  if (pageId === 'log' && isGrindHost()) refreshSetupWizard(getDisplay().name);
+  if (pageId === 'log') refreshSetupWizard(getDisplay().name);
 }
 
 function wireNavigation() {
@@ -305,8 +296,6 @@ function estimateMMRDelta(result) {
 }
 
 async function handleAutoLog(match) {
-  if (!isGrindHost()) return false;
-
   if (match.mode) setQuickMode(match.mode);
   if (match.result) setQuickResult(match.result);
   applyLiveStats(match);
@@ -398,7 +387,7 @@ async function submitGameLog(source = 'form') {
       resetQuickAfterLog();
     });
     renderAll();
-    if (isGrindHost() && game) {
+    if (game) {
       showPostMatchCard(game, { estimated: (game.notes || '').includes('MMR estimated') });
     }
     return true;
@@ -560,8 +549,7 @@ async function init() {
     setSelectedTags: tags => { state.ui.selectedTags = tags; },
     onAutoLogToggle: refreshLiveStatus,
   });
-  if (isGrindHost()) {
-    initPostMatch({
+  initPostMatch({
       onConfirmMMR: async (mmr) => {
         const game = await patchLastGame({ endMMR: mmr });
         if (game) { renderAll(); return true; }
@@ -578,9 +566,8 @@ async function init() {
         return ok;
       },
       onOpen: () => refreshSessionUI(),
-      onClose: () => refreshSessionUI(),
-    });
-  }
+    onClose: () => refreshSessionUI(),
+  });
   onAuthChange(async (session) => {
     if (session) await bootApp();
     else showLoggedOut();

@@ -5,18 +5,18 @@ import { formatDisplayDate, normalizeGame } from './utils.js';
 import { saveGames } from './supabase.js';
 import { showToast } from './ui.js';
 import { refreshSessionUI } from './sessions.js';
-import { isGrindHost } from './env.js';
+import { getAuthUser } from './auth.js';
 
-function requireGrindMode() {
-  if (!isGrindHost()) {
-    showToast('Edits only work on localhost — run start-grind.bat', 'error');
+function requireSignedIn() {
+  if (!getAuthUser()) {
+    showToast('Sign in to save games', 'error');
     return false;
   }
   return true;
 }
 
 export async function addGame(formData, selectedTags, onSuccess) {
-  if (!requireGrindMode()) return null;
+  if (!requireSignedIn()) return null;
   const games = JSON.parse(JSON.stringify(state.games));
   const d = formData.date ? new Date(formData.date + 'T12:00:00') : new Date();
   const startMMR = parseInt(formData.startMMR, 10) || 0;
@@ -47,7 +47,7 @@ export async function addGame(formData, selectedTags, onSuccess) {
 }
 
 export async function updateGame(matchNum, formData, selectedTags) {
-  if (!requireGrindMode()) return;
+  if (!requireSignedIn()) return;
   const games = JSON.parse(JSON.stringify(state.games));
   const idx = games.findIndex(g => g.match === matchNum);
   if (idx === -1) throw new Error('Game not found');
@@ -78,7 +78,7 @@ export async function updateGame(matchNum, formData, selectedTags) {
 }
 
 export async function patchLastGame({ endMMR, tags, notes }) {
-  if (!requireGrindMode()) return null;
+  if (!requireSignedIn()) return null;
   const games = JSON.parse(JSON.stringify(state.games));
   if (!games.length) return null;
   const idx = games.length - 1;
@@ -100,7 +100,7 @@ export async function patchLastGame({ endMMR, tags, notes }) {
 }
 
 export async function undoLastGame(skipConfirm = false) {
-  if (!requireGrindMode()) return false;
+  if (!requireSignedIn()) return false;
   if (!state.games.length) return false;
   if (!skipConfirm && !confirm('Remove the last logged game?')) return false;
 
@@ -114,7 +114,7 @@ export async function undoLastGame(skipConfirm = false) {
 }
 
 export async function deleteGame(matchNum) {
-  if (!requireGrindMode()) return false;
+  if (!requireSignedIn()) return false;
   if (!confirm('Delete this game?')) return false;
   const games = state.games.filter(g => g.match !== matchNum);
   games.forEach((g, i) => { g.match = i + 1; });

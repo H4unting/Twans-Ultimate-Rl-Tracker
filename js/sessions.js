@@ -6,7 +6,6 @@ import { getAuthUser } from './auth.js';
 import { rankBadgeHTML } from './ranks.js';
 import { showToast } from './ui.js';
 import { getLastMMR, lastGameNeedsMmrConfirm } from './matches.js';
-import { isGrindHost } from './env.js';
 import { detectTilt } from './insights.js';
 
 const SESSION_STORE = 'rl-grind-session';
@@ -44,7 +43,6 @@ function loadStoredSession() {
 }
 
 function saveStoredSession(data) {
-  if (!isGrindHost()) return;
   try {
     localStorage.setItem(storageKey(), JSON.stringify(data));
   } catch { /* quota / private mode */ }
@@ -95,8 +93,6 @@ function activateSession(sessionNum, { startTime = Date.now(), startMMR = null, 
 
 /** Restore session after page load — call once games are in state */
 export function restoreSessionFromStorage(games = state.games) {
-  if (!isGrindHost()) return;
-
   const stored = loadStoredSession();
 
   if (stored?.active && stored.sessionNum) {

@@ -1,6 +1,7 @@
 /** Connect to local RL stats bridge for automatic G/A/S + auto-log from the game */
 
 import { showToast } from './ui.js';
+import { setBridgeHintVisible } from './env.js';
 import { loadPrefs, savePrefs, isAutoLogEnabled } from './quicklog.js';
 
 const BRIDGE = 'http://127.0.0.1:49200';
@@ -24,6 +25,7 @@ export function stopRlLive() {
   if (pollId) clearInterval(pollId);
   pollId = null;
   setLiveStatus(false);
+  setBridgeHintVisible(false);
 }
 
 async function pollBridge() {
@@ -79,9 +81,11 @@ function setLiveStatus(up, inMatch = false) {
   if (!el) return;
   el.classList.toggle('connected', up);
   el.classList.toggle('in-match', up && inMatch);
+  setBridgeHintVisible(!up && !document.body.classList.contains('logged-out'));
+
   if (!up) {
-    el.textContent = 'Auto stats off — run start-grind.bat';
-    el.title = 'Double-click start-grind.bat on your PC, then use localhost:8080';
+    el.textContent = 'Auto stats off';
+    el.title = 'Run start-grind.bat on this PC while playing for auto-log from Rocket League';
   } else if (inMatch) {
     el.textContent = '● Live match';
     el.title = 'Reading stats from Rocket League';

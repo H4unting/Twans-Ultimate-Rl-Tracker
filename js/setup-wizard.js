@@ -1,6 +1,5 @@
 /** In-app setup wizard for auto stats + quick log workflow */
 
-import { isGrindHost } from './env.js';
 import { loadPrefs, savePrefs } from './quicklog.js';
 import { isBridgeUp, getRlDisplayName, saveRlDisplayName } from './rl-live.js';
 import { getAuthUser } from './auth.js';
@@ -15,8 +14,7 @@ export function renderSetupWizard(displayName = '') {
   const prefs = loadSetupPrefs();
   const rlName = getRlDisplayName() || displayName || '';
   const bridge = isBridgeUp();
-  const isLocal = isGrindHost();
-  const allReady = bridge && isLocal;
+  const allReady = bridge;
 
   if (allReady && prefs.dismissedWhenReady) {
     el.innerHTML = '';
@@ -41,7 +39,7 @@ export function renderSetupWizard(displayName = '') {
           <h3>${allReady ? 'You\'re ready to grind' : 'Auto stats setup'}</h3>
           <p class="setup-desc">${allReady
     ? 'Play a match — G/A/S fill in automatically. You only pick W/L and type your End MMR.'
-    : 'Follow steps 1–3 below. Use localhost while playing (not the GitHub link).'}</p>
+    : 'Follow steps 1–3 below. Auto-log kicks in once the bridge connects.'}</p>
         </div>
         ${allReady ? `<button type="button" class="setup-dismiss" id="setup-dismiss">Got it</button>` : ''}
       </div>
@@ -85,7 +83,7 @@ PacketSendRate=10</pre>
             <pre class="setup-code setup-code-highlight" id="setup-bridge-cmd">start-grind.bat</pre>
             <div class="setup-callout setup-callout-important">
               <strong>One black window opens.</strong> Leave it open the whole time you play.
-              Your browser opens to localhost automatically — use that tab, not GitHub Pages.
+              Your browser opens automatically — same tracker, auto-stats when RL is running.
             </div>
             <span class="setup-status-pill${bridge ? ' ok' : ''}" id="setup-bridge-pill">${bridge ? '● Bridge connected — you\'re good' : '○ Waiting for start-grind.bat…'}</span>
           </div>
@@ -97,7 +95,6 @@ PacketSendRate=10</pre>
           <strong>After setup — between games:</strong>
           W/L → mode (1's/2's/3's) → G/A/S → tags → End MMR → <span class="setup-log-chip">LOG</span>
         </div>` : ''}
-        ${!isLocal ? '<p class="setup-warn"><strong>Wrong site for auto-stats.</strong> Open <a href="http://localhost:8080" target="_blank" rel="noopener">localhost:8080</a> via start-grind.bat while grinding.</p>' : ''}
       </div>
     </div>`;
 

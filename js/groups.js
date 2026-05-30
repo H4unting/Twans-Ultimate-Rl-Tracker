@@ -6,7 +6,6 @@ import { getPerformanceInsights } from './insights.js';
 import { rankBadgeHTML } from './ranks.js';
 import { loadGroupMembers, loadMemberGames } from './supabase.js';
 import { showToast } from './ui.js';
-import { isGrindHost } from './env.js';
 
 const ui = {
   selectedGroupId: null,
@@ -139,9 +138,6 @@ async function loadMemberDetail(groupId, member, myRole) {
 }
 
 function renderCreateJoinPanel() {
-  if (!isGrindHost()) {
-    return `<div class="group-glance-note">Create or join squads on <strong>localhost</strong> while running start-grind.bat. View squad stats here anytime.</div>`;
-  }
   return `
     <div class="group-actions-grid">
       <div class="group-panel group-panel-create">
@@ -239,7 +235,7 @@ function renderSquadDetail(group, members, myRole, userId, memberDetailHTML, wee
             <button class="btn-copy btn-share" type="button" data-share-code="${group.invite_code}" data-share-name="${group.name}">Share invite</button>
           </div>
         </div>
-        ${isGrindHost() ? `<button class="btn btn-cancel btn-sm group-leave-btn" type="button" id="group-leave-btn" data-group-id="${id}">Leave squad</button>` : ''}
+        <button class="btn btn-cancel btn-sm group-leave-btn" type="button" id="group-leave-btn" data-group-id="${id}">Leave squad</button>
       </div>
       ${weeklyHTML}
       <div class="group-detail-grid">
@@ -395,7 +391,6 @@ function wireDetail(detailWrap, group, members, groups, userId, { onLeave, onRef
 }
 
 function wireCreateJoin(el, { onCreate, onJoin, onRefresh }) {
-  if (!isGrindHost()) return;
   el.querySelector('#group-create-btn')?.addEventListener('click', async () => {
     const name = el.querySelector('#group-create-name')?.value?.trim();
     if (!name || name.length < 2) {
