@@ -199,4 +199,5 @@ function showSessionModal(sessionNum, sg, elapsed) {
 export function refreshSessionUI() {
   updateSessionBar();
   updateLivePanel();
+  window.__updateQuickSession?.();
 }

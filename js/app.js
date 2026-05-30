@@ -9,6 +9,10 @@ import { applyFilters, DEFAULT_FILTERS } from './filters.js';
 import { calcStats } from './utils.js';
 import { addGame, updateGame, deleteGame, getLastMMR } from './matches.js';
 import { startSession, endSession, closeSessionModal, closeSessionModalAndContinue, initSessionUI, refreshSessionUI } from './sessions.js';
+import {
+  initQuickLog, showQuickDock, hideQuickDock, getQuickLogPayload,
+  resetQuickAfterLog, updateSessionMeta, loadPrefs, syncFormFromQuick,
+} from './quicklog.js';
 import { mmrChart, wlChart, sessionChart } from './charts.js';
 import { renderAnalytics } from './analytics.js';
 import { renderReportsPage } from './reports-ui.js';
@@ -50,13 +54,18 @@ async function bootApp() {
     state.filters = { ...DEFAULT_FILTERS };
 
     renderAuthBar(getDisplay(), handleSignOut);
+    applyLogPrefs();
+    showQuickDock();
+    updateQuickSessionDisplay();
     renderAll();
     showLoading(false);
   } catch (e) {
     console.error(e);
     setSyncStatus('error');
     showLoading(false);
-    showToast('Could not load your data', 'error');
+    showLoginScreen(false);
+    const msg = e?.message ?? 'Could not load your data';
+    showToast(msg.includes('infinite recursion') ? 'Database policy error — run groups-schema-fix.sql in Supabase' : msg, 'error');
   }
 }
 
@@ -102,6 +111,7 @@ async function handleSignOut() {
   state.profile = null;
   state.groups = [];
   resetGroupsUI();
+  hideQuickDock();
   showLoginScreen(true);
 }
 
@@ -164,6 +174,7 @@ function renderAll() {
   renderGroupsPage(getGroupsCtx());
 
   refreshSessionUI();
+  updateQuickSessionDisplay();
   wireLogTableActions();
 }
 
@@ -198,6 +209,9 @@ function renderReportsPageContent() {
 function navigate(pageId, btn) {
   state.activePage = pageId;
   showPage(pageId, btn);
+  document.querySelectorAll('.mobile-nav-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.page === pageId);
+  });
   if (pageId === 'dashboard') renderDashboard();
   if (pageId === 'analytics') renderAnalytics(getFilteredGames());
   if (pageId === 'reports') renderReportsPageContent();
@@ -213,30 +227,66 @@ function wireNavigation() {
       if (page) navigate(page, tab);
     });
   });
-}
-
-function wireLogForm() {
-  renderTagChips('log-tags', state.ui.selectedTags, (tag, selected) => {
-    if (selected) state.ui.selectedTags.push(tag);
-    else state.ui.selectedTags = state.ui.selectedTags.filter(t => t !== tag);
+  document.querySelectorAll('.mobile-nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const page = btn.dataset.page;
+      const tab = document.querySelector(`.tab[data-page="${page}"]`);
+      if (page) navigate(page, tab);
+    });
   });
-  document.getElementById('wl-win')?.addEventListener('click', () => setResult('W'));
-  document.getElementById('wl-loss')?.addEventListener('click', () => setResult('L'));
-  document.getElementById('add-btn')?.addEventListener('click', handleAddGame);
 }
 
-function setResult(r) {
-  state.ui.currentResult = r;
-  document.getElementById('wl-win').className = 'wl-btn win' + (r === 'W' ? ' active' : '');
-  document.getElementById('wl-loss').className = 'wl-btn loss' + (r === 'L' ? ' active' : '');
+function applyLogPrefs() {
+  const prefs = loadPrefs();
+  const fMode = document.getElementById('f-mode');
+  if (fMode && prefs.lastMode) fMode.value = prefs.lastMode;
 }
 
-async function handleAddGame() {
-  const btn = document.getElementById('add-btn');
-  btn.disabled = true;
-  btn.textContent = 'Saving...';
+function updateQuickSessionDisplay() {
+  if (!state.session.active) {
+    updateSessionMeta(false);
+    return;
+  }
+  const sessionNum = state.session.sessionNum || parseInt(document.getElementById('f-session')?.value, 10) || 1;
+  const sg = state.games.filter(g => g.session === sessionNum);
+  const wins = sg.filter(g => g.result === 'W').length;
+  const losses = sg.filter(g => g.result === 'L').length;
+  const mmr = sg.reduce((s, g) => s + (g.mmrDiff || 0), 0);
+  updateSessionMeta(true, {
+    html: `<span class="quick-meta-live">S${sessionNum}</span> · ${wins}W-${losses}L · <span class="${mmr >= 0 ? 'pos' : 'neg'}">${mmr >= 0 ? '+' : ''}${mmr}</span>`,
+  });
+}
+
+function toggleQuickSession() {
+  if (state.session.active) endSession();
+  else startSession();
+  updateQuickSessionDisplay();
+}
+
+async function submitGameLog(source = 'form') {
+  if (source === 'quick') {
+    syncFormFromQuick();
+    if (!state.session.active) startSession();
+  }
+
+  const endMMR = source === 'quick'
+    ? document.getElementById('quick-endmmr')?.value
+    : document.getElementById('f-endmmr')?.value;
+
+  if (!endMMR) {
+    showToast('Enter end MMR', 'error');
+    document.getElementById(source === 'quick' ? 'quick-endmmr' : 'f-endmmr')?.focus();
+    return;
+  }
+
+  const btn = source === 'quick'
+    ? document.getElementById('quick-log-btn')
+    : document.getElementById('add-btn');
+
+  if (btn) { btn.disabled = true; btn.dataset.label = btn.textContent; btn.textContent = '…'; }
+
   try {
-    await addGame({
+    const payload = source === 'quick' ? getQuickLogPayload() : {
       date: document.getElementById('f-date').value,
       session: document.getElementById('f-session').value,
       mode: document.getElementById('f-mode').value,
@@ -247,7 +297,9 @@ async function handleAddGame() {
       startMMR: document.getElementById('f-startmmr').value,
       endMMR: document.getElementById('f-endmmr').value,
       notes: document.getElementById('f-notes').value,
-    }, state.ui.selectedTags, () => {
+    };
+
+    await addGame(payload, state.ui.selectedTags, () => {
       document.getElementById('f-goals').value = 0;
       document.getElementById('f-assists').value = 0;
       document.getElementById('f-saves').value = 0;
@@ -256,14 +308,35 @@ async function handleAddGame() {
       document.getElementById('f-notes').value = '';
       document.querySelectorAll('#log-tags .tag-chip.selected').forEach(c => c.classList.remove('selected'));
       state.ui.selectedTags = [];
-      document.getElementById('f-endmmr').focus();
+      resetQuickAfterLog();
     });
     renderAll();
   } catch {
     showToast('Failed to save', 'error');
   }
-  btn.disabled = false;
-  btn.textContent = '+ Log Game';
+
+  if (btn) {
+    btn.disabled = false;
+    btn.textContent = btn.dataset.label || (source === 'quick' ? 'LOG' : '+ Log Game');
+  }
+}
+
+function wireLogForm() {
+  renderTagChips('log-tags', state.ui.selectedTags, (tag, selected) => {
+    if (selected) state.ui.selectedTags.push(tag);
+    else state.ui.selectedTags = state.ui.selectedTags.filter(t => t !== tag);
+  });
+  document.getElementById('wl-win')?.addEventListener('click', () => setResult('W'));
+  document.getElementById('wl-loss')?.addEventListener('click', () => setResult('L'));
+  document.getElementById('add-btn')?.addEventListener('click', () => submitGameLog('form'));
+}
+
+function setResult(r) {
+  state.ui.currentResult = r;
+  document.getElementById('wl-win').className = 'wl-btn win' + (r === 'W' ? ' active' : '');
+  document.getElementById('wl-loss').className = 'wl-btn loss' + (r === 'L' ? ' active' : '');
+  document.getElementById('quick-wl-win')?.classList.toggle('active', r === 'W');
+  document.getElementById('quick-wl-loss')?.classList.toggle('active', r === 'L');
 }
 
 function wireEditModal() {
@@ -380,6 +453,14 @@ async function init() {
   wireLogForm();
   wireEditModal();
   initSessionUI();
+  initQuickLog({
+    submitQuick: () => submitGameLog('quick'),
+    toggleSession: toggleQuickSession,
+    getLastMMR,
+    setFormResult: setResult,
+    setSelectedTags: tags => { state.ui.selectedTags = tags; },
+  });
+  window.__updateQuickSession = updateQuickSessionDisplay;
 
   onAuthChange(async (session) => {
     if (session) await bootApp();
