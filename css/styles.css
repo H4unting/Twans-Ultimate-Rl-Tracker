@@ -1019,6 +1019,9 @@ body.has-quick-dock.quick-dock-collapsed .mobile-nav { bottom: 52px; }
   padding-top: 20px;
   border-top: 1px solid var(--border);
 }
+.log-history-table-wrap {
+  margin-top: 12px;
+}
 
 .full-log-details {
   margin-top: 20px; margin-bottom: 8px;

@@ -28,7 +28,7 @@ import { exportGamesCSV } from './export.js';
 import { wireNavigation as wireSectionNav, updateNavUI, mountDock } from './nav.js';
 import { renderHome, getHomeChartGames, getHomeChartModeLabel } from './home.js';
 import {
-  renderGroupedMatchLogs, renderQuickFilters, applyQuickFilter,
+  renderQuickFilters, applyQuickFilter,
   getActiveQuickFilter, getQuickFilterSessionNum,
 } from './match-logs-ui.js';
 import {
@@ -52,7 +52,7 @@ function getDashboardGames() {
 }
 
 function getMatchLogsGames() {
-  return applyFilters(state.games, { ...state.filters, playlist: 'all' });
+  return applyFilters(state.games, { ...state.matchLogFilters, playlist: 'all' });
 }
 
 function getAnalyticsGames() {
@@ -80,6 +80,7 @@ async function bootApp() {
     setGoals(goals);
     state.groups = groups;
     state.filters = { ...DEFAULT_FILTERS };
+    state.matchLogFilters = { ...DEFAULT_FILTERS };
     state.activePage = 'dashboard';
 
     renderAuthBar(getDisplay(), handleSignOut);
@@ -219,7 +220,6 @@ function renderAll() {
   renderFilterBar('analytics-filters', games, state.filters, filters => {
     state.filters = { ...state.filters, ...filters };
     renderAnalyticsPage();
-    renderMatchLogs();
   });
   renderAnalyticsPage();
 
@@ -240,24 +240,23 @@ function renderDashboard() {
 
 function renderMatchLogs() {
   renderQuickFilters('matchlogs-quick-filters', () => renderMatchLogs());
-  renderFilterBar('matchlogs-filters', state.games, state.filters, filters => {
-    state.filters = { ...state.filters, ...filters };
+  renderFilterBar('matchlogs-filters', state.games, state.matchLogFilters, filters => {
+    state.matchLogFilters = { ...state.matchLogFilters, ...filters };
     renderMatchLogs();
-    renderAnalyticsPage();
   });
   let games = getMatchLogsGames();
   const qf = getActiveQuickFilter();
   if (qf !== 'all') {
     games = applyQuickFilter(games, qf, getQuickFilterSessionNum());
   }
-  renderGroupedMatchLogs(games, true);
+  renderLog('log-history-table', games, null, true);
   wireLogTableActions();
 }
 
 function renderSessionsPageContent() {
   renderSessionsPage(state.games, getDisplay().name, {
     onViewSession: sessionNum => {
-      state.filters = { ...state.filters, session: String(sessionNum) };
+      state.matchLogFilters = { ...state.matchLogFilters, session: String(sessionNum) };
       navigate('log', 'home');
     },
   });

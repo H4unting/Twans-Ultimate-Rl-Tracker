@@ -19,6 +19,14 @@ export const state = {
     tags: [],
     result: 'all',
   },
+  matchLogFilters: {
+    dateFrom: '',
+    dateTo: '',
+    playlist: 'all',
+    session: '',
+    tags: [],
+    result: 'all',
+  },
   session: {
     active: false,
     startTime: null,
