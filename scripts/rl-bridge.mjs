@@ -1,9 +1,6 @@
 #!/usr/bin/env node
 /**
  * Local bridge: Rocket League Stats API (TCP :49123) → HTTP :49200 for the tracker.
- *
- * Usually started via start-grind.bat / scripts/start-grind.mjs (one window).
- * Standalone: node scripts/rl-bridge.mjs "YourExactRLName"
  */
 
 import net from 'net';
@@ -14,6 +11,20 @@ import { fileURLToPath } from 'url';
 const RL_PORT = 49123;
 const DEFAULT_HTTP_PORT = 49200;
 
+function unwrapData(raw) {
+  let data = raw.data ?? raw.Data ?? raw;
+  if (typeof data === 'string') {
+    try { data = JSON.parse(data); } catch { data = {}; }
+  }
+  return data ?? {};
+}
+
+function inferMode(playerCount) {
+  if (playerCount <= 2) return "1's";
+  if (playerCount <= 4) return "2's";
+  return "3's";
+}
+
 export function startBridge(options = {}) {
   const playerName = (options.playerName ?? process.env.RL_PLAYER_NAME ?? '').trim();
   const httpPort = options.httpPort ?? DEFAULT_HTTP_PORT;
@@ -23,6 +34,11 @@ export function startBridge(options = {}) {
   let live = { goals: 0, assists: 0, saves: 0, score: 0 };
   let lastMatch = null;
   let buffer = '';
+  let playerTeamNum = null;
+  let lastPlayerCount = 0;
+  let currentMatchGuid = null;
+  let lastFinalizedGuid = null;
+  let pendingWinnerTeamNum = null;
 
   function matchPlayer(players) {
     if (!players?.length) return null;
@@ -34,6 +50,9 @@ export function startBridge(options = {}) {
 
   function applyPlayer(p) {
     if (!p) return;
+    if (p.TeamNum != null || p.teamNum != null) {
+      playerTeamNum = p.TeamNum ?? p.teamNum;
+    }
     live = {
       goals: p.Goals ?? p.goals ?? 0,
       assists: p.Assists ?? p.assists ?? 0,
@@ -66,25 +85,68 @@ export function startBridge(options = {}) {
     return events;
   }
 
+  function resetLiveMatch() {
+    inMatch = true;
+    live = { goals: 0, assists: 0, saves: 0, score: 0 };
+    pendingWinnerTeamNum = null;
+  }
+
+  function finalizeMatch(winnerTeamNum) {
+    if (winnerTeamNum == null || playerTeamNum == null) return;
+
+    const guid = currentMatchGuid || `local-${Date.now()}`;
+    if (lastFinalizedGuid === guid) return;
+    lastFinalizedGuid = guid;
+
+    const result = winnerTeamNum === playerTeamNum ? 'W' : 'L';
+    lastMatch = {
+      goals: live.goals,
+      assists: live.assists,
+      saves: live.saves,
+      score: live.score,
+      result,
+      mode: inferMode(lastPlayerCount),
+      winnerTeamNum,
+      playerTeamNum,
+      matchGuid: guid,
+      endedAt: Date.now(),
+      consumed: false,
+    };
+    inMatch = false;
+    console.log(`Match ended — ${result} · ${inferMode(lastPlayerCount)} · G:${live.goals} A:${live.assists} S:${live.saves}`);
+  }
+
   function handleEvent(raw) {
     const event = raw.event || raw.Event || raw.type || '';
-    const data = raw.data || raw;
+    const data = unwrapData(raw);
+
+    if (data.MatchGuid) currentMatchGuid = data.MatchGuid;
 
     if (event === 'MatchCreated' || event === 'MatchInitialized' || event === 'RoundStarted') {
-      inMatch = true;
-      live = { goals: 0, assists: 0, saves: 0, score: 0 };
+      resetLiveMatch();
+      lastFinalizedGuid = null;
     }
 
     const players = data.Players || data.players;
     if (players?.length) {
       inMatch = true;
+      lastPlayerCount = players.length;
       applyPlayer(matchPlayer(players));
     }
 
-    if (event === 'MatchEnded' || event === 'PodiumStart') {
-      if (inMatch && (live.goals || live.assists || live.saves || live.score)) {
-        lastMatch = { ...live, endedAt: Date.now(), consumed: false };
-        console.log(`Match ended — G:${live.goals} A:${live.assists} S:${live.saves}`);
+    const game = data.Game || data.game;
+    if (game?.bHasWinner && game.Teams?.length) {
+      const winnerName = game.Winner || game.winner;
+      const team = game.Teams.find(t => t.Name === winnerName || t.name === winnerName);
+      if (team) pendingWinnerTeamNum = team.TeamNum ?? team.teamNum;
+    }
+
+    if (event === 'MatchEnded') {
+      const winner = data.WinnerTeamNum ?? data.winnerTeamNum ?? pendingWinnerTeamNum;
+      finalizeMatch(winner);
+    } else if (event === 'PodiumStart') {
+      if (!lastMatch || lastMatch.consumed || lastMatch.matchGuid !== currentMatchGuid) {
+        finalizeMatch(pendingWinnerTeamNum);
       }
       inMatch = false;
     }
