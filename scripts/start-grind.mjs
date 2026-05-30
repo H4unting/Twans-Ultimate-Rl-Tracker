@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * One-window launcher: RL stats bridge + tracker site on localhost.
+ * One-window launcher: RL stats bridge + tracker (same app everywhere).
  * Used by start-grind.bat — no second console window needed.
  */
 
@@ -92,8 +92,8 @@ console.log('');
 console.log('  >>> KEEP THIS WINDOW OPEN while you play <<<');
 console.log('  >>> Close it only when you\'re done grinding <<<');
 console.log('');
-console.log('  After each game in the browser:');
-console.log('    W or L  ->  check G/A/S  ->  End MMR  ->  LOG');
+console.log('  Same app as GitHub Pages — one platform, auto-stats when bridge connects.');
+console.log('  After each game: W/L -> G/A/S -> End MMR -> LOG (or auto-log)');
 console.log('');
 console.log('  ============================================');
 console.log('');
