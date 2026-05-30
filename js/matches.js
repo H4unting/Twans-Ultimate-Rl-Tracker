@@ -1,7 +1,7 @@
 /** Match CRUD — current user's games only */
 
 import { state, setGames } from './state.js';
-import { formatDisplayDate, normalizeGame } from './utils.js';
+import { formatDisplayDate, normalizeGame, getPriorEndMMRForMode, resolveGameStartMMR } from './utils.js';
 import { saveGames } from './supabase.js';
 import { showToast } from './ui.js';
 import { refreshSessionUI } from './sessions.js';
@@ -19,15 +19,22 @@ export async function addGame(formData, selectedTags, onSuccess) {
   if (!requireSignedIn()) return null;
   const games = JSON.parse(JSON.stringify(state.games));
   const d = formData.date ? new Date(formData.date + 'T12:00:00') : new Date();
-  const startMMR = parseInt(formData.startMMR, 10) || 0;
   const endMMR = parseInt(formData.endMMR, 10) || 0;
+  const draft = {
+    match: games.length + 1,
+    mode: formData.mode,
+    result: formData.result,
+    endMMR,
+    startMMR: parseInt(formData.startMMR, 10) || 0,
+  };
+  const startMMR = resolveGameStartMMR(games, draft);
 
   const game = normalizeGame({
     date: formatDisplayDate(d),
     session: parseInt(formData.session, 10) || 1,
-    match: games.length + 1,
-    mode: formData.mode,
-    result: formData.result,
+    match: draft.match,
+    mode: draft.mode,
+    result: draft.result,
     goals: parseInt(formData.goals, 10) || 0,
     assists: parseInt(formData.assists, 10) || 0,
     saves: parseInt(formData.saves, 10) || 0,
@@ -53,15 +60,22 @@ export async function updateGame(matchNum, formData, selectedTags) {
   if (idx === -1) throw new Error('Game not found');
 
   const d = formData.date ? new Date(formData.date + 'T12:00:00') : new Date();
-  const startMMR = parseInt(formData.startMMR, 10) || 0;
   const endMMR = parseInt(formData.endMMR, 10) || 0;
+  const draft = {
+    ...games[idx],
+    mode: formData.mode,
+    result: formData.result,
+    endMMR,
+    startMMR: parseInt(formData.startMMR, 10) || 0,
+  };
+  const startMMR = resolveGameStartMMR(games.filter((_, i) => i !== idx), draft);
 
   games[idx] = normalizeGame({
     ...games[idx],
     date: formatDisplayDate(d),
     session: parseInt(formData.session, 10) || 1,
-    mode: formData.mode,
-    result: formData.result,
+    mode: draft.mode,
+    result: draft.result,
     goals: parseInt(formData.goals, 10) || 0,
     assists: parseInt(formData.assists, 10) || 0,
     saves: parseInt(formData.saves, 10) || 0,
@@ -86,6 +100,7 @@ export async function patchLastGame({ endMMR, tags, notes }) {
 
   if (endMMR != null) {
     g.endMMR = endMMR;
+    g.startMMR = resolveGameStartMMR(games.slice(0, idx), { ...g, endMMR });
     g.mmrDiff = endMMR - g.startMMR;
     g.notes = (g.notes || '').replace(/MMR estimated/g, '').replace(/\s·\s·/g, ' · ').trim();
   }
@@ -125,11 +140,9 @@ export async function deleteGame(matchNum) {
 }
 
 export function getLastMMR(mode) {
-  if (!state.games.length) return '';
-  for (let i = state.games.length - 1; i >= 0; i--) {
-    if (!mode || state.games[i].mode === mode) return state.games[i].endMMR;
-  }
-  return '';
+  if (!mode) return '';
+  const end = getPriorEndMMRForMode(state.games, mode);
+  return end != null ? end : '';
 }
 
 export function isMmrEstimated(game) {

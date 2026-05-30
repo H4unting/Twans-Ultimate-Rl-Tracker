@@ -5,9 +5,9 @@
 import { applyAppMode } from './env.js';
 import { state, subscribe, setGames, setSyncStatus, setGoals, setProfile, getUserDisplay } from './state.js';
 import { initAuth, signInWithGoogle, signOut, onAuthChange, getAuthUser } from './auth.js';
-import { loadUserData, saveSettings, claimLegacyData, createGroup, joinGroup, leaveGroup, loadUserGroups } from './supabase.js';
+import { loadUserData, saveSettings, claimLegacyData, createGroup, joinGroup, leaveGroup, loadUserGroups, saveGames } from './supabase.js';
 import { applyFilters, DEFAULT_FILTERS } from './filters.js';
-import { calcStats } from './utils.js';
+import { calcStats, estimateMMRDelta, repairPlaylistMMRChain } from './utils.js';
 import { addGame, updateGame, deleteGame, getLastMMR, patchLastGame, undoLastGame } from './matches.js';
 import { startSession, endSession, closeSessionModal, closeSessionModalAndContinue, initSessionUI, refreshSessionUI, restoreSessionFromStorage, getLoggingSessionNum } from './sessions.js';
 import {
@@ -74,7 +74,9 @@ async function bootApp() {
   try {
     const { profile, games, goals, groups } = await loadUserData();
     setProfile(profile);
-    setGames(games);
+    const { games: repaired, changed } = repairPlaylistMMRChain(games);
+    if (changed) await saveGames(repaired);
+    setGames(repaired);
     setGoals(goals);
     state.groups = groups;
     state.filters = { ...DEFAULT_FILTERS };
@@ -210,8 +212,10 @@ function renderAll() {
   renderMatchLogs();
 
   renderLog('log-preview', games, 6, false);
-  const lastMMR = getLastMMR();
-  if (lastMMR !== '') document.getElementById('f-startmmr').value = lastMMR;
+  const logMode = document.getElementById('f-mode')?.value || loadPrefs().lastMode || "2's";
+  const lastMMR = getLastMMR(logMode);
+  const fStart = document.getElementById('f-startmmr');
+  if (fStart) fStart.value = lastMMR !== '' ? lastMMR : '';
 
   renderFilterBar('analytics-filters', games, state.filters, filters => {
     state.filters = { ...state.filters, ...filters };
@@ -324,14 +328,8 @@ function applyLogPrefs() {
   if (fMode && prefs.lastMode) fMode.value = prefs.lastMode;
 }
 
-function estimateMMRDelta(result, mode) {
-  const recent = state.games.slice(-15).filter(g =>
-    g.result === result && g.mode === mode && g.mmrDiff,
-  );
-  if (recent.length >= 2) {
-    return Math.round(recent.reduce((s, g) => s + g.mmrDiff, 0) / recent.length);
-  }
-  return result === 'W' ? 10 : -10;
+function estimateMMRDeltaForMode(result, mode) {
+  return estimateMMRDelta(state.games, result, mode);
 }
 
 async function handleAutoLog(match) {
@@ -340,20 +338,29 @@ async function handleAutoLog(match) {
   if (match.result) setQuickResult(match.result);
   applyLiveStats(match);
 
-  const startRaw = getLastMMR(logMode) || document.getElementById('f-startmmr')?.value || '';
-  const startMMR = parseInt(startRaw, 10);
-  if (!startRaw || Number.isNaN(startMMR)) {
-    showToast('Type your MMR in the bar once — then auto-log takes over', 'error');
+  const priorEnd = getLastMMR(logMode);
+  const delta = estimateMMRDeltaForMode(match.result, logMode);
+  let startMMR;
+  let endMMR;
+
+  if (priorEnd !== '') {
+    startMMR = parseInt(priorEnd, 10);
+    endMMR = Math.max(0, startMMR + delta);
+  } else {
+    startMMR = 0;
+    endMMR = delta;
+    showToast(`First ${logMode} log — confirm your real MMR after the match`, 'error');
+  }
+
+  if (Number.isNaN(startMMR) || Number.isNaN(endMMR)) {
+    showToast('Confirm MMR from the ranked screen after this match', 'error');
     document.getElementById('quick-endmmr')?.focus();
     return false;
   }
 
-  const delta = estimateMMRDelta(match.result, logMode);
-  const endMMR = Math.max(0, startMMR + delta);
-
   const fStart = document.getElementById('f-startmmr');
   const qEnd = document.getElementById('quick-endmmr');
-  if (fStart) fStart.value = startMMR;
+  if (fStart) fStart.value = priorEnd !== '' ? startMMR : '';
   if (qEnd) qEnd.value = endMMR;
 
   state.ui.autoLogNote = [
@@ -418,7 +425,7 @@ async function submitGameLog(source = 'form') {
       document.getElementById('f-goals').value = 0;
       document.getElementById('f-assists').value = 0;
       document.getElementById('f-saves').value = 0;
-      document.getElementById('f-startmmr').value = getLastMMR();
+      document.getElementById('f-startmmr').value = getLastMMR(game.mode);
       document.getElementById('f-endmmr').value = '';
       document.getElementById('f-notes').value = '';
       document.querySelectorAll('#log-tags .tag-chip.selected').forEach(c => c.classList.remove('selected'));

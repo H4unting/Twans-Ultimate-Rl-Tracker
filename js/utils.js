@@ -99,6 +99,57 @@ export function getPlaylistMMRRows(games) {
   }).filter(r => r.mmr != null);
 }
 
+/** Last ending MMR for a playlist before a given match number */
+export function getPriorEndMMRForMode(games, mode, beforeMatch = Infinity) {
+  for (let i = games.length - 1; i >= 0; i--) {
+    const g = games[i];
+    if (g.match >= beforeMatch) continue;
+    if (g.mode === mode && g.endMMR != null && g.endMMR !== '') return g.endMMR;
+  }
+  return null;
+}
+
+/** Typical MMR swing for a playlist — used when no prior game exists in that mode */
+export function estimateMMRDelta(games, result, mode) {
+  const recent = games.filter(g =>
+    g.result === result && g.mode === mode && g.mmrDiff,
+  ).slice(-15);
+  if (recent.length >= 2) {
+    return Math.round(recent.reduce((s, g) => s + g.mmrDiff, 0) / recent.length);
+  }
+  return result === 'W' ? 10 : -10;
+}
+
+/** Resolve start MMR for a game — never bleed another playlist's rating into the chain */
+export function resolveGameStartMMR(games, game) {
+  const priorEnd = getPriorEndMMRForMode(games, game.mode, game.match);
+  if (priorEnd != null) return priorEnd;
+
+  const endMMR = parseInt(game.endMMR, 10);
+  if (!endMMR) return parseInt(game.startMMR, 10) || 0;
+
+  const priorGames = games.filter(g => g.match < game.match);
+  const est = estimateMMRDelta(priorGames, game.result, game.mode);
+  return Math.max(0, endMMR - est);
+}
+
+/** Fix games where start MMR was copied from the wrong playlist */
+export function repairPlaylistMMRChain(games) {
+  let changed = false;
+  const sorted = [...games].sort((a, b) => a.match - b.match);
+  const fixed = sorted.map(g => {
+    const startMMR = resolveGameStartMMR(sorted, g);
+    const endMMR = parseInt(g.endMMR, 10) || 0;
+    const mmrDiff = endMMR - startMMR;
+    if (g.startMMR !== startMMR || g.mmrDiff !== mmrDiff) {
+      changed = true;
+      return { ...g, startMMR, mmrDiff };
+    }
+    return g;
+  });
+  return { games: fixed, changed };
+}
+
 // ── Core stats ────────────────────────────────────────────────────────────────
 
 export function calcStreak(games) {

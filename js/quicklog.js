@@ -125,7 +125,7 @@ export function syncFormFromQuick() {
   if (fEnd && end) fEnd.value = end;
   if (fStart && callbacks.getLastMMR) {
     const last = callbacks.getLastMMR(getQuickMode());
-    if (last !== '') fStart.value = last;
+    fStart.value = last !== '' ? last : '';
   }
 
   const notes = document.getElementById('quick-notes')?.value ?? '';

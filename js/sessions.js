@@ -8,6 +8,16 @@ import { showToast } from './ui.js';
 import { getLastMMR, lastGameNeedsMmrConfirm } from './matches.js';
 import { detectTilt } from './insights.js';
 
+function getActiveLogMode() {
+  const fromForm = document.getElementById('f-mode')?.value;
+  if (fromForm) return fromForm;
+  try {
+    return JSON.parse(localStorage.getItem('rl-grind-prefs') ?? '{}').lastMode ?? "2's";
+  } catch {
+    return "2's";
+  }
+}
+
 const SESSION_STORE = 'rl-grind-session';
 
 export function getMaxSessionNum(games = state.games) {
@@ -206,7 +216,7 @@ export function endSession(onComplete) {
 
 export function closeSessionModal() {
   document.getElementById('session-modal')?.classList.remove('open');
-  const last = getLastMMR();
+  const last = getLastMMR(getActiveLogMode());
   if (last !== '') {
     const el = document.getElementById('f-startmmr');
     if (el) el.value = last;
