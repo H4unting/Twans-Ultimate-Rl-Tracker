@@ -5,7 +5,7 @@
 import { applyAppMode } from './env.js';
 import { state, subscribe, setGames, setSyncStatus, setGoals, setProfile, getUserDisplay } from './state.js';
 import { initAuth, signInWithGoogle, signOut, onAuthChange, getAuthUser } from './auth.js';
-import { loadUserData, saveSettings, claimLegacyData, createGroup, joinGroup, leaveGroup, loadUserGroups, saveGames } from './supabase.js';
+import { loadUserData, saveSettings, claimLegacyData, createGroup, joinGroup, leaveGroup, loadUserGroups, saveGames, saveProfile } from './supabase.js';
 import { applyFilters, DEFAULT_FILTERS } from './filters.js';
 import { calcStats, estimateMMRDelta, repairPlaylistMMRChain } from './utils.js';
 import { addGame, updateGame, deleteGame, getLastMMR, patchLastGame, undoLastGame } from './matches.js';
@@ -15,7 +15,8 @@ import {
   resetQuickAfterLog, loadPrefs, syncFormFromQuick, applyLiveStats, flashAutoLogged,
   setQuickResult, setQuickMode,
 } from './quicklog.js';
-import { initRlLive, stopRlLive, refreshLiveStatus } from './rl-live.js';
+import { renderProfilePage } from './profile-ui.js';
+import { saveRlDisplayName, getRlDisplayName } from './rl-live.js';
 import { renderSetupWizard, refreshSetupWizard, onBridgeStatusChange, renderLogSetupNudge } from './setup-wizard.js';
 import { mmrChart, wlChart } from './charts.js';
 import { renderAnalytics } from './analytics.js';
@@ -72,18 +73,23 @@ async function bootApp() {
   showLoading(true);
 
   try {
-    const { profile, games, goals, groups } = await loadUserData();
+    const { profile, games, goals, groups, bio, rlDisplayName } = await loadUserData();
     setProfile(profile);
     const { games: repaired, changed } = repairPlaylistMMRChain(games);
     if (changed) await saveGames(repaired);
     setGames(repaired);
     setGoals(goals);
+    state.profileBio = bio ?? '';
     state.groups = groups;
+    if (rlDisplayName && !loadPrefs().rlDisplayName) {
+      saveRlDisplayName(rlDisplayName);
+      savePrefs({ rlDisplayName });
+    }
     state.filters = { ...DEFAULT_FILTERS };
     state.matchLogFilters = { ...DEFAULT_FILTERS };
     state.activePage = 'dashboard';
 
-    renderAuthBar(getDisplay(), handleSignOut);
+    renderAuthBar(getDisplay(), handleSignOut, () => navigate('profile', 'home'));
     applyAppMode();
     applyLogPrefs();
 
@@ -147,6 +153,7 @@ async function handleSignOut() {
   await signOut();
   state.games = [];
   state.profile = null;
+  state.profileBio = '';
   state.groups = [];
   resetGroupsUI();
   hideQuickDock();
@@ -273,12 +280,48 @@ function renderReportsPageContent() {
     offset => { state.reportsWeekOffset = offset; renderReportsPageContent(); },
     async nextGoals => {
       setGoals(nextGoals);
-      await saveSettings({ goals: nextGoals });
+      await saveSettings(getSettingsPayload({ goals: nextGoals }));
       renderHomePage();
       renderFocusPage(state.games, state.goals, getDisplay());
       showToast('Goals saved!');
     },
   );
+}
+
+function renderProfilePageContent() {
+  renderProfilePage({
+    games: state.games,
+    profile: state.profile,
+    display: getDisplay(),
+    authUser: getAuthUser(),
+    bio: state.profileBio ?? '',
+    onSave: handleProfileSave,
+  });
+}
+
+function getSettingsPayload(overrides = {}) {
+  return {
+    goals: state.goals,
+    bio: state.profileBio ?? '',
+    rlDisplayName: getRlDisplayName() || loadPrefs().rlDisplayName || '',
+    ...overrides,
+  };
+}
+
+async function handleProfileSave({ displayName, rlName, accentColor, bio }) {
+  await saveProfile({
+    display_name: displayName,
+    accent_color: accentColor,
+  });
+  setProfile({
+    ...state.profile,
+    display_name: displayName,
+    accent_color: accentColor,
+  });
+  state.profileBio = bio;
+  await saveSettings(getSettingsPayload({ bio, rlDisplayName: rlName }));
+  renderAuthBar(getDisplay(), handleSignOut, () => navigate('profile', 'home'));
+  renderProfilePageContent();
 }
 
 function navigate(pageId, section) {
@@ -289,6 +332,7 @@ function navigate(pageId, section) {
   if (pageId === 'dashboard') renderDashboard();
   if (pageId === 'log') renderMatchLogs();
   if (pageId === 'setup') refreshSetupWizard(getDisplay().name);
+  if (pageId === 'profile') renderProfilePageContent();
   if (pageId === 'analytics') renderAnalyticsPage();
   if (pageId === 'reports') renderReportsPageContent();
   if (pageId === 'focus') renderFocusPage(state.games, state.goals, getDisplay());

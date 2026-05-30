@@ -183,13 +183,6 @@ function getProfileContext(fallbackName = '') {
 }
 
 function renderProfileNameStep(profile) {
-  const initial = profile.rlName || profile.googleName || '';
-  const avatar = profile.avatar
-    ? `<img class="setup-profile-avatar" src="${escapeAttr(profile.avatar)}" alt="">`
-    : `<span class="setup-profile-avatar setup-profile-avatar-fallback">${escapeHtml((initial || '?').charAt(0).toUpperCase())}</span>`;
-  const accountLine = profile.email
-    ? `Google · ${escapeHtml(profile.email)}`
-    : 'Signed in with Google';
   const googleSuggest = profile.googleName && profile.googleName !== profile.rlName
     ? `<button type="button" class="setup-profile-dropdown-item" data-suggest-name="${escapeAttr(profile.googleName)}">Use Google name: ${escapeHtml(profile.googleName)}</button>`
     : '';
@@ -197,21 +190,19 @@ function renderProfileNameStep(profile) {
 
   return `
     <strong>Your in-game name</strong>
-    <div class="setup-profile-card">
-      <div class="setup-profile-banner" aria-hidden="true"></div>
-      <div class="setup-profile-row">
-        <div class="setup-profile-avatar-wrap">${avatar}</div>
-        <div class="setup-profile-info">
-          <div class="setup-profile-name-row">
-            <input type="text" id="setup-rl-name" class="setup-profile-name-input" placeholder="Rocket League display name" value="${escapeAttr(profile.rlName)}" autocomplete="off" spellcheck="false">
-            <button type="button" class="setup-profile-name-toggle${showToggle ? '' : ' hidden'}" id="setup-rl-name-toggle" aria-expanded="false" aria-label="Name suggestions">▼</button>
-            <div class="setup-profile-dropdown hidden" id="setup-rl-name-dropdown">${googleSuggest}</div>
-          </div>
-          <div class="setup-profile-sub">${accountLine}</div>
-        </div>
+    <p class="setup-name-intro">This is the name at the top of your profile — copy it <em>exactly</em> into the box below.</p>
+    <figure class="setup-name-example">
+      <img src="assets/setup/profile-name-example.png" alt="Profile example — the name next to your avatar is your display name" width="960" height="auto" loading="lazy">
+      <figcaption>↑ Use this name — same spelling and caps as shown.</figcaption>
+    </figure>
+    <div class="setup-name-field-row">
+      <input type="text" id="setup-rl-name" class="setup-input setup-name-input" placeholder="e.g. twan" value="${escapeAttr(profile.rlName)}" autocomplete="off" spellcheck="false">
+      <div class="setup-name-suggest-wrap">
+        <button type="button" class="setup-profile-name-toggle${showToggle ? '' : ' hidden'}" id="setup-rl-name-toggle" aria-expanded="false" aria-label="Name suggestions">▼</button>
+        <div class="setup-profile-dropdown hidden" id="setup-rl-name-dropdown">${googleSuggest}</div>
       </div>
     </div>
-    <p class="setup-callout setup-callout-tip">Must match your Rocket League display name <em>exactly</em> — same spelling and caps.</p>`;
+    <p class="setup-callout setup-callout-tip">Must match your Rocket League display name <em>exactly</em> — the bridge uses this to find your stats in-game.</p>`;
 }
 
 function wireProfileNameDropdown() {

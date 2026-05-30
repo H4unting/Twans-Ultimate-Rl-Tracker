@@ -25,6 +25,35 @@ function inferMode(playerCount) {
   return "3's";
 }
 
+const RANKED_PLAYLIST_IDS = {
+  10: "1's",   // Ranked Duel
+  11: "2's",   // Ranked Doubles
+  13: "3's",   // Ranked Standard
+  28: "2's",   // Ranked Hoops
+  29: "3's",   // Rumble (3v3)
+  30: "2's",   // Dropshot
+  34: "3's",   // Snow Day
+};
+
+function parsePlaylist(data) {
+  const pi = data.PlaylistInfo || data.playlistInfo || data.Playlist || data.playlist || {};
+  const name = pi.Name || pi.name || data.PlaylistName || data.playlistName || '';
+  const id = pi.Id ?? pi.id ?? data.PlaylistId ?? data.playlistId ?? null;
+  const isRanked = /ranked/i.test(name) || pi.bRanked || data.bRanked || RANKED_PLAYLIST_IDS[id] != null;
+  return { name: name || null, id, isRanked };
+}
+
+function inferModeFromPlaylist(playlist, playerCount) {
+  const name = (playlist?.name || '').toLowerCase();
+  if (name.includes('duel') || name.includes('1v1') || name.includes('solo')) return "1's";
+  if (name.includes('double') || name.includes('2v2') || name.includes('hoops') || name.includes('dropshot')) return "2's";
+  if (name.includes('standard') || name.includes('3v3') || name.includes('rumble') || name.includes('snow day')) return "3's";
+  if (playlist?.id != null && RANKED_PLAYLIST_IDS[playlist.id]) {
+    return RANKED_PLAYLIST_IDS[playlist.id];
+  }
+  return inferMode(playerCount);
+}
+
 export function startBridge(options = {}) {
   const playerName = (options.playerName ?? process.env.RL_PLAYER_NAME ?? '').trim();
   const httpPort = options.httpPort ?? DEFAULT_HTTP_PORT;
@@ -39,6 +68,7 @@ export function startBridge(options = {}) {
   let currentMatchGuid = null;
   let lastFinalizedGuid = null;
   let pendingWinnerTeamNum = null;
+  let currentPlaylist = { name: null, id: null, isRanked: false };
 
   function matchPlayer(players) {
     if (!players?.length) return null;
@@ -105,7 +135,9 @@ export function startBridge(options = {}) {
       saves: live.saves,
       score: live.score,
       result,
-      mode: inferMode(lastPlayerCount),
+      mode: inferModeFromPlaylist(currentPlaylist, lastPlayerCount),
+      playlist: currentPlaylist.name,
+      isRanked: currentPlaylist.isRanked,
       winnerTeamNum,
       playerTeamNum,
       matchGuid: guid,
@@ -113,7 +145,8 @@ export function startBridge(options = {}) {
       consumed: false,
     };
     inMatch = false;
-    console.log(`Match ended — ${result} · ${inferMode(lastPlayerCount)} · G:${live.goals} A:${live.assists} S:${live.saves}`);
+    const plLabel = currentPlaylist.name ? ` · ${currentPlaylist.name}` : '';
+    console.log(`Match ended — ${result} · ${lastMatch.mode}${plLabel} · G:${live.goals} A:${live.assists} S:${live.saves}`);
   }
 
   function handleEvent(raw) {
@@ -125,6 +158,9 @@ export function startBridge(options = {}) {
     if (event === 'MatchCreated' || event === 'MatchInitialized' || event === 'RoundStarted') {
       resetLiveMatch();
       lastFinalizedGuid = null;
+      if (event !== 'RoundStarted') {
+        currentPlaylist = parsePlaylist(data);
+      }
     }
 
     const players = data.Players || data.players;
@@ -192,6 +228,8 @@ export function startBridge(options = {}) {
         inMatch,
         playerName: playerName || null,
         httpPort,
+        playlist: currentPlaylist.name,
+        isRanked: currentPlaylist.isRanked,
       }));
       return;
     }

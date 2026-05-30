@@ -41,6 +41,7 @@ export const state = {
     currentResult: 'W',
   },
   goals: { ...DEFAULT_GOALS },
+  profileBio: '',
   reportsWeekOffset: 0,
   groups: [],
 };

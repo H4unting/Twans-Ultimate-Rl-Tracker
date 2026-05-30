@@ -111,17 +111,21 @@ export function renderLog(tableId, games, limit, editable = false) {
       </tr>`).join('')}</tbody>`;
 }
 
-export function renderAuthBar(display, onSignOut) {
+export function renderAuthBar(display, onSignOut, onProfileClick) {
   const el = document.getElementById('user-bar');
   if (!el) return;
   const avatar = display.avatar
     ? `<img class="user-avatar" src="${display.avatar}" alt="">`
     : `<span class="user-avatar user-avatar-fallback">${display.name.charAt(0)}</span>`;
   el.innerHTML = `
-    ${avatar}
-    <span class="user-name">${display.name}</span>
+    <button type="button" class="user-bar-profile" id="user-bar-profile" aria-label="Open profile">
+      ${avatar}
+      <span class="user-name">${display.name}</span>
+      <span class="user-bar-caret" aria-hidden="true">▼</span>
+    </button>
     <button class="btn-signout" type="button" id="sign-out-btn">Sign out</button>`;
   el.querySelector('#sign-out-btn')?.addEventListener('click', onSignOut);
+  el.querySelector('#user-bar-profile')?.addEventListener('click', () => onProfileClick?.());
 }
 
 export function renderWelcomeHeader(display, stats) {

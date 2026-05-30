@@ -120,16 +120,19 @@ export async function saveGames(games) {
 
 export async function loadSettings() {
   const user = getAuthUser();
-  if (!user) return { goals: { ...DEFAULT_GOALS } };
+  if (!user) return { goals: { ...DEFAULT_GOALS }, bio: '', rlDisplayName: '' };
   try {
     const rows = await sbFetch(`user_settings?user_id=eq.${user.id}&select=data`);
-    if (rows?.[0]?.data?.goals) {
-      return { goals: { ...DEFAULT_GOALS, ...rows[0].data.goals } };
-    }
+    const data = rows?.[0]?.data ?? {};
+    return {
+      goals: { ...DEFAULT_GOALS, ...(data.goals ?? {}) },
+      bio: data.bio ?? '',
+      rlDisplayName: data.rlDisplayName ?? '',
+    };
   } catch {
     /* table may not exist yet */
   }
-  return { goals: { ...DEFAULT_GOALS } };
+  return { goals: { ...DEFAULT_GOALS }, bio: '', rlDisplayName: '' };
 }
 
 export async function saveSettings(settings) {
@@ -143,6 +146,12 @@ export async function saveSettings(settings) {
   } catch {
     /* fallback silently */
   }
+}
+
+export async function saveProfile(updates) {
+  const user = getAuthUser();
+  if (!user) throw new Error('Not signed in');
+  await sbFetch(`profiles?id=eq.${user.id}`, 'PATCH', updates);
 }
 
 /** One-time import from legacy Tracker JSON blob */
@@ -215,7 +224,7 @@ export async function loadUserData() {
     const settings = await loadSettings();
     const groups = await loadUserGroups();
     setSyncStatus('live');
-    return { profile, games, goals: settings.goals, groups };
+    return { profile, games, goals: settings.goals, groups, bio: settings.bio, rlDisplayName: settings.rlDisplayName };
   } catch (e) {
     setSyncStatus('error');
     throw e;
