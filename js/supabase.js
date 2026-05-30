@@ -8,6 +8,33 @@ import { setSyncStatus } from './state.js';
 import { DEFAULT_GOALS } from './goals.js';
 import { getAccessToken, getAuthUser } from './auth.js';
 
+/** Set from loadProfile — avoids PATCHing columns that are not in Supabase yet */
+let profileSchemaExtended = false;
+
+export function setProfileSchemaExtended(value) {
+  profileSchemaExtended = Boolean(value);
+}
+
+export function profileSupportsExtendedColumns() {
+  return profileSchemaExtended;
+}
+
+function isMissingColumnError(e) {
+  const msg = e?.message ?? String(e);
+  return msg.includes('PGRST204') || msg.includes('schema cache');
+}
+
+export function formatApiError(e, fallback = 'Something went wrong') {
+  const raw = e?.message ?? String(e);
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed?.message) return parsed.message;
+  } catch {
+    /* plain text */
+  }
+  return raw || fallback;
+}
+
 async function sbFetch(path, method = 'GET', body = null, extra = {}) {
   const token = getAccessToken() ?? SUPABASE_KEY;
   const opts = {
@@ -74,7 +101,10 @@ export async function loadProfile() {
   if (!user) return null;
 
   let rows = await sbFetch(`profiles?id=eq.${user.id}&select=*`);
-  if (rows?.[0]) return rows[0];
+  if (rows?.[0]) {
+    setProfileSchemaExtended('primary_color' in rows[0] || 'secondary_color' in rows[0]);
+    return rows[0];
+  }
 
   const meta = user.user_metadata ?? {};
   const profile = {
@@ -90,7 +120,9 @@ export async function loadProfile() {
   });
 
   rows = await sbFetch(`profiles?id=eq.${user.id}&select=*`);
-  return rows?.[0] ?? profile;
+  const saved = rows?.[0] ?? profile;
+  setProfileSchemaExtended('primary_color' in saved || 'secondary_color' in saved);
+  return saved;
 }
 
 export async function loadGames() {
@@ -150,25 +182,36 @@ export async function saveSettings(settings) {
   }
 }
 
+function buildProfilePatch(updates, extended) {
+  const payload = {};
+  if (updates.display_name != null) payload.display_name = updates.display_name;
+  if (updates.accent_color != null) payload.accent_color = updates.accent_color;
+  if (extended) {
+    if (updates.primary_color != null) payload.primary_color = updates.primary_color;
+    if (updates.secondary_color != null) payload.secondary_color = updates.secondary_color;
+    if (updates.profile_number != null) payload.profile_number = updates.profile_number;
+  } else if (updates.primary_color != null && payload.accent_color == null) {
+    payload.accent_color = updates.primary_color;
+  }
+  return payload;
+}
+
 export async function saveProfile(updates) {
   const user = getAuthUser();
   if (!user) throw new Error('Not signed in');
 
-  try {
-    await sbFetch(`profiles?id=eq.${user.id}`, 'PATCH', updates);
-    return { ok: true, extended: true };
-  } catch (e) {
-    const msg = e?.message ?? '';
-    const missingNewColumns = msg.includes('PGRST204')
-      || msg.includes('primary_color')
-      || msg.includes('secondary_color')
-      || msg.includes('profile_number');
-    if (!missingNewColumns) throw e;
+  const extended = profileSchemaExtended;
+  const payload = buildProfilePatch(updates, extended);
 
-    const legacy = { ...updates };
-    delete legacy.primary_color;
-    delete legacy.secondary_color;
-    delete legacy.profile_number;
+  try {
+    await sbFetch(`profiles?id=eq.${user.id}`, 'PATCH', payload);
+    return { ok: true, extended };
+  } catch (e) {
+    if (!isMissingColumnError(e)) throw e;
+    if (!extended) throw e;
+
+    setProfileSchemaExtended(false);
+    const legacy = buildProfilePatch(updates, false);
     await sbFetch(`profiles?id=eq.${user.id}`, 'PATCH', legacy);
     return { ok: true, extended: false };
   }

@@ -5,6 +5,7 @@ import { getRank, rankBadgeHTML } from './ranks.js';
 import { getRlDisplayName, saveRlDisplayName } from './rl-live.js';
 import { savePrefs } from './quicklog.js';
 import { showToast } from './ui.js';
+import { formatApiError } from './supabase.js';
 
 function escapeHtml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -231,7 +232,7 @@ function wireProfilePage({ onSave, primary, secondary }) {
       );
       document.getElementById('profile-edit-panel')?.removeAttribute('open');
     } catch (e) {
-      showToast(e?.message || 'Could not save profile', 'error');
+      showToast(formatApiError(e, 'Could not save profile'), 'error');
     }
   });
 }
