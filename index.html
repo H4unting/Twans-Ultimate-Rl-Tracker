@@ -14,144 +14,139 @@
   <span>Loading tracker...</span>
 </div>
 
-<div class="top-bar">
-  <div class="logo">RL <span>GRIND</span></div>
-  <div class="sync-status">
-    <div class="sync-dot" id="sync-dot"></div>
-    <span id="sync-label">Connecting...</span>
-  </div>
-  <div class="tabs">
-    <button class="tab active" data-page="dashboard">Team</button>
-    <button class="tab" data-page="anthony">Anthony</button>
-    <button class="tab" data-page="trystan">Trystan</button>
-    <button class="tab" data-page="log">+ Log Game</button>
-    <button class="tab" data-page="analytics">Analytics</button>
-    <button class="tab" data-page="reports">Reports</button>
-    <button class="tab" data-page="coach">Coach</button>
+<!-- LOGIN -->
+<div id="login-screen" class="login-screen hidden">
+  <div class="login-card">
+    <div class="logo login-logo">RL <span>GRIND</span></div>
+    <p class="login-tagline">Your personal Rocket League improvement tracker.<br>Sign in to track your grind privately.</p>
+    <button class="btn-google" type="button" id="google-signin-btn">
+      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.07 13.09 17.62 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.56 2.95-2.26 5.48-4.78 7.18l7.73 6.01C42.44 39.24 46.98 32.55 46.98 24.55z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6.01c-2.15 1.45-4.92 2.3-8.16 2.3-6.38 0-11.79-4.29-13.71-10.09l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      Sign in with Google
+    </button>
   </div>
 </div>
 
-<!-- TEAM -->
-<div id="page-dashboard" class="page active">
-  <p class="section-title">Team Overview</p>
-  <div class="team-grid" id="team-grid"><div class="empty">Loading...</div></div>
-  <p class="section-title">MMR Progress</p>
-  <div class="chart-box chart-box-lg"><canvas id="teamChart"></canvas></div>
-</div>
-
-<!-- ANTHONY -->
-<div id="page-anthony" class="page">
-  <div class="playlist-tabs" id="anthony-pl-tabs"></div>
-  <div id="anthony-filters"></div>
-  <div class="stat-grid" id="anthony-stats"></div>
-  <div class="chart-row">
-    <div class="chart-box"><canvas id="anthonyMMR"></canvas></div>
-    <div class="chart-box"><canvas id="anthonyWL"></canvas></div>
-  </div>
-  <p class="section-title">Session Performance</p>
-  <div class="chart-box"><canvas id="anthonySession"></canvas></div>
-  <p class="section-title">Match Log</p>
-  <div class="table-wrap"><table class="log-table" id="anthony-log"></table></div>
-</div>
-
-<!-- TRYSTAN -->
-<div id="page-trystan" class="page">
-  <div class="playlist-tabs" id="trystan-pl-tabs"></div>
-  <div id="trystan-filters"></div>
-  <div class="stat-grid" id="trystan-stats"></div>
-  <div class="chart-row">
-    <div class="chart-box"><canvas id="trystanMMR"></canvas></div>
-    <div class="chart-box"><canvas id="trystanWL"></canvas></div>
-  </div>
-  <p class="section-title">Session Performance</p>
-  <div class="chart-box"><canvas id="trystanSession"></canvas></div>
-  <p class="section-title">Match Log</p>
-  <div class="table-wrap"><table class="log-table" id="trystan-log"></table></div>
-</div>
-
-<!-- LOG GAME -->
-<div id="page-log" class="page">
-  <div class="player-selector">
-    <button class="pselector active ant" id="ps-anthony">Anthony</button>
-    <button class="pselector try" id="ps-trystan">Trystan</button>
-  </div>
-
-  <div class="session-bar" id="session-bar">
-    <div class="session-live-dot" id="session-live-dot"></div>
-    <div class="session-bar-info">
-      <div class="session-bar-title" id="session-bar-title">No active session</div>
-      <div class="session-live-stats" id="session-live-stats"></div>
+<!-- APP -->
+<div id="app-shell" class="hidden">
+  <div class="top-bar">
+    <div class="logo">RL <span>GRIND</span></div>
+    <div class="sync-status">
+      <div class="sync-dot" id="sync-dot"></div>
+      <span id="sync-label">Connecting...</span>
     </div>
-    <button class="session-btn start" id="session-start-btn">▶ Start Session</button>
+    <div class="user-bar" id="user-bar"></div>
+    <div class="tabs">
+      <button class="tab active" data-page="dashboard">Dashboard</button>
+      <button class="tab" data-page="log">+ Log Game</button>
+      <button class="tab" data-page="analytics">Analytics</button>
+      <button class="tab" data-page="reports">Reports</button>
+      <button class="tab" data-page="focus">Focus</button>
+      <button class="tab" data-page="group">Group</button>
+    </div>
   </div>
 
-  <div class="add-form">
-    <div class="form-grid">
-      <div class="form-group"><label>Date</label><input type="date" id="f-date"></div>
-      <div class="form-group"><label>Session #</label><input type="number" id="f-session" min="1" value="1"></div>
-      <div class="form-group"><label>Mode</label>
-        <select id="f-mode"><option>1's</option><option>2's</option><option>3's</option></select>
-      </div>
-      <div class="form-group"><label>Result</label>
-        <div class="wl-toggle">
-          <button class="wl-btn win active" id="wl-win" type="button">WIN</button>
-          <button class="wl-btn loss" id="wl-loss" type="button">LOSS</button>
+  <!-- DASHBOARD -->
+  <div id="page-dashboard" class="page active">
+    <div id="welcome-header"></div>
+    <div id="legacy-import"></div>
+    <div class="dashboard-grid">
+      <div class="dashboard-main">
+        <div class="playlist-tabs" id="pl-tabs"></div>
+        <div id="dash-filters"></div>
+        <div class="stat-grid" id="dash-stats"></div>
+        <div class="chart-row">
+          <div class="chart-box"><canvas id="dashMMR"></canvas></div>
+          <div class="chart-box"><canvas id="dashWL"></canvas></div>
         </div>
+        <p class="section-title">Session Performance</p>
+        <div class="chart-box"><canvas id="dashSession"></canvas></div>
       </div>
-      <div class="form-group"><label>Goals</label><input type="number" id="f-goals" min="0" value="0"></div>
-      <div class="form-group"><label>Assists</label><input type="number" id="f-assists" min="0" value="0"></div>
-      <div class="form-group"><label>Saves</label><input type="number" id="f-saves" min="0" value="0"></div>
-      <div class="form-group"><label>Starting MMR</label><input type="number" id="f-startmmr" min="0"></div>
-      <div class="form-group"><label>Ending MMR</label><input type="number" id="f-endmmr" min="0"></div>
+      <div class="dashboard-side">
+        <p class="section-title">Goal Progress</p>
+        <div class="side-card" id="dash-goals"></div>
+      </div>
     </div>
-    <div id="log-tags"></div>
-    <div class="form-group form-notes"><label>Notes (optional)</label>
-      <input type="text" id="f-notes" placeholder="Any notes...">
+    <p class="section-title">Match Log</p>
+    <div class="table-wrap"><table class="log-table" id="dash-log"></table></div>
+  </div>
+
+  <!-- LOG GAME -->
+  <div id="page-log" class="page">
+    <div class="session-bar" id="session-bar">
+      <div class="session-live-dot" id="session-live-dot"></div>
+      <div class="session-bar-info">
+        <div class="session-bar-title" id="session-bar-title">No active session</div>
+        <div class="session-live-stats" id="session-live-stats"></div>
+      </div>
+      <button class="session-btn start" id="session-start-btn">▶ Start Session</button>
     </div>
-    <button class="btn btn-primary" id="add-btn" type="button">+ Log Game</button>
+    <div class="add-form">
+      <div class="form-grid">
+        <div class="form-group"><label>Date</label><input type="date" id="f-date"></div>
+        <div class="form-group"><label>Session #</label><input type="number" id="f-session" min="1" value="1"></div>
+        <div class="form-group"><label>Mode</label>
+          <select id="f-mode"><option>1's</option><option>2's</option><option>3's</option></select>
+        </div>
+        <div class="form-group"><label>Result</label>
+          <div class="wl-toggle">
+            <button class="wl-btn win active" id="wl-win" type="button">WIN</button>
+            <button class="wl-btn loss" id="wl-loss" type="button">LOSS</button>
+          </div>
+        </div>
+        <div class="form-group"><label>Goals</label><input type="number" id="f-goals" min="0" value="0"></div>
+        <div class="form-group"><label>Assists</label><input type="number" id="f-assists" min="0" value="0"></div>
+        <div class="form-group"><label>Saves</label><input type="number" id="f-saves" min="0" value="0"></div>
+        <div class="form-group"><label>Starting MMR</label><input type="number" id="f-startmmr" min="0"></div>
+        <div class="form-group"><label>Ending MMR</label><input type="number" id="f-endmmr" min="0"></div>
+      </div>
+      <div id="log-tags"></div>
+      <div class="form-group form-notes"><label>Notes (optional)</label>
+        <input type="text" id="f-notes" placeholder="Any notes...">
+      </div>
+      <button class="btn btn-primary" id="add-btn" type="button">+ Log Game</button>
+    </div>
+    <p class="section-title">Recent games</p>
+    <div class="table-wrap"><table class="log-table" id="log-preview"></table></div>
   </div>
-  <p class="section-title">Recent games</p>
-  <div class="table-wrap"><table class="log-table" id="log-preview"></table></div>
-</div>
 
-<!-- ANALYTICS -->
-<div id="page-analytics" class="page">
-  <div class="player-selector">
-    <button class="pselector active ant" id="ap-anthony">Anthony</button>
-    <button class="pselector try" id="ap-trystan">Trystan</button>
+  <!-- ANALYTICS -->
+  <div id="page-analytics" class="page">
+    <div id="analytics-filters"></div>
+    <p class="section-title">Insights</p>
+    <div class="insight-grid" id="insight-cards"></div>
+    <div id="action-items"></div>
+    <div id="coach-report"></div>
+    <div class="analytics-grid" id="analytics-content"></div>
+    <p class="section-title">Rolling Win Rate</p>
+    <div class="chart-box"><canvas id="rollingChart"></canvas></div>
+    <p class="section-title">Tag Trends (per 5 games)</p>
+    <div class="chart-box"><canvas id="trendChart"></canvas></div>
   </div>
-  <div id="analytics-filters"></div>
-  <p class="section-title">Insights</p>
-  <div class="insight-grid" id="insight-cards"></div>
-  <div id="action-items"></div>
-  <div id="coach-report"></div>
-  <div class="analytics-grid" id="analytics-content"></div>
-  <p class="section-title">Rolling Win Rate</p>
-  <div class="chart-box"><canvas id="rollingChart"></canvas></div>
-  <p class="section-title">Tag Trends (per 5 games)</p>
-  <div class="chart-box"><canvas id="trendChart"></canvas></div>
+
+  <!-- REPORTS -->
+  <div id="page-reports" class="page">
+    <p class="section-title">Weekly Reports</p>
+    <div class="reports-week-nav" id="reports-week-nav"></div>
+    <div class="reports-weekly-grid" id="reports-weekly"></div>
+    <p class="section-title">Goals</p>
+    <div class="goals-editor" id="goals-editor"></div>
+  </div>
+
+  <!-- FOCUS (personal coaching) -->
+  <div id="page-focus" class="page">
+    <p class="section-title">Focus Dashboard</p>
+    <p class="page-desc">Your personal coaching view — priority actions and progress.</p>
+    <div id="focus-content"></div>
+  </div>
+
+  <!-- GROUP -->
+  <div id="page-group" class="page">
+    <div id="group-content"></div>
+  </div>
 </div>
 
-<!-- REPORTS -->
-<div id="page-reports" class="page">
-  <p class="section-title">Weekly Reports</p>
-  <div class="reports-week-nav" id="reports-week-nav"></div>
-  <div class="reports-weekly-grid" id="reports-weekly"></div>
-  <p class="section-title">Goals</p>
-  <div class="goals-editor" id="goals-editor"></div>
-</div>
-
-<!-- COACHING MODE -->
-<div id="page-coach" class="page">
-  <p class="section-title">Coaching Dashboard</p>
-  <p class="page-desc">Read-only coach view — priority actions, weekly progress, and goal tracking for both players.</p>
-  <div class="coach-grid" id="coach-content"></div>
-</div>
-
-<!-- LIVE SESSION PANEL (sticky) -->
 <div id="live-session-panel" class="live-session-panel"></div>
 
-<!-- SESSION SUMMARY MODAL -->
 <div class="modal-overlay" id="session-modal">
   <div class="modal">
     <h2 id="modal-title">Session Complete</h2>
@@ -165,7 +160,6 @@
   </div>
 </div>
 
-<!-- EDIT GAME MODAL -->
 <div class="modal-overlay" id="edit-modal">
   <div class="modal">
     <h2>Edit Game</h2>
