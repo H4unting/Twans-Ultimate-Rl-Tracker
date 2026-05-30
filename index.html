@@ -188,6 +188,10 @@
   <!-- QUICK LOG DOCK -->
   <div id="quick-dock" class="quick-dock hidden" aria-label="Quick log">
     <div id="post-match-card" class="post-match-card hidden" aria-live="polite"></div>
+    <button type="button" class="quick-dock-collapsed-tab" id="quick-dock-expand-btn" aria-label="Show log bar">
+      <span id="quick-dock-collapsed-label">Log</span>
+      <span class="quick-dock-expand-icon">▲</span>
+    </button>
     <div class="quick-dock-inner">
       <div class="quick-dock-session session-bar" id="session-bar">
         <div class="session-live-dot" id="session-live-dot"></div>
@@ -199,7 +203,9 @@
         <button type="button" class="auto-log-toggle active" id="auto-log-toggle" aria-pressed="true" title="Auto-save games when a match ends">Auto-log</button>
         <button type="button" class="auto-log-sound-toggle active" id="auto-log-sound-toggle" aria-pressed="true" title="Sound on auto-log">🔔</button>
         <button type="button" class="session-btn start" id="session-start-btn">▶ Start Session</button>
+        <button type="button" class="dock-collapse-btn" id="dock-collapse-btn" title="Minimize log bar" aria-label="Minimize log bar">▼</button>
       </div>
+      <div class="quick-dock-body">
       <div class="quick-dock-mode">
         <span class="quick-mode-label">Mode</span>
         <div class="quick-mode-pills" id="quick-mode-pills">
@@ -244,6 +250,7 @@
         </div>
       </details>
       <input type="hidden" id="quick-notes" value="">
+      </div>
     </div>
     <div class="quick-dock-hint">Match ends → auto-log saves · confirm MMR on the card · tap tags · undo if wrong</div>
   </div>

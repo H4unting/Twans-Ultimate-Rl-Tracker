@@ -2,6 +2,7 @@
 
 import { TAG_GROUPS } from './config.js';
 import { showToast } from './ui.js';
+import { isDockCollapsed, expandDock, collapseDock } from './quicklog.js';
 
 const HOT_TAGS = ['Tilt', 'Autopilot', 'Bad Positioning', 'Overcommitting', 'Giving Away Possession', 'Hesitation'];
 let dismissTimer = null;
@@ -11,6 +12,7 @@ let needsMmrConfirm = false;
 let mmrConfirmed = false;
 let callbacks = {};
 let wired = false;
+let restoreDockCollapsed = false;
 
 export function initPostMatch(cbs) {
   callbacks = cbs;
@@ -31,6 +33,8 @@ export function showPostMatchCard(game, { estimated = false } = {}) {
 
   renderCard(el, game, estimated);
   el.classList.remove('hidden');
+  restoreDockCollapsed = isDockCollapsed();
+  if (restoreDockCollapsed) expandDock();
   document.getElementById('quick-dock')?.classList.add('has-post-match');
   document.body.classList.add('post-match-open');
   wireCardEvents();
@@ -52,6 +56,8 @@ export function hidePostMatchCard(force = false) {
   document.getElementById('post-match-card')?.classList.add('hidden');
   document.getElementById('quick-dock')?.classList.remove('has-post-match');
   document.body.classList.remove('post-match-open');
+  if (restoreDockCollapsed) collapseDock();
+  restoreDockCollapsed = false;
   clearTimeout(dismissTimer);
   currentMatch = null;
   selectedTags = [];

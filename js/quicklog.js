@@ -12,10 +12,44 @@ let quickTags = [];
 
 export function loadPrefs() {
   try {
-    return { lastMode: "2's", autoLog: true, autoLogSound: true, ...JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}') };
+    return { lastMode: "2's", autoLog: true, autoLogSound: true, dockCollapsed: false, ...JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}') };
   } catch {
-    return { lastMode: "2's", autoLog: true, autoLogSound: true };
+    return { lastMode: "2's", autoLog: true, autoLogSound: true, dockCollapsed: false };
   }
+}
+
+export function isDockCollapsed() {
+  return loadPrefs().dockCollapsed === true;
+}
+
+export function setDockCollapsed(collapsed) {
+  savePrefs({ dockCollapsed: !!collapsed });
+  applyDockCollapsedState();
+}
+
+export function expandDock() {
+  setDockCollapsed(false);
+}
+
+export function collapseDock() {
+  setDockCollapsed(true);
+}
+
+export function updateCollapsedStripLabel() {
+  const el = document.getElementById('quick-dock-collapsed-label');
+  if (!el) return;
+  const title = document.getElementById('session-bar-title')?.textContent?.trim() || 'Log';
+  const stats = document.getElementById('session-live-stats')?.textContent?.trim();
+  el.textContent = stats ? `${title} · ${stats}` : title;
+}
+
+export function applyDockCollapsedState() {
+  const collapsed = isDockCollapsed();
+  const dock = document.getElementById('quick-dock');
+  const visible = dock && !dock.classList.contains('hidden');
+  dock?.classList.toggle('collapsed', collapsed);
+  document.body.classList.toggle('quick-dock-collapsed', collapsed && visible);
+  updateCollapsedStripLabel();
 }
 
 export function isAutoLogSoundEnabled() {
@@ -53,12 +87,14 @@ export function initQuickLog(cbs) {
 export function showQuickDock() {
   document.getElementById('quick-dock')?.classList.remove('hidden');
   document.body.classList.add('has-quick-dock');
+  applyDockCollapsedState();
   syncStartMMR();
 }
 
 export function hideQuickDock() {
   document.getElementById('quick-dock')?.classList.add('hidden');
   document.body.classList.remove('has-quick-dock');
+  document.body.classList.remove('quick-dock-collapsed');
 }
 
 export function syncQuickFromForm() {
@@ -180,6 +216,7 @@ function applyPrefs() {
   setQuickMode(prefs.lastMode ?? "2's");
   setAutoLogEnabled(isAutoLogEnabled());
   setAutoLogSoundEnabled(isAutoLogSoundEnabled());
+  applyDockCollapsedState();
 }
 
 export function playAutoLogSound() {
@@ -241,6 +278,11 @@ function stateSyncTagsToForm() {
 
 function wireDock() {
   renderQuickTags();
+
+  document.getElementById('dock-collapse-btn')?.addEventListener('click', () => collapseDock());
+  document.getElementById('quick-dock-expand-btn')?.addEventListener('click', () => expandDock());
+
+  document.addEventListener('rl-session-ui-refresh', updateCollapsedStripLabel);
 
   document.getElementById('quick-wl-win')?.addEventListener('click', () => setQuickResult('W'));
   document.getElementById('quick-wl-loss')?.addEventListener('click', () => setQuickResult('L'));
