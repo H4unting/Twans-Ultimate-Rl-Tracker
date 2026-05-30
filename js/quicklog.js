@@ -40,6 +40,44 @@ function wireAudioUnlock() {
   const unlock = () => { unlockAutoLogAudio(); };
   document.addEventListener('pointerdown', unlock, { once: true, capture: true });
   document.addEventListener('keydown', unlock, { once: true, capture: true });
+  document.addEventListener('rl-session-start', () => { void playSessionStartSound(); });
+  document.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('#session-start-btn')) unlockAutoLogAudio();
+  }, { capture: true });
+}
+
+async function playTone(freq, duration = 0.18, volume = 0.14) {
+  const ctx = getAudioContext();
+  if (!ctx) return false;
+  if (ctx.state === 'suspended') {
+    try {
+      await ctx.resume();
+    } catch {
+      return false;
+    }
+  }
+  if (ctx.state !== 'running') return false;
+
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(freq, now);
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(volume, now + 0.015);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(now);
+  osc.stop(now + duration + 0.02);
+  return true;
+}
+
+export async function playSessionStartSound() {
+  if (!isAutoLogSoundEnabled()) return;
+  await playTone(523, 0.12, 0.16);
+  await new Promise(r => setTimeout(r, 70));
+  await playTone(784, 0.14, 0.16);
 }
 
 export function loadPrefs() {
@@ -258,30 +296,7 @@ function applyPrefs() {
 
 export async function playAutoLogSound() {
   if (!isAutoLogSoundEnabled()) return;
-  try {
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') {
-      await ctx.resume();
-    }
-    if (ctx.state !== 'running') return;
-
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(880, now);
-    osc.frequency.exponentialRampToValueAtTime(660, now + 0.12);
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.14, now + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.22);
-  } catch {
-    /* autoplay still blocked until user interacts with the page */
-  }
+  await playTone(880, 0.2, 0.14);
 }
 
 export function flashAutoLogged() {

@@ -7,7 +7,7 @@ export const NAV_SECTIONS = {
     defaultPage: 'dashboard',
     pages: [
       { id: 'dashboard', label: 'Dashboard' },
-      { id: 'log', label: 'Log' },
+      { id: 'log', label: 'Match Logs' },
       { id: 'focus', label: 'Focus' },
     ],
   },

@@ -115,7 +115,10 @@ function activateSession(sessionNum, { startTime = Date.now(), startMMR = null, 
   notify();
   updateSessionBar();
   updateLivePanel();
-  if (!silent) showToast('Session started! 🚀');
+  if (!silent) {
+    document.dispatchEvent(new CustomEvent('rl-session-start'));
+    showToast('Session started! 🚀');
+  }
 }
 
 /** Restore session after page load — call once games are in state */
