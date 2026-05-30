@@ -625,6 +625,9 @@ body:not(.is-loading) .loading-overlay { opacity: 0; visibility: hidden; pointer
 /* Auth + personal layout */
 .hidden { display: none !important; }
 
+body.logged-out #app-shell { display: none !important; }
+body:not(.logged-out) #login-screen { display: none !important; }
+
 .login-screen {
   min-height: 100vh; display: flex; align-items: center; justify-content: center;
   background: radial-gradient(ellipse at top, #1a1020 0%, var(--bg) 60%);
