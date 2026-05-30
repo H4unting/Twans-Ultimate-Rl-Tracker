@@ -3,6 +3,7 @@
 import { loadPrefs, savePrefs } from './quicklog.js';
 import { isBridgeUp, getRlDisplayName, saveRlDisplayName } from './rl-live.js';
 import { getAuthUser } from './auth.js';
+import { getUserDisplay } from './state.js';
 import { showToast } from './ui.js';
 
 const SETUP_KEY = 'rl-grind-setup';
@@ -33,7 +34,8 @@ export function renderSetupWizard(displayName = '') {
   if (!el) return;
 
   const prefs = loadSetupPrefs();
-  const rlName = getRlDisplayName() || displayName || '';
+  const profile = getProfileContext(displayName);
+  const rlName = profile.rlName;
   const bridge = isBridgeUp();
   const allReady = bridge;
 
@@ -91,9 +93,7 @@ PacketSendRate=10</pre>
         <li class="setup-step${rlName ? ' done' : ''}" data-step="name">
           <span class="setup-step-num">2</span>
           <div class="setup-step-body">
-            <strong>Your in-game name</strong>
-            <p class="setup-callout setup-callout-tip">Must match your Rocket League display name <em>exactly</em> — same spelling and caps.</p>
-            <input type="text" id="setup-rl-name" class="setup-input" placeholder="e.g. Twan" value="${escapeAttr(rlName)}">
+            ${renderProfileNameStep(profile)}
           </div>
         </li>
         <li class="setup-step${bridge ? ' done' : ''}" data-step="bridge">
@@ -140,6 +140,10 @@ function escapeAttr(s) {
   return String(s).replace(/"/g, '&quot;').replace(/</g, '&lt;');
 }
 
+function escapeHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 function wireSetupWizard() {
   document.getElementById('setup-dismiss')?.addEventListener('click', () => {
     saveSetupPrefs({ dismissedWhenReady: true });
@@ -155,13 +159,102 @@ function wireSetupWizard() {
   });
 
   document.getElementById('setup-rl-name')?.addEventListener('change', e => {
-    const name = e.target.value.trim();
-    saveRlDisplayName(name);
-    savePrefs({ rlDisplayName: name });
-    const cmd = document.getElementById('setup-bridge-cmd');
-    if (cmd) cmd.textContent = 'start-grind.bat';
-    if (name) e.target.closest('.setup-step')?.classList.add('done');
+    saveRlNameFromInput(e.target);
   });
+
+  document.getElementById('setup-rl-name')?.addEventListener('blur', e => {
+    saveRlNameFromInput(e.target);
+  });
+
+  wireProfileNameDropdown();
+}
+
+function getProfileContext(fallbackName = '') {
+  const user = getAuthUser();
+  const display = getUserDisplay(user);
+  return {
+    name: display.name,
+    avatar: display.avatar,
+    color: display.color,
+    email: user?.email ?? '',
+    googleName: display.name,
+    rlName: getRlDisplayName() || fallbackName || '',
+  };
+}
+
+function renderProfileNameStep(profile) {
+  const initial = profile.rlName || profile.googleName || '';
+  const avatar = profile.avatar
+    ? `<img class="setup-profile-avatar" src="${escapeAttr(profile.avatar)}" alt="">`
+    : `<span class="setup-profile-avatar setup-profile-avatar-fallback">${escapeHtml((initial || '?').charAt(0).toUpperCase())}</span>`;
+  const accountLine = profile.email
+    ? `Google · ${escapeHtml(profile.email)}`
+    : 'Signed in with Google';
+  const googleSuggest = profile.googleName && profile.googleName !== profile.rlName
+    ? `<button type="button" class="setup-profile-dropdown-item" data-suggest-name="${escapeAttr(profile.googleName)}">Use Google name: ${escapeHtml(profile.googleName)}</button>`
+    : '';
+  const showToggle = Boolean(googleSuggest);
+
+  return `
+    <strong>Your in-game name</strong>
+    <div class="setup-profile-card">
+      <div class="setup-profile-banner" aria-hidden="true"></div>
+      <div class="setup-profile-row">
+        <div class="setup-profile-avatar-wrap">${avatar}</div>
+        <div class="setup-profile-info">
+          <div class="setup-profile-name-row">
+            <input type="text" id="setup-rl-name" class="setup-profile-name-input" placeholder="Rocket League display name" value="${escapeAttr(profile.rlName)}" autocomplete="off" spellcheck="false">
+            <button type="button" class="setup-profile-name-toggle${showToggle ? '' : ' hidden'}" id="setup-rl-name-toggle" aria-expanded="false" aria-label="Name suggestions">▼</button>
+            <div class="setup-profile-dropdown hidden" id="setup-rl-name-dropdown">${googleSuggest}</div>
+          </div>
+          <div class="setup-profile-sub">${accountLine}</div>
+        </div>
+      </div>
+    </div>
+    <p class="setup-callout setup-callout-tip">Must match your Rocket League display name <em>exactly</em> — same spelling and caps.</p>`;
+}
+
+function wireProfileNameDropdown() {
+  const toggle = document.getElementById('setup-rl-name-toggle');
+  const dropdown = document.getElementById('setup-rl-name-dropdown');
+  if (!toggle || !dropdown) return;
+
+  toggle.addEventListener('click', e => {
+    e.stopPropagation();
+    const opening = dropdown.classList.contains('hidden');
+    dropdown.classList.toggle('hidden', !opening);
+    toggle.setAttribute('aria-expanded', opening ? 'true' : 'false');
+    if (opening) {
+      setTimeout(() => {
+        document.addEventListener('click', closeProfileDropdown, { once: true });
+      }, 0);
+    }
+  });
+
+  dropdown.querySelectorAll('[data-suggest-name]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const input = document.getElementById('setup-rl-name');
+      const name = btn.dataset.suggestName ?? '';
+      if (input) input.value = name;
+      saveRlNameFromInput(input);
+      closeProfileDropdown();
+      showToast('RL name updated');
+    });
+  });
+}
+
+function closeProfileDropdown() {
+  document.getElementById('setup-rl-name-dropdown')?.classList.add('hidden');
+  document.getElementById('setup-rl-name-toggle')?.setAttribute('aria-expanded', 'false');
+}
+
+function saveRlNameFromInput(inputEl) {
+  if (!inputEl) return;
+  const name = inputEl.value.trim();
+  saveRlDisplayName(name);
+  savePrefs({ rlDisplayName: name });
+  inputEl.closest('.setup-step')?.classList.toggle('done', Boolean(name));
 }
 
 export function refreshSetupWizard(displayName) {
