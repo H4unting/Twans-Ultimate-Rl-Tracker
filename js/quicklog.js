@@ -9,6 +9,38 @@ const PREFS_KEY = 'rl-grind-prefs';
 const prefs = loadPrefs();
 let callbacks = {};
 let quickTags = [];
+let audioCtx = null;
+let audioUnlockWired = false;
+
+function getAudioContext() {
+  if (!audioCtx) {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return null;
+    audioCtx = new Ctx();
+  }
+  return audioCtx;
+}
+
+export async function unlockAutoLogAudio() {
+  const ctx = getAudioContext();
+  if (!ctx) return false;
+  if (ctx.state === 'suspended') {
+    try {
+      await ctx.resume();
+    } catch {
+      return false;
+    }
+  }
+  return ctx.state === 'running';
+}
+
+function wireAudioUnlock() {
+  if (audioUnlockWired) return;
+  audioUnlockWired = true;
+  const unlock = () => { unlockAutoLogAudio(); };
+  document.addEventListener('pointerdown', unlock, { once: true, capture: true });
+  document.addEventListener('keydown', unlock, { once: true, capture: true });
+}
 
 export function loadPrefs() {
   try {
@@ -85,6 +117,7 @@ export function initQuickLog(cbs) {
   callbacks = cbs;
   wireDock();
   wireKeyboard();
+  wireAudioUnlock();
   applyPrefs();
 }
 
@@ -223,23 +256,32 @@ function applyPrefs() {
   applyDockCollapsedState();
 }
 
-export function playAutoLogSound() {
+export async function playAutoLogSound() {
   if (!isAutoLogSoundEnabled()) return;
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') {
+      await ctx.resume();
+    }
+    if (ctx.state !== 'running') return;
+
+    const now = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'sine';
-    osc.frequency.value = 880;
-    gain.gain.value = 0.06;
+    osc.frequency.setValueAtTime(880, now);
+    osc.frequency.exponentialRampToValueAtTime(660, now + 0.12);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.14, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
     osc.connect(gain);
     gain.connect(ctx.destination);
-    osc.start();
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
-    osc.stop(ctx.currentTime + 0.2);
-    setTimeout(() => ctx.close(), 300);
-  } catch { /* autoplay blocked */ }
+    osc.start(now);
+    osc.stop(now + 0.22);
+  } catch {
+    /* autoplay still blocked until user interacts with the page */
+  }
 }
 
 export function flashAutoLogged() {
@@ -291,7 +333,10 @@ function wireDock() {
   document.getElementById('quick-wl-win')?.addEventListener('click', () => setQuickResult('W'));
   document.getElementById('quick-wl-loss')?.addEventListener('click', () => setQuickResult('L'));
 
-  document.getElementById('quick-log-btn')?.addEventListener('click', () => callbacks.submitQuick?.());
+  document.getElementById('quick-log-btn')?.addEventListener('click', () => {
+    unlockAutoLogAudio();
+    callbacks.submitQuick?.();
+  });
 
   document.getElementById('auto-log-toggle')?.addEventListener('click', () => {
     setAutoLogEnabled(!isAutoLogEnabled());
@@ -299,10 +344,13 @@ function wireDock() {
     callbacks.onAutoLogToggle?.();
   });
 
-  document.getElementById('auto-log-sound-toggle')?.addEventListener('click', () => {
+  document.getElementById('auto-log-sound-toggle')?.addEventListener('click', async () => {
     setAutoLogSoundEnabled(!isAutoLogSoundEnabled());
     showToast(isAutoLogSoundEnabled() ? 'Auto-log sound ON' : 'Auto-log sound OFF');
-    if (isAutoLogSoundEnabled()) playAutoLogSound();
+    if (isAutoLogSoundEnabled()) {
+      await unlockAutoLogAudio();
+      playAutoLogSound();
+    }
   });
 
   document.querySelectorAll('#quick-mode-pills button').forEach(btn => {
