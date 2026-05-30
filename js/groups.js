@@ -267,7 +267,7 @@ export async function renderGroupsPage(ctx) {
       <div class="group-hero">
         <div>
           <span class="group-hero-kicker">Squad up</span>
-          <h2>Grind Squads</h2>
+          <h2>Squads</h2>
           <p class="group-hero-desc">Team up with a duo partner or invite a coach to track progress together.</p>
         </div>
         ${groups?.length ? `<div class="group-hero-badge">${groups.length} squad${groups.length === 1 ? '' : 's'}</div>` : ''}
@@ -346,10 +346,10 @@ function wireDetail(detailWrap, group, members, groups, userId, { onLeave, onRef
   detailWrap.querySelector('[data-share-code]')?.addEventListener('click', async e => {
     const code = e.target.dataset.shareCode;
     const name = e.target.dataset.shareName;
-    const text = `Join my RL Grind Squad "${name}" — invite code: ${code}`;
+    const text = `Join my squad "${name}" on Twans Ultimate Tracker — invite code: ${code}`;
     try {
       if (navigator.share) {
-        await navigator.share({ title: 'RL Grind Squad invite', text });
+        await navigator.share({ title: 'Twans Ultimate Tracker squad invite', text });
       } else {
         await navigator.clipboard.writeText(text);
         showToast('Invite message copied!');

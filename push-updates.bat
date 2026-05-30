@@ -1,5 +1,5 @@
 @echo off
-title Push RL Tracker updates to GitHub
+title Push Twans Ultimate Tracker updates to GitHub
 cd /d "%~dp0"
 
 set GIT=%LOCALAPPDATA%\GitHubDesktop\app-3.5.11\resources\app\git\cmd\git.exe

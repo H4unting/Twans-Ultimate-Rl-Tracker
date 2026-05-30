@@ -1,5 +1,4 @@
-[SETUP.md](https://github.com/user-attachments/files/28426104/SETUP.md)
-# RL Grind Tracker — Setup
+# Twans Ultimate Tracker — Setup
 
 One app everywhere. Sign in with Google — log games, view stats, and manage squads from **any device**. Auto-log from Rocket League when `start-grind.bat` is running on your gaming PC.
 
@@ -43,19 +42,23 @@ The in-app setup wizard also saves your name — **restart `start-grind.bat`** a
 
 **On your gaming PC:** double-click `start-grind.bat` before you queue.
 
-| What it does |
-|--------------|
+Edit `TRACKER_URL` in `start-grind.bat` to your GitHub Pages bookmark (already set by default). The bat opens that URL and runs the RL bridge — **no localhost tab needed**.
+
+| What `start-grind.bat` does |
+|-----------------------------|
 | Starts the RL stats bridge (auto-log from matches) |
-| Opens the tracker in your browser |
+| Opens your tracker URL in the browser |
 | Keep the black window open while you play |
 
-**On phone / another device:** open your GitHub Pages bookmark, sign in — same stats, manual logging via the dock.
+Use `http://localhost:8080` as `TRACKER_URL` only if you want to run the site from this folder offline.
 
-| Service | Port |
+**On phone / another device:** open the same GitHub Pages bookmark, sign in — same stats, manual logging via the dock.
+
+| Service | When |
 |---------|------|
-| Tracker (local) | http://localhost:8080 |
-| Stats bridge | http://127.0.0.1:49200 |
-| Rocket League API | TCP :49123 |
+| Your tracker URL | GitHub Pages bookmark (or localhost if you changed it) |
+| Stats bridge | Runs with `start-grind.bat` on gaming PC |
+| Rocket League API | TCP :49123 (BakkesMod) |
 
 ## 7. After each game
 
@@ -97,7 +100,8 @@ Once signed in, you get the **same app** on GitHub Pages and localhost:
 ## Quick test
 
 - [ ] Sign in on your bookmarked URL
-- [ ] `start-grind.bat` → bridge shows connected (green in dock)
+- [ ] `TRACKER_URL` in `start-grind.bat` matches your GitHub Pages URL
+- [ ] `start-grind.bat` → browser opens your bookmark, bridge connected (green in dock)
 - [ ] Start session → play a game → post-match card
 - [ ] Refresh — same session # and stats
 - [ ] Open on phone — same games visible

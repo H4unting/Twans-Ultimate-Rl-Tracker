@@ -78,7 +78,7 @@ const trackerUrl = (process.env.TRACKER_URL || `http://localhost:${TRACKER_PORT}
 const useLocalServer = isLocalTrackerUrl(trackerUrl);
 
 console.log('');
-console.log('  RL Grind Tracker');
+console.log('  Twans Ultimate Tracker');
 console.log(`  Player: ${playerName || '(set RLNAME in start-grind.bat)'}`);
 console.log(`  Tracker URL: ${trackerUrl}`);
 console.log('');
@@ -97,7 +97,7 @@ if (useLocalServer) {
 
 console.log('');
 console.log('  ============================================');
-console.log('  RL GRIND TRACKER — READ THIS');
+console.log('  TWANS ULTIMATE TRACKER — READ THIS');
 console.log('  ============================================');
 console.log('');
 console.log('  Tracker:  ' + trackerUrl);

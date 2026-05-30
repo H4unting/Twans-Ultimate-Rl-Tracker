@@ -1,5 +1,5 @@
 @echo off
-title RL Grind Tracker
+title Twans Ultimate Tracker
 cd /d "%~dp0"
 
 REM === EDIT THIS to your exact Rocket League display name ===
@@ -11,7 +11,7 @@ set TRACKER_URL=https://h4unting.github.io/Twans-Ultimate-Rl-Tracker/
 
 echo.
 echo  ============================================
-echo   RL Grind Tracker - Starting...
+echo   Twans Ultimate Tracker - Starting...
 echo   Name: %RLNAME%
 echo   Site: %TRACKER_URL%
 echo.

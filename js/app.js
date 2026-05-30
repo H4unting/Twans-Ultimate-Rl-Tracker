@@ -1,5 +1,5 @@
 /**
- * RL Grind Tracker — auth-first personal dashboard
+ * Twans Ultimate Tracker — auth-first personal dashboard
  */
 
 import { applyAppMode } from './env.js';
