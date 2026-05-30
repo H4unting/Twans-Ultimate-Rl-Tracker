@@ -166,10 +166,45 @@ export async function loadUserGroups() {
   if (!user) return [];
   try {
     const members = await sbFetch(`group_members?user_id=eq.${user.id}&select=role,group_id,groups(id,name,invite_code,created_at)`);
-    return (members ?? []).map(m => ({ ...m.groups, role: m.role }));
+    return (members ?? []).map(m => ({ ...m.groups, role: m.role, group_id: m.group_id }));
   } catch {
     return [];
   }
+}
+
+export async function createGroup(name) {
+  const result = await sbFetch('rpc/create_grind_squad', 'POST', { squad_name: name });
+  return result;
+}
+
+export async function joinGroup(inviteCode, role = 'member') {
+  return sbFetch('rpc/join_grind_squad', 'POST', {
+    p_invite_code: inviteCode,
+    p_role: role,
+  });
+}
+
+export async function leaveGroup(groupId) {
+  await sbFetch('rpc/leave_grind_squad', 'POST', { p_group_id: groupId });
+}
+
+export async function loadGroupMembers(groupId) {
+  const rows = await sbFetch(
+    `group_members?group_id=eq.${groupId}&select=role,joined_at,user_id,profiles(id,display_name,avatar_url,accent_color)&order=joined_at.asc`,
+  );
+  return (rows ?? []).map(row => ({
+    user_id: row.user_id,
+    role: row.role,
+    joined_at: row.joined_at,
+    display_name: row.profiles?.display_name ?? 'Player',
+    avatar_url: row.profiles?.avatar_url ?? null,
+    accent_color: row.profiles?.accent_color ?? '#e65c00',
+  }));
+}
+
+export async function loadMemberGames(userId) {
+  const rows = await sbFetch(`matches?user_id=eq.${userId}&select=*&order=match_num.asc`);
+  return normalizePlayerGames((rows ?? []).map(matchRowToGame));
 }
 
 export async function loadUserData() {

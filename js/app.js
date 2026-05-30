@@ -4,7 +4,7 @@
 
 import { state, subscribe, setGames, setSyncStatus, setGoals, setProfile, getUserDisplay } from './state.js';
 import { initAuth, signInWithGoogle, signOut, onAuthChange, getAuthUser } from './auth.js';
-import { loadUserData, saveSettings, claimLegacyData } from './supabase.js';
+import { loadUserData, saveSettings, claimLegacyData, createGroup, joinGroup, leaveGroup, loadUserGroups } from './supabase.js';
 import { applyFilters, DEFAULT_FILTERS } from './filters.js';
 import { calcStats } from './utils.js';
 import { addGame, updateGame, deleteGame, getLastMMR } from './matches.js';
@@ -13,7 +13,7 @@ import { mmrChart, wlChart, sessionChart } from './charts.js';
 import { renderAnalytics } from './analytics.js';
 import { renderReportsPage } from './reports-ui.js';
 import { renderFocusPage } from './focus.js';
-import { renderGroupsPage } from './groups.js';
+import { renderGroupsPage, resetGroupsUI } from './groups.js';
 import {
   showToast, setSyncUI, renderStats, renderLog, renderPlaylistTabs, renderFilterBar,
   showPage, renderTagChips, showLoading, showLoginScreen, renderAuthBar,
@@ -80,10 +80,28 @@ async function handleGoogleSignIn() {
   }
 }
 
+function getGroupsCtx() {
+  return {
+    groups: state.groups,
+    userId: getAuthUser()?.id,
+    onCreate: createGroup,
+    onJoin: joinGroup,
+    onLeave: leaveGroup,
+    onRefresh: refreshGroupsPage,
+  };
+}
+
+async function refreshGroupsPage() {
+  state.groups = await loadUserGroups();
+  await renderGroupsPage(getGroupsCtx());
+}
+
 async function handleSignOut() {
   await signOut();
   state.games = [];
   state.profile = null;
+  state.groups = [];
+  resetGroupsUI();
   showLoginScreen(true);
 }
 
@@ -143,7 +161,7 @@ function renderAll() {
 
   renderReportsPageContent();
   renderFocusPage(games, state.goals, display);
-  renderGroupsPage(state.groups);
+  renderGroupsPage(getGroupsCtx());
 
   refreshSessionUI();
   wireLogTableActions();
@@ -184,7 +202,7 @@ function navigate(pageId, btn) {
   if (pageId === 'analytics') renderAnalytics(getFilteredGames());
   if (pageId === 'reports') renderReportsPageContent();
   if (pageId === 'focus') renderFocusPage(state.games, state.goals, getDisplay());
-  if (pageId === 'group') renderGroupsPage(state.groups);
+  if (pageId === 'group') renderGroupsPage(getGroupsCtx());
   if (pageId === 'log') refreshSessionUI();
 }
 
