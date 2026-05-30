@@ -26,9 +26,7 @@ import { renderGroupsPage, resetGroupsUI } from './groups.js';
 import { renderSessionsPage } from './sessions-ui.js';
 import { exportGamesCSV } from './export.js';
 import { wireNavigation as wireSectionNav, updateNavUI, mountDock } from './nav.js';
-import {
-  renderHomeHero, renderTodayFocus, renderHomeSessionStrip, getSessionSnapshotForHome,
-} from './home.js';
+import { renderHome } from './home.js';
 import {
   renderGroupedMatchLogs, renderQuickFilters, applyQuickFilter,
   getActiveQuickFilter, getQuickFilterSessionNum,
@@ -167,34 +165,33 @@ async function handleLegacyClaim(legacyId) {
   }
 }
 
-function renderHome() {
-  const games = getFilteredGames();
+function renderHomePage() {
+  renderHome(state.games, state.goals);
+}
+
+function renderAnalyticsPage() {
+  const filtered = getAnalyticsGames();
+  const stats = calcStats(filtered);
   const display = getDisplay();
-  renderHomeHero(games, state.goals, display);
-  renderTodayFocus(games);
-  renderHomeSessionStrip(getSessionSnapshotForHome());
+  renderStats('analytics-stats', stats, state.playlist);
+  mmrChart('dashMMR', filtered, display.color);
+  wlChart('dashWL', stats);
+  renderAnalytics(filtered);
 }
 
 function renderAll() {
   const games = state.games;
-  const filtered = getFilteredGames();
-  const stats = calcStats(filtered);
   const display = getDisplay();
 
   renderLegacyImportBanner(state.profile, handleLegacyClaim);
-  renderHome();
+  renderHomePage();
 
   renderPlaylistTabs('pl-tabs', state.playlist, (pl, btn) => {
     state.playlist = pl;
     document.querySelectorAll('#pl-tabs .pl-tab').forEach(b => b.classList.remove('active'));
     btn?.classList.add('active');
-    renderDashboard();
+    renderAnalyticsPage();
   });
-
-  renderStats('dash-stats', stats, state.playlist);
-  mmrChart('dashMMR', filtered, display.color);
-  wlChart('dashWL', stats);
-  renderLog('dash-log', getDashboardGames(), 5, false);
 
   renderMatchLogs();
 
@@ -204,10 +201,10 @@ function renderAll() {
 
   renderFilterBar('analytics-filters', games, state.filters, filters => {
     state.filters = { ...state.filters, ...filters };
-    renderAnalytics(getAnalyticsGames());
+    renderAnalyticsPage();
     renderMatchLogs();
   });
-  renderAnalytics(getAnalyticsGames());
+  renderAnalyticsPage();
 
   renderReportsPageContent();
   renderFocusPage(games, state.goals, display);
@@ -217,18 +214,11 @@ function renderAll() {
   refreshSessionUI();
   wireLogTableActions();
   updateNavUI(state.activePage || 'dashboard');
-  mountDock(state.activePage || 'dashboard');
+  mountDock();
 }
 
 function renderDashboard() {
-  renderHome();
-  const filtered = getDashboardGames();
-  const stats = calcStats(filtered);
-  const display = getDisplay();
-  renderStats('dash-stats', stats, state.playlist);
-  mmrChart('dashMMR', filtered, display.color);
-  wlChart('dashWL', stats);
-  renderLog('dash-log', filtered, 5, false);
+  renderHomePage();
 }
 
 function renderMatchLogs() {
@@ -236,7 +226,7 @@ function renderMatchLogs() {
   renderFilterBar('matchlogs-filters', state.games, state.filters, filters => {
     state.filters = { ...state.filters, ...filters };
     renderMatchLogs();
-    renderAnalytics(getAnalyticsGames());
+    renderAnalyticsPage();
   });
   let games = getMatchLogsGames();
   const qf = getActiveQuickFilter();
@@ -266,7 +256,7 @@ function renderReportsPageContent() {
     async nextGoals => {
       setGoals(nextGoals);
       await saveSettings({ goals: nextGoals });
-      renderHome();
+      renderHomePage();
       renderFocusPage(state.games, state.goals, getDisplay());
       showToast('Goals saved!');
     },
@@ -277,10 +267,10 @@ function navigate(pageId, section) {
   state.activePage = pageId;
   showPage(pageId);
   updateNavUI(pageId);
-  mountDock(pageId);
+  mountDock();
   if (pageId === 'dashboard') renderDashboard();
   if (pageId === 'matchlogs') renderMatchLogs();
-  if (pageId === 'analytics') renderAnalytics(getAnalyticsGames());
+  if (pageId === 'analytics') renderAnalyticsPage();
   if (pageId === 'reports') renderReportsPageContent();
   if (pageId === 'focus') renderFocusPage(state.games, state.goals, getDisplay());
   if (pageId === 'group') renderGroupsPage(getGroupsCtx());
@@ -603,7 +593,7 @@ async function init() {
     onClose: () => refreshSessionUI(),
   });
   document.addEventListener('rl-session-ui-refresh', () => {
-    renderHomeSessionStrip(getSessionSnapshotForHome());
+    renderHomePage();
   });
   onAuthChange(async (session) => {
     if (session) await bootApp();

@@ -53,24 +53,13 @@
   <!-- DASHBOARD / HOME -->
   <div id="page-dashboard" class="page active">
     <div id="legacy-import"></div>
-    <div id="home-hero"></div>
-    <div id="home-today-focus"></div>
-    <div id="home-session-strip"></div>
-    <div id="home-dock-slot" class="home-dock-slot"></div>
-    <details class="home-more-stats">
-      <summary>Trends &amp; charts</summary>
-      <div class="playlist-tabs" id="pl-tabs"></div>
-      <div class="stat-grid stat-grid-compact" id="dash-stats"></div>
-      <div class="chart-row chart-row-compact">
-        <div class="chart-box chart-box-sm"><canvas id="dashMMR"></canvas></div>
-        <div class="chart-box chart-box-sm"><canvas id="dashWL"></canvas></div>
-      </div>
-    </details>
+    <div id="home-summary"></div>
+    <div id="home-context"></div>
     <div class="dash-recent-head">
-      <p class="section-title">Recent Games</p>
-      <button type="button" class="section-link" id="dash-view-all-logs">View all →</button>
+      <p class="section-title">Recent activity</p>
+      <button type="button" class="section-link" id="dash-view-all-logs">Match logs →</button>
     </div>
-    <div class="table-wrap table-wrap-compact"><table class="log-table" id="dash-log"></table></div>
+    <div id="home-activity" class="home-activity"></div>
   </div>
 
   <!-- MATCH LOGS -->
@@ -139,6 +128,16 @@
 
   <!-- ANALYTICS -->
   <div id="page-analytics" class="page">
+    <div class="log-page-header">
+      <h2 class="page-heading">Analytics</h2>
+      <p class="page-desc">Stats, trends, and coaching insights.</p>
+    </div>
+    <div class="playlist-tabs" id="pl-tabs"></div>
+    <div class="stat-grid" id="analytics-stats"></div>
+    <div class="chart-row">
+      <div class="chart-box"><canvas id="dashMMR"></canvas></div>
+      <div class="chart-box"><canvas id="dashWL"></canvas></div>
+    </div>
     <div id="analytics-filters"></div>
     <div id="action-items"></div>
     <p class="section-title">Insights</p>
@@ -166,8 +165,10 @@
 
   <!-- FOCUS (personal coaching) -->
   <div id="page-focus" class="page">
-    <p class="section-title">Focus Dashboard</p>
-    <p class="page-desc">Your personal coaching view — priority actions and progress.</p>
+    <div class="log-page-header">
+      <h2 class="page-heading">Focus</h2>
+      <p class="page-desc">What to work on — auto-generated from your tagged mistakes.</p>
+    </div>
     <div id="focus-content"></div>
   </div>
 

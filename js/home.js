@@ -1,15 +1,14 @@
-/** Home dashboard — hero, focus, session strip */
+/** Home — brief glance: status, context, recent activity */
 
-import { calcStats, getPrimaryMode } from './utils.js';
+import { calcStats, getPrimaryMode, getGamesInWeek, formatDuration } from './utils.js';
 import { buildWeeklyReport } from './reports.js';
 import { getRank, rankBadgeHTML } from './ranks.js';
-import { getTagLossCorrelations, ACTION_FOCUS_TIPS } from './insights.js';
+import { TAG_CATS } from './config.js';
 import { state } from './state.js';
-import { formatDuration } from './utils.js';
 import { getLoggingSessionNum } from './sessions.js';
 
-export function renderHomeHero(games, goals, display) {
-  const el = document.getElementById('home-hero');
+export function renderHomeSummary(games, goals) {
+  const el = document.getElementById('home-summary');
   if (!el) return;
 
   const stats = calcStats(games);
@@ -19,138 +18,137 @@ export function renderHomeHero(games, goals, display) {
   const rank = mmr ? getRank(mmr, mode) : null;
   const target = goals?.mmrTarget || 0;
   const weekGain = week.empty ? 0 : week.mmrGain;
+  const weekCls = weekGain >= 0 ? 'up' : 'down';
+  const weekLabel = weekGain >= 0 ? `+${weekGain}` : `${weekGain}`;
+
   const remaining = target > mmr ? target - mmr : 0;
   const pct = target > 0 ? Math.min(100, Math.round(mmr / target * 100)) : 0;
-  const recentWins = games.filter(g => g.result === 'W' && g.mmrDiff > 0).slice(-5);
-  const avgWinDelta = recentWins.length
-    ? Math.round(recentWins.reduce((s, g) => s + g.mmrDiff, 0) / recentWins.length)
-    : 10;
-  const estGames = remaining > 0 ? Math.ceil(remaining / Math.max(avgWinDelta, 1)) : 0;
+
+  const goalHTML = target > 0 ? `
+    <div class="home-summary-goal">
+      <div class="home-summary-goal-row">
+        <span>Goal ${target}</span>
+        <span>${mmr} / ${target}${remaining > 0 ? ` · ${remaining} left` : ''}</span>
+      </div>
+      <div class="goal-progress-track home-summary-track">
+        <div class="goal-progress-fill${pct >= 100 ? ' met' : ''}" style="width:${pct}%"></div>
+      </div>
+    </div>` : '';
 
   el.innerHTML = `
-    <div class="home-hero-card">
-      <div class="home-hero-rank">
-        ${rank ? rankBadgeHTML(mmr, 48, mode) : ''}
-        <div class="home-hero-rank-name">${rank?.name ?? 'Unranked'}</div>
+    <div class="home-summary">
+      <div class="home-summary-top">
+        ${rank ? rankBadgeHTML(mmr, 28, mode) : ''}
+        <div class="home-summary-main">
+          <div class="home-summary-rankline">
+            <span class="home-summary-rank">${rank?.name ?? 'Unranked'}</span>
+            <span class="home-summary-dot">·</span>
+            <span class="home-summary-mmr">${mmr || '—'} MMR</span>
+            <span class="home-summary-dot">·</span>
+            <span class="home-summary-week ${weekCls}">${weekLabel} this week</span>
+          </div>
+          ${goalHTML}
+        </div>
       </div>
-      <div class="home-hero-stats">
-        <div class="home-hero-stat">
-          <span class="home-hero-stat-val gold">${mmr || '—'}</span>
-          <span class="home-hero-stat-lbl">Current MMR</span>
-        </div>
-        <div class="home-hero-stat">
-          <span class="home-hero-stat-val ${weekGain >= 0 ? 'green' : 'red'}">${weekGain >= 0 ? '+' : ''}${weekGain}</span>
-          <span class="home-hero-stat-lbl">This Week</span>
-        </div>
-      </div>
-      ${target > 0 ? `
-      <div class="home-hero-goal">
-        <div class="home-hero-goal-head">
-          <span>Goal: ${target} MMR</span>
-          <span class="home-hero-goal-nums">${mmr} / ${target}</span>
-        </div>
-        <div class="goal-progress-track home-hero-track">
-          <div class="goal-progress-fill${pct >= 100 ? ' met' : ''}" style="width:${pct}%"></div>
-        </div>
-        <p class="home-hero-goal-sub">${remaining > 0 ? `${remaining} MMR left · ~${estGames} games at current pace` : 'Goal reached 🎉'}</p>
-      </div>` : `
-      <p class="home-hero-goal-sub"><a href="#" class="home-link" data-goto="reports">Set an MMR goal in Reports →</a></p>`}
     </div>`;
+}
 
-  el.querySelector('[data-goto="reports"]')?.addEventListener('click', e => {
-    e.preventDefault();
-    window.__navigate?.('reports', 'review');
+export function renderHomeContext(games) {
+  const el = document.getElementById('home-context');
+  if (!el) return;
+
+  if (!games.length) {
+    el.innerHTML = `<p class="home-context-line muted">No games yet — start a session and log from the dock below.</p>`;
+    return;
+  }
+
+  const stats = calcStats(games);
+  const weekGames = getGamesInWeek(games, 0);
+  const week = buildWeeklyReport(games, 0);
+
+  if (state.session.active) {
+    const sessionNum = getLoggingSessionNum();
+    const sg = games.filter(g => parseInt(g.session, 10) === sessionNum);
+    const wins = sg.filter(g => g.result === 'W').length;
+    const losses = sg.filter(g => g.result === 'L').length;
+    const mmrGain = sg.reduce((s, g) => s + (g.mmrDiff || 0), 0);
+    const elapsed = formatDuration(Date.now() - (state.session.startTime || Date.now()));
+    const gainCls = mmrGain >= 0 ? 'up' : 'down';
+    const gainStr = `${mmrGain >= 0 ? '+' : ''}${mmrGain}`;
+    el.innerHTML = `
+      <p class="home-context-line">
+        <span class="home-context-live">Live</span>
+        Session ${sessionNum} · ${wins}W ${losses}L ·
+        <span class="${gainCls}">${gainStr} MMR</span> · ${elapsed}
+      </p>`;
+    return;
+  }
+
+  const streak = stats.streak.count > 0 && stats.streak.type === 'W'
+    ? ` · ${stats.streak.count}W streak`
+    : stats.streak.count >= 3 && stats.streak.type === 'L'
+      ? ` · ${stats.streak.count}L streak`
+      : '';
+
+  if (weekGames.length) {
+    el.innerHTML = `
+      <p class="home-context-line">
+        This week · ${weekGames.length} game${weekGames.length === 1 ? '' : 's'} ·
+        ${week.winRate}% WR ·
+        <span class="${week.mmrGain >= 0 ? 'up' : 'down'}">${week.mmrGain >= 0 ? '+' : ''}${week.mmrGain} MMR</span>${streak}
+        · <a href="#" class="home-link" data-goto="focus">Focus</a>
+        · <a href="#" class="home-link" data-goto="analytics">Analytics</a>
+      </p>`;
+  } else {
+    el.innerHTML = `
+      <p class="home-context-line muted">
+        No games this week · last played ${games[games.length - 1].date}
+        · <a href="#" class="home-link" data-goto="matchlogs">Match logs</a>
+      </p>`;
+  }
+
+  el.querySelectorAll('[data-goto]').forEach(link => {
+    link.addEventListener('click', e => {
+      e.preventDefault();
+      const page = link.dataset.goto;
+      const section = page === 'focus' ? 'home' : 'review';
+      window.__navigate?.(page, section);
+    });
   });
 }
 
-export function renderTodayFocus(games) {
-  const el = document.getElementById('home-today-focus');
+export function renderHomeActivity(games, limit = 10) {
+  const el = document.getElementById('home-activity');
   if (!el) return;
 
-  if (games.length < 3) {
-    el.innerHTML = `
-      <div class="home-focus-card home-focus-empty">
-        <span class="home-focus-kicker">Today's Focus</span>
-        <p>Log a few games — your top mistake will show up here automatically.</p>
-      </div>`;
+  const recent = [...games].reverse().slice(0, limit);
+  if (!recent.length) {
+    el.innerHTML = `<div class="empty-state">Your recent games will show up here.</div>`;
     return;
   }
-
-  const losses = games.filter(g => g.result === 'L');
-  const correlations = getTagLossCorrelations(games);
-  const top = correlations.find(c => c.inLosses >= 2) ?? correlations[0];
-  if (!top) {
-    el.innerHTML = `<div class="home-focus-card home-focus-empty"><span class="home-focus-kicker">Today's Focus</span><p>Tag mistakes after losses to unlock focus tips.</p></div>`;
-    return;
-  }
-
-  const lossPct = losses.length ? Math.round(top.inLosses / losses.length * 100) : 0;
-  const tip = ACTION_FOCUS_TIPS[top.tag] ?? 'Slow down and review what happened before queueing again.';
 
   el.innerHTML = `
-    <div class="home-focus-card">
-      <span class="home-focus-kicker">Today's Focus</span>
-      <h3 class="home-focus-title">${top.tag}</h3>
-      <p class="home-focus-meta">Tagged in ${top.inLosses} loss${top.inLosses === 1 ? '' : 'es'} · ${lossPct}% of recent losses</p>
-      <div class="home-focus-action">
-        <span class="home-focus-action-label">Recommended</span>
-        <p>${tip}</p>
-      </div>
-    </div>`;
+    <ul class="home-activity-list">
+      ${recent.map(g => {
+        const diff = g.mmrDiff || 0;
+        const diffCls = diff >= 0 ? 'up' : 'down';
+        const tags = (g.tags || []).slice(0, 2).map(t =>
+          `<span class="home-activity-tag ${TAG_CATS[t] || 'def'}">${t}</span>`,
+        ).join('');
+        return `
+        <li class="home-activity-row">
+          <span class="home-activity-result ${g.result}">${g.result}</span>
+          <span class="home-activity-mmr ${diffCls}">${diff >= 0 ? '+' : ''}${diff}</span>
+          <span class="home-activity-meta">${g.mode} · S${g.session}</span>
+          <span class="home-activity-tags">${tags || '<span class="home-activity-none">—</span>'}</span>
+          <span class="home-activity-date">${g.date}</span>
+        </li>`;
+      }).join('')}
+    </ul>`;
 }
 
-export function renderHomeSessionStrip(sessionSnapshot) {
-  const el = document.getElementById('home-session-strip');
-  if (!el) return;
-
-  if (!sessionSnapshot?.active) {
-    const next = getLoggingSessionNum();
-    el.innerHTML = `
-      <div class="home-session-strip idle">
-        <div class="home-session-strip-main">
-          <span class="home-session-num">Session ${next}</span>
-          <span class="home-session-idle">Not started — tap ▶ Start below before you queue</span>
-        </div>
-      </div>`;
-    return;
-  }
-
-  const s = sessionSnapshot;
-  const streakEmoji = s.streak?.type === 'W' ? '🔥' : s.streak?.type === 'L' ? '💀' : '—';
-  el.innerHTML = `
-    <div class="home-session-strip live">
-      <div class="home-session-strip-main">
-        <span class="home-session-num">Session ${s.sessionNum}</span>
-        <span class="home-session-pill time">${formatDuration(s.elapsed)}</span>
-        <span class="home-session-pill">${s.wins}W · ${s.losses}L</span>
-        <span class="home-session-pill ${s.mmrGain >= 0 ? 'pos' : 'neg'}">${s.mmrGain >= 0 ? '+' : ''}${s.mmrGain} MMR</span>
-        <span class="home-session-pill streak">${streakEmoji} ${s.streak?.count || 0}</span>
-      </div>
-    </div>`;
-}
-
-export function getSessionSnapshotForHome() {
-  if (!state.session.active) return { active: false };
-  const sessionNum = getLoggingSessionNum();
-  const sessionGames = state.games.filter(g => parseInt(g.session, 10) === sessionNum);
-  const wins = sessionGames.filter(g => g.result === 'W').length;
-  const losses = sessionGames.filter(g => g.result === 'L').length;
-  const mmrGain = sessionGames.reduce((s, g) => s + (g.mmrDiff || 0), 0);
-  let streakType = null, streakCount = 0;
-  if (sessionGames.length) {
-    streakType = sessionGames[sessionGames.length - 1].result;
-    for (let i = sessionGames.length - 1; i >= 0; i--) {
-      if (sessionGames[i].result === streakType) streakCount++;
-      else break;
-    }
-  }
-  return {
-    active: true,
-    sessionNum,
-    elapsed: Date.now() - (state.session.startTime || Date.now()),
-    wins,
-    losses,
-    mmrGain,
-    streak: { type: streakType, count: streakCount },
-  };
+export function renderHome(games, goals) {
+  renderHomeSummary(games, goals);
+  renderHomeContext(games);
+  renderHomeActivity(games);
 }

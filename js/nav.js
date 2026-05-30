@@ -74,6 +74,14 @@ export function wireNavigation({ onNavigate, getActivePage }) {
   return () => updateNavUI(getActivePage());
 }
 
+export function mountDock() {
+  const dock = document.getElementById('quick-dock');
+  const footer = document.getElementById('dock-footer-slot');
+  if (!dock || !footer) return;
+  footer.appendChild(dock);
+  document.body.classList.remove('dock-in-home');
+}
+
 export function updateNavUI(pageId) {
   const section = getSectionForPage(pageId);
   const sub = document.getElementById('sub-nav');
@@ -93,21 +101,6 @@ export function updateNavUI(pageId) {
     btn.classList.toggle('active', btn.dataset.section === section);
   });
 
-  document.body.classList.toggle('home-active', pageId === 'dashboard');
   document.body.dataset.section = section;
   document.body.dataset.page = pageId;
-}
-
-export function mountDock(pageId) {
-  const dock = document.getElementById('quick-dock');
-  const slot = document.getElementById('home-dock-slot');
-  const footer = document.getElementById('dock-footer-slot');
-  if (!dock) return;
-  if (pageId === 'dashboard' && slot) {
-    slot.appendChild(dock);
-    document.body.classList.add('dock-in-home');
-  } else if (footer) {
-    footer.appendChild(dock);
-    document.body.classList.remove('dock-in-home');
-  }
 }
