@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * One-window launcher: RL stats bridge + tracker (same app everywhere).
- * Used by start-grind.bat — no second console window needed.
+ * One-window launcher: RL stats bridge + opens your tracker URL.
+ * Bridge-only when TRACKER_URL points off localhost (e.g. GitHub Pages).
  */
 
 import http from 'http';
@@ -39,6 +39,15 @@ function openBrowser(url) {
   exec(cmd);
 }
 
+function isLocalTrackerUrl(url) {
+  try {
+    const host = new URL(url).hostname;
+    return host === 'localhost' || host === '127.0.0.1';
+  } catch {
+    return true;
+  }
+}
+
 function createTrackerServer() {
   return http.createServer((req, res) => {
     let urlPath = (req.url || '/').split('?')[0];
@@ -65,37 +74,42 @@ function createTrackerServer() {
 }
 
 const playerName = process.argv[2]?.trim() || process.env.RL_PLAYER_NAME || '';
+const trackerUrl = (process.env.TRACKER_URL || `http://localhost:${TRACKER_PORT}`).trim();
+const useLocalServer = isLocalTrackerUrl(trackerUrl);
 
 console.log('');
 console.log('  RL Grind Tracker');
 console.log(`  Player: ${playerName || '(set RLNAME in start-grind.bat)'}`);
+console.log(`  Tracker URL: ${trackerUrl}`);
 console.log('');
 
 await startBridge({ playerName });
 
-const tracker = createTrackerServer();
-await new Promise((resolve, reject) => {
-  tracker.on('error', reject);
-  tracker.listen(TRACKER_PORT, '127.0.0.1', resolve);
-});
-
-const url = `http://localhost:${TRACKER_PORT}`;
+if (useLocalServer) {
+  const tracker = createTrackerServer();
+  await new Promise((resolve, reject) => {
+    tracker.on('error', reject);
+    tracker.listen(TRACKER_PORT, '127.0.0.1', resolve);
+  });
+} else {
+  console.log('  Bridge only — tracker opens from your bookmark (no local site server).');
+}
 
 console.log('');
 console.log('  ============================================');
 console.log('  RL GRIND TRACKER — READ THIS');
 console.log('  ============================================');
 console.log('');
-console.log('  Tracker:  ' + url);
+console.log('  Tracker:  ' + trackerUrl);
+console.log('  Bridge:   http://127.0.0.1:49200 (auto-log from RL)');
 console.log('  Player:   ' + (playerName || '(edit RLNAME in start-grind.bat)'));
 console.log('');
 console.log('  >>> KEEP THIS WINDOW OPEN while you play <<<');
 console.log('  >>> Close it only when you\'re done grinding <<<');
 console.log('');
-console.log('  Same app as GitHub Pages — one platform, auto-stats when bridge connects.');
-console.log('  After each game: W/L -> G/A/S -> End MMR -> LOG (or auto-log)');
+console.log('  Auto-log works when this window is open and you use the tracker in your browser.');
 console.log('');
 console.log('  ============================================');
 console.log('');
 
-openBrowser(url);
+openBrowser(trackerUrl);
