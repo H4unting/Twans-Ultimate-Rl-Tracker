@@ -18,7 +18,7 @@
 <div id="login-screen" class="login-screen hidden">
   <div class="login-card">
     <div class="logo login-logo">RL <span>GRIND</span></div>
-    <p class="login-tagline">Your personal Rocket League improvement tracker.<br>Sign in to track your grind privately.</p>
+    <p class="login-tagline">Your personal Rocket League improvement tracker.<br>Sign in to view your stats from anywhere.</p>
     <button class="btn-google" type="button" id="google-signin-btn">
       <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.07 13.09 17.62 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.56 2.95-2.26 5.48-4.78 7.18l7.73 6.01C42.44 39.24 46.98 32.55 46.98 24.55z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6.01c-2.15 1.45-4.92 2.3-8.16 2.3-6.38 0-11.79-4.29-13.71-10.09l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
       Sign in with Google
@@ -38,10 +38,18 @@
     <div class="tabs">
       <button class="tab active" data-page="dashboard">Dashboard</button>
       <button class="tab tab-log" data-page="log">⚡ Log</button>
+      <button class="tab" data-page="matchlogs">Match Logs</button>
       <button class="tab" data-page="analytics">Analytics</button>
       <button class="tab tab-secondary" data-page="reports">Reports</button>
       <button class="tab tab-secondary" data-page="focus">Focus</button>
       <button class="tab tab-secondary" data-page="group">Group</button>
+    </div>
+  </div>
+
+  <div id="glance-banner" class="glance-banner hidden">
+    <div class="glance-banner-inner">
+      <span class="glance-banner-badge">View only</span>
+      <p>This site is for checking your stats. To <strong>log games</strong>, run <code>start-grind.bat</code> on your PC and use <strong>localhost:8080</strong>.</p>
     </div>
   </div>
 
@@ -52,7 +60,6 @@
     <div class="dashboard-grid">
       <div class="dashboard-main">
         <div class="playlist-tabs" id="pl-tabs"></div>
-        <div id="dash-filters"></div>
         <div class="stat-grid" id="dash-stats"></div>
         <div class="chart-row">
           <div class="chart-box"><canvas id="dashMMR"></canvas></div>
@@ -66,8 +73,23 @@
         <div class="side-card" id="dash-goals"></div>
       </div>
     </div>
-    <p class="section-title">Match Log</p>
-    <div class="table-wrap"><table class="log-table" id="dash-log"></table></div>
+    <div class="dash-recent-head">
+      <p class="section-title">Recent Games</p>
+      <button type="button" class="section-link" id="dash-view-all-logs">View all match logs →</button>
+    </div>
+    <div class="table-wrap table-wrap-compact"><table class="log-table" id="dash-log"></table></div>
+  </div>
+
+  <!-- MATCH LOGS -->
+  <div id="page-matchlogs" class="page">
+    <div class="log-page-header">
+      <div>
+        <h2 class="page-heading">Match Logs</h2>
+        <p class="page-desc">Filter, edit, or delete any logged game.</p>
+      </div>
+    </div>
+    <div id="matchlogs-filters"></div>
+    <div class="table-wrap"><table class="log-table" id="matchlogs-log"></table></div>
   </div>
 
   <!-- LOG GAME -->
@@ -75,21 +97,14 @@
     <div class="log-page-header">
       <div>
         <h2 class="page-heading">Log Games</h2>
-        <p class="page-desc">Use the <strong>bottom bar</strong> for fastest logging between matches. W/L keys + Enter work too.</p>
+        <p class="page-desc">Use the bar at the bottom to log between games — W/L, mode, G/A/S, tags, End MMR, then LOG.</p>
       </div>
     </div>
-    <div class="session-bar" id="session-bar">
-      <div class="session-live-dot" id="session-live-dot"></div>
-      <div class="session-bar-info">
-        <div class="session-bar-title" id="session-bar-title">No active session</div>
-        <div class="session-live-stats" id="session-live-stats"></div>
-      </div>
-      <button class="session-btn start" id="session-start-btn">▶ Start Session</button>
-    </div>
+    <div id="setup-wizard"></div>
     <p class="section-title">Recent games</p>
     <div class="table-wrap table-wrap-compact"><table class="log-table" id="log-preview"></table></div>
     <details class="full-log-details" id="full-log-form">
-      <summary>Full log form — all fields & tags</summary>
+      <summary>Full log form — all fields</summary>
     <div class="add-form">
       <div class="form-grid">
         <div class="form-group"><label>Date</label><input type="date" id="f-date"></div>
@@ -156,30 +171,58 @@
   <!-- QUICK LOG DOCK -->
   <div id="quick-dock" class="quick-dock hidden" aria-label="Quick log">
     <div class="quick-dock-inner">
-      <div class="quick-dock-top">
-        <button type="button" class="quick-session-btn start" id="quick-session-btn">▶ Session</button>
-        <span class="quick-session-meta" id="quick-session-meta">Start when you begin grinding</span>
+      <div class="quick-dock-session session-bar" id="session-bar">
+        <div class="session-live-dot" id="session-live-dot"></div>
+        <div class="session-bar-info">
+          <div class="session-bar-title" id="session-bar-title">No active session</div>
+          <div class="session-live-stats" id="session-live-stats"></div>
+        </div>
+        <span class="live-bridge-status" id="live-bridge-status" title="Automatic stats from Rocket League">Auto stats off</span>
+        <button type="button" class="session-btn start" id="session-start-btn">▶ Start Session</button>
+      </div>
+      <div class="quick-dock-mode">
+        <span class="quick-mode-label">Mode</span>
+        <div class="quick-mode-pills" id="quick-mode-pills">
+          <button type="button" data-mode="1's">1's</button>
+          <button type="button" data-mode="2's" class="active">2's</button>
+          <button type="button" data-mode="3's">3's</button>
+        </div>
       </div>
       <div class="quick-dock-main">
         <div class="quick-wl">
           <button type="button" class="quick-wl-btn win active" id="quick-wl-win" aria-label="Win">W</button>
           <button type="button" class="quick-wl-btn loss" id="quick-wl-loss" aria-label="Loss">L</button>
         </div>
+        <div class="quick-stats-row">
+          <div class="quick-stat-bump">
+            <span class="qs-label">G</span>
+            <button type="button" class="qs-btn" data-stat="goals" data-delta="-1" aria-label="Fewer goals">−</button>
+            <span id="quick-goals-val" class="qs-val">0</span>
+            <button type="button" class="qs-btn" data-stat="goals" data-delta="1" aria-label="More goals">+</button>
+          </div>
+          <div class="quick-stat-bump">
+            <span class="qs-label">A</span>
+            <button type="button" class="qs-btn" data-stat="assists" data-delta="-1">−</button>
+            <span id="quick-assists-val" class="qs-val">0</span>
+            <button type="button" class="qs-btn" data-stat="assists" data-delta="1">+</button>
+          </div>
+          <div class="quick-stat-bump">
+            <span class="qs-label">S</span>
+            <button type="button" class="qs-btn" data-stat="saves" data-delta="-1">−</button>
+            <span id="quick-saves-val" class="qs-val">0</span>
+            <button type="button" class="qs-btn" data-stat="saves" data-delta="1">+</button>
+          </div>
+        </div>
         <input type="number" id="quick-endmmr" class="quick-mmr-input" placeholder="End MMR" min="0" inputmode="numeric" aria-label="End MMR">
         <button type="button" class="quick-log-btn" id="quick-log-btn">LOG</button>
-        <button type="button" class="quick-expand-btn" id="quick-expand-btn" aria-expanded="false" title="Tags, mode, notes">+</button>
       </div>
-      <div class="quick-dock-extra hidden" id="quick-dock-extra">
-        <div class="quick-mode-pills" id="quick-mode-pills">
-          <button type="button" data-mode="1's">1s</button>
-          <button type="button" data-mode="2's" class="active">2s</button>
-          <button type="button" data-mode="3's">3s</button>
-        </div>
+      <div class="quick-dock-tags">
+        <span class="quick-tags-label">Tags <span class="quick-tags-optional">optional</span></span>
         <div class="quick-tags" id="quick-tags"></div>
-        <input type="text" id="quick-notes" class="quick-notes" placeholder="Quick note (optional)">
       </div>
+      <input type="hidden" id="quick-notes" value="">
     </div>
-    <div class="quick-dock-hint">W = win · L = loss · Enter = log</div>
+    <div class="quick-dock-hint">W/L → pick mode → G/A/S → End MMR → tags → <strong>LOG</strong></div>
   </div>
 
   <nav class="mobile-nav" id="mobile-nav" aria-label="Mobile navigation">
