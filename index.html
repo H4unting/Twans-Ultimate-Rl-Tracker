@@ -35,16 +35,12 @@
       <span id="sync-label">Connecting...</span>
     </div>
     <div class="user-bar" id="user-bar"></div>
-    <div class="tabs">
-      <button class="tab active" data-page="dashboard">Dashboard</button>
-      <button class="tab tab-log" data-page="log">⚡ Log</button>
-      <button class="tab" data-page="matchlogs">Match Logs</button>
-      <button class="tab tab-secondary" data-page="sessions">Sessions</button>
-      <button class="tab" data-page="analytics">Analytics</button>
-      <button class="tab tab-secondary" data-page="reports">Reports</button>
-      <button class="tab tab-secondary" data-page="focus">Focus</button>
-      <button class="tab tab-secondary" data-page="group">Group</button>
+    <div class="tabs primary-nav" id="primary-nav">
+      <button type="button" class="tab section-tab active" data-section="home">Home</button>
+      <button type="button" class="tab section-tab" data-section="review">Review</button>
+      <button type="button" class="tab section-tab" data-section="squad">Squad</button>
     </div>
+    <nav class="sub-nav" id="sub-nav" aria-label="Section pages"></nav>
   </div>
 
   <div id="bridge-hint-banner" class="bridge-hint-banner hidden">
@@ -54,29 +50,25 @@
     </div>
   </div>
 
-  <!-- DASHBOARD -->
+  <!-- DASHBOARD / HOME -->
   <div id="page-dashboard" class="page active">
-    <div id="welcome-header"></div>
     <div id="legacy-import"></div>
-    <div class="dashboard-grid">
-      <div class="dashboard-main">
-        <div class="playlist-tabs" id="pl-tabs"></div>
-        <div class="stat-grid" id="dash-stats"></div>
-        <div class="chart-row">
-          <div class="chart-box"><canvas id="dashMMR"></canvas></div>
-          <div class="chart-box"><canvas id="dashWL"></canvas></div>
-        </div>
-        <p class="section-title">Session Performance</p>
-        <div class="chart-box"><canvas id="dashSession"></canvas></div>
+    <div id="home-hero"></div>
+    <div id="home-today-focus"></div>
+    <div id="home-session-strip"></div>
+    <div id="home-dock-slot" class="home-dock-slot"></div>
+    <details class="home-more-stats">
+      <summary>Trends &amp; charts</summary>
+      <div class="playlist-tabs" id="pl-tabs"></div>
+      <div class="stat-grid stat-grid-compact" id="dash-stats"></div>
+      <div class="chart-row chart-row-compact">
+        <div class="chart-box chart-box-sm"><canvas id="dashMMR"></canvas></div>
+        <div class="chart-box chart-box-sm"><canvas id="dashWL"></canvas></div>
       </div>
-      <div class="dashboard-side">
-        <p class="section-title">Goal Progress</p>
-        <div class="side-card" id="dash-goals"></div>
-      </div>
-    </div>
+    </details>
     <div class="dash-recent-head">
       <p class="section-title">Recent Games</p>
-      <button type="button" class="section-link" id="dash-view-all-logs">View all match logs →</button>
+      <button type="button" class="section-link" id="dash-view-all-logs">View all →</button>
     </div>
     <div class="table-wrap table-wrap-compact"><table class="log-table" id="dash-log"></table></div>
   </div>
@@ -90,8 +82,9 @@
       </div>
       <button type="button" class="btn btn-secondary btn-sm" id="matchlogs-export-btn">Export CSV</button>
     </div>
+    <div id="matchlogs-quick-filters"></div>
     <div id="matchlogs-filters"></div>
-    <div class="table-wrap"><table class="log-table" id="matchlogs-log"></table></div>
+    <div id="matchlogs-list" class="matchlogs-list"></div>
   </div>
 
   <!-- SESSION HISTORY -->
@@ -147,15 +140,19 @@
   <!-- ANALYTICS -->
   <div id="page-analytics" class="page">
     <div id="analytics-filters"></div>
-    <p class="section-title">Insights</p>
-    <div class="insight-grid" id="insight-cards"></div>
     <div id="action-items"></div>
+    <p class="section-title">Insights</p>
+    <div class="insight-grid insight-grid-compact" id="insight-cards"></div>
     <div id="coach-report"></div>
-    <div class="analytics-grid" id="analytics-content"></div>
-    <p class="section-title">Rolling Win Rate</p>
-    <div class="chart-box"><canvas id="rollingChart"></canvas></div>
-    <p class="section-title">Tag Trends (per 5 games)</p>
-    <div class="chart-box"><canvas id="trendChart"></canvas></div>
+    <div id="analytics-lock" class="hidden"></div>
+    <p class="section-title">Trends</p>
+    <div class="analytics-grid analytics-grid-compact" id="analytics-content"></div>
+    <div id="analytics-charts-wrap">
+      <p class="section-title section-title-sm">Rolling Win Rate</p>
+      <div class="chart-box chart-box-sm"><canvas id="rollingChart"></canvas></div>
+      <p class="section-title section-title-sm">Tag Trends (per 5 games)</p>
+      <div class="chart-box chart-box-sm"><canvas id="trendChart"></canvas></div>
+    </div>
   </div>
 
   <!-- REPORTS -->
@@ -207,6 +204,15 @@
           <button type="button" class="quick-wl-btn win active" id="quick-wl-win" aria-label="Win">W</button>
           <button type="button" class="quick-wl-btn loss" id="quick-wl-loss" aria-label="Loss">L</button>
         </div>
+        <input type="number" id="quick-endmmr" class="quick-mmr-input" placeholder="End MMR" min="0" inputmode="numeric" aria-label="End MMR">
+        <button type="button" class="quick-log-btn" id="quick-log-btn">LOG</button>
+      </div>
+      <div class="quick-dock-tags">
+        <span class="quick-tags-label">Tags <span class="quick-tags-optional">optional</span></span>
+        <div class="quick-tags" id="quick-tags"></div>
+      </div>
+      <details class="quick-advanced-stats">
+        <summary>Advanced stats ▼</summary>
         <div class="quick-stats-row">
           <div class="quick-stat-bump">
             <span class="qs-label">G</span>
@@ -227,26 +233,20 @@
             <button type="button" class="qs-btn" data-stat="saves" data-delta="1">+</button>
           </div>
         </div>
-        <input type="number" id="quick-endmmr" class="quick-mmr-input" placeholder="End MMR" min="0" inputmode="numeric" aria-label="End MMR">
-        <button type="button" class="quick-log-btn" id="quick-log-btn">LOG</button>
-      </div>
-      <div class="quick-dock-tags">
-        <span class="quick-tags-label">Tags <span class="quick-tags-optional">optional</span></span>
-        <div class="quick-tags" id="quick-tags"></div>
-      </div>
+      </details>
       <input type="hidden" id="quick-notes" value="">
     </div>
     <div class="quick-dock-hint">Match ends → auto-log saves · confirm MMR on the card · tap tags · undo if wrong</div>
   </div>
 
+  <div id="dock-footer-slot"></div>
+
   <nav class="mobile-nav" id="mobile-nav" aria-label="Mobile navigation">
-    <button type="button" class="mobile-nav-btn active" data-page="dashboard"><span>📊</span>Home</button>
+    <button type="button" class="mobile-nav-btn active" data-section="home"><span>🏠</span>Home</button>
     <button type="button" class="mobile-nav-btn mobile-nav-log" data-page="log"><span>⚡</span>Log</button>
-    <button type="button" class="mobile-nav-btn" data-page="sessions"><span>📋</span>Sessions</button>
-    <button type="button" class="mobile-nav-btn" data-page="matchlogs"><span>📝</span>Logs</button>
+    <button type="button" class="mobile-nav-btn" data-section="review"><span>📊</span>Review</button>
     <button type="button" class="mobile-nav-btn" data-page="focus"><span>🎯</span>Focus</button>
-    <button type="button" class="mobile-nav-btn" data-page="analytics"><span>📈</span>Stats</button>
-    <button type="button" class="mobile-nav-btn" data-page="group"><span>👥</span>Squad</button>
+    <button type="button" class="mobile-nav-btn" data-section="squad"><span>👥</span>Squad</button>
   </nav>
 </div>
 
