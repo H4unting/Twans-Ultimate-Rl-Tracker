@@ -494,6 +494,26 @@ body.has-quick-dock .live-session-panel { display: none !important; }
 .live-bridge-status.connected { border-color: #00c85166; color: #6ee7a0; background: #00c85118; }
 .live-bridge-status.in-match { animation: pulse-dot 1.5s infinite; }
 
+.auto-log-toggle {
+  flex-shrink: 0; padding: 5px 10px; border-radius: 999px; border: 1px solid #ffffff22;
+  background: #ffffff08; color: var(--dim); font-size: 10px; font-weight: 700;
+  cursor: pointer; transition: all 0.15s;
+}
+.auto-log-toggle.active {
+  border-color: #00c85166; background: #00c85118; color: #6ee7a0;
+  box-shadow: 0 0 12px #00c85122;
+}
+.auto-log-toggle:hover { border-color: #ffffff44; color: var(--text); }
+
+.quick-dock-inner.auto-logged {
+  animation: auto-log-flash 1.2s ease;
+}
+@keyframes auto-log-flash {
+  0% { box-shadow: 0 -4px 40px #000a; border-color: #ffffff18; }
+  25% { box-shadow: 0 0 40px #00c85155, 0 -4px 40px #000a; border-color: #00c85188; }
+  100% { box-shadow: 0 -4px 40px #000a; border-color: #ffffff18; }
+}
+
 .quick-dock-main {
   display: flex; align-items: center; gap: 6px; padding: 8px 10px; flex-wrap: wrap;
 }
