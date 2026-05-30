@@ -1,9 +1,17 @@
 /** Session history page */
 
-import { groupSessionsForHistory } from './utils.js';
+import { groupSessionsForHistory, formatDuration } from './utils.js';
 import { exportSessionsCSV } from './export.js';
-import { getLoggingSessionNum } from './sessions.js';
+import { getLoggingSessionNum, getSessionHistoryMap } from './sessions.js';
 import { state } from './state.js';
+
+function sessionDurationLabel(sessionNum, activeNum, history) {
+  if (activeNum === sessionNum && state.session.active && state.session.startTime) {
+    return formatDuration(Date.now() - state.session.startTime);
+  }
+  const ms = history[String(sessionNum)]?.durationMs;
+  return ms ? formatDuration(ms) : '—';
+}
 
 export function renderSessionsPage(games, displayName, { onViewSession, onExport } = {}) {
   const el = document.getElementById('sessions-content');
@@ -11,6 +19,7 @@ export function renderSessionsPage(games, displayName, { onViewSession, onExport
 
   const sessions = groupSessionsForHistory(games);
   const activeNum = state.session.active ? getLoggingSessionNum() : null;
+  const history = getSessionHistoryMap();
 
   if (!sessions.length) {
     el.innerHTML = `
@@ -26,6 +35,7 @@ export function renderSessionsPage(games, displayName, { onViewSession, onExport
     const wrClass = s.winRate >= 50 ? 'pos' : 'neg';
     const mmrClass = s.mmrGain >= 0 ? 'pos' : 'neg';
     const live = activeNum === s.sessionNum ? '<span class="session-live-pill">Live</span>' : '';
+    const duration = sessionDurationLabel(s.sessionNum, activeNum, history);
     const topTag = s.topTag
       ? `<span class="session-tag-pill">${s.topTag[0]}</span>`
       : '<span class="session-tag-none">—</span>';
@@ -33,6 +43,7 @@ export function renderSessionsPage(games, displayName, { onViewSession, onExport
       <tr class="session-row" data-session="${s.sessionNum}">
         <td><strong>S${s.sessionNum}</strong> ${live}</td>
         <td>${s.firstDate}${s.lastDate !== s.firstDate ? ` – ${s.lastDate}` : ''}</td>
+        <td class="session-dur-col">${duration}</td>
         <td>${s.games}</td>
         <td>${s.wins}W / ${s.losses}L</td>
         <td class="${wrClass}">${s.winRate}%</td>
@@ -45,7 +56,7 @@ export function renderSessionsPage(games, displayName, { onViewSession, onExport
 
   el.innerHTML = `
     <div class="sessions-toolbar">
-      <p class="page-desc">${sessions.length} session${sessions.length === 1 ? '' : 's'} · tap a row to filter match logs</p>
+      <p class="page-desc">${sessions.length} session${sessions.length === 1 ? '' : 's'} · duration saved when you tap ■ End</p>
       <button type="button" class="btn btn-secondary btn-sm" id="sessions-export-btn">Export sessions CSV</button>
     </div>
     <div class="table-wrap">
@@ -54,6 +65,7 @@ export function renderSessionsPage(games, displayName, { onViewSession, onExport
           <tr>
             <th>Session</th>
             <th>Dates</th>
+            <th>Duration</th>
             <th>Games</th>
             <th>Record</th>
             <th>WR</th>
@@ -68,8 +80,13 @@ export function renderSessionsPage(games, displayName, { onViewSession, onExport
     </div>`;
 
   el.querySelector('#sessions-export-btn')?.addEventListener('click', () => {
-    if (onExport) onExport(sessions);
-    else exportSessionsCSV(sessions, displayName);
+    const enriched = sessions.map(s => ({
+      ...s,
+      durationMs: history[String(s.sessionNum)]?.durationMs ?? null,
+      durationLabel: sessionDurationLabel(s.sessionNum, activeNum, history),
+    }));
+    if (onExport) onExport(enriched);
+    else exportSessionsCSV(enriched, displayName);
   });
 
   el.querySelectorAll('.session-view-btn').forEach(btn => {

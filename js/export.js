@@ -106,9 +106,11 @@ export function exportAllPlayersCSV(data) {
 }
 
 export function exportSessionsCSV(sessions, playerName) {
-  const headers = ['Session', 'First Date', 'Last Date', 'Games', 'Wins', 'Losses', 'Win Rate', 'MMR Change', 'End MMR', 'Top Tag'];
+  const headers = ['Session', 'First Date', 'Last Date', 'Duration', 'Games', 'Wins', 'Losses', 'Win Rate', 'MMR Change', 'End MMR', 'Top Tag'];
   const rows = sessions.map(s => [
-    s.sessionNum, s.firstDate, s.lastDate, s.games, s.wins, s.losses,
+    s.sessionNum, s.firstDate, s.lastDate,
+    s.durationLabel ?? (s.durationMs ? `${Math.round(s.durationMs / 60000)}m` : ''),
+    s.games, s.wins, s.losses,
     `${s.winRate}%`, s.mmrGain, s.endMMR || '', s.topTag ? s.topTag[0] : '',
   ].map(csvEscape).join(','));
   const csv = [headers.join(','), ...rows].join('\n');

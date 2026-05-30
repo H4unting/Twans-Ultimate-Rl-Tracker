@@ -44,8 +44,22 @@ function loadStoredSession() {
 
 function saveStoredSession(data) {
   try {
-    localStorage.setItem(storageKey(), JSON.stringify(data));
+    const prev = loadStoredSession();
+    localStorage.setItem(storageKey(), JSON.stringify({
+      ...prev,
+      ...data,
+      history: data.history ?? prev?.history ?? {},
+    }));
   } catch { /* quota / private mode */ }
+}
+
+export function getSessionHistoryMap() {
+  return loadStoredSession()?.history ?? {};
+}
+
+export function getSessionDurationMs(sessionNum) {
+  const entry = getSessionHistoryMap()[String(sessionNum)];
+  return entry?.durationMs ?? null;
 }
 
 function syncSessionField(num) {
@@ -77,12 +91,15 @@ function activateSession(sessionNum, { startTime = Date.now(), startMMR = null, 
   };
 
   syncSessionField(sessionNum);
+  const prev = loadStoredSession();
   saveStoredSession({
     active: true,
     sessionNum,
     startTime,
     startMMR: state.session.startMMR,
-    lastEndedSession: loadStoredSession()?.lastEndedSession ?? 0,
+    lastEndedSession: prev?.lastEndedSession ?? 0,
+    nextSessionNum: sessionNum,
+    history: prev?.history ?? {},
   });
 
   notify();
@@ -144,6 +161,11 @@ export function endSession(onComplete) {
   const elapsed = state.session.active && state.session.startTime
     ? Date.now() - state.session.startTime : 0;
 
+  const wins = sg.filter(g => g.result === 'W').length;
+  const losses = sg.filter(g => g.result === 'L').length;
+  const mmrGain = sg.reduce((s, g) => s + (g.mmrDiff || 0), 0);
+  const wr = sg.length ? Math.round(wins / sg.length * 100) : 0;
+
   if (state.session.timerId) {
     clearInterval(state.session.timerId);
     state.session.timerId = null;
@@ -155,10 +177,23 @@ export function endSession(onComplete) {
   state.session.sessionNum = nextSession;
   syncSessionField(nextSession);
 
+  const prev = loadStoredSession();
+  const history = { ...(prev?.history ?? {}) };
+  history[String(sessionNum)] = {
+    durationMs: elapsed,
+    endedAt: Date.now(),
+    games: sg.length,
+    wins,
+    losses,
+    mmrGain,
+    winRate: wr,
+  };
+
   saveStoredSession({
     active: false,
     lastEndedSession: sessionNum,
     nextSessionNum: nextSession,
+    history,
   });
 
   notify();
