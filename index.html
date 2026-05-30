@@ -39,6 +39,7 @@
       <button class="tab active" data-page="dashboard">Dashboard</button>
       <button class="tab tab-log" data-page="log">⚡ Log</button>
       <button class="tab" data-page="matchlogs">Match Logs</button>
+      <button class="tab tab-secondary" data-page="sessions">Sessions</button>
       <button class="tab" data-page="analytics">Analytics</button>
       <button class="tab tab-secondary" data-page="reports">Reports</button>
       <button class="tab tab-secondary" data-page="focus">Focus</button>
@@ -82,14 +83,24 @@
 
   <!-- MATCH LOGS -->
   <div id="page-matchlogs" class="page">
-    <div class="log-page-header">
+    <div class="log-page-header log-page-header-row">
       <div>
         <h2 class="page-heading">Match Logs</h2>
         <p class="page-desc">Filter, edit, or delete any logged game.</p>
       </div>
+      <button type="button" class="btn btn-secondary btn-sm" id="matchlogs-export-btn">Export CSV</button>
     </div>
     <div id="matchlogs-filters"></div>
     <div class="table-wrap"><table class="log-table" id="matchlogs-log"></table></div>
+  </div>
+
+  <!-- SESSION HISTORY -->
+  <div id="page-sessions" class="page">
+    <div class="log-page-header">
+      <h2 class="page-heading">Session History</h2>
+      <p class="page-desc">Every grind block — games, W/L, MMR change, and top mistake tags.</p>
+    </div>
+    <div id="sessions-content"></div>
   </div>
 
   <!-- LOG GAME -->
@@ -168,11 +179,9 @@
     <div id="group-content"></div>
   </div>
 
-  <!-- POST-MATCH CARD (grind mode) -->
-  <div id="post-match-card" class="post-match-card hidden" aria-live="polite"></div>
-
   <!-- QUICK LOG DOCK -->
   <div id="quick-dock" class="quick-dock hidden" aria-label="Quick log">
+    <div id="post-match-card" class="post-match-card hidden" aria-live="polite"></div>
     <div class="quick-dock-inner">
       <div class="quick-dock-session session-bar" id="session-bar">
         <div class="session-live-dot" id="session-live-dot"></div>
@@ -182,6 +191,7 @@
         </div>
         <span class="live-bridge-status" id="live-bridge-status" title="Automatic stats from Rocket League">Auto stats off</span>
         <button type="button" class="auto-log-toggle active" id="auto-log-toggle" aria-pressed="true" title="Auto-save games when a match ends">Auto-log</button>
+        <button type="button" class="auto-log-sound-toggle active" id="auto-log-sound-toggle" aria-pressed="true" title="Sound on auto-log">🔔</button>
         <button type="button" class="session-btn start" id="session-start-btn">▶ Start Session</button>
       </div>
       <div class="quick-dock-mode">
@@ -230,10 +240,13 @@
   </div>
 
   <nav class="mobile-nav" id="mobile-nav" aria-label="Mobile navigation">
-    <button type="button" class="mobile-nav-btn" data-page="dashboard"><span>📊</span>Home</button>
+    <button type="button" class="mobile-nav-btn active" data-page="dashboard"><span>📊</span>Home</button>
     <button type="button" class="mobile-nav-btn mobile-nav-log" data-page="log"><span>⚡</span>Log</button>
+    <button type="button" class="mobile-nav-btn" data-page="sessions"><span>📋</span>Sessions</button>
+    <button type="button" class="mobile-nav-btn" data-page="matchlogs"><span>📝</span>Logs</button>
     <button type="button" class="mobile-nav-btn" data-page="focus"><span>🎯</span>Focus</button>
     <button type="button" class="mobile-nav-btn" data-page="analytics"><span>📈</span>Stats</button>
+    <button type="button" class="mobile-nav-btn" data-page="group"><span>👥</span>Squad</button>
   </nav>
 </div>
 
