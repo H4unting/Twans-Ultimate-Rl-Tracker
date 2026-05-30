@@ -7,6 +7,27 @@ import { showToast } from './ui.js';
 
 const SETUP_KEY = 'rl-grind-setup';
 
+export function renderLogSetupNudge() {
+  const el = document.getElementById('log-setup-nudge');
+  if (!el) return;
+
+  if (isBridgeUp()) {
+    el.classList.add('hidden');
+    el.innerHTML = '';
+    return;
+  }
+
+  el.classList.remove('hidden');
+  el.innerHTML = `
+    <div class="log-setup-nudge-inner">
+      <span class="log-setup-nudge-text">Want auto-log from Rocket League?</span>
+      <button type="button" class="btn-link" id="log-setup-nudge-link">Open setup guide →</button>
+    </div>`;
+  document.getElementById('log-setup-nudge-link')?.addEventListener('click', () => {
+    window.__navigate?.('setup', 'home');
+  });
+}
+
 export function renderSetupWizard(displayName = '') {
   const el = document.getElementById('setup-wizard');
   if (!el) return;
@@ -169,5 +190,6 @@ function displayNameFromAuth() {
 
 export function onBridgeStatusChange() {
   updateBridgePill(isBridgeUp());
+  renderLogSetupNudge();
   if (isBridgeUp()) renderSetupWizard(displayNameFromAuth());
 }

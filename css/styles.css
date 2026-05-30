@@ -137,6 +137,27 @@ body:not(.is-loading) .loading-overlay { opacity: 0; visibility: hidden; pointer
   font-size: 12px; color: #ffcc88; background: #00000044;
   padding: 2px 6px; border-radius: 4px;
 }
+.bridge-hint-link { margin-left: 4px; font-size: inherit; }
+
+.log-setup-nudge {
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  border: 1px solid #00e5ff33;
+  background: #00e5ff0a;
+}
+.log-setup-nudge.hidden { display: none; }
+.log-setup-nudge-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+.log-setup-nudge-text { color: #b8d4e8; }
+
+#page-setup .setup-wizard { margin-top: 0; }
 
 
 .goals-readonly {

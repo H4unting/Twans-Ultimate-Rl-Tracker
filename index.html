@@ -46,7 +46,7 @@
   <div id="bridge-hint-banner" class="bridge-hint-banner hidden">
     <div class="bridge-hint-inner">
       <span class="bridge-hint-badge">Auto-stats off</span>
-      <p>Run <code>start-grind.bat</code> on this PC while playing for auto-log from Rocket League. You can still log manually with the dock below.</p>
+      <p>Run <code>start-grind.bat</code> on this PC while playing for auto-log from Rocket League. <button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Setup guide →</button></p>
     </div>
   </div>
 
@@ -78,7 +78,7 @@
         <p class="page-desc">Log games from the dock below — filter, edit, or delete any match in your history.</p>
       </div>
     </div>
-    <div id="setup-wizard"></div>
+    <div id="log-setup-nudge" class="log-setup-nudge hidden"></div>
 
     <div class="log-history-section" id="log-match-history">
       <div class="log-page-header log-page-header-row">
@@ -123,6 +123,15 @@
       <button class="btn btn-primary" id="add-btn" type="button">+ Log Game</button>
     </div>
     </details>
+  </div>
+
+  <!-- AUTO TRACKER SETUP -->
+  <div id="page-setup" class="page">
+    <div class="log-page-header">
+      <h2 class="page-heading">Auto Tracker Setup</h2>
+      <p class="page-desc">One-time setup on your PC — then G/A/S and auto-log flow from Rocket League while you play.</p>
+    </div>
+    <div id="setup-wizard"></div>
   </div>
 
   <!-- SESSION HISTORY -->

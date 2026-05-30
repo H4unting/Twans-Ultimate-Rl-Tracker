@@ -16,7 +16,7 @@ import {
   setQuickResult, setQuickMode,
 } from './quicklog.js';
 import { initRlLive, stopRlLive, refreshLiveStatus } from './rl-live.js';
-import { renderSetupWizard, refreshSetupWizard, onBridgeStatusChange } from './setup-wizard.js';
+import { renderSetupWizard, refreshSetupWizard, onBridgeStatusChange, renderLogSetupNudge } from './setup-wizard.js';
 import { mmrChart, wlChart } from './charts.js';
 import { renderAnalytics } from './analytics.js';
 import { renderReportsPage } from './reports-ui.js';
@@ -90,6 +90,7 @@ async function bootApp() {
     showQuickDock();
     restoreSessionFromStorage(games);
     renderSetupWizard(getDisplay().name);
+    renderLogSetupNudge();
     initRlLive(applyLiveStats, onBridgeStatusChange, handleAutoLog);
 
     renderAll();
@@ -239,6 +240,7 @@ function renderDashboard() {
 }
 
 function renderMatchLogs() {
+  renderLogSetupNudge();
   renderQuickFilters('matchlogs-quick-filters', () => renderMatchLogs());
   renderFilterBar('matchlogs-filters', state.games, state.matchLogFilters, filters => {
     state.matchLogFilters = { ...state.matchLogFilters, ...filters };
@@ -286,12 +288,12 @@ function navigate(pageId, section) {
   mountDock();
   if (pageId === 'dashboard') renderDashboard();
   if (pageId === 'log') renderMatchLogs();
+  if (pageId === 'setup') refreshSetupWizard(getDisplay().name);
   if (pageId === 'analytics') renderAnalyticsPage();
   if (pageId === 'reports') renderReportsPageContent();
   if (pageId === 'focus') renderFocusPage(state.games, state.goals, getDisplay());
   if (pageId === 'group') renderGroupsPage(getGroupsCtx());
   if (pageId === 'sessions') renderSessionsPageContent();
-  if (pageId === 'log') refreshSetupWizard(getDisplay().name);
 }
 
 function wireNavigation() {
@@ -580,6 +582,7 @@ async function init() {
 
   wireNavigation();
   document.getElementById('logo-home-btn')?.addEventListener('click', () => navigate('dashboard', 'home'));
+  document.getElementById('bridge-hint-setup-link')?.addEventListener('click', () => navigate('setup', 'home'));
   wireKeyboardShortcuts();
   document.getElementById('dash-view-all-logs')?.addEventListener('click', () => {
     navigate('log', 'home');

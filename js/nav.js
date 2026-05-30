@@ -8,6 +8,7 @@ export const NAV_SECTIONS = {
     pages: [
       { id: 'dashboard', label: 'Dashboard' },
       { id: 'log', label: 'Match Logs' },
+      { id: 'setup', label: 'Auto Setup' },
       { id: 'focus', label: 'Focus' },
     ],
   },
