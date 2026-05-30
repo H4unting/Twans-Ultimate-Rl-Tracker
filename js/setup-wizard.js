@@ -1,6 +1,8 @@
 /** In-app setup wizard for auto stats + quick log workflow */
 
 import { isGrindHost } from './env.js';
+import { loadPrefs, savePrefs } from './quicklog.js';
+import { isBridgeUp, getRlDisplayName, saveRlDisplayName } from './rl-live.js';
 import { getAuthUser } from './auth.js';
 import { showToast } from './ui.js';
 
