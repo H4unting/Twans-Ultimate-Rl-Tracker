@@ -63,6 +63,42 @@ export function filterByPlaylist(games, playlist) {
   return games.filter(g => g.mode === mode);
 }
 
+export const MODES = ["1's", "2's", "3's"];
+
+export function getGamesForMode(games, mode) {
+  if (!mode) return games;
+  return games.filter(g => g.mode === mode);
+}
+
+export function getCurrentMMRForMode(games, mode) {
+  const modeGames = getGamesForMode(games, mode);
+  return modeGames.length ? modeGames[modeGames.length - 1].endMMR : null;
+}
+
+export function getMostRecentMode(games) {
+  if (!games.length) return "2's";
+  return games[games.length - 1].mode;
+}
+
+export function getModeWeeklyGain(games, mode, weekOffset = 0) {
+  return calculateMMRGain(getGamesInWeek(getGamesForMode(games, mode), weekOffset));
+}
+
+/** Per-playlist MMR snapshot for Home — each mode tracked separately */
+export function getPlaylistMMRRows(games) {
+  return MODES.map(mode => {
+    const modeGames = getGamesForMode(games, mode);
+    const weekGames = getGamesInWeek(modeGames, 0);
+    return {
+      mode,
+      mmr: modeGames.length ? modeGames[modeGames.length - 1].endMMR : null,
+      weekGain: calculateMMRGain(weekGames),
+      weekGameCount: weekGames.length,
+      totalGames: modeGames.length,
+    };
+  }).filter(r => r.mmr != null);
+}
+
 // ── Core stats ────────────────────────────────────────────────────────────────
 
 export function calcStreak(games) {

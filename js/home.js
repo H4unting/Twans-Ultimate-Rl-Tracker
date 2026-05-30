@@ -1,57 +1,81 @@
-/** Home — brief glance: status, context, recent activity */
+/** Home — brief glance: per-mode MMR, context, recent activity */
 
-import { calcStats, getPrimaryMode, getGamesInWeek, formatDuration } from './utils.js';
-import { buildWeeklyReport } from './reports.js';
+import {
+  calcStats, getGamesInWeek, formatDuration, getPlaylistMMRRows,
+  getMostRecentMode, getGamesForMode, getCurrentMMRForMode,
+} from './utils.js';
 import { getRank, rankBadgeHTML } from './ranks.js';
 import { getTagLossCorrelations, ACTION_FOCUS_TIPS } from './insights.js';
 import { TAG_CATS } from './config.js';
 import { state } from './state.js';
 import { getLoggingSessionNum } from './sessions.js';
 
+function ensureHomeChartMode(games) {
+  const rows = getPlaylistMMRRows(games);
+  if (!rows.length) {
+    state.homeChartMode = null;
+    return null;
+  }
+  if (!state.homeChartMode || !rows.some(r => r.mode === state.homeChartMode)) {
+    state.homeChartMode = getMostRecentMode(games);
+  }
+  return state.homeChartMode;
+}
+
 export function renderHomeSummary(games, goals) {
   const el = document.getElementById('home-summary');
   if (!el) return;
 
-  const stats = calcStats(games);
-  const mode = getPrimaryMode(games);
-  const week = buildWeeklyReport(games, 0);
-  const mmr = stats.currentMMR || 0;
-  const rank = mmr ? getRank(mmr, mode) : null;
+  const rows = getPlaylistMMRRows(games);
+  if (!rows.length) {
+    el.innerHTML = `<p class="home-summary-empty">Log a ranked game to see your MMR by playlist.</p>`;
+    return;
+  }
+
+  const chartMode = ensureHomeChartMode(games);
   const target = goals?.mmrTarget || 0;
-  const weekGain = week.empty ? 0 : week.mmrGain;
-  const weekCls = weekGain >= 0 ? 'up' : 'down';
-  const weekLabel = weekGain >= 0 ? `+${weekGain}` : `${weekGain}`;
+  const activeRow = rows.find(r => r.mode === chartMode) ?? rows[0];
 
-  const remaining = target > mmr ? target - mmr : 0;
-  const pct = target > 0 ? Math.min(100, Math.round(mmr / target * 100)) : 0;
-
-  const goalHTML = target > 0 ? `
-    <div class="home-summary-goal">
-      <div class="home-summary-goal-row">
-        <span>Goal ${target}</span>
-        <span>${mmr} / ${target}${remaining > 0 ? ` · ${remaining} left` : ''}</span>
-      </div>
-      <div class="goal-progress-track home-summary-track">
-        <div class="goal-progress-fill${pct >= 100 ? ' met' : ''}" style="width:${pct}%"></div>
-      </div>
-    </div>` : '';
+  const goalHTML = target > 0 && activeRow ? (() => {
+    const mmr = activeRow.mmr;
+    const remaining = target > mmr ? target - mmr : 0;
+    const pct = Math.min(100, Math.round(mmr / target * 100));
+    return `
+      <div class="home-summary-goal">
+        <div class="home-summary-goal-row">
+          <span>${activeRow.mode} goal ${target}</span>
+          <span>${mmr} / ${target}${remaining > 0 ? ` · ${remaining} left` : ''}</span>
+        </div>
+        <div class="goal-progress-track home-summary-track">
+          <div class="goal-progress-fill${pct >= 100 ? ' met' : ''}" style="width:${pct}%"></div>
+        </div>
+      </div>`;
+  })() : '';
 
   el.innerHTML = `
-    <div class="home-summary">
-      <div class="home-summary-top">
-        ${rank ? rankBadgeHTML(mmr, 28, mode) : ''}
-        <div class="home-summary-main">
-          <div class="home-summary-rankline">
-            <span class="home-summary-rank">${rank?.name ?? 'Unranked'}</span>
-            <span class="home-summary-dot">·</span>
-            <span class="home-summary-mmr">${mmr || '—'} MMR</span>
-            <span class="home-summary-dot">·</span>
-            <span class="home-summary-week ${weekCls}">${weekLabel} this week</span>
-          </div>
-          ${goalHTML}
-        </div>
-      </div>
-    </div>`;
+    <div class="home-mmr-grid">
+      ${rows.map(r => {
+        const rank = getRank(r.mmr, r.mode);
+        const wkCls = r.weekGain >= 0 ? 'up' : 'down';
+        const wk = `${r.weekGain >= 0 ? '+' : ''}${r.weekGain}`;
+        return `
+        <button type="button" class="home-mmr-row${r.mode === chartMode ? ' active' : ''}" data-home-mode="${r.mode}">
+          ${rankBadgeHTML(r.mmr, 22, r.mode)}
+          <span class="home-mmr-mode">${r.mode}</span>
+          <span class="home-mmr-rank">${rank.name}</span>
+          <span class="home-mmr-val">${r.mmr} MMR</span>
+          <span class="home-mmr-week ${wkCls}">${wk} wk</span>
+        </button>`;
+      }).join('')}
+    </div>
+    ${goalHTML}`;
+
+  el.querySelectorAll('[data-home-mode]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.homeChartMode = btn.dataset.homeMode;
+      window.__refreshHome?.();
+    });
+  });
 }
 
 export function renderHomeContext(games) {
@@ -63,50 +87,50 @@ export function renderHomeContext(games) {
     return;
   }
 
-  const stats = calcStats(games);
-  const weekGames = getGamesInWeek(games, 0);
-  const week = buildWeeklyReport(games, 0);
-
   if (state.session.active) {
     const sessionNum = getLoggingSessionNum();
     const sg = games.filter(g => parseInt(g.session, 10) === sessionNum);
     const wins = sg.filter(g => g.result === 'W').length;
     const losses = sg.filter(g => g.result === 'L').length;
-    const mmrGain = sg.reduce((s, g) => s + (g.mmrDiff || 0), 0);
+    const byMode = {};
+    sg.forEach(g => {
+      if (!byMode[g.mode]) byMode[g.mode] = 0;
+      byMode[g.mode] += g.mmrDiff || 0;
+    });
+    const modeParts = Object.entries(byMode).map(([mode, gain]) => {
+      const cls = gain >= 0 ? 'up' : 'down';
+      return `${mode} <span class="${cls}">${gain >= 0 ? '+' : ''}${gain}</span>`;
+    }).join(' · ');
     const elapsed = formatDuration(Date.now() - (state.session.startTime || Date.now()));
-    const gainCls = mmrGain >= 0 ? 'up' : 'down';
-    const gainStr = `${mmrGain >= 0 ? '+' : ''}${mmrGain}`;
     el.innerHTML = `
       <p class="home-context-line">
         <span class="home-context-live">Live</span>
-        Session ${sessionNum} · ${wins}W ${losses}L ·
-        <span class="${gainCls}">${gainStr} MMR</span> · ${elapsed}
+        Session ${sessionNum} · ${wins}W ${losses}L · ${elapsed}
+        ${modeParts ? ` · ${modeParts}` : ''}
       </p>`;
     return;
   }
 
-  const streak = stats.streak.count > 0 && stats.streak.type === 'W'
-    ? ` · ${stats.streak.count}W streak`
-    : stats.streak.count >= 3 && stats.streak.type === 'L'
-      ? ` · ${stats.streak.count}L streak`
-      : '';
-
-  if (weekGames.length) {
+  const weekRows = getPlaylistMMRRows(games).filter(r => r.weekGameCount > 0);
+  if (weekRows.length) {
+    const parts = weekRows.map(r => {
+      const cls = r.weekGain >= 0 ? 'up' : 'down';
+      return `${r.mode} <span class="${cls}">${r.weekGain >= 0 ? '+' : ''}${r.weekGain}</span> (${r.weekGameCount}g)`;
+    }).join(' · ');
     el.innerHTML = `
       <p class="home-context-line">
-        This week · ${weekGames.length} game${weekGames.length === 1 ? '' : 's'} ·
-        ${week.winRate}% WR ·
-        <span class="${week.mmrGain >= 0 ? 'up' : 'down'}">${week.mmrGain >= 0 ? '+' : ''}${week.mmrGain} MMR</span>${streak}
+        This week · ${parts}
         · <a href="#" class="home-link" data-goto="analytics">Analytics</a>
       </p>`;
-  } else {
-    el.innerHTML = `
-      <p class="home-context-line muted">
-        No games this week · last played ${games[games.length - 1].date}
-        · <a href="#" class="home-link" data-goto="matchlogs">Match logs</a>
-      </p>`;
+    wireHomeLinks(el);
+    return;
   }
 
+  el.innerHTML = `
+    <p class="home-context-line muted">
+      No games this week · last played ${games[games.length - 1].date}
+      · <a href="#" class="home-link" data-goto="matchlogs">Match logs</a>
+    </p>`;
   wireHomeLinks(el);
 }
 
@@ -114,9 +138,7 @@ function wireHomeLinks(el) {
   el.querySelectorAll('[data-goto]').forEach(link => {
     link.addEventListener('click', e => {
       e.preventDefault();
-      const page = link.dataset.goto;
-      const section = page === 'focus' ? 'home' : 'review';
-      window.__navigate?.(page, section);
+      window.__navigate?.(link.dataset.goto, link.dataset.goto === 'focus' ? 'home' : 'review');
     });
   });
 }
@@ -194,9 +216,18 @@ export function renderHomeActivity(games, limit = 10) {
     </ul>`;
 }
 
+export function getHomeChartGames(games) {
+  const mode = ensureHomeChartMode(games) ?? getMostRecentMode(games);
+  return getGamesForMode(games, mode);
+}
+
 export function renderHome(games, goals) {
   renderHomeSummary(games, goals);
   renderHomeContext(games);
   renderHomeFocus(games);
   renderHomeActivity(games);
+}
+
+export function getHomeChartModeLabel(games) {
+  return ensureHomeChartMode(games) ?? getMostRecentMode(games);
 }

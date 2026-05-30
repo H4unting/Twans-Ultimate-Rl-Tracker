@@ -26,7 +26,7 @@ import { renderGroupsPage, resetGroupsUI } from './groups.js';
 import { renderSessionsPage } from './sessions-ui.js';
 import { exportGamesCSV } from './export.js';
 import { wireNavigation as wireSectionNav, updateNavUI, mountDock } from './nav.js';
-import { renderHome } from './home.js';
+import { renderHome, getHomeChartGames, getHomeChartModeLabel } from './home.js';
 import {
   renderGroupedMatchLogs, renderQuickFilters, applyQuickFilter,
   getActiveQuickFilter, getQuickFilterSessionNum,
@@ -38,6 +38,7 @@ import {
 } from './ui.js';
 
 window.__endSession = () => endSession();
+window.__refreshHome = () => renderHomePage();
 window.__navigate = (pageId, section) => navigate(pageId, section);
 window.showPage = (id) => navigate(id);
 window.startNextSession = () => closeSessionModalAndContinue();
@@ -167,11 +168,17 @@ async function handleLegacyClaim(legacyId) {
 
 function renderHomePage() {
   renderHome(state.games, state.goals);
-  const games = state.games.slice(-20);
-  const stats = calcStats(state.games);
-  const display = getDisplay();
-  if (games.length >= 2) {
-    mmrChart('homeMMR', games, display.color);
+  const modeGames = getHomeChartGames(state.games);
+  const label = document.getElementById('home-charts-label');
+  if (label) {
+    label.textContent = modeGames.length
+      ? `${getHomeChartModeLabel(state.games)} — tap a row above to switch`
+      : '';
+  }
+  if (modeGames.length >= 1) {
+    const stats = calcStats(modeGames);
+    const display = getDisplay();
+    mmrChart('homeMMR', modeGames.slice(-20), display.color);
     wlChart('homeWL', stats);
   }
 }
@@ -317,8 +324,10 @@ function applyLogPrefs() {
   if (fMode && prefs.lastMode) fMode.value = prefs.lastMode;
 }
 
-function estimateMMRDelta(result) {
-  const recent = state.games.slice(-15).filter(g => g.result === result && g.mmrDiff);
+function estimateMMRDelta(result, mode) {
+  const recent = state.games.slice(-15).filter(g =>
+    g.result === result && g.mode === mode && g.mmrDiff,
+  );
   if (recent.length >= 2) {
     return Math.round(recent.reduce((s, g) => s + g.mmrDiff, 0) / recent.length);
   }
@@ -326,11 +335,12 @@ function estimateMMRDelta(result) {
 }
 
 async function handleAutoLog(match) {
+  const logMode = match.mode || document.querySelector('#quick-mode-pills .active')?.dataset.mode || "2's";
   if (match.mode) setQuickMode(match.mode);
   if (match.result) setQuickResult(match.result);
   applyLiveStats(match);
 
-  const startRaw = getLastMMR() || document.getElementById('f-startmmr')?.value || '';
+  const startRaw = getLastMMR(logMode) || document.getElementById('f-startmmr')?.value || '';
   const startMMR = parseInt(startRaw, 10);
   if (!startRaw || Number.isNaN(startMMR)) {
     showToast('Type your MMR in the bar once — then auto-log takes over', 'error');
@@ -338,7 +348,7 @@ async function handleAutoLog(match) {
     return false;
   }
 
-  const delta = estimateMMRDelta(match.result);
+  const delta = estimateMMRDelta(match.result, logMode);
   const endMMR = Math.max(0, startMMR + delta);
 
   const fStart = document.getElementById('f-startmmr');
@@ -418,6 +428,7 @@ async function submitGameLog(source = 'form') {
     });
     renderAll();
     if (game) {
+      state.homeChartMode = game.mode;
       showPostMatchCard(game, { estimated: (game.notes || '').includes('MMR estimated') });
     }
     return true;
@@ -575,7 +586,7 @@ async function init() {
   initSessionUI();
   initQuickLog({
     submitQuick: () => submitGameLog('quick'),
-    getLastMMR,
+    getLastMMR: (mode) => getLastMMR(mode),
     setFormResult: setResult,
     setSelectedTags: tags => { state.ui.selectedTags = tags; },
     onAutoLogToggle: refreshLiveStatus,

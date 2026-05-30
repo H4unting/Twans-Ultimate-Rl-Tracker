@@ -1,6 +1,6 @@
 /** Personal goal targets */
 
-import { getGamesInWeek, calcStats } from './utils.js';
+import { getGamesInWeek, calcStats, getPrimaryMode, getCurrentMMRForMode } from './utils.js';
 
 export const DEFAULT_GOALS = {
   mmrTarget: 0,
@@ -12,9 +12,9 @@ export const DEFAULT_GOALS = {
 export function getGoalProgress(games, goals) {
   const g = goals ?? DEFAULT_GOALS;
   const weekGames = getGamesInWeek(games, 0);
-  const stats = calcStats(games);
   const weekStats = calcStats(weekGames);
-  const currentMMR = stats.currentMMR || 0;
+  const mode = getPrimaryMode(games);
+  const currentMMR = getCurrentMMRForMode(games, mode) || 0;
   const items = [];
 
   if (g.mmrTarget > 0) {

@@ -124,8 +124,12 @@ export async function deleteGame(matchNum) {
   return true;
 }
 
-export function getLastMMR() {
-  return state.games.length ? state.games[state.games.length - 1].endMMR : '';
+export function getLastMMR(mode) {
+  if (!state.games.length) return '';
+  for (let i = state.games.length - 1; i >= 0; i--) {
+    if (!mode || state.games[i].mode === mode) return state.games[i].endMMR;
+  }
+  return '';
 }
 
 export function isMmrEstimated(game) {

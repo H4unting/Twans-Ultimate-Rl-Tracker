@@ -9,6 +9,7 @@ export const state = {
   loading: true,
   syncStatus: 'connecting',
   activePage: 'dashboard',
+  homeChartMode: null,
   playlist: 'all',
   filters: {
     dateFrom: '',

@@ -1,6 +1,6 @@
 /** Personal focus dashboard — auto-generated coaching focus */
 
-import { calcStats, getPrimaryMode, getGamesInWeek } from './utils.js';
+import { calcStats, getPrimaryMode, getCurrentMMRForMode } from './utils.js';
 import { buildWeeklyReport } from './reports.js';
 import { getGoalProgress } from './goals.js';
 import { getPerformanceInsights, getTagLossCorrelations, ACTION_FOCUS_TIPS } from './insights.js';
@@ -36,10 +36,11 @@ export function renderFocusPage(games, goals, display) {
   if (!container) return;
 
   const stats = calcStats(games);
+  const mode = getPrimaryMode(games);
+  const modeMMR = getCurrentMMRForMode(games, mode);
   const week = buildWeeklyReport(games, 0);
   const insights = getPerformanceInsights(games);
   const goalItems = getGoalProgress(games, goals);
-  const mode = getPrimaryMode(games);
   const correlations = getTagLossCorrelations(games);
   const primary = correlations.find(c => c.inLosses >= 2) ?? correlations[0] ?? null;
   const secondary = correlations.find(c => c.tag !== primary?.tag && c.inLosses >= 1) ?? correlations[1] ?? null;
@@ -128,7 +129,7 @@ export function renderFocusPage(games, goals, display) {
           <h2 style="color:${display.color}">Focus Mode</h2>
           <div class="coach-sub">${stats.totalGames} games · ${state.session.active ? `Session ${sessionNum} · ${sessionGames.length} logged` : week.label}</div>
         </div>
-        ${stats.currentMMR ? rankBadgeHTML(stats.currentMMR, 24, mode) : ''}
+        ${modeMMR ? rankBadgeHTML(modeMMR, 24, mode) : ''}
       </div>
       <div class="coach-section"><h3>Auto Focus</h3>${autoFocusHTML}</div>
       ${customFocusHTML}

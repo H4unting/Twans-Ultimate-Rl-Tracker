@@ -84,7 +84,7 @@ export function syncFormFromQuick() {
   const fStart = document.getElementById('f-startmmr');
   if (fEnd && end) fEnd.value = end;
   if (fStart && callbacks.getLastMMR) {
-    const last = callbacks.getLastMMR();
+    const last = callbacks.getLastMMR(getQuickMode());
     if (last !== '') fStart.value = last;
   }
 
@@ -149,7 +149,7 @@ export function resetQuickAfterLog() {
 }
 
 function syncStartMMR() {
-  const last = callbacks.getLastMMR?.();
+  const last = callbacks.getLastMMR?.(getQuickMode());
   const fStart = document.getElementById('f-startmmr');
   if (fStart && last !== '') fStart.value = last;
 }
@@ -263,12 +263,14 @@ function wireDock() {
     btn.addEventListener('click', () => {
       setQuickMode(btn.dataset.mode);
       savePrefs({ lastMode: btn.dataset.mode });
+      syncStartMMR();
     });
   });
 
   document.getElementById('f-mode')?.addEventListener('change', e => {
     setQuickMode(e.target.value);
     savePrefs({ lastMode: e.target.value });
+    syncStartMMR();
   });
 
   document.querySelectorAll('.qs-btn').forEach(btn => {
