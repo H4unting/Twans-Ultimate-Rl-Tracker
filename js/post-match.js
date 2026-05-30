@@ -26,43 +26,55 @@ export function showPostMatchCard(game, { estimated = false } = {}) {
   selectedTags = [...(game.tags || [])];
 
   const win = game.result === 'W';
+  const delta = game.mmrDiff ?? 0;
   el.innerHTML = `
     <div class="post-match-inner ${win ? 'pm-win' : 'pm-loss'}">
-      <div class="post-match-head">
-        <div class="post-match-result">
+      <div class="post-match-top">
+        <div class="post-match-hero">
           <span class="post-match-badge ${win ? 'win' : 'loss'}">${win ? 'WIN' : 'LOSS'}</span>
-          <span class="post-match-mode">${game.mode}</span>
+          <span class="post-match-title">Game ${game.match} · ${game.mode}</span>
+        </div>
+        <div class="post-match-delta ${delta >= 0 ? 'pos' : 'neg'}${estimated ? ' estimated' : ''}">
+          ${estimated ? '~' : ''}${delta >= 0 ? '+' : ''}${delta}
+          <span class="post-match-delta-unit">MMR</span>
         </div>
         <button type="button" class="post-match-close" id="pm-dismiss" aria-label="Dismiss">✕</button>
       </div>
-      <div class="post-match-stats">
-        <span>G <strong>${game.goals}</strong></span>
-        <span>A <strong>${game.assists ?? 0}</strong></span>
-        <span>S <strong>${game.saves}</strong></span>
-        <span class="post-match-mmr-est ${estimated ? 'estimated' : ''}">
-          ${estimated ? '~' : ''}${game.mmrDiff >= 0 ? '+' : ''}${game.mmrDiff} MMR
-        </span>
+
+      <div class="post-match-stat-grid">
+        <div class="pm-stat"><span class="pm-stat-val">${game.goals}</span><span class="pm-stat-lbl">Goals</span></div>
+        <div class="pm-stat"><span class="pm-stat-val">${game.assists ?? 0}</span><span class="pm-stat-lbl">Assists</span></div>
+        <div class="pm-stat"><span class="pm-stat-val">${game.saves}</span><span class="pm-stat-lbl">Saves</span></div>
       </div>
-      <div class="post-match-mmr-row">
-        <label for="pm-mmr">MMR from ranked screen</label>
+
+      <div class="post-match-section post-match-mmr-section">
+        <div class="post-match-section-head">
+          <span>Confirm MMR</span>
+          <span class="post-match-section-sub">from ranked screen</span>
+        </div>
         <div class="post-match-mmr-input-row">
           <input type="number" id="pm-mmr" class="post-match-mmr-input"
-            placeholder="Type exact MMR" value="${estimated ? '' : game.endMMR}" min="0" inputmode="numeric">
-          <button type="button" class="btn btn-primary btn-sm" id="pm-mmr-save">Save</button>
+            placeholder="e.g. 807" value="${estimated ? '' : game.endMMR}" min="0" inputmode="numeric"
+            aria-label="MMR from ranked screen">
+          <button type="button" class="btn btn-primary" id="pm-mmr-save">Save</button>
         </div>
-        ${estimated ? '<p class="post-match-mmr-hint">Auto-log estimated MMR — check ranked screen and type the real number.</p>' : ''}
+        ${estimated ? '<p class="post-match-mmr-hint">Estimated from recent games — type the real number if it differs.</p>' : ''}
       </div>
-      <div class="post-match-tags">
-        <span class="post-match-tags-label">Quick tags</span>
+
+      <div class="post-match-section">
+        <div class="post-match-section-head">What went wrong?</div>
         <div class="post-match-tag-row" id="pm-tags">${renderTagButtons()}</div>
       </div>
-      <div class="post-match-actions">
-        <button type="button" class="btn btn-cancel btn-sm" id="pm-undo">Undo log</button>
-        <button type="button" class="btn btn-primary btn-sm" id="pm-next">Next game →</button>
+
+      <div class="post-match-foot">
+        <button type="button" class="btn btn-cancel" id="pm-undo">Undo log</button>
+        <button type="button" class="btn btn-primary" id="pm-next">Next game →</button>
       </div>
     </div>`;
 
   el.classList.remove('hidden');
+  document.getElementById('quick-dock')?.classList.add('has-post-match');
+  document.body.classList.add('post-match-open');
   wireCardEvents();
   clearTimeout(dismissTimer);
   dismissTimer = setTimeout(hidePostMatchCard, 60000);
@@ -71,6 +83,8 @@ export function showPostMatchCard(game, { estimated = false } = {}) {
 
 export function hidePostMatchCard() {
   document.getElementById('post-match-card')?.classList.add('hidden');
+  document.getElementById('quick-dock')?.classList.remove('has-post-match');
+  document.body.classList.remove('post-match-open');
   clearTimeout(dismissTimer);
   currentMatch = null;
   selectedTags = [];

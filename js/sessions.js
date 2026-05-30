@@ -6,32 +6,138 @@ import { getAuthUser } from './auth.js';
 import { rankBadgeHTML } from './ranks.js';
 import { showToast } from './ui.js';
 import { getLastMMR } from './matches.js';
+import { isGrindHost } from './env.js';
+
+const SESSION_STORE = 'rl-grind-session';
+
+export function getMaxSessionNum(games = state.games) {
+  if (!games?.length) return 0;
+  return games.reduce((max, g) => Math.max(max, parseInt(g.session, 10) || 1), 0);
+}
+
+export function getNextSessionNum(games = state.games) {
+  return getMaxSessionNum(games) + 1;
+}
+
+/** Session number used when logging a game */
+export function getLoggingSessionNum() {
+  if (state.session.active && state.session.sessionNum) {
+    return state.session.sessionNum;
+  }
+  const fromForm = parseInt(document.getElementById('f-session')?.value, 10);
+  if (fromForm) return fromForm;
+  return getNextSessionNum() || 1;
+}
+
+function storageKey() {
+  const id = getAuthUser()?.id;
+  return id ? `${SESSION_STORE}:${id}` : SESSION_STORE;
+}
+
+function loadStoredSession() {
+  try {
+    return JSON.parse(localStorage.getItem(storageKey()) ?? 'null');
+  } catch {
+    return null;
+  }
+}
+
+function saveStoredSession(data) {
+  if (!isGrindHost()) return;
+  try {
+    localStorage.setItem(storageKey(), JSON.stringify(data));
+  } catch { /* quota / private mode */ }
+}
+
+function syncSessionField(num) {
+  const el = document.getElementById('f-session');
+  if (el) el.value = num;
+  state.session.sessionNum = num;
+}
+
+function inferOpenSession(games, stored) {
+  const maxNum = getMaxSessionNum(games);
+  if (!maxNum || !games.length) return null;
+  const last = games[games.length - 1];
+  if (parseInt(last.session, 10) !== maxNum) return null;
+  const lastEnded = stored?.lastEndedSession ?? 0;
+  if (maxNum > lastEnded) return maxNum;
+  return null;
+}
+
+function activateSession(sessionNum, { startTime = Date.now(), startMMR = null, silent = false } = {}) {
+  if (state.session.timerId) clearInterval(state.session.timerId);
+
+  state.session = {
+    ...state.session,
+    active: true,
+    startTime,
+    startMMR: startMMR ?? (state.games.length ? state.games[state.games.length - 1].endMMR : null),
+    sessionNum,
+    timerId: setInterval(tickSessionTimer, 1000),
+  };
+
+  syncSessionField(sessionNum);
+  saveStoredSession({
+    active: true,
+    sessionNum,
+    startTime,
+    startMMR: state.session.startMMR,
+    lastEndedSession: loadStoredSession()?.lastEndedSession ?? 0,
+  });
+
+  notify();
+  updateSessionBar();
+  updateLivePanel();
+  if (!silent) showToast('Session started! 🚀');
+}
+
+/** Restore session after page load — call once games are in state */
+export function restoreSessionFromStorage(games = state.games) {
+  if (!isGrindHost()) return;
+
+  const stored = loadStoredSession();
+
+  if (stored?.active && stored.sessionNum) {
+    activateSession(stored.sessionNum, {
+      startTime: stored.startTime || Date.now(),
+      startMMR: stored.startMMR ?? null,
+      silent: true,
+    });
+    return;
+  }
+
+  const openNum = inferOpenSession(games, stored);
+  if (openNum) {
+    activateSession(openNum, { silent: true });
+    return;
+  }
+
+  const nextNum = stored?.nextSessionNum ?? getNextSessionNum(games);
+  state.session.active = false;
+  state.session.startTime = null;
+  state.session.sessionNum = nextNum;
+  syncSessionField(nextNum);
+  updateSessionBar();
+  updateLivePanel();
+}
 
 export function initSessionUI() {
   updateSessionBar();
   updateLivePanel();
 }
 
-export function startSession() {
-  const games = state.games;
-  state.session = {
-    ...state.session,
-    active: true,
-    startTime: Date.now(),
-    startMMR: games.length ? games[games.length - 1].endMMR : null,
-    sessionNum: parseInt(document.getElementById('f-session')?.value, 10) || 1,
-  };
-  if (state.session.timerId) clearInterval(state.session.timerId);
-  state.session.timerId = setInterval(tickSessionTimer, 1000);
-  notify();
-  updateSessionBar();
-  updateLivePanel();
-  showToast('Session started! 🚀');
+export function startSession({ silent = false, sessionNum } = {}) {
+  const num = sessionNum
+    ?? parseInt(document.getElementById('f-session')?.value, 10)
+    ?? getNextSessionNum()
+    ?? 1;
+  activateSession(num, { silent });
 }
 
 export function endSession(onComplete) {
-  const sessionNum = state.session.sessionNum || parseInt(document.getElementById('f-session')?.value, 10) || 1;
-  const sg = state.games.filter(g => g.session === sessionNum);
+  const sessionNum = state.session.sessionNum || getLoggingSessionNum();
+  const sg = state.games.filter(g => parseInt(g.session, 10) === sessionNum);
 
   if (!sg.length) {
     showToast('No games in this session yet', 'error');
@@ -46,15 +152,23 @@ export function endSession(onComplete) {
     state.session.timerId = null;
   }
 
+  const nextSession = sessionNum + 1;
   state.session.active = false;
+  state.session.startTime = null;
+  state.session.sessionNum = nextSession;
+  syncSessionField(nextSession);
+
+  saveStoredSession({
+    active: false,
+    lastEndedSession: sessionNum,
+    nextSessionNum: nextSession,
+  });
+
   notify();
   updateSessionBar();
   updateLivePanel();
   showSessionModal(sessionNum, sg, elapsed);
 
-  const nextSession = sessionNum + 1;
-  const fSession = document.getElementById('f-session');
-  if (fSession) fSession.value = nextSession;
   if (onComplete) onComplete(nextSession);
 }
 
@@ -82,8 +196,8 @@ function tickSessionTimer() {
 }
 
 function getLiveSessionStats() {
-  const sessionNum = state.session.sessionNum || parseInt(document.getElementById('f-session')?.value, 10) || 1;
-  const sessionGames = state.games.filter(g => g.session === sessionNum);
+  const sessionNum = getLoggingSessionNum();
+  const sessionGames = state.games.filter(g => parseInt(g.session, 10) === sessionNum);
   return { ...getSessionStats(sessionGames), sessionNum };
 }
 
@@ -99,12 +213,16 @@ export function updateSessionBar() {
     bar.classList.remove('active');
     dot?.classList.remove('active');
     document.querySelector('.quick-dock-inner')?.classList.remove('session-live');
-    if (title) { title.textContent = 'No active session'; title.classList.remove('active'); }
-    if (stats) stats.innerHTML = '';
+    const next = getLoggingSessionNum();
+    if (title) {
+      title.textContent = `Ready — Session ${next}`;
+      title.classList.remove('active');
+    }
+    if (stats) stats.innerHTML = '<span class="slive-item neutral">Tap ▶ Start before you queue</span>';
     if (startBtn) {
       startBtn.className = 'session-btn start';
       startBtn.textContent = '▶ Start';
-      startBtn.onclick = startSession;
+      startBtn.onclick = () => startSession();
     }
     return;
   }

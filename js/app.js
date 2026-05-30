@@ -9,7 +9,7 @@ import { loadUserData, saveSettings, claimLegacyData, createGroup, joinGroup, le
 import { applyFilters, DEFAULT_FILTERS } from './filters.js';
 import { calcStats } from './utils.js';
 import { addGame, updateGame, deleteGame, getLastMMR, patchLastGame, undoLastGame } from './matches.js';
-import { startSession, endSession, closeSessionModal, closeSessionModalAndContinue, initSessionUI, refreshSessionUI } from './sessions.js';
+import { startSession, endSession, closeSessionModal, closeSessionModalAndContinue, initSessionUI, refreshSessionUI, restoreSessionFromStorage, getLoggingSessionNum } from './sessions.js';
 import {
   initQuickLog, showQuickDock, hideQuickDock, getQuickLogPayload,
   resetQuickAfterLog, loadPrefs, syncFormFromQuick, applyLiveStats, flashAutoLogged,
@@ -75,6 +75,7 @@ async function bootApp() {
 
     if (isGrindHost()) {
       showQuickDock();
+      restoreSessionFromStorage(games);
       renderSetupWizard(getDisplay().name);
       initRlLive(applyLiveStats, onBridgeStatusChange, handleAutoLog);
     } else {
@@ -354,7 +355,7 @@ async function submitGameLog(source = 'form') {
   try {
     const payload = source === 'quick' || source === 'auto' ? getQuickLogPayload() : {
       date: document.getElementById('f-date').value,
-      session: document.getElementById('f-session').value,
+      session: getLoggingSessionNum(),
       mode: document.getElementById('f-mode').value,
       result: state.ui.currentResult,
       goals: document.getElementById('f-goals').value,

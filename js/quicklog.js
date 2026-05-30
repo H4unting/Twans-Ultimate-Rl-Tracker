@@ -2,6 +2,7 @@
 
 import { TAG_GROUPS } from './config.js';
 import { showToast } from './ui.js';
+import { getLoggingSessionNum } from './sessions.js';
 
 const PREFS_KEY = 'rl-grind-prefs';
 
@@ -88,7 +89,7 @@ export function getQuickLogPayload() {
   syncFormFromQuick();
   return {
     date: document.getElementById('f-date')?.value,
-    session: document.getElementById('f-session')?.value,
+    session: getLoggingSessionNum(),
     mode: getQuickMode(),
     result: getQuickResult(),
     goals: getQuickStat('goals'),
