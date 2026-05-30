@@ -14,9 +14,8 @@ export const NAV_SECTIONS = {
   review: {
     label: 'Review',
     icon: '📊',
-    defaultPage: 'matchlogs',
+    defaultPage: 'analytics',
     pages: [
-      { id: 'matchlogs', label: 'Match Logs' },
       { id: 'sessions', label: 'Sessions' },
       { id: 'analytics', label: 'Analytics' },
       { id: 'reports', label: 'Reports' },

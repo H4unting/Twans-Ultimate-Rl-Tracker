@@ -1014,6 +1014,11 @@ body.has-quick-dock.quick-dock-collapsed .mobile-nav { bottom: 52px; }
 .page-desc strong { color: var(--accent); font-weight: 600; }
 .page-heading { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
 .log-page-header { margin-bottom: 16px; }
+.log-history-section {
+  margin-top: 8px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
 
 .full-log-details {
   margin-top: 20px; margin-bottom: 8px;

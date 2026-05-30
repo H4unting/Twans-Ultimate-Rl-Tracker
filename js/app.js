@@ -211,7 +211,6 @@ function renderAll() {
 
   renderMatchLogs();
 
-  renderLog('log-preview', games, 6, false);
   const logMode = document.getElementById('f-mode')?.value || loadPrefs().lastMode || "2's";
   const lastMMR = getLastMMR(logMode);
   const fStart = document.getElementById('f-startmmr');
@@ -259,7 +258,7 @@ function renderSessionsPageContent() {
   renderSessionsPage(state.games, getDisplay().name, {
     onViewSession: sessionNum => {
       state.filters = { ...state.filters, session: String(sessionNum) };
-      navigate('matchlogs', 'review');
+      navigate('log', 'home');
     },
   });
 }
@@ -287,7 +286,7 @@ function navigate(pageId, section) {
   updateNavUI(pageId);
   mountDock();
   if (pageId === 'dashboard') renderDashboard();
-  if (pageId === 'matchlogs') renderMatchLogs();
+  if (pageId === 'log') renderMatchLogs();
   if (pageId === 'analytics') renderAnalyticsPage();
   if (pageId === 'reports') renderReportsPageContent();
   if (pageId === 'focus') renderFocusPage(state.games, state.goals, getDisplay());
@@ -582,7 +581,7 @@ async function init() {
   wireNavigation();
   wireKeyboardShortcuts();
   document.getElementById('dash-view-all-logs')?.addEventListener('click', () => {
-    navigate('matchlogs', 'review');
+    navigate('log', 'home');
   });
   document.getElementById('matchlogs-export-btn')?.addEventListener('click', () => {
     exportGamesCSV(getMatchLogsGames(), getDisplay().name);

@@ -129,7 +129,7 @@ export function renderHomeContext(games) {
   el.innerHTML = `
     <p class="home-context-line muted">
       No games this week · last played ${games[games.length - 1].date}
-      · <a href="#" class="home-link" data-goto="matchlogs">Match logs</a>
+      · <a href="#" class="home-link" data-goto="log">Match history</a>
     </p>`;
   wireHomeLinks(el);
 }
@@ -138,7 +138,9 @@ function wireHomeLinks(el) {
   el.querySelectorAll('[data-goto]').forEach(link => {
     link.addEventListener('click', e => {
       e.preventDefault();
-      window.__navigate?.(link.dataset.goto, link.dataset.goto === 'focus' ? 'home' : 'review');
+      const page = link.dataset.goto;
+      const section = ['analytics', 'reports', 'sessions'].includes(page) ? 'review' : 'home';
+      window.__navigate?.(page, section);
     });
   });
 }
