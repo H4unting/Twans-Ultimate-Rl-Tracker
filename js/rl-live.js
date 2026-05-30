@@ -113,3 +113,36 @@ export function saveRlDisplayName(name) {
 export function getRlDisplayName() {
   return loadPrefs().rlDisplayName ?? '';
 }
+
+export async function fetchBridgeSetupStatus() {
+  const res = await fetch(`${BRIDGE}/setup/status`, { signal: AbortSignal.timeout(1500) });
+  if (!res.ok) throw new Error('Bridge offline');
+  return res.json();
+}
+
+export async function applyBridgeSetup({ rlDisplayName, patchIni = true }) {
+  const name = rlDisplayName?.trim();
+  if (!name) throw new Error('Enter your Rocket League display name first');
+
+  const res = await fetch(`${BRIDGE}/setup/apply`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ rlDisplayName: name, patchIni }),
+    signal: AbortSignal.timeout(15000),
+  });
+
+  let data = {};
+  try {
+    data = await res.json();
+  } catch {
+    /* ignore */
+  }
+
+  if (!res.ok) {
+    throw new Error(data.error || 'Could not apply settings');
+  }
+
+  saveRlDisplayName(name);
+  savePrefs({ rlDisplayName: name });
+  return data;
+}

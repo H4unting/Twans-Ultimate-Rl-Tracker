@@ -109,7 +109,11 @@ async function bootApp() {
     setSyncStatus('error');
     showLoading(false);
     showLoginScreen(true);
-    showToast(e?.message ?? 'Could not load your data', 'error');
+    const msg = e?.message ?? 'Could not load your data';
+    showToast(
+      msg.includes('infinite recursion') ? 'Database policy error — run groups-schema-fix.sql in Supabase' : msg,
+      'error',
+    );
   }
 }
 

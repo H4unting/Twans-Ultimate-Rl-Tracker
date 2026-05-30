@@ -1,7 +1,7 @@
 /** In-app setup wizard for auto stats + quick log workflow */
 
 import { loadPrefs, savePrefs } from './quicklog.js';
-import { isBridgeUp, getRlDisplayName, saveRlDisplayName } from './rl-live.js';
+import { isBridgeUp, getRlDisplayName, saveRlDisplayName, applyBridgeSetup } from './rl-live.js';
 import { getAuthUser } from './auth.js';
 import { getUserDisplay } from './state.js';
 import { showToast } from './ui.js';
@@ -52,8 +52,8 @@ export function renderSetupWizard(displayName = '') {
       <div class="setup-banner">
         <span class="setup-banner-icon">👇</span>
         <div>
-          <strong>Read this once before you grind</strong>
-          <p>Three quick steps on your PC. After that, logging each game takes a few seconds.</p>
+          <strong>One-time setup on your PC</strong>
+          <p>Enter your name, run <code>start-grind.bat</code>, then click <strong>Apply &amp; Go</strong> — we update your files for you.</p>
         </div>
       </div>`}
       <div class="setup-wizard-head">
@@ -62,7 +62,7 @@ export function renderSetupWizard(displayName = '') {
           <h3>${allReady ? 'You\'re ready to grind' : 'Auto stats setup'}</h3>
           <p class="setup-desc">${allReady
     ? 'Play a match — G/A/S fill in automatically. You only pick W/L and type your End MMR.'
-    : 'Follow steps 1–3 below. Auto-log kicks in once the bridge connects.'}</p>
+    : 'Enter your RL name, start the bridge, then hit Apply & Go — no manual file editing.'}</p>
         </div>
         ${allReady ? `<button type="button" class="setup-dismiss" id="setup-dismiss">Got it</button>` : ''}
       </div>
@@ -76,37 +76,32 @@ export function renderSetupWizard(displayName = '') {
         → check G/A/S → pick mode → tap tags if needed → enter <strong>End MMR</strong> → hit <span class="setup-log-chip">LOG</span>
       </div>` : ''}
       <ol class="setup-steps${allReady ? ' setup-steps-collapsed hidden' : ''}">
-        <li class="setup-step${prefs.iniDone ? ' done' : ''}" data-step="ini">
-          <span class="setup-step-num">1</span>
-          <div class="setup-step-body">
-            <strong>Enable RL Stats API</strong>
-            <p>Open this file in Notepad:</p>
-            <pre class="setup-code setup-code-path">Rocket League\\TAGame\\Config\\DefaultStatsAPI.ini</pre>
-            <p>Paste or set these lines (change <code>PacketSendRate</code> to <strong>10</strong> if it says 0):</p>
-            <pre class="setup-code">[TAGame.MatchStatsExporter_TA]
-Port=49123
-PacketSendRate=10</pre>
-            <p class="setup-callout setup-callout-tip">Save the file, then fully restart Rocket League.</p>
-            <button type="button" class="btn btn-cancel btn-sm setup-mark" data-mark="iniDone">Mark done</button>
-          </div>
-        </li>
         <li class="setup-step${rlName ? ' done' : ''}" data-step="name">
-          <span class="setup-step-num">2</span>
+          <span class="setup-step-num">1</span>
           <div class="setup-step-body">
             ${renderProfileNameStep(profile)}
           </div>
         </li>
         <li class="setup-step${bridge ? ' done' : ''}" data-step="bridge">
+          <span class="setup-step-num">2</span>
+          <div class="setup-step-body">
+            <strong>Start the bridge</strong>
+            <p>Double-click this file in your tracker folder (keep the black window open):</p>
+            <pre class="setup-code setup-code-highlight" id="setup-bridge-cmd">start-grind.bat</pre>
+            <span class="setup-status-pill${bridge ? ' ok' : ''}" id="setup-bridge-pill">${bridge ? '● Bridge connected — ready for Apply & Go' : '○ Waiting for start-grind.bat…'}</span>
+          </div>
+        </li>
+        <li class="setup-step" data-step="apply">
           <span class="setup-step-num">3</span>
           <div class="setup-step-body">
-            <strong>Start the tracker</strong>
-            <p>Double-click this file in your tracker folder:</p>
-            <pre class="setup-code setup-code-highlight" id="setup-bridge-cmd">start-grind.bat</pre>
-            <div class="setup-callout setup-callout-important">
-              <strong>One black window opens.</strong> Leave it open the whole time you play.
-              Your browser opens automatically — same tracker, auto-stats when RL is running.
-            </div>
-            <span class="setup-status-pill${bridge ? ' ok' : ''}" id="setup-bridge-pill">${bridge ? '● Bridge connected — you\'re good' : '○ Waiting for start-grind.bat…'}</span>
+            <strong>Apply &amp; Go</strong>
+            <p>We write your name into <code>start-grind.bat</code> and set up the Rocket League Stats API file on this PC.</p>
+            <label class="setup-apply-check">
+              <input type="checkbox" id="setup-patch-ini" checked>
+              Enable <code>DefaultStatsAPI.ini</code> for me (Port 49123, PacketSendRate 10)
+            </label>
+            <button type="button" class="btn btn-primary setup-apply-btn" id="setup-apply-go">Apply &amp; Go</button>
+            <div id="setup-apply-result" class="setup-apply-result hidden" aria-live="polite"></div>
           </div>
         </li>
       </ol>
@@ -167,6 +162,64 @@ function wireSetupWizard() {
   });
 
   wireProfileNameDropdown();
+  wireSetupApplyGo();
+}
+
+function wireSetupApplyGo() {
+  const btn = document.getElementById('setup-apply-go');
+  if (!btn || btn.dataset.wired) return;
+  btn.dataset.wired = '1';
+
+  btn.addEventListener('click', async () => {
+    const input = document.getElementById('setup-rl-name');
+    const name = input?.value.trim() ?? '';
+    if (!name) {
+      showToast('Enter your Rocket League display name first', 'error');
+      input?.focus();
+      return;
+    }
+
+    if (!isBridgeUp()) {
+      showToast('Run start-grind.bat first, then click Apply & Go', 'error');
+      return;
+    }
+
+    saveRlNameFromInput(input);
+    btn.disabled = true;
+    btn.textContent = 'Applying…';
+
+    const resultEl = document.getElementById('setup-apply-result');
+    const patchIni = document.getElementById('setup-patch-ini')?.checked !== false;
+
+    try {
+      const result = await applyBridgeSetup({ rlDisplayName: name, patchIni });
+      if (resultEl) {
+        resultEl.classList.remove('hidden');
+        const lines = [
+          result.files?.startGrindBat ? '✓ Updated start-grind.bat' : null,
+          result.files?.statsApiIni ? '✓ Updated Rocket League Stats API file' : null,
+          result.files?.grindConfig ? '✓ Saved local config' : null,
+          `✓ Watching player: ${name}`,
+          result.iniNeedsRlRestart ? '↻ Fully restart Rocket League once if it was already open' : null,
+          ...(result.warnings ?? []).map(w => `⚠ ${w}`),
+        ].filter(Boolean);
+        resultEl.innerHTML = `<div class="setup-callout setup-callout-success">${lines.map(l => `<div>${escapeHtml(l)}</div>`).join('')}</div>`;
+      }
+      document.querySelector('.setup-step[data-step="apply"]')?.classList.add('done');
+      document.querySelector('.setup-step[data-step="name"]')?.classList.add('done');
+      saveSetupPrefs({ iniDone: true });
+      showToast('Settings applied on your PC!');
+    } catch (e) {
+      if (resultEl) {
+        resultEl.classList.remove('hidden');
+        resultEl.innerHTML = `<div class="setup-callout setup-callout-important">${escapeHtml(e.message || 'Apply failed')}</div>`;
+      }
+      showToast(e.message || 'Apply failed — is start-grind.bat running?', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Apply & Go';
+    }
+  });
 }
 
 function getProfileContext(fallbackName = '') {
@@ -202,7 +255,7 @@ function renderProfileNameStep(profile) {
         <div class="setup-profile-dropdown hidden" id="setup-rl-name-dropdown">${googleSuggest}</div>
       </div>
     </div>
-    <p class="setup-callout setup-callout-tip">Must match your Rocket League display name <em>exactly</em> — the bridge uses this to find your stats in-game.</p>`;
+    <p class="setup-callout setup-callout-tip">Must match your Rocket League display name <em>exactly</em> — same spelling and caps as in-game.</p>`;
 }
 
 function wireProfileNameDropdown() {

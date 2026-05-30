@@ -10,6 +10,7 @@ import path from 'path';
 import { exec } from 'child_process';
 import { fileURLToPath } from 'url';
 import { startBridge } from './rl-bridge.mjs';
+import { loadGrindConfig } from './local-setup.mjs';
 
 const TRACKER_PORT = 8080;
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -73,7 +74,8 @@ function createTrackerServer() {
   });
 }
 
-const playerName = process.argv[2]?.trim() || process.env.RL_PLAYER_NAME || '';
+const config = loadGrindConfig();
+const playerName = process.argv[2]?.trim() || config.rlDisplayName || process.env.RL_PLAYER_NAME || '';
 const trackerUrl = (process.env.TRACKER_URL || `http://localhost:${TRACKER_PORT}`).trim();
 const useLocalServer = isLocalTrackerUrl(trackerUrl);
 

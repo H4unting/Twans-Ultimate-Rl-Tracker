@@ -1663,6 +1663,27 @@ body:not(.logged-out) #login-screen { display: none !important; }
 .setup-name-input { max-width: none; flex: 1; }
 .setup-name-suggest-wrap { position: relative; flex-shrink: 0; }
 
+.setup-apply-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  color: #c8d0e0;
+  margin: 12px 0 14px;
+  cursor: pointer;
+}
+.setup-apply-check input { margin-top: 3px; accent-color: var(--teal); }
+.setup-apply-btn {
+  width: 100%;
+  max-width: 320px;
+  font-size: 16px;
+  font-weight: 800;
+  padding: 14px 20px;
+}
+.setup-apply-btn:disabled { opacity: 0.6; cursor: wait; }
+.setup-apply-result { margin-top: 14px; }
+.setup-apply-result.hidden { display: none; }
+
 .setup-profile-card {
   position: relative;
   margin: 12px 0 14px;

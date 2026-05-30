@@ -7,6 +7,7 @@ import net from 'net';
 import http from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { applyLocalSetup, getSetupStatus, loadGrindConfig } from './local-setup.mjs';
 
 const RL_PORT = 49123;
 const DEFAULT_HTTP_PORT = 49200;
@@ -26,13 +27,13 @@ function inferMode(playerCount) {
 }
 
 const RANKED_PLAYLIST_IDS = {
-  10: "1's",   // Ranked Duel
-  11: "2's",   // Ranked Doubles
-  13: "3's",   // Ranked Standard
-  28: "2's",   // Ranked Hoops
-  29: "3's",   // Rumble (3v3)
-  30: "2's",   // Dropshot
-  34: "3's",   // Snow Day
+  10: "1's",
+  11: "2's",
+  13: "3's",
+  28: "2's",
+  29: "3's",
+  30: "2's",
+  34: "3's",
 };
 
 function parsePlaylist(data) {
@@ -54,8 +55,29 @@ function inferModeFromPlaylist(playlist, playerCount) {
   return inferMode(playerCount);
 }
 
+function readJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    let data = '';
+    req.on('data', chunk => { data += chunk; });
+    req.on('end', () => {
+      try {
+        resolve(data ? JSON.parse(data) : {});
+      } catch {
+        reject(new Error('Invalid JSON body'));
+      }
+    });
+    req.on('error', reject);
+  });
+}
+
 export function startBridge(options = {}) {
-  const playerName = (options.playerName ?? process.env.RL_PLAYER_NAME ?? '').trim();
+  const config = loadGrindConfig();
+  let activePlayerName = (
+    options.playerName
+    ?? config.rlDisplayName
+    ?? process.env.RL_PLAYER_NAME
+    ?? ''
+  ).trim();
   const httpPort = options.httpPort ?? DEFAULT_HTTP_PORT;
 
   let rlConnected = false;
@@ -70,10 +92,17 @@ export function startBridge(options = {}) {
   let pendingWinnerTeamNum = null;
   let currentPlaylist = { name: null, id: null, isRanked: false };
 
+  function setPlayerName(name) {
+    activePlayerName = String(name ?? '').trim();
+    if (activePlayerName) {
+      console.log(`Watching player: ${activePlayerName}`);
+    }
+  }
+
   function matchPlayer(players) {
     if (!players?.length) return null;
-    if (!playerName) return players.find(p => !p.bBot) ?? players[0];
-    const q = playerName.toLowerCase();
+    if (!activePlayerName) return players.find(p => !p.bBot) ?? players[0];
+    const q = activePlayerName.toLowerCase();
     return players.find(p => (p.Name || p.PlayerName || '').toLowerCase() === q)
       ?? players.find(p => (p.Name || p.PlayerName || '').toLowerCase().includes(q));
   }
@@ -215,57 +244,85 @@ export function startBridge(options = {}) {
     });
   }
 
-  const server = http.createServer((req, res) => {
+  const server = http.createServer(async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
-    if (req.url === '/status') {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({
-        rlConnected,
-        inMatch,
-        playerName: playerName || null,
-        httpPort,
-        playlist: currentPlaylist.name,
-        isRanked: currentPlaylist.isRanked,
-      }));
-      return;
-    }
+    try {
+      if (req.url === '/status') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          rlConnected,
+          inMatch,
+          playerName: activePlayerName || null,
+          httpPort,
+          playlist: currentPlaylist.name,
+          isRanked: currentPlaylist.isRanked,
+        }));
+        return;
+      }
 
-    if (req.url === '/live') {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ inMatch, stats: live }));
-      return;
-    }
+      if (req.url === '/setup/status') {
+        const setup = getSetupStatus();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          ...setup,
+          bridgePlayerName: activePlayerName || null,
+          rlConnected,
+        }));
+        return;
+      }
 
-    if (req.url === '/last-match') {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(lastMatch));
-      return;
-    }
+      if (req.url === '/setup/apply' && req.method === 'POST') {
+        const body = await readJsonBody(req);
+        const applied = applyLocalSetup({
+          rlDisplayName: body.rlDisplayName,
+          patchIni: body.patchIni !== false,
+        });
+        setPlayerName(applied.rlDisplayName);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(applied));
+        return;
+      }
 
-    if (req.url === '/last-match/consume' && req.method === 'POST') {
-      const out = lastMatch;
-      if (lastMatch) lastMatch = { ...lastMatch, consumed: true };
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(out));
-      return;
-    }
+      if (req.url === '/live') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ inMatch, stats: live }));
+        return;
+      }
 
-    res.writeHead(404);
-    res.end('Not found');
+      if (req.url === '/last-match') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(lastMatch));
+        return;
+      }
+
+      if (req.url === '/last-match/consume' && req.method === 'POST') {
+        const out = lastMatch;
+        if (lastMatch) lastMatch = { ...lastMatch, consumed: true };
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(out));
+        return;
+      }
+
+      res.writeHead(404);
+      res.end('Not found');
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: err.message }));
+    }
   });
 
   return new Promise((resolve, reject) => {
     server.on('error', reject);
     server.listen(httpPort, '127.0.0.1', () => {
       console.log(`Stats bridge → http://127.0.0.1:${httpPort}`);
-      if (!playerName) {
-        console.warn('Tip: set RLNAME in start-grind.bat to your exact RL display name');
+      if (!activePlayerName) {
+        console.warn('Tip: run setup in the tracker and click Apply & Go (or set RLNAME in start-grind.bat)');
       } else {
-        console.log(`Watching player: ${playerName}`);
+        console.log(`Watching player: ${activePlayerName}`);
       }
       connectRL();
       resolve(server);
