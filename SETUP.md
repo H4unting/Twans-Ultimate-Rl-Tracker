@@ -1,7 +1,7 @@
-[SETUP.md](https://github.com/user-attachments/files/28415973/SETUP.md)
+[SETUP.md](https://github.com/user-attachments/files/28426104/SETUP.md)
 # RL Grind Tracker — Setup
 
-Quick guide for getting grind mode running on Windows.
+One app everywhere. Sign in with Google — log games, view stats, and manage squads from **any device**. Auto-log from Rocket League when `start-grind.bat` is running on your gaming PC.
 
 ## 1. Download the full repo
 
@@ -28,63 +28,59 @@ node --version
 
 Open `start-grind.bat` and set `RLNAME` to match your Rocket League display name **exactly** (case-sensitive).
 
-The in-app setup wizard also saves your name to preferences — **restart `start-grind.bat`** after changing it so the bridge picks it up.
+The in-app setup wizard also saves your name — **restart `start-grind.bat`** after changing it so the bridge picks it up.
 
 ## 5. Google sign-in & Supabase (first time)
 
-1. Sign in with Google on the tracker.
+1. Sign in with Google on the tracker (GitHub Pages URL or via `start-grind.bat`).
 2. In [Supabase](https://supabase.com), run the SQL files from the repo:
    - `schema.sql` — games & profile
    - `auth-schema.sql` — auth policies
    - `groups-schema.sql` — squads (optional)
    - `groups-schema-fix.sql` — only if you see an "infinite recursion" policy error
 
-## 6. Start grind mode
+## 6. Daily use
 
-Double-click `start-grind.bat`. It opens:
+**On your gaming PC:** double-click `start-grind.bat` before you queue.
 
-| Service | URL / port |
-|---------|------------|
-| Tracker site | http://localhost:8080 |
+| What it does |
+|--------------|
+| Starts the RL stats bridge (auto-log from matches) |
+| Opens the tracker in your browser |
+| Keep the black window open while you play |
+
+**On phone / another device:** open your GitHub Pages bookmark, sign in — same stats, manual logging via the dock.
+
+| Service | Port |
+|---------|------|
+| Tracker (local) | http://localhost:8080 |
 | Stats bridge | http://127.0.0.1:49200 |
 | Rocket League API | TCP :49123 |
 
-Sign in, complete the setup wizard, then **▶ Start Session** before queueing.
-
 ## 7. After each game
 
-When a match ends:
+When a match ends (with bridge connected):
 
 1. **Auto-log** saves W/L, mode, G/A/S, and estimated MMR.
-2. The **post-match card** appears — **type your real MMR** from the ranked screen (required when estimated).
+2. The **post-match card** appears — **type your real MMR** from the ranked screen when estimated.
 3. Tap **quick tags** if something went wrong.
 4. **Undo log** if the game was logged by mistake.
-5. **Next game →** when done.
+
+**Without bridge:** use the dock manually — W/L, G/A/S, End MMR, LOG.
 
 **Dock toggles:**
-- **Auto-log** — save games automatically on match end
-- **🔔** — sound on auto-log (respects reduced-motion)
+- **Auto-log** — save games automatically on match end (needs bridge)
+- **🔔** — sound on auto-log
 
-**First session:** type your MMR in the dock bar once — auto-log uses it from then on.
+## 8. What's the same everywhere
 
-**Sessions persist across refresh** — your session #, timer, and live stats are saved locally per Google account.
+Once signed in, you get the **same app** on GitHub Pages and localhost:
 
-## 8. Features overview
+- Log games & edit match logs
+- Sessions, post-match card, squads, goals, reports
+- Data syncs via Supabase
 
-| Feature | Grind (localhost) | Glance (GitHub Pages) |
-|---------|-------------------|------------------------|
-| View stats & charts | ✅ | ✅ |
-| Log games / dock | ✅ | ❌ |
-| Auto-log from RL | ✅ | ❌ |
-| Post-match MMR confirm | ✅ | ❌ |
-| Session history tab | ✅ | ✅ view |
-| Match logs + CSV export | ✅ | ✅ view |
-| Reports / Focus / Squads | ✅ | ✅ view |
-| Create/join squads | ✅ localhost | view only |
-
-## 9. Ranked playlist detection
-
-The bridge reads playlist info from the Stats API when available (Ranked Duel/Doubles/Standard, etc.) and sets mode automatically. If playlist data isn't sent, it falls back to player count (1's / 2's / 3's).
+**Only difference:** auto-stats from Rocket League need `start-grind.bat` running on the PC where you're playing.
 
 ## Troubleshooting
 
@@ -94,16 +90,14 @@ The bridge reads playlist info from the Stats API when available (Ranked Duel/Do
 | Auto stats off | Run `start-grind.bat`, keep RL open, check BakkesMod Stats API |
 | Wrong player stats | Fix `RLNAME` in `start-grind.bat` and restart |
 | Port already in use | Close old terminal windows / restart the bat file |
-| Edits blocked on GitHub | Normal — logging only works on localhost |
-| Session resets to 1 | Update to latest `js/sessions.js` — sessions now persist in localStorage |
+| Can't save games | Sign in with Google first |
+| Session resets | Update to latest code — sessions persist in localStorage |
 | Policy / recursion error | Run `groups-schema-fix.sql` in Supabase |
-| MMR? badge stuck | Confirm MMR on the post-match card or in Match Logs |
 
-## Quick test checklist
+## Quick test
 
-- [ ] `start-grind.bat` opens http://localhost:8080
-- [ ] Bridge shows connected (green dot in dock)
-- [ ] Start session → play a game → post-match card appears
-- [ ] Save real MMR → badge clears
-- [ ] Refresh page → same session # and stats
-- [ ] End session → recap modal → next session number increments
+- [ ] Sign in on your bookmarked URL
+- [ ] `start-grind.bat` → bridge shows connected (green in dock)
+- [ ] Start session → play a game → post-match card
+- [ ] Refresh — same session # and stats
+- [ ] Open on phone — same games visible
