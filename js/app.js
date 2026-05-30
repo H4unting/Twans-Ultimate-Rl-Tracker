@@ -16,7 +16,10 @@ import {
   setQuickResult, setQuickMode,
 } from './quicklog.js';
 import { renderProfilePage } from './profile-ui.js';
-import { saveRlDisplayName, getRlDisplayName } from './rl-live.js';
+import {
+  initRlLive, stopRlLive, refreshLiveStatus,
+  saveRlDisplayName, getRlDisplayName,
+} from './rl-live.js';
 import { renderSetupWizard, refreshSetupWizard, onBridgeStatusChange, renderLogSetupNudge } from './setup-wizard.js';
 import { mmrChart, wlChart } from './charts.js';
 import { renderAnalytics } from './analytics.js';
@@ -105,9 +108,8 @@ async function bootApp() {
     console.error(e);
     setSyncStatus('error');
     showLoading(false);
-    showLoginScreen(false);
-    const msg = e?.message ?? 'Could not load your data';
-    showToast(msg.includes('infinite recursion') ? 'Database policy error — run groups-schema-fix.sql in Supabase' : msg, 'error');
+    showLoginScreen(true);
+    showToast(e?.message ?? 'Could not load your data', 'error');
   }
 }
 
@@ -668,8 +670,17 @@ async function init() {
     renderHomePage();
   });
   onAuthChange(async (session) => {
-    if (session) await bootApp();
-    else showLoggedOut();
+    if (session) {
+      try {
+        await bootApp();
+      } catch (e) {
+        console.error(e);
+        showLoading(false);
+        showToast(e?.message || 'Could not load after sign-in — try refreshing', 'error');
+      }
+    } else {
+      showLoggedOut();
+    }
   });
 
   try {
