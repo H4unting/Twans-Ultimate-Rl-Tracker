@@ -12,7 +12,7 @@ import { addGame, updateGame, deleteGame, getLastMMR, patchLastGame, undoLastGam
 import { startSession, endSession, closeSessionModal, closeSessionModalAndContinue, initSessionUI, refreshSessionUI, restoreSessionFromStorage, getLoggingSessionNum } from './sessions.js';
 import {
   initQuickLog, showQuickDock, hideQuickDock, getQuickLogPayload,
-  resetQuickAfterLog, loadPrefs, syncFormFromQuick, applyLiveStats, flashAutoLogged,
+  resetQuickAfterLog, loadPrefs, savePrefs, syncFormFromQuick, applyLiveStats, flashAutoLogged,
   setQuickResult, setQuickMode,
 } from './quicklog.js';
 import { renderProfilePage } from './profile-ui.js';
