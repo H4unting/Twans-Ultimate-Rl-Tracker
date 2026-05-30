@@ -8,7 +8,7 @@ import { initAuth, signInWithGoogle, signOut, onAuthChange, getAuthUser } from '
 import { loadUserData, saveSettings, claimLegacyData, createGroup, joinGroup, leaveGroup, loadUserGroups } from './supabase.js';
 import { applyFilters, DEFAULT_FILTERS } from './filters.js';
 import { calcStats } from './utils.js';
-import { addGame, updateGame, deleteGame, getLastMMR } from './matches.js';
+import { addGame, updateGame, deleteGame, getLastMMR, patchLastGame, undoLastGame } from './matches.js';
 import { startSession, endSession, closeSessionModal, closeSessionModalAndContinue, initSessionUI, refreshSessionUI } from './sessions.js';
 import {
   initQuickLog, showQuickDock, hideQuickDock, getQuickLogPayload,
@@ -21,6 +21,7 @@ import { mmrChart, wlChart, sessionChart } from './charts.js';
 import { renderAnalytics } from './analytics.js';
 import { renderReportsPage } from './reports-ui.js';
 import { renderFocusPage } from './focus.js';
+import { initPostMatch, showPostMatchCard } from './post-match.js';
 import { renderGroupsPage, resetGroupsUI } from './groups.js';
 import {
   showToast, setSyncUI, renderStats, renderLog, renderPlaylistTabs, renderFilterBar,
@@ -320,8 +321,6 @@ async function handleAutoLog(match) {
   if (!ok) return false;
 
   flashAutoLogged();
-  const emoji = match.result === 'W' ? '🔥' : '💀';
-  showToast(`${emoji} ${match.result === 'W' ? 'WIN' : 'LOSS'} auto-logged · G:${match.goals} A:${match.assists} S:${match.saves} · ${delta >= 0 ? '+' : ''}${delta} MMR`);
   refreshLiveStatus();
   return true;
 }
@@ -366,7 +365,7 @@ async function submitGameLog(source = 'form') {
       notes: document.getElementById('f-notes').value,
     };
 
-    await addGame({
+    const game = await addGame({
       ...payload,
       notes: [payload.notes, state.ui.autoLogNote].filter(Boolean).join(' · ') || payload.notes,
     }, state.ui.selectedTags, () => {
@@ -382,6 +381,9 @@ async function submitGameLog(source = 'form') {
       resetQuickAfterLog();
     });
     renderAll();
+    if (isGrindHost() && game) {
+      showPostMatchCard(game, { estimated: (game.notes || '').includes('MMR estimated') });
+    }
     return true;
   } catch {
     showToast('Failed to save', 'error');
@@ -537,6 +539,25 @@ async function init() {
     setSelectedTags: tags => { state.ui.selectedTags = tags; },
     onAutoLogToggle: refreshLiveStatus,
   });
+  if (isGrindHost()) {
+    initPostMatch({
+      onConfirmMMR: async (mmr) => {
+        const game = await patchLastGame({ endMMR: mmr });
+        if (game) { renderAll(); return true; }
+        return false;
+      },
+      onTags: async (tags) => {
+        await patchLastGame({ tags });
+        renderAll();
+        return true;
+      },
+      onUndo: async () => {
+        const ok = await undoLastGame(true);
+        if (ok) renderAll();
+        return ok;
+      },
+    });
+  }
   onAuthChange(async (session) => {
     if (session) await bootApp();
     else showLoggedOut();

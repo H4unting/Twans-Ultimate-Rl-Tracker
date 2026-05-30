@@ -74,6 +74,43 @@ export async function updateGame(matchNum, formData, selectedTags) {
   await saveGames(games);
   setGames(games);
   showToast('Game updated!');
+  return games[idx];
+}
+
+export async function patchLastGame({ endMMR, tags, notes }) {
+  if (!requireGrindMode()) return null;
+  const games = JSON.parse(JSON.stringify(state.games));
+  if (!games.length) return null;
+  const idx = games.length - 1;
+  const g = { ...games[idx] };
+
+  if (endMMR != null) {
+    g.endMMR = endMMR;
+    g.mmrDiff = endMMR - g.startMMR;
+    g.notes = (g.notes || '').replace(/MMR estimated/g, '').replace(/\s·\s·/g, ' · ').trim();
+  }
+  if (tags) g.tags = [...tags];
+  if (notes !== undefined) g.notes = notes;
+
+  games[idx] = normalizeGame(g);
+  await saveGames(games);
+  setGames(games);
+  refreshSessionUI();
+  return games[idx];
+}
+
+export async function undoLastGame(skipConfirm = false) {
+  if (!requireGrindMode()) return false;
+  if (!state.games.length) return false;
+  if (!skipConfirm && !confirm('Remove the last logged game?')) return false;
+
+  const games = state.games.slice(0, -1);
+  games.forEach((g, i) => { g.match = i + 1; });
+  await saveGames(games);
+  setGames(games);
+  refreshSessionUI();
+  showToast('Last game removed');
+  return true;
 }
 
 export async function deleteGame(matchNum) {

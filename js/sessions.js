@@ -181,6 +181,12 @@ function showSessionModal(sessionNum, sg, elapsed) {
     if (g.result === 'W') bestStreak = Math.max(bestStreak, cur);
   });
 
+  let lossStreak = 0;
+  for (let i = sg.length - 1; i >= 0; i--) {
+    if (sg[i].result === 'L') lossStreak++;
+    else break;
+  }
+
   const display = getUserDisplay(getAuthUser());
   document.getElementById('modal-title').textContent = `Session ${sessionNum} Complete`;
   document.getElementById('modal-sub').textContent = `${display.name} · ${sg[0].date}${elapsed ? ` · ${formatDuration(elapsed)}` : ''}`;
@@ -192,6 +198,28 @@ function showSessionModal(sessionNum, sg, elapsed) {
     <div class="modal-stat"><div class="val" style="color:#e65c00">${bestStreak}</div><div class="lbl">Best Win Streak</div></div>
     <div class="modal-stat"><div class="val" style="color:#a855f7">${elapsed ? formatDuration(elapsed) : '—'}</div><div class="lbl">Duration</div></div>
     <div class="modal-stat" style="grid-column:1/-1">${rankBadgeHTML(endMMR, 22, sg[0].mode)}</div>`;
+
+  document.getElementById('modal-games-row').innerHTML = sg.length
+    ? `<span class="modal-games-label">Session flow</span><div class="modal-games-pips">${sg.map(g =>
+        `<span class="modal-game-pip ${g.result === 'W' ? 'win' : 'loss'}" title="Match ${g.match}: ${g.result} · ${g.mmrDiff >= 0 ? '+' : ''}${g.mmrDiff}">${g.result}</span>`
+      ).join('')}</div>`
+    : '';
+
+  const coachNotes = [];
+  if (lossStreak >= 3) {
+    coachNotes.push(`<div class="modal-coach-warn">💀 ${lossStreak} losses in a row — take a short break or review your tags before queueing again.</div>`);
+  }
+  if (wr < 40 && sg.length >= 5) {
+    coachNotes.push(`<div class="modal-coach-tip">Win rate ${wr}% this session — check Match Logs for recurring mistake tags.</div>`);
+  }
+  if (mmrGain < 0 && sg.length >= 3) {
+    coachNotes.push(`<div class="modal-coach-tip">Down ${Math.abs(mmrGain)} MMR — one focused block beats a tilt queue.</div>`);
+  }
+  if (bestStreak >= 3) {
+    coachNotes.push(`<div class="modal-coach-good">🔥 ${bestStreak}-game win streak — ride the momentum, don't force extra games.</div>`);
+  }
+  document.getElementById('modal-coach').innerHTML = coachNotes.join('');
+
   document.getElementById('modal-top-tag').innerHTML = topTag
     ? `🏷️ Top mistake this session: <span>${topTag[0]}</span> <span style="color:#555">(${topTag[1]}x)</span>`
     : `<span style="color:#555">No mistakes tagged this session 🎉</span>`;
