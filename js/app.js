@@ -4,7 +4,7 @@
 
 import { applyAppMode } from './env.js';
 import { state, subscribe, setGames, setSyncStatus, setGoals, setProfile, getUserDisplay } from './state.js';
-import { initAuth, signInWithGoogle, signOut, onAuthChange, getAuthUser } from './auth.js';
+import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, sendPasswordReset, signOut, onAuthChange, getAuthUser } from './auth.js';
 import { loadUserData, saveSettings, claimLegacyData, createGroup, joinGroup, leaveGroup, loadUserGroups, saveGames, saveProfile } from './supabase.js';
 import { applyFilters, DEFAULT_FILTERS } from './filters.js';
 import { calcStats, estimateMMRDelta, repairPlaylistMMRChain } from './utils.js';
@@ -122,21 +122,129 @@ function showLoggedOut() {
   showLoginScreen(true);
   hideQuickDock();
   stopRlLive();
+  wireLoginScreen();
+  resetLoginForm();
+}
+
+let loginMode = 'signin';
+
+function resetLoginForm() {
+  loginMode = 'signin';
+  updateLoginModeUI();
+  const form = document.getElementById('email-login-form');
+  form?.reset();
+  setLoginBusy(false);
+  document.getElementById('google-signin-btn')?.removeAttribute('disabled');
+}
+
+function updateLoginModeUI() {
+  const btn = document.getElementById('email-auth-btn');
+  const toggle = document.getElementById('login-mode-toggle');
+  const password = document.getElementById('login-password');
+  if (btn) btn.textContent = loginMode === 'signup' ? 'Create account' : 'Sign in with email';
+  if (toggle) {
+    toggle.textContent = loginMode === 'signup'
+      ? 'Already have an account? Sign in'
+      : 'Need an account? Create one';
+  }
+  if (password) {
+    password.autocomplete = loginMode === 'signup' ? 'new-password' : 'current-password';
+    password.placeholder = loginMode === 'signup' ? 'Choose a password (6+ chars)' : 'Your password';
+  }
+}
+
+function setLoginBusy(busy) {
+  document.getElementById('email-auth-btn')?.toggleAttribute('disabled', busy);
+  document.getElementById('google-signin-btn')?.toggleAttribute('disabled', busy);
+  document.getElementById('login-email')?.toggleAttribute('disabled', busy);
+  document.getElementById('login-password')?.toggleAttribute('disabled', busy);
+}
+
+function wireLoginScreen() {
   wireGoogleSignIn();
-  const btn = document.getElementById('google-signin-btn');
-  if (btn) btn.disabled = false;
+  wireEmailLogin();
 }
 
 async function handleGoogleSignIn() {
-  const btn = document.getElementById('google-signin-btn');
-  if (btn) btn.disabled = true;
+  setLoginBusy(true);
   try {
     await signInWithGoogle();
   } catch (e) {
     console.error(e);
     showToast(e?.message || 'Sign in failed', 'error');
-    if (btn) btn.disabled = false;
+    setLoginBusy(false);
   }
+}
+
+async function handleEmailAuthSubmit(e) {
+  e.preventDefault();
+  const email = document.getElementById('login-email')?.value.trim() ?? '';
+  const password = document.getElementById('login-password')?.value ?? '';
+
+  if (!email || password.length < 6) {
+    showToast('Enter a valid email and password (6+ characters)', 'error');
+    return;
+  }
+
+  setLoginBusy(true);
+  try {
+    if (loginMode === 'signup') {
+      const { session } = await signUpWithEmail(email, password);
+      if (session) {
+        showToast('Account created — welcome!');
+      } else {
+        showToast('Check your email to confirm your account, then sign in.');
+        loginMode = 'signin';
+        updateLoginModeUI();
+      }
+    } else {
+      await signInWithEmail(email, password);
+      showToast('Signed in!');
+    }
+  } catch (err) {
+    console.error(err);
+    const msg = err?.message || 'Email sign-in failed';
+    showToast(
+      msg.includes('Invalid login credentials') ? 'Wrong email or password' : msg,
+      'error',
+    );
+  } finally {
+    setLoginBusy(false);
+  }
+}
+
+async function handlePasswordReset() {
+  const email = document.getElementById('login-email')?.value.trim() ?? '';
+  if (!email) {
+    showToast('Enter your email above first', 'error');
+    document.getElementById('login-email')?.focus();
+    return;
+  }
+  setLoginBusy(true);
+  try {
+    await sendPasswordReset(email);
+    showToast('Password reset email sent — check your inbox');
+  } catch (err) {
+    console.error(err);
+    showToast(err?.message || 'Could not send reset email', 'error');
+  } finally {
+    setLoginBusy(false);
+  }
+}
+
+function wireEmailLogin() {
+  const form = document.getElementById('email-login-form');
+  if (!form || form.dataset.wired) return;
+  form.dataset.wired = '1';
+  form.addEventListener('submit', handleEmailAuthSubmit);
+
+  document.getElementById('login-mode-toggle')?.addEventListener('click', () => {
+    loginMode = loginMode === 'signin' ? 'signup' : 'signin';
+    updateLoginModeUI();
+  });
+
+  document.getElementById('login-forgot-btn')?.addEventListener('click', handlePasswordReset);
+  updateLoginModeUI();
 }
 
 function getGroupsCtx() {
@@ -621,7 +729,7 @@ function wireGoogleSignIn() {
 
 async function init() {
   applyAppMode();
-  wireGoogleSignIn();
+  wireLoginScreen();
   showLoggedOut();
 
   const dateEl = document.getElementById('f-date');

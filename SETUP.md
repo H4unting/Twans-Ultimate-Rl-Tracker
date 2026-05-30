@@ -1,6 +1,6 @@
 # Twans Ultimate Tracker — Setup
 
-One app everywhere. Sign in with Google — log games, view stats, and manage squads from **any device**. Auto-log from Rocket League when `start-grind.bat` is running on your gaming PC.
+One app everywhere. Sign in with **Google or email** — log games, view stats, and manage squads from **any device**. Auto-log from Rocket League when `start-grind.bat` is running on your gaming PC.
 
 ## 1. Download the full repo
 
@@ -29,10 +29,15 @@ Open `start-grind.bat` and set `RLNAME` to match your Rocket League display name
 
 The in-app setup wizard also saves your name — **restart `start-grind.bat`** after changing it so the bridge picks it up.
 
-## 5. Google sign-in & Supabase (first time)
+## 5. Sign-in & Supabase (first time)
 
-1. Sign in with Google on the tracker (GitHub Pages URL or via `start-grind.bat`).
-2. In [Supabase](https://supabase.com), run the SQL files from the repo:
+1. Sign in with **Google** or **email + password** on the tracker.
+2. In [Supabase](https://supabase.com) → **Authentication** → **Providers**:
+   - Enable **Google** (OAuth client ID/secret)
+   - Enable **Email** (confirm email on or off — if on, users must click the link before first sign-in)
+3. Under **Authentication** → **URL Configuration**, add your site to **Redirect URLs**, e.g.  
+   `https://h4unting.github.io/Twans-Ultimate-Rl-Tracker/`
+4. Run the SQL files from the repo:
    - `schema.sql` — games & profile
    - `auth-schema.sql` — auth policies
    - `groups-schema.sql` — squads (optional)

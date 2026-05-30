@@ -72,6 +72,32 @@ export async function signInWithGoogle() {
   throw new Error('Google sign-in did not return a redirect URL. Check Supabase Google provider settings.');
 }
 
+export async function signInWithEmail(email, password) {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: email.trim(),
+    password,
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function signUpWithEmail(email, password) {
+  const { data, error } = await supabase.auth.signUp({
+    email: email.trim(),
+    password,
+    options: { emailRedirectTo: getRedirectUrl() },
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function sendPasswordReset(email) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+    emailRedirectTo: getRedirectUrl(),
+  });
+  if (error) throw error;
+}
+
 export async function signOut() {
   const { error } = await supabase.auth.signOut();
   if (error) throw error;

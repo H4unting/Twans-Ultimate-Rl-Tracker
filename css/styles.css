@@ -1283,7 +1283,70 @@ body:not(.logged-out) #login-screen { display: none !important; }
   text-align: center;
 }
 .login-logo { font-size: 24px; margin-bottom: 12px; max-width: 280px; margin-left: auto; margin-right: auto; }
-.login-tagline { color: var(--muted); font-size: 14px; line-height: 1.6; margin-bottom: 28px; }
+.login-tagline { color: var(--muted); font-size: 14px; line-height: 1.6; margin-bottom: 22px; }
+.login-email-form {
+  text-align: left;
+  margin-bottom: 12px;
+}
+.login-field { margin-bottom: 12px; }
+.login-field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.login-field input {
+  width: 100%;
+  padding: 11px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+}
+.login-field input:focus {
+  outline: none;
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px #00e5ff22;
+}
+.login-submit-btn {
+  width: 100%;
+  margin-top: 4px;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.login-auth-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-bottom: 18px;
+}
+.login-auth-links .btn-link {
+  font-size: 12px;
+  padding: 0;
+}
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 18px;
+  color: var(--dim);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.login-divider::before,
+.login-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
 .btn-google {
   display: inline-flex; align-items: center; justify-content: center; gap: 10px;
   width: 100%; padding: 12px 20px; border-radius: 8px; border: 1px solid var(--border);
