@@ -12,10 +12,20 @@ let quickTags = [];
 
 export function loadPrefs() {
   try {
-    return { lastMode: "2's", autoLog: true, ...JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}') };
+    return { lastMode: "2's", autoLog: true, autoLogSound: true, ...JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}') };
   } catch {
-    return { lastMode: "2's", autoLog: true };
+    return { lastMode: "2's", autoLog: true, autoLogSound: true };
   }
+}
+
+export function isAutoLogSoundEnabled() {
+  return loadPrefs().autoLogSound !== false;
+}
+
+export function setAutoLogSoundEnabled(on) {
+  savePrefs({ autoLogSound: !!on });
+  document.getElementById('auto-log-sound-toggle')?.classList.toggle('active', !!on);
+  document.getElementById('auto-log-sound-toggle')?.setAttribute('aria-pressed', on ? 'true' : 'false');
 }
 
 export function isAutoLogEnabled() {
@@ -169,12 +179,33 @@ export function setQuickResult(r) {
 function applyPrefs() {
   setQuickMode(prefs.lastMode ?? "2's");
   setAutoLogEnabled(isAutoLogEnabled());
+  setAutoLogSoundEnabled(isAutoLogSoundEnabled());
+}
+
+export function playAutoLogSound() {
+  if (!isAutoLogSoundEnabled()) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 880;
+    gain.gain.value = 0.06;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+    osc.stop(ctx.currentTime + 0.2);
+    setTimeout(() => ctx.close(), 300);
+  } catch { /* autoplay blocked */ }
 }
 
 export function flashAutoLogged() {
   const inner = document.querySelector('.quick-dock-inner');
   if (!inner) return;
   inner.classList.add('auto-logged');
+  playAutoLogSound();
   setTimeout(() => inner.classList.remove('auto-logged'), 1400);
 }
 
@@ -220,6 +251,12 @@ function wireDock() {
     setAutoLogEnabled(!isAutoLogEnabled());
     showToast(isAutoLogEnabled() ? 'Auto-log ON — games save when a match ends' : 'Auto-log OFF — manual LOG');
     callbacks.onAutoLogToggle?.();
+  });
+
+  document.getElementById('auto-log-sound-toggle')?.addEventListener('click', () => {
+    setAutoLogSoundEnabled(!isAutoLogSoundEnabled());
+    showToast(isAutoLogSoundEnabled() ? 'Auto-log sound ON' : 'Auto-log sound OFF');
+    if (isAutoLogSoundEnabled()) playAutoLogSound();
   });
 
   document.querySelectorAll('#quick-mode-pills button').forEach(btn => {

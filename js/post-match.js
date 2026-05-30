@@ -7,6 +7,8 @@ const HOT_TAGS = ['Tilt', 'Autopilot', 'Bad Positioning', 'Overcommitting', 'Giv
 let dismissTimer = null;
 let currentMatch = null;
 let selectedTags = [];
+let needsMmrConfirm = false;
+let mmrConfirmed = false;
 let callbacks = {};
 let wired = false;
 
@@ -24,15 +26,49 @@ export function showPostMatchCard(game, { estimated = false } = {}) {
 
   currentMatch = game.match;
   selectedTags = [...(game.tags || [])];
+  needsMmrConfirm = estimated;
+  mmrConfirmed = !estimated;
 
+  renderCard(el, game, estimated);
+  el.classList.remove('hidden');
+  document.getElementById('quick-dock')?.classList.add('has-post-match');
+  document.body.classList.add('post-match-open');
+  wireCardEvents();
+  clearTimeout(dismissTimer);
+  if (!needsMmrConfirm) {
+    dismissTimer = setTimeout(hidePostMatchCard, 60000);
+  }
+  setTimeout(() => document.getElementById('pm-mmr')?.focus(), 120);
+  callbacks.onOpen?.(needsMmrConfirm);
+}
+
+export function hidePostMatchCard(force = false) {
+  if (needsMmrConfirm && !mmrConfirmed && !force) {
+    showToast('Confirm MMR from ranked screen first', 'error');
+    document.getElementById('pm-mmr')?.focus();
+    pulseMmrSection();
+    return;
+  }
+  document.getElementById('post-match-card')?.classList.add('hidden');
+  document.getElementById('quick-dock')?.classList.remove('has-post-match');
+  document.body.classList.remove('post-match-open');
+  clearTimeout(dismissTimer);
+  currentMatch = null;
+  selectedTags = [];
+  needsMmrConfirm = false;
+  mmrConfirmed = false;
+  callbacks.onClose?.();
+}
+
+function renderCard(el, game, estimated) {
   const win = game.result === 'W';
   const delta = game.mmrDiff ?? 0;
   el.innerHTML = `
-    <div class="post-match-inner ${win ? 'pm-win' : 'pm-loss'}">
+    <div class="post-match-inner ${win ? 'pm-win' : 'pm-loss'}${estimated ? ' pm-needs-mmr' : ''}">
       <div class="post-match-top">
         <div class="post-match-hero">
           <span class="post-match-badge ${win ? 'win' : 'loss'}">${win ? 'WIN' : 'LOSS'}</span>
-          <span class="post-match-title">Game ${game.match} · ${game.mode}</span>
+          <span class="post-match-title">Game ${game.match} · ${game.mode}${game.playlist ? ` · ${game.playlist}` : ''}</span>
         </div>
         <div class="post-match-delta ${delta >= 0 ? 'pos' : 'neg'}${estimated ? ' estimated' : ''}">
           ${estimated ? '~' : ''}${delta >= 0 ? '+' : ''}${delta}
@@ -47,9 +83,9 @@ export function showPostMatchCard(game, { estimated = false } = {}) {
         <div class="pm-stat"><span class="pm-stat-val">${game.saves}</span><span class="pm-stat-lbl">Saves</span></div>
       </div>
 
-      <div class="post-match-section post-match-mmr-section">
+      <div class="post-match-section post-match-mmr-section" id="pm-mmr-section">
         <div class="post-match-section-head">
-          <span>Confirm MMR</span>
+          <span>${estimated ? 'Required — confirm MMR' : 'Confirm MMR'}</span>
           <span class="post-match-section-sub">from ranked screen</span>
         </div>
         <div class="post-match-mmr-input-row">
@@ -58,7 +94,7 @@ export function showPostMatchCard(game, { estimated = false } = {}) {
             aria-label="MMR from ranked screen">
           <button type="button" class="btn btn-primary" id="pm-mmr-save">Save</button>
         </div>
-        ${estimated ? '<p class="post-match-mmr-hint">Estimated from recent games — type the real number if it differs.</p>' : ''}
+        ${estimated ? '<p class="post-match-mmr-hint">Auto-log estimated MMR — type the real number before your next game.</p>' : ''}
       </div>
 
       <div class="post-match-section">
@@ -68,26 +104,15 @@ export function showPostMatchCard(game, { estimated = false } = {}) {
 
       <div class="post-match-foot">
         <button type="button" class="btn btn-cancel" id="pm-undo">Undo log</button>
-        <button type="button" class="btn btn-primary" id="pm-next">Next game →</button>
+        <button type="button" class="btn btn-primary" id="pm-next"${estimated && !mmrConfirmed ? ' disabled title="Save MMR first"' : ''}>Next game →</button>
       </div>
     </div>`;
-
-  el.classList.remove('hidden');
-  document.getElementById('quick-dock')?.classList.add('has-post-match');
-  document.body.classList.add('post-match-open');
-  wireCardEvents();
-  clearTimeout(dismissTimer);
-  dismissTimer = setTimeout(hidePostMatchCard, 60000);
-  setTimeout(() => document.getElementById('pm-mmr')?.focus(), 120);
 }
 
-export function hidePostMatchCard() {
-  document.getElementById('post-match-card')?.classList.add('hidden');
-  document.getElementById('quick-dock')?.classList.remove('has-post-match');
-  document.body.classList.remove('post-match-open');
-  clearTimeout(dismissTimer);
-  currentMatch = null;
-  selectedTags = [];
+function pulseMmrSection() {
+  const sec = document.getElementById('pm-mmr-section');
+  sec?.classList.add('pm-mmr-pulse');
+  setTimeout(() => sec?.classList.remove('pm-mmr-pulse'), 600);
 }
 
 function renderTagButtons() {
@@ -106,12 +131,12 @@ function wirePostMatch() {
 }
 
 function wireCardEvents() {
-  document.getElementById('pm-dismiss')?.addEventListener('click', hidePostMatchCard);
-  document.getElementById('pm-next')?.addEventListener('click', hidePostMatchCard);
+  document.getElementById('pm-dismiss')?.addEventListener('click', () => hidePostMatchCard());
+  document.getElementById('pm-next')?.addEventListener('click', () => hidePostMatchCard());
 
   document.getElementById('pm-undo')?.addEventListener('click', async () => {
     const ok = await callbacks.onUndo?.();
-    if (ok) hidePostMatchCard();
+    if (ok) hidePostMatchCard(true);
   });
 
   document.getElementById('pm-mmr-save')?.addEventListener('click', () => saveMMR());
@@ -137,11 +162,15 @@ async function saveMMR() {
   const val = parseInt(document.getElementById('pm-mmr')?.value, 10);
   if (!val || Number.isNaN(val)) {
     showToast('Enter your MMR from the ranked screen', 'error');
+    pulseMmrSection();
     return;
   }
   const ok = await callbacks.onConfirmMMR?.(val);
   if (ok) {
+    mmrConfirmed = true;
+    needsMmrConfirm = false;
     showToast(`MMR saved — ${val}`);
-    hidePostMatchCard();
+    document.getElementById('pm-next')?.removeAttribute('disabled');
+    hidePostMatchCard(true);
   }
 }

@@ -23,6 +23,8 @@ import { renderReportsPage } from './reports-ui.js';
 import { renderFocusPage } from './focus.js';
 import { initPostMatch, showPostMatchCard } from './post-match.js';
 import { renderGroupsPage, resetGroupsUI } from './groups.js';
+import { renderSessionsPage } from './sessions-ui.js';
+import { exportGamesCSV } from './export.js';
 import {
   showToast, setSyncUI, renderStats, renderLog, renderPlaylistTabs, renderFilterBar,
   showPage, renderTagChips, showLoading, showLoginScreen, renderAuthBar,
@@ -198,6 +200,7 @@ function renderAll() {
   renderReportsPageContent();
   renderFocusPage(games, state.goals, display);
   renderGroupsPage(getGroupsCtx());
+  renderSessionsPageContent();
 
   refreshSessionUI();
   wireLogTableActions();
@@ -222,6 +225,15 @@ function renderMatchLogs() {
   });
   renderLog('matchlogs-log', getMatchLogsGames(), 0, isGrindHost());
   wireLogTableActions();
+}
+
+function renderSessionsPageContent() {
+  renderSessionsPage(state.games, getDisplay().name, {
+    onViewSession: sessionNum => {
+      state.filters = { ...state.filters, session: String(sessionNum) };
+      navigate('matchlogs', document.querySelector('.tab[data-page="matchlogs"]'));
+    },
+  });
 }
 
 function renderReportsPageContent() {
@@ -258,6 +270,7 @@ function navigate(pageId, btn) {
   if (pageId === 'reports') renderReportsPageContent();
   if (pageId === 'focus') renderFocusPage(state.games, state.goals, getDisplay());
   if (pageId === 'group') renderGroupsPage(getGroupsCtx());
+  if (pageId === 'sessions') renderSessionsPageContent();
   if (pageId === 'log' && isGrindHost()) refreshSetupWizard(getDisplay().name);
 }
 
@@ -314,7 +327,10 @@ async function handleAutoLog(match) {
   if (fStart) fStart.value = startMMR;
   if (qEnd) qEnd.value = endMMR;
 
-  state.ui.autoLogNote = recentGamesHaveMMR() ? '' : 'MMR estimated';
+  state.ui.autoLogNote = [
+    !recentGamesHaveMMR() ? 'MMR estimated' : '',
+    match.playlist ? (match.isRanked ? `Ranked · ${match.playlist}` : match.playlist) : '',
+  ].filter(Boolean).join(' · ');
 
   if (!state.session.active) startSession();
 
@@ -530,6 +546,10 @@ async function init() {
   document.getElementById('dash-view-all-logs')?.addEventListener('click', () => {
     navigate('matchlogs', document.querySelector('.tab[data-page="matchlogs"]'));
   });
+  document.getElementById('matchlogs-export-btn')?.addEventListener('click', () => {
+    exportGamesCSV(getMatchLogsGames(), getDisplay().name);
+    showToast('CSV downloaded');
+  });
   wireLogForm();
   wireEditModal();
   initSessionUI();
@@ -557,6 +577,8 @@ async function init() {
         if (ok) renderAll();
         return ok;
       },
+      onOpen: () => refreshSessionUI(),
+      onClose: () => refreshSessionUI(),
     });
   }
   onAuthChange(async (session) => {

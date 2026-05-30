@@ -1,6 +1,7 @@
 /** Grind Squads — create, join, coach + duo stat views */
 
 import { calcStats } from './utils.js';
+import { buildWeeklyReport } from './reports.js';
 import { getPerformanceInsights } from './insights.js';
 import { rankBadgeHTML } from './ranks.js';
 import { loadGroupMembers, loadMemberGames } from './supabase.js';
@@ -76,6 +77,42 @@ function insightsHTML(games) {
     <h4>Coach Notes</h4>
     ${items.map(i => `<div class="coach-action coach-action-${i.type}">${i.text}</div>`).join('')}
   </div>`;
+}
+
+async function renderWeeklySnapshot(members, userId) {
+  const grinders = members.filter(m => m.role !== 'coach');
+  if (!grinders.length) return '';
+
+  const rows = await Promise.all(grinders.map(async m => {
+    if (!ui.gamesCache[m.user_id]) {
+      ui.gamesCache[m.user_id] = await loadMemberGames(m.user_id);
+    }
+    const week = buildWeeklyReport(ui.gamesCache[m.user_id], 0);
+    return { member: m, week };
+  }));
+
+  const cards = rows.map(({ member, week }) => {
+    if (week.empty) {
+      return `<div class="group-week-card">
+        ${avatarHTML(member, 24)}
+        <span class="group-week-name">${member.display_name}</span>
+        <span class="group-week-empty">No games this week</span>
+      </div>`;
+    }
+    const wrClass = week.winRate >= 50 ? 'green' : 'red';
+    return `<div class="group-week-card">
+      ${avatarHTML(member, 24)}
+      <span class="group-week-name">${member.display_name}</span>
+      <span class="group-week-stat">${week.games}g · <span class="${wrClass}">${week.winRate}%</span></span>
+      <span class="group-week-stat ${week.mmrGain >= 0 ? 'green' : 'red'}">${week.mmrGain >= 0 ? '+' : ''}${week.mmrGain} MMR</span>
+    </div>`;
+  }).join('');
+
+  return `
+    <div class="group-weekly-snapshot coach-player-card">
+      <h4 class="group-section-label">This week · ${rows[0]?.week?.label ?? 'Squad snapshot'}</h4>
+      <div class="group-week-grid">${cards}</div>
+    </div>`;
 }
 
 async function loadMemberDetail(groupId, member, myRole) {
@@ -172,7 +209,7 @@ function renderSquadList(groups, userId) {
   }).join('');
 }
 
-function renderSquadDetail(group, members, myRole, userId, memberDetailHTML) {
+function renderSquadDetail(group, members, myRole, userId, memberDetailHTML, weeklyHTML = '') {
   const id = group.id ?? group.group_id;
   const rosterHTML = members.map(m => {
     const isSelf = m.user_id === userId;
@@ -199,10 +236,12 @@ function renderSquadDetail(group, members, myRole, userId, memberDetailHTML) {
             <span class="group-invite-label">Invite code</span>
             <code class="group-code-lg">${group.invite_code}</code>
             <button class="btn-copy" type="button" data-copy-code="${group.invite_code}">Copy code</button>
+            <button class="btn-copy btn-share" type="button" data-share-code="${group.invite_code}" data-share-name="${group.name}">Share invite</button>
           </div>
         </div>
         ${isGrindHost() ? `<button class="btn btn-cancel btn-sm group-leave-btn" type="button" id="group-leave-btn" data-group-id="${id}">Leave squad</button>` : ''}
       </div>
+      ${weeklyHTML}
       <div class="group-detail-grid">
         <div class="group-roster coach-player-card">
           <h4 class="group-section-label">Roster</h4>
@@ -292,7 +331,8 @@ async function renderDetail(detailWrap, groups, userId, { onLeave, onRefresh }) 
     }
   }
 
-  detailWrap.innerHTML = renderSquadDetail(group, members, group.role, userId, memberDetailHTML);
+  const weeklyHTML = await renderWeeklySnapshot(members, userId);
+  detailWrap.innerHTML = renderSquadDetail(group, members, group.role, userId, memberDetailHTML, weeklyHTML);
   wireDetail(detailWrap, group, members, groups, userId, { onLeave, onRefresh });
 }
 
@@ -304,6 +344,29 @@ function wireDetail(detailWrap, group, members, groups, userId, { onLeave, onRef
       showToast('Invite code copied!');
     } catch {
       showToast('Copy failed — code: ' + code, 'error');
+    }
+  });
+
+  detailWrap.querySelector('[data-share-code]')?.addEventListener('click', async e => {
+    const code = e.target.dataset.shareCode;
+    const name = e.target.dataset.shareName;
+    const text = `Join my RL Grind Squad "${name}" — invite code: ${code}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'RL Grind Squad invite', text });
+      } else {
+        await navigator.clipboard.writeText(text);
+        showToast('Invite message copied!');
+      }
+    } catch (err) {
+      if (err?.name !== 'AbortError') {
+        try {
+          await navigator.clipboard.writeText(text);
+          showToast('Invite message copied!');
+        } catch {
+          showToast(text, 'error');
+        }
+      }
     }
   });
 

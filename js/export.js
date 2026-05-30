@@ -104,3 +104,13 @@ export function exportAllPlayersCSV(data) {
     if (games?.length) exportGamesCSV(games, getPlayerMeta(id).name);
   });
 }
+
+export function exportSessionsCSV(sessions, playerName) {
+  const headers = ['Session', 'First Date', 'Last Date', 'Games', 'Wins', 'Losses', 'Win Rate', 'MMR Change', 'End MMR', 'Top Tag'];
+  const rows = sessions.map(s => [
+    s.sessionNum, s.firstDate, s.lastDate, s.games, s.wins, s.losses,
+    `${s.winRate}%`, s.mmrGain, s.endMMR || '', s.topTag ? s.topTag[0] : '',
+  ].map(csvEscape).join(','));
+  const csv = [headers.join(','), ...rows].join('\n');
+  downloadBlob(`${playerName}-sessions.csv`, csv, 'text/csv');
+}

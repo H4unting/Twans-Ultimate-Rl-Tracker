@@ -5,8 +5,9 @@ import { getSessionStats, formatDuration } from './utils.js';
 import { getAuthUser } from './auth.js';
 import { rankBadgeHTML } from './ranks.js';
 import { showToast } from './ui.js';
-import { getLastMMR } from './matches.js';
+import { getLastMMR, lastGameNeedsMmrConfirm } from './matches.js';
 import { isGrindHost } from './env.js';
+import { detectTilt } from './insights.js';
 
 const SESSION_STORE = 'rl-grind-session';
 
@@ -198,7 +199,21 @@ function tickSessionTimer() {
 function getLiveSessionStats() {
   const sessionNum = getLoggingSessionNum();
   const sessionGames = state.games.filter(g => parseInt(g.session, 10) === sessionNum);
-  return { ...getSessionStats(sessionGames), sessionNum };
+  return { ...getSessionStats(sessionGames), sessionNum, sessionGames };
+}
+
+function renderTiltNudge(sessionGames) {
+  const tilt = detectTilt(sessionGames, 6);
+  if (!tilt.active || tilt.lossStreak < 3) return '';
+  return `
+    <div class="session-tilt-nudge" role="status">
+      💀 ${tilt.lossStreak} losses in a row — take 5 min, review tags, then queue again.
+    </div>`;
+}
+
+function renderMmrBadge() {
+  if (!lastGameNeedsMmrConfirm()) return '';
+  return '<span class="session-mmr-badge" title="Last game MMR not confirmed">MMR?</span>';
 }
 
 export function updateSessionBar() {
@@ -238,10 +253,14 @@ export function updateSessionBar() {
   if (stats) {
     const wlClass = live.wins > live.losses ? 'pos' : live.losses > live.wins ? 'neg' : 'neutral';
     stats.innerHTML = `
-      <span class="slive-item time">⏱ <span class="slv" id="session-timer">${formatDuration(elapsed)}</span></span>
-      <span class="slive-item neutral">🎮 <span class="slv">${live.games} games</span></span>
-      <span class="slive-item ${wlClass}">W/L: <span class="slv">${live.wins}/${live.losses}</span></span>
-      <span class="slive-item ${live.mmrGain >= 0 ? 'pos' : 'neg'}">MMR: <span class="slv">${live.mmrGain >= 0 ? '+' : ''}${live.mmrGain}</span></span>`;
+      ${renderTiltNudge(live.sessionGames)}
+      <div class="session-live-metrics">
+        <span class="slive-item time">⏱ <span class="slv" id="session-timer">${formatDuration(elapsed)}</span></span>
+        <span class="slive-item neutral">🎮 <span class="slv">${live.games} games</span></span>
+        <span class="slive-item ${wlClass}">W/L: <span class="slv">${live.wins}/${live.losses}</span></span>
+        <span class="slive-item ${live.mmrGain >= 0 ? 'pos' : 'neg'}">MMR: <span class="slv">${live.mmrGain >= 0 ? '+' : ''}${live.mmrGain}</span></span>
+        ${renderMmrBadge()}
+      </div>`;
   }
   if (startBtn) {
     startBtn.className = 'session-btn end';

@@ -130,8 +130,31 @@ export function groupBySession(games) {
   return Object.values(map);
 }
 
+/** All games grouped by session number (for history page) */
+export function groupSessionsForHistory(games) {
+  const map = new Map();
+  games.forEach(g => {
+    const sn = parseInt(g.session, 10) || 1;
+    if (!map.has(sn)) {
+      map.set(sn, { sessionNum: sn, games: [], firstDate: g.date, lastDate: g.date });
+    }
+    const row = map.get(sn);
+    row.games.push(g);
+    if (g.date < row.firstDate) row.firstDate = g.date;
+    if (g.date > row.lastDate) row.lastDate = g.date;
+  });
+  return [...map.values()]
+    .map(row => {
+      const stats = getSessionStats(row.games);
+      return { ...row, ...stats };
+    })
+    .sort((a, b) => b.sessionNum - a.sessionNum);
+}
+
 export function getSessionStats(games, sessionNum = null) {
-  const filtered = sessionNum != null ? games.filter(g => g.session === sessionNum) : games;
+  const filtered = sessionNum != null
+    ? games.filter(g => parseInt(g.session, 10) === parseInt(sessionNum, 10))
+    : games;
   const wins = filtered.filter(g => g.result === 'W').length;
   const losses = filtered.filter(g => g.result === 'L').length;
   const mmrGain = calculateMMRGain(filtered);

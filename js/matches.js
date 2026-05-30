@@ -127,3 +127,12 @@ export async function deleteGame(matchNum) {
 export function getLastMMR() {
   return state.games.length ? state.games[state.games.length - 1].endMMR : '';
 }
+
+export function isMmrEstimated(game) {
+  return (game?.notes || '').includes('MMR estimated');
+}
+
+export function lastGameNeedsMmrConfirm(games = state.games) {
+  if (!games.length) return false;
+  return isMmrEstimated(games[games.length - 1]);
+}
