@@ -1671,7 +1671,12 @@ body:not(.logged-out) #login-screen { display: none !important; }
   cursor: pointer;
   padding: 0;
 }
-.btn-link:hover { text-decoration: underline; }
+.session-reset-link {
+  margin-left: 8px;
+  font-size: 11px;
+  color: var(--dim);
+}
+.session-reset-link:hover { color: var(--accent); }
 .session-row { cursor: pointer; }
 .session-row:hover td { background: #131330; }
 

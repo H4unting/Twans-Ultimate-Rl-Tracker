@@ -149,6 +149,38 @@ export function restoreSessionFromStorage(games = state.games) {
   updateLivePanel();
 }
 
+/** Reset the session counter (e.g. back to 1 when testing) */
+export function resetSessionCounter(num = 1) {
+  if (state.session.timerId) {
+    clearInterval(state.session.timerId);
+    state.session.timerId = null;
+  }
+
+  const prev = loadStoredSession();
+  const maxLogged = getMaxSessionNum(state.games);
+
+  state.session.active = false;
+  state.session.startTime = null;
+  state.session.startMMR = null;
+  state.session.sessionNum = num;
+  syncSessionField(num);
+
+  saveStoredSession({
+    active: false,
+    sessionNum: num,
+    startTime: null,
+    startMMR: null,
+    nextSessionNum: num,
+    lastEndedSession: maxLogged,
+    history: prev?.history ?? {},
+  });
+
+  notify();
+  updateSessionBar();
+  updateLivePanel();
+  showToast(`Next session set to ${num}`);
+}
+
 export function initSessionUI() {
   updateSessionBar();
   updateLivePanel();
@@ -277,7 +309,12 @@ export function updateSessionBar() {
       title.textContent = `Ready — Session ${next}`;
       title.classList.remove('active');
     }
-    if (stats) stats.innerHTML = '<span class="slive-item neutral">Tap ▶ Start before you queue</span>';
+    if (stats) {
+      stats.innerHTML = `
+        <span class="slive-item neutral">Tap ▶ Start before you queue</span>
+        <button type="button" class="btn-link session-reset-link" id="session-reset-btn">Reset to Session 1</button>`;
+      document.getElementById('session-reset-btn').onclick = () => resetSessionCounter(1);
+    }
     if (startBtn) {
       startBtn.className = 'session-btn start';
       startBtn.textContent = '▶ Start';
