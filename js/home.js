@@ -3,6 +3,7 @@
 import { calcStats, getPrimaryMode, getGamesInWeek, formatDuration } from './utils.js';
 import { buildWeeklyReport } from './reports.js';
 import { getRank, rankBadgeHTML } from './ranks.js';
+import { getTagLossCorrelations } from './insights.js';
 import { TAG_CATS } from './config.js';
 import { state } from './state.js';
 import { getLoggingSessionNum } from './sessions.js';
@@ -96,7 +97,6 @@ export function renderHomeContext(games) {
         This week · ${weekGames.length} game${weekGames.length === 1 ? '' : 's'} ·
         ${week.winRate}% WR ·
         <span class="${week.mmrGain >= 0 ? 'up' : 'down'}">${week.mmrGain >= 0 ? '+' : ''}${week.mmrGain} MMR</span>${streak}
-        · <a href="#" class="home-link" data-goto="focus">Focus</a>
         · <a href="#" class="home-link" data-goto="analytics">Analytics</a>
       </p>`;
   } else {
@@ -107,6 +107,10 @@ export function renderHomeContext(games) {
       </p>`;
   }
 
+  wireHomeLinks(el);
+}
+
+function wireHomeLinks(el) {
   el.querySelectorAll('[data-goto]').forEach(link => {
     link.addEventListener('click', e => {
       e.preventDefault();
@@ -115,6 +119,32 @@ export function renderHomeContext(games) {
       window.__navigate?.(page, section);
     });
   });
+}
+
+export function renderHomeFocus(games) {
+  const el = document.getElementById('home-focus');
+  if (!el) return;
+
+  if (games.length < 2) {
+    el.innerHTML = `<p class="home-focus-line muted">Today's focus — log a few games and tag losses to see your top mistake here.</p>`;
+    return;
+  }
+
+  const correlations = getTagLossCorrelations(games);
+  const top = correlations.find(c => c.inLosses >= 1) ?? null;
+  if (!top) {
+    el.innerHTML = `<p class="home-focus-line muted">Today's focus — tag mistakes after losses to unlock tips.</p>`;
+    return;
+  }
+
+  el.innerHTML = `
+    <p class="home-focus-line">
+      <span class="home-focus-label">Today's focus</span>
+      <span class="home-focus-tag">${top.tag}</span>
+      <span class="home-focus-meta">· ${top.inLosses}× in losses</span>
+      · <a href="#" class="home-link" data-goto="focus">More</a>
+    </p>`;
+  wireHomeLinks(el);
 }
 
 export function renderHomeActivity(games, limit = 10) {
@@ -150,5 +180,6 @@ export function renderHomeActivity(games, limit = 10) {
 export function renderHome(games, goals) {
   renderHomeSummary(games, goals);
   renderHomeContext(games);
+  renderHomeFocus(games);
   renderHomeActivity(games);
 }

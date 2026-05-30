@@ -1799,6 +1799,27 @@ body:not(.logged-out) #login-screen { display: none !important; }
 .home-activity-none { color: #444; }
 .home-activity-date { color: var(--dim); font-size: 12px; white-space: nowrap; }
 
+.home-focus-line {
+  font-size: 13px; color: var(--muted); margin: 0 0 18px; line-height: 1.5;
+}
+.home-focus-line.muted { color: var(--dim); font-size: 12px; }
+.home-focus-label {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.4px; color: var(--dim); margin-right: 6px;
+}
+.home-focus-tag { font-weight: 600; color: var(--text); }
+.home-focus-meta { color: var(--dim); font-size: 12px; }
+
+.home-charts-row {
+  display: grid; grid-template-columns: 1fr 140px; gap: 12px;
+  margin-top: 20px; padding-top: 16px; border-top: 1px solid #ffffff08;
+}
+.home-chart-box {
+  background: #00000022; border: 1px solid #ffffff0a;
+  border-radius: 10px; padding: 10px; min-height: 120px; height: 140px;
+}
+.home-chart-wl { max-width: 140px; }
+
 .home-more-stats {
   margin: 16px 0; padding: 12px 14px;
   border: 1px solid #ffffff0c; border-radius: 12px; background: #00000022;
@@ -1965,4 +1986,6 @@ body.is-loading .home-summary {
   }
   .home-activity-tags { grid-column: 1 / -1; }
   .home-activity-date { grid-row: 1; grid-column: 4; }
+  .home-charts-row { grid-template-columns: 1fr; }
+  .home-chart-wl { max-width: none; height: 120px; }
 }

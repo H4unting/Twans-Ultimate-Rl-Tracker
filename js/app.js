@@ -167,6 +167,13 @@ async function handleLegacyClaim(legacyId) {
 
 function renderHomePage() {
   renderHome(state.games, state.goals);
+  const games = state.games.slice(-20);
+  const stats = calcStats(state.games);
+  const display = getDisplay();
+  if (games.length >= 2) {
+    mmrChart('homeMMR', games, display.color);
+    wlChart('homeWL', stats);
+  }
 }
 
 function renderAnalyticsPage() {
