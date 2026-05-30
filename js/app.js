@@ -12,9 +12,10 @@ import { addGame, updateGame, deleteGame, getLastMMR } from './matches.js';
 import { startSession, endSession, closeSessionModal, closeSessionModalAndContinue, initSessionUI, refreshSessionUI } from './sessions.js';
 import {
   initQuickLog, showQuickDock, hideQuickDock, getQuickLogPayload,
-  resetQuickAfterLog, loadPrefs, syncFormFromQuick, applyLiveStats,
+  resetQuickAfterLog, loadPrefs, syncFormFromQuick, applyLiveStats, flashAutoLogged,
+  setQuickResult, setQuickMode,
 } from './quicklog.js';
-import { initRlLive, stopRlLive } from './rl-live.js';
+import { initRlLive, stopRlLive, refreshLiveStatus } from './rl-live.js';
 import { renderSetupWizard, refreshSetupWizard, onBridgeStatusChange } from './setup-wizard.js';
 import { mmrChart, wlChart, sessionChart } from './charts.js';
 import { renderAnalytics } from './analytics.js';
@@ -74,7 +75,7 @@ async function bootApp() {
     if (isGrindHost()) {
       showQuickDock();
       renderSetupWizard(getDisplay().name);
-      initRlLive(applyLiveStats, onBridgeStatusChange);
+      initRlLive(applyLiveStats, onBridgeStatusChange, handleAutoLog);
     } else {
       hideQuickDock();
       document.getElementById('setup-wizard')?.replaceChildren();
@@ -280,30 +281,79 @@ function applyLogPrefs() {
   if (fMode && prefs.lastMode) fMode.value = prefs.lastMode;
 }
 
+function estimateMMRDelta(result) {
+  const recent = state.games.slice(-15).filter(g => g.result === result && g.mmrDiff);
+  if (recent.length >= 2) {
+    return Math.round(recent.reduce((s, g) => s + g.mmrDiff, 0) / recent.length);
+  }
+  return result === 'W' ? 10 : -10;
+}
+
+async function handleAutoLog(match) {
+  if (!isGrindHost()) return false;
+
+  if (match.mode) setQuickMode(match.mode);
+  if (match.result) setQuickResult(match.result);
+  applyLiveStats(match);
+
+  const startRaw = getLastMMR() || document.getElementById('f-startmmr')?.value || '';
+  const startMMR = parseInt(startRaw, 10);
+  if (!startRaw || Number.isNaN(startMMR)) {
+    showToast('Type your MMR in the bar once — then auto-log takes over', 'error');
+    document.getElementById('quick-endmmr')?.focus();
+    return false;
+  }
+
+  const delta = estimateMMRDelta(match.result);
+  const endMMR = Math.max(0, startMMR + delta);
+
+  const fStart = document.getElementById('f-startmmr');
+  const qEnd = document.getElementById('quick-endmmr');
+  if (fStart) fStart.value = startMMR;
+  if (qEnd) qEnd.value = endMMR;
+
+  state.ui.autoLogNote = recentGamesHaveMMR() ? '' : 'MMR estimated';
+
+  if (!state.session.active) startSession();
+
+  const ok = await submitGameLog('auto');
+  if (!ok) return false;
+
+  flashAutoLogged();
+  const emoji = match.result === 'W' ? '🔥' : '💀';
+  showToast(`${emoji} ${match.result === 'W' ? 'WIN' : 'LOSS'} auto-logged · G:${match.goals} A:${match.assists} S:${match.saves} · ${delta >= 0 ? '+' : ''}${delta} MMR`);
+  refreshLiveStatus();
+  return true;
+}
+
+function recentGamesHaveMMR() {
+  return state.games.slice(-3).some(g => g.endMMR);
+}
+
 async function submitGameLog(source = 'form') {
-  if (source === 'quick') {
+  if (source === 'quick' || source === 'auto') {
     syncFormFromQuick();
     if (!state.session.active) startSession();
   }
 
-  const endMMR = source === 'quick'
+  const endMMR = source === 'quick' || source === 'auto'
     ? document.getElementById('quick-endmmr')?.value
     : document.getElementById('f-endmmr')?.value;
 
   if (!endMMR) {
     showToast('Enter end MMR', 'error');
-    document.getElementById(source === 'quick' ? 'quick-endmmr' : 'f-endmmr')?.focus();
-    return;
+    document.getElementById(source === 'quick' || source === 'auto' ? 'quick-endmmr' : 'f-endmmr')?.focus();
+    return false;
   }
 
-  const btn = source === 'quick'
+  const btn = source === 'quick' || source === 'auto'
     ? document.getElementById('quick-log-btn')
     : document.getElementById('add-btn');
 
   if (btn) { btn.disabled = true; btn.dataset.label = btn.textContent; btn.textContent = '…'; }
 
   try {
-    const payload = source === 'quick' ? getQuickLogPayload() : {
+    const payload = source === 'quick' || source === 'auto' ? getQuickLogPayload() : {
       date: document.getElementById('f-date').value,
       session: document.getElementById('f-session').value,
       mode: document.getElementById('f-mode').value,
@@ -316,7 +366,10 @@ async function submitGameLog(source = 'form') {
       notes: document.getElementById('f-notes').value,
     };
 
-    await addGame(payload, state.ui.selectedTags, () => {
+    await addGame({
+      ...payload,
+      notes: [payload.notes, state.ui.autoLogNote].filter(Boolean).join(' · ') || payload.notes,
+    }, state.ui.selectedTags, () => {
       document.getElementById('f-goals').value = 0;
       document.getElementById('f-assists').value = 0;
       document.getElementById('f-saves').value = 0;
@@ -325,16 +378,19 @@ async function submitGameLog(source = 'form') {
       document.getElementById('f-notes').value = '';
       document.querySelectorAll('#log-tags .tag-chip.selected').forEach(c => c.classList.remove('selected'));
       state.ui.selectedTags = [];
+      state.ui.autoLogNote = '';
       resetQuickAfterLog();
     });
     renderAll();
+    return true;
   } catch {
     showToast('Failed to save', 'error');
-  }
-
-  if (btn) {
-    btn.disabled = false;
-    btn.textContent = btn.dataset.label || (source === 'quick' ? 'LOG' : '+ Log Game');
+    return false;
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = btn.dataset.label || (source === 'quick' || source === 'auto' ? 'LOG' : '+ Log Game');
+    }
   }
 }
 
@@ -479,6 +535,7 @@ async function init() {
     getLastMMR,
     setFormResult: setResult,
     setSelectedTags: tags => { state.ui.selectedTags = tags; },
+    onAutoLogToggle: refreshLiveStatus,
   });
   onAuthChange(async (session) => {
     if (session) await bootApp();

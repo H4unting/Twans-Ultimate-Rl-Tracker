@@ -11,10 +11,20 @@ let quickTags = [];
 
 export function loadPrefs() {
   try {
-    return { lastMode: "2's", ...JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}') };
+    return { lastMode: "2's", autoLog: true, ...JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}') };
   } catch {
-    return { lastMode: "2's" };
+    return { lastMode: "2's", autoLog: true };
   }
+}
+
+export function isAutoLogEnabled() {
+  return loadPrefs().autoLog !== false;
+}
+
+export function setAutoLogEnabled(on) {
+  savePrefs({ autoLog: !!on });
+  document.getElementById('auto-log-toggle')?.classList.toggle('active', !!on);
+  document.getElementById('auto-log-toggle')?.setAttribute('aria-pressed', on ? 'true' : 'false');
 }
 
 export function savePrefs(partial) {
@@ -94,6 +104,8 @@ export function applyLiveStats(stats) {
   setQuickStat('goals', stats.goals ?? 0);
   setQuickStat('assists', stats.assists ?? 0);
   setQuickStat('saves', stats.saves ?? 0);
+  if (stats.result) setQuickResult(stats.result);
+  if (stats.mode) setQuickMode(stats.mode);
 }
 
 export function getQuickStat(stat) {
@@ -135,7 +147,7 @@ function getQuickMode() {
   return document.querySelector('#quick-mode-pills .active')?.dataset.mode ?? prefs.lastMode ?? "2's";
 }
 
-function setQuickMode(mode) {
+export function setQuickMode(mode) {
   document.querySelectorAll('#quick-mode-pills button').forEach(b => {
     b.classList.toggle('active', b.dataset.mode === mode);
   });
@@ -147,7 +159,7 @@ function getQuickResult() {
   return document.getElementById('quick-wl-win')?.classList.contains('active') ? 'W' : 'L';
 }
 
-function setQuickResult(r) {
+export function setQuickResult(r) {
   document.getElementById('quick-wl-win')?.classList.toggle('active', r === 'W');
   document.getElementById('quick-wl-loss')?.classList.toggle('active', r === 'L');
   callbacks.setFormResult?.(r);
@@ -155,6 +167,14 @@ function setQuickResult(r) {
 
 function applyPrefs() {
   setQuickMode(prefs.lastMode ?? "2's");
+  setAutoLogEnabled(isAutoLogEnabled());
+}
+
+export function flashAutoLogged() {
+  const inner = document.querySelector('.quick-dock-inner');
+  if (!inner) return;
+  inner.classList.add('auto-logged');
+  setTimeout(() => inner.classList.remove('auto-logged'), 1400);
 }
 
 function renderQuickTags() {
@@ -194,6 +214,12 @@ function wireDock() {
   document.getElementById('quick-wl-loss')?.addEventListener('click', () => setQuickResult('L'));
 
   document.getElementById('quick-log-btn')?.addEventListener('click', () => callbacks.submitQuick?.());
+
+  document.getElementById('auto-log-toggle')?.addEventListener('click', () => {
+    setAutoLogEnabled(!isAutoLogEnabled());
+    showToast(isAutoLogEnabled() ? 'Auto-log ON — games save when a match ends' : 'Auto-log OFF — manual LOG');
+    callbacks.onAutoLogToggle?.();
+  });
 
   document.querySelectorAll('#quick-mode-pills button').forEach(btn => {
     btn.addEventListener('click', () => {
