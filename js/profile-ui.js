@@ -25,9 +25,21 @@ function formatMemberSince(iso) {
   return `Member since ${d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}`;
 }
 
-function bannerGradient(color) {
-  const base = color || '#e65c00';
-  return `linear-gradient(135deg, ${base}88 0%, #2a1848 45%, #4a2060 70%, #1a1028 100%)`;
+function bannerGradient(primary, secondary) {
+  const p = primary || '#e65c00';
+  const s = secondary || '#4a2060';
+  return `linear-gradient(135deg, ${p}cc 0%, ${s} 48%, #1a1028 100%)`;
+}
+
+function profileUrlTag(profileNumber) {
+  if (profileNumber == null || profileNumber === '') return '';
+  return `url#${profileNumber}`;
+}
+
+function resolveProfileColors(profile, display) {
+  const primary = profile?.primary_color || profile?.accent_color || display.color || '#e65c00';
+  const secondary = profile?.secondary_color || '#4a2060';
+  return { primary, secondary };
 }
 
 export function renderProfilePage({ games, profile, display, authUser, bio = '', onSave }) {
@@ -39,10 +51,11 @@ export function renderProfilePage({ games, profile, display, authUser, bio = '',
   const sessions = groupBySession(games).length;
   const level = trackerLevel(stats.totalGames);
   const rlName = getRlDisplayName() || '';
-  const accent = profile?.accent_color || display.color || '#e65c00';
+  const { primary, secondary } = resolveProfileColors(profile, display);
+  const urlTag = profileUrlTag(profile?.profile_number);
   const avatar = display.avatar
     ? `<img class="profile-avatar" src="${escapeAttr(display.avatar)}" alt="">`
-    : `<span class="profile-avatar profile-avatar-fallback" style="background:${escapeAttr(accent)}">${escapeHtml(display.name.charAt(0).toUpperCase())}</span>`;
+    : `<span class="profile-avatar profile-avatar-fallback" style="background:${escapeAttr(primary)}">${escapeHtml(display.name.charAt(0).toUpperCase())}</span>`;
 
   const ranksHTML = rows.length
     ? rows.map(r => {
@@ -61,15 +74,16 @@ export function renderProfilePage({ games, profile, display, authUser, bio = '',
     : `<p class="profile-empty">Log ranked games to show your playlist ranks here.</p>`;
 
   el.innerHTML = `
-    <div class="profile-page">
+    <div class="profile-page" style="--profile-primary:${escapeAttr(primary)};--profile-secondary:${escapeAttr(secondary)}">
       <div class="profile-hero">
-        <div class="profile-banner" style="background:${bannerGradient(accent)}"></div>
+        <div class="profile-banner" id="profile-banner-preview" style="background:${bannerGradient(primary, secondary)}"></div>
         <div class="profile-hero-inner">
           <div class="profile-hero-left">
             <div class="profile-avatar-wrap">${avatar}</div>
             <div class="profile-identity">
               <h1 class="profile-display-name">${escapeHtml(display.name)}</h1>
               <div class="profile-subline">
+                ${urlTag ? `<span class="profile-url-tag">${escapeHtml(urlTag)}</span><span class="profile-dot">·</span>` : ''}
                 ${rlName
     ? `<span class="profile-rl-tag">RL · ${escapeHtml(rlName)}</span>`
     : `<span class="profile-rl-tag profile-rl-missing">RL name not set</span>`}
@@ -129,48 +143,75 @@ export function renderProfilePage({ games, profile, display, authUser, bio = '',
               <input type="text" id="profile-rl-input" value="${escapeAttr(rlName)}" maxlength="32" spellcheck="false">
               <span class="form-hint">Must match in-game exactly — used for auto-stats.</span>
             </div>
-            <div class="form-group">
-              <label for="profile-accent-input">Accent color</label>
-              <div class="profile-accent-row">
-                <input type="color" id="profile-accent-input" value="${escapeAttr(accent)}">
-                <span class="profile-accent-preview" style="background:${escapeAttr(accent)}"></span>
+            <div class="form-group form-span-2 profile-colors-group">
+              <label>Profile colors</label>
+              <div class="profile-colors-editor">
+                <div class="profile-color-field">
+                  <span class="profile-color-label">Primary</span>
+                  <input type="color" id="profile-primary-input" value="${escapeAttr(primary)}">
+                </div>
+                <div class="profile-color-field">
+                  <span class="profile-color-label">Secondary</span>
+                  <input type="color" id="profile-secondary-input" value="${escapeAttr(secondary)}">
+                </div>
+                <div class="profile-colors-preview" id="profile-colors-preview" style="background:${bannerGradient(primary, secondary)}"></div>
               </div>
+              <span class="form-hint">Primary tints your banner start; secondary fills the gradient.</span>
             </div>
+            ${urlTag ? `
+            <div class="form-group">
+              <label>Profile URL ID</label>
+              <div class="profile-url-readonly">${escapeHtml(urlTag)}</div>
+              <span class="form-hint">Your signup number — assigned when you joined.</span>
+            </div>` : ''}
             <div class="form-group form-span-2">
               <label for="profile-bio-input">Bio <span class="form-optional">optional</span></label>
               <input type="text" id="profile-bio-input" value="${escapeAttr(bio)}" maxlength="120" placeholder="What you're grinding toward…">
             </div>
           </div>
           <div class="profile-edit-actions">
-            <button type="button" class="btn btn-secondary btn-sm" id="profile-setup-link">Auto tracker setup →</button>
             <button type="button" class="btn btn-primary" id="profile-save-btn">Save profile</button>
           </div>
         </div>
       </details>
     </div>`;
 
-  wireProfilePage({ onSave, accent });
+  wireProfilePage({ onSave, primary, secondary });
 }
 
-function wireProfilePage({ onSave, accent }) {
-  const colorInput = document.getElementById('profile-accent-input');
-  const preview = document.querySelector('.profile-accent-preview');
-  const banner = document.querySelector('.profile-banner');
+function wireProfilePage({ onSave, primary, secondary }) {
+  const primaryInput = document.getElementById('profile-primary-input');
+  const secondaryInput = document.getElementById('profile-secondary-input');
+  const banner = document.getElementById('profile-banner-preview');
+  const preview = document.getElementById('profile-colors-preview');
+  const page = document.querySelector('.profile-page');
 
-  colorInput?.addEventListener('input', e => {
-    const c = e.target.value;
-    preview?.style.setProperty('background', c);
-    if (banner) banner.style.background = bannerGradient(c);
-  });
+  const applyColorPreview = () => {
+    const p = primaryInput?.value || primary;
+    const s = secondaryInput?.value || secondary;
+    const grad = bannerGradient(p, s);
+    if (banner) banner.style.background = grad;
+    if (preview) preview.style.background = grad;
+    if (page) {
+      page.style.setProperty('--profile-primary', p);
+      page.style.setProperty('--profile-secondary', s);
+    }
+    document.querySelector('.profile-level-badge')?.style.setProperty('border-color', s);
+    document.querySelector('.profile-level-badge')?.style.setProperty(
+      'background',
+      `radial-gradient(circle at 30% 30%, ${p}, ${s} 70%)`,
+    );
+  };
 
-  document.getElementById('profile-setup-link')?.addEventListener('click', () => {
-    window.__navigate?.('setup', 'home');
-  });
+  primaryInput?.addEventListener('input', applyColorPreview);
+  secondaryInput?.addEventListener('input', applyColorPreview);
+  applyColorPreview();
 
   document.getElementById('profile-save-btn')?.addEventListener('click', async () => {
     const displayName = document.getElementById('profile-display-input')?.value.trim() ?? '';
     const rlName = document.getElementById('profile-rl-input')?.value.trim() ?? '';
-    const accentColor = document.getElementById('profile-accent-input')?.value ?? accent;
+    const primaryColor = primaryInput?.value ?? primary;
+    const secondaryColor = secondaryInput?.value ?? secondary;
     const bio = document.getElementById('profile-bio-input')?.value.trim() ?? '';
 
     if (!displayName) {
@@ -182,7 +223,7 @@ function wireProfilePage({ onSave, accent }) {
     savePrefs({ rlDisplayName: rlName });
 
     try {
-      await onSave({ displayName, rlName, accentColor, bio });
+      await onSave({ displayName, rlName, primaryColor, secondaryColor, bio });
       showToast('Profile saved');
       document.getElementById('profile-edit-panel')?.removeAttribute('open');
     } catch (e) {

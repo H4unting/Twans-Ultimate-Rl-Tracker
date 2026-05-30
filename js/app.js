@@ -76,8 +76,12 @@ async function bootApp() {
   showLoading(true);
 
   try {
-    const { profile, games, goals, groups, bio, rlDisplayName } = await loadUserData();
-    setProfile(profile);
+    const { profile, games, goals, groups, bio, rlDisplayName, primaryColor, secondaryColor } = await loadUserData();
+    setProfile({
+      ...profile,
+      ...(primaryColor && !profile?.primary_color ? { primary_color: primaryColor } : {}),
+      ...(secondaryColor && !profile?.secondary_color ? { secondary_color: secondaryColor } : {}),
+    });
     const { games: repaired, changed } = repairPlaylistMMRChain(games);
     if (changed) await saveGames(repaired);
     setGames(repaired);
@@ -418,22 +422,33 @@ function getSettingsPayload(overrides = {}) {
     goals: state.goals,
     bio: state.profileBio ?? '',
     rlDisplayName: getRlDisplayName() || loadPrefs().rlDisplayName || '',
+    primaryColor: state.profile?.primary_color ?? '',
+    secondaryColor: state.profile?.secondary_color ?? '',
     ...overrides,
   };
 }
 
-async function handleProfileSave({ displayName, rlName, accentColor, bio }) {
+async function handleProfileSave({ displayName, rlName, primaryColor, secondaryColor, bio }) {
   await saveProfile({
     display_name: displayName,
-    accent_color: accentColor,
+    primary_color: primaryColor,
+    secondary_color: secondaryColor,
+    accent_color: primaryColor,
   });
   setProfile({
     ...state.profile,
     display_name: displayName,
-    accent_color: accentColor,
+    primary_color: primaryColor,
+    secondary_color: secondaryColor,
+    accent_color: primaryColor,
   });
   state.profileBio = bio;
-  await saveSettings(getSettingsPayload({ bio, rlDisplayName: rlName }));
+  await saveSettings(getSettingsPayload({
+    bio,
+    rlDisplayName: rlName,
+    primaryColor,
+    secondaryColor,
+  }));
   renderAuthBar(getDisplay(), handleSignOut, () => navigate('profile', 'home'));
   renderProfilePageContent();
 }

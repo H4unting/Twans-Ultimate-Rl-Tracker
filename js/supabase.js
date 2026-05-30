@@ -120,7 +120,7 @@ export async function saveGames(games) {
 
 export async function loadSettings() {
   const user = getAuthUser();
-  if (!user) return { goals: { ...DEFAULT_GOALS }, bio: '', rlDisplayName: '' };
+  if (!user) return { goals: { ...DEFAULT_GOALS }, bio: '', rlDisplayName: '', primaryColor: '', secondaryColor: '' };
   try {
     const rows = await sbFetch(`user_settings?user_id=eq.${user.id}&select=data`);
     const data = rows?.[0]?.data ?? {};
@@ -128,11 +128,13 @@ export async function loadSettings() {
       goals: { ...DEFAULT_GOALS, ...(data.goals ?? {}) },
       bio: data.bio ?? '',
       rlDisplayName: data.rlDisplayName ?? '',
+      primaryColor: data.primaryColor ?? '',
+      secondaryColor: data.secondaryColor ?? '',
     };
   } catch {
     /* table may not exist yet */
   }
-  return { goals: { ...DEFAULT_GOALS }, bio: '', rlDisplayName: '' };
+  return { goals: { ...DEFAULT_GOALS }, bio: '', rlDisplayName: '', primaryColor: '', secondaryColor: '' };
 }
 
 export async function saveSettings(settings) {
@@ -207,7 +209,7 @@ export async function loadGroupMembers(groupId) {
     joined_at: row.joined_at,
     display_name: row.profiles?.display_name ?? 'Player',
     avatar_url: row.profiles?.avatar_url ?? null,
-    accent_color: row.profiles?.accent_color ?? '#e65c00',
+    accent_color: row.profiles?.accent_color ?? row.profiles?.primary_color ?? '#e65c00',
   }));
 }
 
@@ -224,7 +226,7 @@ export async function loadUserData() {
     const settings = await loadSettings();
     const groups = await loadUserGroups();
     setSyncStatus('live');
-    return { profile, games, goals: settings.goals, groups, bio: settings.bio, rlDisplayName: settings.rlDisplayName };
+    return { profile, games, goals: settings.goals, groups, bio: settings.bio, rlDisplayName: settings.rlDisplayName, primaryColor: settings.primaryColor, secondaryColor: settings.secondaryColor };
   } catch (e) {
     setSyncStatus('error');
     throw e;

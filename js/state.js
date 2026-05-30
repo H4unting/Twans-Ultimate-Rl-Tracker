@@ -85,6 +85,6 @@ export function getUserDisplay(authUser) {
   return {
     name: p?.display_name || u?.user_metadata?.full_name || u?.user_metadata?.name || u?.email?.split('@')[0] || 'Player',
     avatar: p?.avatar_url || u?.user_metadata?.avatar_url || u?.user_metadata?.picture || null,
-    color: p?.accent_color || '#e65c00',
+    color: p?.primary_color || p?.accent_color || '#e65c00',
   };
 }

@@ -41,6 +41,7 @@ The in-app setup wizard also saves your name — **restart `start-grind.bat`** a
    - `schema.sql` — games & profile
    - `auth-schema.sql` — auth policies
    - `groups-schema.sql` — squads (optional)
+   - `profile-customization.sql` — profile colors + url# signup numbers
    - `groups-schema-fix.sql` — only if you see an "infinite recursion" policy error
 
 ## 6. Daily use
