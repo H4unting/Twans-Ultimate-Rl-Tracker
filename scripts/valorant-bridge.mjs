@@ -1,87 +1,64 @@
 /**
- * Valorant auto-log via Riot API — polls when configured.
- * Requires riotId (Name#TAG), riotRegion, and riotApiKey in grind-config.json or env.
+ * Valorant auto-log via HenrikDev API (match history).
+ * Riot dev keys (RGAPI-…) cannot access Val match endpoints (403) — Henrik is required for personal auto-log.
+ * Requires riotId (Name#TAG), riotRegion, and henrikApiKey in grind-config.json.
  */
 
 import { spawnSync } from 'child_process';
 import { loadGrindConfig } from './local-setup.mjs';
-import { resolveAgentName, resolveMapName } from './valorant-ids.mjs';
 
-const ACCOUNT_HOSTS = {
-  na: 'https://americas.api.riotgames.com',
-  latam: 'https://americas.api.riotgames.com',
-  br: 'https://americas.api.riotgames.com',
-  eu: 'https://europe.api.riotgames.com',
-  ap: 'https://asia.api.riotgames.com',
-  kr: 'https://asia.api.riotgames.com',
-};
+const HENRIK_BASE = 'https://api.henrikdev.xyz';
 
-const PLATFORM_HOSTS = {
-  na: 'https://na.api.riotgames.com',
-  latam: 'https://latam.api.riotgames.com',
-  br: 'https://br.api.riotgames.com',
-  eu: 'https://eu.api.riotgames.com',
-  ap: 'https://ap.api.riotgames.com',
-  kr: 'https://kr.api.riotgames.com',
-};
-
-const VAL_SHARD = {
-  na: 'na',
-  latam: 'latam',
-  br: 'br',
-  eu: 'eu',
-  ap: 'ap',
-  kr: 'kr',
+const MODE_MAP = {
+  competitive: 'Competitive',
+  unrated: 'Unrated',
+  swiftplay: 'Swiftplay',
+  spikeRush: 'Spike Rush',
+  deathmatch: 'Deathmatch',
+  ggteam: 'Escalation',
+  escalation: 'Escalation',
+  replication: 'Replication',
+  snowballFight: 'Snowball Fight',
 };
 
 let lastMatch = null;
 let lastSeenMatchId = null;
 let seeded = false;
-let puuidCache = null;
-let platformHostCache = null;
 let pollTimer = null;
 let valorantRunning = false;
 let configured = false;
 let lastError = null;
 
-function formatRiotError(message) {
+function formatHenrikError(message, status) {
   const raw = String(message ?? '');
-  let code;
-  let riotMsg;
-  try {
-    const j = JSON.parse(raw);
-    code = j.status?.status_code ?? j.statusCode;
-    riotMsg = j.status?.message ?? j.message;
-  } catch {
-    /* plain text */
+  if (/^RGAPI-/i.test(raw)) {
+    return 'Riot dev keys (RGAPI-…) cannot read Valorant match history. Get a free Henrik key at api.henrikdev.xyz/dashboard and paste it in Auto-Log Setup.';
   }
-  const text = `${riotMsg ?? ''} ${raw}`.trim();
-  if (
-    code === 401
-    || /unknown apikey/i.test(text)
-    || /expired api/i.test(text)
-    || /invalid api/i.test(text)
-  ) {
-    return 'Riot rejected your API key (expired or wrong). Dev keys last 24 hours — get a new RGAPI key at developer.riotgames.com, paste it in Auto-Log Setup, and click Apply & Go.';
+  if (status === 401 || status === 403 || /invalid api/i.test(raw) || /unauthorized/i.test(raw)) {
+    return 'Henrik API key rejected — get a free key at api.henrikdev.xyz/dashboard, paste it in Auto-Log Setup, and click Apply & Go.';
   }
-  if (code === 403 || raw.includes('403')) {
-    return 'Riot API access denied — check your key permissions and region.';
-  }
-  if (code === 404 || /not found/i.test(text)) {
+  if (status === 404 || /not found/i.test(raw)) {
     return 'Riot account not found — check Riot ID (Name#TAG) and region.';
   }
-  if (code === 429 || /rate limit/i.test(text)) {
-    return 'Riot rate limit — wait a minute and click Apply & Go again.';
+  if (status === 429 || /rate limit/i.test(raw)) {
+    return 'Henrik rate limit — wait a minute and try again.';
   }
-  return raw.length > 160 ? `${raw.slice(0, 160)}…` : raw;
+  return raw.length > 180 ? `${raw.slice(0, 180)}…` : raw;
 }
 
 function getBridgeConfig() {
   const cfg = loadGrindConfig();
+  const henrikApiKey = (
+    cfg.henrikApiKey
+    || process.env.HENRIK_API_KEY
+    || ''
+  ).trim();
+  const legacyRiotKey = (cfg.riotApiKey || process.env.RIOT_API_KEY || '').trim();
   return {
     riotId: (cfg.riotId || process.env.RIOT_ID || '').trim(),
     riotRegion: (cfg.riotRegion || process.env.RIOT_REGION || 'na').toLowerCase(),
-    riotApiKey: (cfg.riotApiKey || process.env.RIOT_API_KEY || '').trim(),
+    henrikApiKey: henrikApiKey || (legacyRiotKey.startsWith('RGAPI-') ? '' : legacyRiotKey),
+    legacyRiotKey,
   };
 }
 
@@ -95,112 +72,97 @@ function isValorantRunning() {
   return (r.stdout || '').includes('VALORANT-Win64-Shipping.exe');
 }
 
-async function riotFetch(path, host) {
-  const { riotApiKey } = getBridgeConfig();
-  if (!riotApiKey) throw new Error('Riot API key not set');
-  const res = await fetch(`${host}${path}`, {
-    headers: { 'X-Riot-Token': riotApiKey },
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || `Riot API ${res.status}`);
-  }
-  return res.json();
-}
-
-async function resolvePlatformHost(riotRegion) {
-  if (platformHostCache) return platformHostCache;
-  const shard = VAL_SHARD[riotRegion] || 'na';
-  platformHostCache = PLATFORM_HOSTS[shard] || PLATFORM_HOSTS.na;
-  try {
-    const puuid = await resolvePuuid();
-    const accountHost = ACCOUNT_HOSTS[riotRegion] || ACCOUNT_HOSTS.na;
-    const shardInfo = await riotFetch(
-      `/riot/account/v1/active-shards/by-game/val/by-puuid/${puuid}`,
-      accountHost,
-    );
-    const active = String(shardInfo.activeShard || shard).toLowerCase();
-    platformHostCache = PLATFORM_HOSTS[active] || platformHostCache;
-  } catch {
-    /* fall back to region shard */
-  }
-  return platformHostCache;
-}
-
-async function resolvePuuid() {
-  if (puuidCache) return puuidCache;
-  const { riotId, riotRegion } = getBridgeConfig();
+function splitRiotId(riotId) {
   if (!riotId.includes('#')) throw new Error('Set Riot ID as Name#TAG in setup');
-  const [gameName, tagLine] = riotId.split('#');
-  const accountHost = ACCOUNT_HOSTS[riotRegion] || ACCOUNT_HOSTS.na;
-  const account = await riotFetch(
-    `/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}`,
-    accountHost,
-  );
-  puuidCache = account.puuid;
-  return puuidCache;
+  const hash = riotId.indexOf('#');
+  return {
+    name: riotId.slice(0, hash).trim(),
+    tag: riotId.slice(hash + 1).trim(),
+  };
 }
 
-function parseValorantMatch(data, puuid) {
-  const player = data.players?.find(p => p.puuid === puuid);
-  if (!player) return null;
-  const team = player.teamId;
-  const won = data.teams?.find(t => t.teamId === team)?.won ?? false;
-  const stats = player.stats ?? {};
-  const map = resolveMapName(data.matchInfo?.mapId ?? '');
-  const queue = data.matchInfo?.queueId ?? 'unknown';
-  const modeMap = {
-    competitive: 'Competitive',
-    unrated: 'Unrated',
-    swiftplay: 'Swiftplay',
-    spikeRush: 'Spike Rush',
-    deathmatch: 'Deathmatch',
-    ggteam: 'Escalation',
-    escalation: 'Escalation',
-    replication: 'Replication',
-    snowballFight: 'Snowball Fight',
-  };
-  const mode = modeMap[queue] || queue;
-  const rounds = stats.roundsPlayed || 1;
-  const agent = resolveAgentName(player.characterId);
+async function henrikFetch(path) {
+  const { henrikApiKey, legacyRiotKey } = getBridgeConfig();
+  if (!henrikApiKey) {
+    if (legacyRiotKey.startsWith('RGAPI-')) {
+      throw new Error(formatHenrikError('RGAPI-key-blocked'));
+    }
+    throw new Error('Henrik API key not set — get one free at api.henrikdev.xyz/dashboard');
+  }
+  const res = await fetch(`${HENRIK_BASE}${path}`, {
+    headers: { Authorization: henrikApiKey },
+  });
+  let body = null;
+  try {
+    body = await res.json();
+  } catch {
+    body = null;
+  }
+  if (!res.ok) {
+    const msg = body?.errors?.[0]?.message || body?.error || `Henrik API ${res.status}`;
+    throw Object.assign(new Error(msg), { status: res.status });
+  }
+  if (body?.status && body.status !== 200) {
+    const msg = body.errors?.[0]?.message || `Henrik API ${body.status}`;
+    throw Object.assign(new Error(msg), { status: body.status });
+  }
+  return body;
+}
+
+function parseHenrikMatch(match, riotId) {
+  if (!match) return null;
+  const meta = match.metadata ?? {};
+  const stats = match.stats ?? {};
+  const teams = match.teams ?? {};
+  const team = String(stats.team ?? '').toLowerCase();
+  const won = team === 'red'
+    ? Boolean(teams.red?.has_won ?? teams.Red?.has_won)
+    : team === 'blue'
+      ? Boolean(teams.blue?.has_won ?? teams.Blue?.has_won)
+      : false;
+  const queue = meta.queue ?? meta.mode ?? 'unknown';
+  const rounds = stats.rounds_played || stats.roundsPlayed || 1;
 
   return {
     result: won ? 'W' : 'L',
-    mode,
+    mode: MODE_MAP[queue] || meta.mode || queue,
     kills: stats.kills ?? 0,
     deaths: stats.deaths ?? 0,
     valAssists: stats.assists ?? 0,
-    acs: Math.round((stats.score ?? 0) / rounds),
-    agent,
-    map,
-    matchId: data.matchInfo?.matchId,
+    acs: Math.round((stats.score ?? 0) / Math.max(rounds, 1)),
+    agent: stats.character ?? stats.agent ?? '',
+    map: meta.map ?? '',
+    matchId: meta.matchid ?? meta.match_id ?? null,
     isRanked: queue === 'competitive',
     endedAt: Date.now(),
     consumed: false,
   };
 }
 
-async function fetchLatestMatchId() {
-  const { riotRegion, riotApiKey } = getBridgeConfig();
-  const puuid = await resolvePuuid();
-  const platformHost = await resolvePlatformHost(riotRegion);
-  const listRes = await fetch(
-    `${platformHost}/val/match/v1/matchlists/by-puuid/${puuid}?size=1`,
-    { headers: { 'X-Riot-Token': riotApiKey } },
+async function fetchLatestHenrikMatch() {
+  const { riotId, riotRegion } = getBridgeConfig();
+  const { name, tag } = splitRiotId(riotId);
+  const region = encodeURIComponent(riotRegion);
+  const body = await henrikFetch(
+    `/valorant/v3/matches/${region}/${encodeURIComponent(name)}/${encodeURIComponent(tag)}?size=1`,
   );
-  if (!listRes.ok) throw new Error(await listRes.text());
-  const list = await listRes.json();
-  return list.history?.[0]?.matchId ?? null;
+  return body.data?.[0] ?? null;
 }
 
 async function pollLatestMatch() {
   const cfg = getBridgeConfig();
-  configured = Boolean(cfg.riotApiKey && cfg.riotId);
+  configured = Boolean(cfg.henrikApiKey && cfg.riotId)
+    || (Boolean(cfg.legacyRiotKey) && !cfg.legacyRiotKey.startsWith('RGAPI-') && cfg.riotId);
   valorantRunning = isValorantRunning();
+  if (!configured && cfg.legacyRiotKey.startsWith('RGAPI-') && cfg.riotId) {
+    lastError = formatHenrikError('RGAPI-key-blocked');
+    return;
+  }
   if (!configured) return;
 
   try {
-    const matchId = await fetchLatestMatchId();
+    const latest = await fetchLatestHenrikMatch();
+    const matchId = latest?.metadata?.matchid ?? latest?.metadata?.match_id ?? null;
     if (!matchId) return;
 
     if (!seeded) {
@@ -213,16 +175,7 @@ async function pollLatestMatch() {
 
     if (matchId === lastSeenMatchId) return;
 
-    const { riotRegion, riotApiKey } = cfg;
-    const platformHost = await resolvePlatformHost(riotRegion);
-    const matchRes = await fetch(
-      `${platformHost}/val/match/v1/matches/${matchId}`,
-      { headers: { 'X-Riot-Token': riotApiKey } },
-    );
-    if (!matchRes.ok) throw new Error(await matchRes.text());
-
-    const puuid = await resolvePuuid();
-    const parsed = parseValorantMatch(await matchRes.json(), puuid);
+    const parsed = parseHenrikMatch(latest, cfg.riotId);
     if (!parsed) return;
 
     lastSeenMatchId = matchId;
@@ -230,7 +183,7 @@ async function pollLatestMatch() {
     lastError = null;
     console.log(`Valorant match — ${parsed.result} · ${parsed.mode} · K:${parsed.kills} D:${parsed.deaths} A:${parsed.valAssists} · ${parsed.agent || 'Agent'} · ${parsed.map || 'Map'}`);
   } catch (e) {
-    lastError = formatRiotError(e.message);
+    lastError = formatHenrikError(e.message, e.status);
   }
 }
 
@@ -245,13 +198,16 @@ export function handleValorantRequest(req, res) {
 
   if (url === '/valorant/status') {
     const cfg = getBridgeConfig();
+    const hasHenrik = Boolean(cfg.henrikApiKey)
+      || (Boolean(cfg.legacyRiotKey) && !cfg.legacyRiotKey.startsWith('RGAPI-'));
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
-      configured: Boolean(cfg.riotApiKey && cfg.riotId),
+      configured: Boolean(hasHenrik && cfg.riotId),
       seeded,
       valorantRunning,
       riotId: cfg.riotId || null,
       lastError,
+      needsHenrikKey: Boolean(cfg.legacyRiotKey.startsWith('RGAPI-') && cfg.riotId && !cfg.henrikApiKey),
     }));
     return true;
   }
@@ -274,28 +230,32 @@ export function handleValorantRequest(req, res) {
 }
 
 export function resetValorantCache() {
-  puuidCache = null;
-  platformHostCache = null;
   lastSeenMatchId = null;
   seeded = false;
   lastMatch = null;
   lastError = null;
 }
 
-/** Test saved Riot ID + API key against Riot (used right after Apply). */
+/** Test saved Riot ID + Henrik key (used right after Apply). */
 export async function validateRiotConfig() {
   const cfg = getBridgeConfig();
-  if (!cfg.riotApiKey || !cfg.riotId) {
-    return { ok: false, error: 'Riot ID and API key required' };
+  if (!cfg.riotId) {
+    return { ok: false, error: 'Riot ID required (Name#TAG)' };
   }
-  puuidCache = null;
-  platformHostCache = null;
+  if (cfg.legacyRiotKey.startsWith('RGAPI-') && !cfg.henrikApiKey) {
+    const msg = formatHenrikError('RGAPI-key-blocked');
+    lastError = msg;
+    return { ok: false, error: msg };
+  }
+  if (!cfg.henrikApiKey) {
+    return { ok: false, error: 'Henrik API key required — free at api.henrikdev.xyz/dashboard' };
+  }
   try {
-    await resolvePuuid();
+    await fetchLatestHenrikMatch();
     lastError = null;
     return { ok: true, riotId: cfg.riotId };
   } catch (e) {
-    const msg = formatRiotError(e.message);
+    const msg = formatHenrikError(e.message, e.status);
     lastError = msg;
     return { ok: false, error: msg };
   }

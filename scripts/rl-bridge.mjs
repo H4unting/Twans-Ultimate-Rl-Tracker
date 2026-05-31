@@ -293,7 +293,7 @@ export function startBridge(options = {}) {
         const applied = applyLocalSetup({
           rlDisplayName: body.rlDisplayName,
           riotId: body.riotId,
-          riotApiKey: body.riotApiKey,
+          henrikApiKey: body.henrikApiKey ?? body.riotApiKey,
           riotRegion: body.riotRegion,
           patchIni: body.patchIni !== false,
         });

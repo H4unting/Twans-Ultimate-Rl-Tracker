@@ -11,13 +11,15 @@ let cachedValStatus = null;
 let cachedRlInMatch = false;
 let clickWired = false;
 
-function formatRiotErrorForUser(message) {
+function formatValApiErrorForUser(message) {
   const raw = String(message ?? '');
-  if (raw.includes('Unknown apikey') || raw.includes('401') || raw.toLowerCase().includes('api key')) {
-    return 'Your Riot API key expired or is wrong. Dev keys last 24 hours — get a new RGAPI key at developer.riotgames.com, paste it below, and click Apply & Go.';
+  if (/RGAPI|riot dev keys/i.test(raw)) {
+    return 'Riot dev keys cannot read Valorant match history. Get a free Henrik key at api.henrikdev.xyz/dashboard, paste it in Auto-Log Setup, and click Apply & Go.';
   }
-  if (raw.includes('403')) return 'Riot API access denied — check key permissions and region.';
-  if (raw.includes('404') || raw.toLowerCase().includes('not found')) {
+  if (/henrik/i.test(raw) || /invalid api/i.test(raw) || raw.includes('401') || raw.includes('403')) {
+    return 'Henrik API key problem — get a free key at api.henrikdev.xyz/dashboard, paste it below, and click Apply & Go.';
+  }
+  if (raw.includes('404') || /not found/i.test(raw)) {
     return 'Riot account not found — double-check Riot ID (Name#TAG) and region.';
   }
   return raw;
@@ -49,7 +51,7 @@ export function refreshBridgeStatusUI() {
       el.title = `Auto-log only works on this PC — open ${getLocalTrackerUrl()} while ${DESKTOP_APP.launcher} is running`;
     } else {
       el.title = isVal
-        ? `Click for setup — run ${DESKTOP_APP.launcher} on this PC and add Riot ID + API key`
+        ? `Click for setup — run ${DESKTOP_APP.launcher} on this PC and add Riot ID + Henrik key`
         : `Click for setup — run ${DESKTOP_APP.launcher} on this PC and set your RL name`;
     }
     setBridgeHintVisible(!loggedOut);
@@ -74,15 +76,15 @@ function renderValorantPill(el, valStatus, meta) {
   if (!valStatus?.configured) {
     const prefs = loadPrefs();
     el.textContent = prefs.riotId ? '● Needs Apply' : '● Setup Riot ID';
-    el.title = 'Riot ID + API key missing — click to open Auto-Log Setup → Apply & Go';
+    el.title = 'Riot ID + Henrik API key missing — click to open Auto-Log Setup → Apply & Go';
     el.classList.add('bridge-needs-setup');
     el.dataset.bridgeState = 'needs-setup';
     return;
   }
 
   if (valStatus.lastError) {
-    el.textContent = '● Riot API error';
-    el.title = formatRiotErrorForUser(valStatus.lastError);
+    el.textContent = '● Val API error';
+    el.title = formatValApiErrorForUser(valStatus.lastError);
     el.classList.add('bridge-error');
     el.dataset.bridgeState = 'error';
     return;
@@ -155,15 +157,15 @@ function updateDesktopAppBanner(isVal, appUp, valStatus) {
   if (appUp && isVal && valStatus && !valStatus.configured) {
     banner.classList.remove('hidden');
     badge.textContent = 'Setup needed';
-    p.innerHTML = `${DESKTOP_APP.name} is running but Riot ID / API key are not applied yet. `
+    p.innerHTML = `${DESKTOP_APP.name} is running but Riot ID / Henrik key are not applied yet. `
       + '<button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>';
     return;
   }
 
   if (appUp && isVal && valStatus?.lastError) {
     banner.classList.remove('hidden');
-    badge.textContent = 'Riot API key';
-    p.innerHTML = `${formatRiotErrorForUser(valStatus.lastError)} `
+    badge.textContent = 'Val auto-log';
+    p.innerHTML = `${formatValApiErrorForUser(valStatus.lastError)} `
       + '<button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>';
     return;
   }

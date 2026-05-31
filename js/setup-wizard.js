@@ -27,7 +27,7 @@ export function renderLogSetupNudge() {
   el.innerHTML = `
     <div class="log-setup-nudge-inner">
       <span class="log-setup-nudge-text">${isVal
-        ? `Want Valorant auto-log? Run ${DESKTOP_APP.launcher} and set Riot ID + API key.`
+        ? `Want Valorant auto-log? Run ${DESKTOP_APP.launcher} and set Riot ID + Henrik API key.`
         : `Want auto-log from Rocket League? Run ${DESKTOP_APP.launcher} on this PC.`}</span>
       <button type="button" class="btn-link" id="log-setup-nudge-link">Auto-Log Setup →</button>
     </div>`;
@@ -104,8 +104,8 @@ function renderValSteps(riotIdValue, riotRegionValue, bridge, allReady) {
       <li class="setup-step${riotIdValue ? ' done' : ''}" data-step="valorant">
         <span class="setup-step-num">2</span>
         <div class="setup-step-body">
-          <strong>Riot account + API key</strong>
-          <p>Saves to <code>grind-config.json</code> for Valorant auto-log only.</p>
+          <strong>Riot account + Henrik API key</strong>
+          <p>Saves to <code>grind-config.json</code>. Riot dev keys cannot read Val match history — use a free Henrik key.</p>
           ${renderValorantFields(riotIdValue, riotRegionValue)}
           <div class="setup-apply-block">
             ${renderApplySection(false)}
@@ -115,9 +115,12 @@ function renderValSteps(riotIdValue, riotRegionValue, bridge, allReady) {
     </ol>`;
 }
 
-function renderValorantFields(riotIdValue, riotRegionValue, { keyHint = '', keySaved = false } = {}) {
+function renderValorantFields(riotIdValue, riotRegionValue, { keyHint = '', keySaved = false, hasLegacyRiotKey = false } = {}) {
   const keyStatus = keySaved
-    ? `<p class="setup-hint setup-riot-key-saved">Key on this PC: <code>${escapeHtml(keyHint || 'saved')}</code> — paste a new RGAPI key above to replace it.</p>`
+    ? `<p class="setup-hint setup-riot-key-saved">Key on this PC: <code>${escapeHtml(keyHint || 'saved')}</code> — paste a new key above to replace it.</p>`
+    : '';
+  const legacyNote = hasLegacyRiotKey && !keySaved
+    ? '<p class="setup-hint setup-riot-key-note">Your saved RGAPI key cannot load Val matches (Riot blocks dev keys). Add a Henrik key below instead.</p>'
     : '';
   return `
     <div class="setup-val-fields">
@@ -126,10 +129,11 @@ function renderValorantFields(riotIdValue, riotRegionValue, { keyHint = '', keyS
         <input type="text" id="setup-riot-id" class="setup-input" placeholder="PlayerName#NA1" value="${escapeAttr(riotIdValue)}" autocomplete="off">
       </div>
       <div class="setup-field">
-        <label for="setup-riot-key">Riot API key <span class="setup-hint">(<a href="https://developer.riotgames.com/" target="_blank" rel="noopener">developer.riotgames.com</a>)</span></label>
-        <input type="password" id="setup-riot-key" class="setup-input" placeholder="${keySaved ? 'Paste new RGAPI key to replace saved key' : 'RGAPI-...'}" autocomplete="off">
+        <label for="setup-henrik-key">Henrik API key <span class="setup-hint">(<a href="https://api.henrikdev.xyz/dashboard/" target="_blank" rel="noopener">free — get key</a>)</span></label>
+        <input type="password" id="setup-henrik-key" class="setup-input" placeholder="${keySaved ? 'Paste new key to replace saved key' : 'HDEV-… or your Henrik key'}" autocomplete="off">
+        ${legacyNote}
         ${keyStatus}
-        <p class="setup-hint setup-riot-key-note">Dev keys expire every <strong>24 hours</strong>. On the developer portal, click <strong>Regenerate API Key</strong>, paste the new key here, then Apply &amp; Go.</p>
+        <p class="setup-hint setup-riot-key-note">Sign in at <a href="https://api.henrikdev.xyz/dashboard/" target="_blank" rel="noopener">api.henrikdev.xyz/dashboard</a>, copy your API key, paste here, then <strong>Apply &amp; Go</strong>. Does not expire like Riot dev keys.</p>
       </div>
       <div class="setup-field-row">
         <div class="setup-field setup-field-region">
@@ -182,7 +186,7 @@ export function renderSetupWizard(displayName = '') {
         <div class="setup-callout setup-callout-success">
           <strong>${DESKTOP_APP.name} is running.</strong>
           ${isVal
-    ? 'Set your Riot ID + API key below, then Apply &amp; Go.'
+    ? 'Set your Riot ID + Henrik API key below, then Apply &amp; Go.'
     : 'Rocket League auto-log is ready on this PC.'}
         </div>
         <button type="button" class="btn btn-secondary" id="setup-show-steps">Show full setup steps</button>
@@ -212,10 +216,10 @@ export function renderSetupWizard(displayName = '') {
           <h3>${allReady ? `You're ready — ${isVal ? 'Valorant' : 'Rocket League'}` : `${isVal ? 'Valorant' : 'Rocket League'} auto-log setup`}</h3>
           <p class="setup-desc">${allReady
     ? (isVal
-      ? `${DESKTOP_APP.name} is running. Set Riot ID + API key below, then play with auto-log ON.`
+      ? `${DESKTOP_APP.name} is running. Set Riot ID + Henrik key below, then play with auto-log ON.`
       : 'G/A/S fill in automatically. You pick W/L and enter End MMR after each game.')
     : (isVal
-      ? `Valorant only — enter Riot ID + API key, start ${DESKTOP_APP.launcher}, then Apply & Go.`
+      ? `Valorant only — Riot ID + free Henrik key, start ${DESKTOP_APP.launcher}, then Apply & Go.`
       : `Rocket League only — enter your RL name, start ${DESKTOP_APP.launcher}, then Apply & Go.`)}
           </p>
         ${allReady ? `<button type="button" class="setup-dismiss" id="setup-dismiss">Got it</button>` : ''}
@@ -254,7 +258,7 @@ async function prefillRiotFromBridge() {
     const cfg = setup.config ?? {};
     const riotInput = document.getElementById('setup-riot-id');
     const regionSel = document.getElementById('setup-riot-region');
-    const keyField = document.getElementById('setup-riot-key');
+    const keyField = document.getElementById('setup-henrik-key');
     if (riotInput && !riotInput.value && cfg.riotId) {
       riotInput.value = cfg.riotId;
       savePrefs({ riotId: cfg.riotId });
@@ -263,21 +267,29 @@ async function prefillRiotFromBridge() {
       regionSel.value = cfg.riotRegion;
       savePrefs({ riotRegion: cfg.riotRegion });
     }
-    if (keyField && cfg.riotApiKeySet && cfg.riotApiKeyHint) {
-      keyField.placeholder = 'Paste new RGAPI key to replace saved key';
+    if (keyField && cfg.henrikApiKeySet && cfg.henrikApiKeyHint) {
+      keyField.placeholder = 'Paste new key to replace saved key';
       const fieldWrap = keyField.closest('.setup-field');
       if (fieldWrap && !fieldWrap.querySelector('.setup-riot-key-saved')) {
         const note = document.createElement('p');
         note.className = 'setup-hint setup-riot-key-saved';
-        note.innerHTML = `Key on this PC: <code>${escapeHtml(cfg.riotApiKeyHint)}</code> — paste a new RGAPI key above to replace it.`;
+        note.innerHTML = `Key on this PC: <code>${escapeHtml(cfg.henrikApiKeyHint)}</code> — paste a new key above to replace it.`;
+        keyField.insertAdjacentElement('afterend', note);
+      }
+    } else if (keyField && cfg.hasLegacyRiotKey && !cfg.henrikApiKeySet) {
+      const fieldWrap = keyField.closest('.setup-field');
+      if (fieldWrap && !fieldWrap.querySelector('.setup-legacy-riot-note')) {
+        const note = document.createElement('p');
+        note.className = 'setup-hint setup-riot-key-note setup-legacy-riot-note';
+        note.innerHTML = 'Your saved <code>RGAPI-</code> key cannot load Val matches. Get a free Henrik key at <a href="https://api.henrikdev.xyz/dashboard/" target="_blank" rel="noopener">api.henrikdev.xyz/dashboard</a>.';
         keyField.insertAdjacentElement('afterend', note);
       }
     }
-    document.querySelector('.setup-step[data-step="valorant"]')?.classList.toggle('done', Boolean(riotInput?.value.trim()) && cfg.riotApiKeySet);
+    document.querySelector('.setup-step[data-step="valorant"]')?.classList.toggle('done', Boolean(riotInput?.value.trim()) && cfg.henrikApiKeySet);
     const pill = document.getElementById('setup-valorant-pill');
     if (pill && riotInput?.value.trim()) {
-      pill.textContent = cfg.riotApiKeySet ? '● Saved on this PC' : '○ Add API key';
-      pill.classList.add('ok');
+      pill.textContent = cfg.henrikApiKeySet ? '● Saved on this PC' : (cfg.hasLegacyRiotKey ? '○ Needs Henrik key' : '○ Add API key');
+      pill.classList.toggle('ok', Boolean(cfg.henrikApiKeySet));
     }
   } catch {
     /* bridge not ready yet */
@@ -345,13 +357,13 @@ function wireSetupApplyGo() {
     const input = document.getElementById('setup-rl-name');
     const name = input?.value.trim() ?? loadPrefs().rlDisplayName?.trim() ?? '';
     const riotId = document.getElementById('setup-riot-id')?.value.trim() ?? '';
-    const riotApiKey = document.getElementById('setup-riot-key')?.value.trim() ?? '';
+    const henrikApiKey = document.getElementById('setup-henrik-key')?.value.trim() ?? '';
     const riotRegion = document.getElementById('setup-riot-region')?.value ?? 'na';
     const isVal = state.activeGame === GAME_IDS.VALORANT;
     let savedKeySet = false;
     if (isVal) {
       try {
-        savedKeySet = Boolean((await fetchBridgeSetupStatus()).config?.riotApiKeySet);
+        savedKeySet = Boolean((await fetchBridgeSetupStatus()).config?.henrikApiKeySet);
       } catch { /* bridge check below */ }
     }
     if (isVal) {
@@ -360,9 +372,14 @@ function wireSetupApplyGo() {
         document.getElementById('setup-riot-id')?.focus();
         return;
       }
-      if (!riotApiKey && !savedKeySet) {
-        showToast('Paste your Riot API key — dev keys expire every 24 hours', 'error');
-        document.getElementById('setup-riot-key')?.focus();
+      if (henrikApiKey.startsWith('RGAPI-')) {
+        showToast('Riot dev keys cannot load Val matches — use a Henrik key from api.henrikdev.xyz/dashboard', 'error');
+        document.getElementById('setup-henrik-key')?.focus();
+        return;
+      }
+      if (!henrikApiKey && !savedKeySet) {
+        showToast('Paste your Henrik API key — free at api.henrikdev.xyz/dashboard', 'error');
+        document.getElementById('setup-henrik-key')?.focus();
         return;
       }
     } else if (!name) {
@@ -388,7 +405,7 @@ function wireSetupApplyGo() {
       const result = await applyBridgeSetup({
         rlDisplayName: isVal ? '' : name,
         riotId: isVal ? riotId : '',
-        riotApiKey: isVal ? riotApiKey : '',
+        henrikApiKey: isVal ? henrikApiKey : '',
         riotRegion: isVal ? riotRegion : undefined,
         patchIni,
       });
@@ -408,10 +425,10 @@ function wireSetupApplyGo() {
                 ? `✓ Riot account verified: ${result.riotValidation.riotId || riotId}`
                 : '↻ Re-checking saved key…',
             !riotFailed && result.riotValidation?.ok
-              ? '✓ API key works — play one match to finish sync, then matches auto-log'
+              ? '✓ Henrik connected — play one match to finish sync, then matches auto-log'
               : null,
-            riotFailed
-              ? '↻ developer.riotgames.com → Regenerate API Key → paste above → Apply again'
+            riotFailed && result.riotValidation?.error?.includes('Henrik')
+              ? '↻ api.henrikdev.xyz/dashboard → copy API key → paste above → Apply again'
               : null,
             ...(result.warnings ?? []).map(w => `⚠ ${w}`),
           ]

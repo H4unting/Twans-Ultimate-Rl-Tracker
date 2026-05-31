@@ -32,7 +32,7 @@ export const NAV = {
 
 export const PAGE_COPY = {
   log: { heading: 'Match History', desc: 'Every logged round — filter by queue, review K/D/A, RR swings, and mistake tags.' },
-  setup: { heading: 'Auto-Log Setup', desc: 'Run Twans Auto-Log on your PC and connect Riot ID + API key for automatic match logging.' },
+  setup: { heading: 'Auto-Log Setup', desc: 'Run Twans Auto-Log on your PC and connect Riot ID + Henrik API key for automatic match logging.' },
   focus: { heading: 'Mission Brief', desc: 'Your top leaks — aim, utility, teamplay, and mental — from tagged losses.' },
   sessions: { heading: 'Grind Blocks', desc: 'Session-by-session RR, W/L, and which improvement pillars showed up.' },
   analytics: { heading: 'Performance Intel', desc: 'Aim · Utility · Teamplay · Mental — where your mistakes cluster.' },

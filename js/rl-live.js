@@ -136,7 +136,7 @@ export async function fetchBridgeSetupStatus() {
 }
 
 export async function applyBridgeSetup({
-  rlDisplayName, riotId, riotApiKey, riotRegion, patchIni = true,
+  rlDisplayName, riotId, henrikApiKey, riotApiKey, riotRegion, patchIni = true,
 }) {
   const name = rlDisplayName?.trim();
   const riot = riotId?.trim();
@@ -148,7 +148,7 @@ export async function applyBridgeSetup({
     body: JSON.stringify({
       rlDisplayName: name,
       riotId: riot,
-      riotApiKey: riotApiKey?.trim() || undefined,
+      henrikApiKey: (henrikApiKey ?? riotApiKey)?.trim() || undefined,
       riotRegion: riotRegion?.trim() || undefined,
       patchIni,
     }),

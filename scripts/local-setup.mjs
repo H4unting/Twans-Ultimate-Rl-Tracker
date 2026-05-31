@@ -119,13 +119,16 @@ export function getSetupStatus() {
     }
   } catch { /* ignore */ }
 
-  const key = String(config.riotApiKey || '').trim();
-  const { riotApiKey: _omit, ...safeConfig } = config;
+  const henrikKey = String(config.henrikApiKey || '').trim();
+  const legacyRiotKey = String(config.riotApiKey || '').trim();
+  const key = henrikKey || (legacyRiotKey.startsWith('RGAPI-') ? '' : legacyRiotKey);
+  const { riotApiKey: _omit, henrikApiKey: _omit2, ...safeConfig } = config;
   return {
     config: {
       ...safeConfig,
-      riotApiKeySet: Boolean(key),
-      riotApiKeyHint: key ? `${key.slice(0, 12)}…${key.slice(-4)}` : null,
+      henrikApiKeySet: Boolean(key),
+      henrikApiKeyHint: key ? `${key.slice(0, 10)}…${key.slice(-4)}` : null,
+      hasLegacyRiotKey: legacyRiotKey.startsWith('RGAPI-'),
     },
     paths: {
       trackerRoot: ROOT,
@@ -139,12 +142,13 @@ export function getSetupStatus() {
   };
 }
 
-export function applyLocalSetup({ rlDisplayName, riotId, riotApiKey, riotRegion, patchIni = true }) {
+export function applyLocalSetup({ rlDisplayName, riotId, riotApiKey, henrikApiKey, riotRegion, patchIni = true }) {
   const name = String(rlDisplayName ?? '').trim();
   const partial = {};
   if (name) partial.rlDisplayName = name;
   if (riotId) partial.riotId = String(riotId).trim();
-  if (riotApiKey) partial.riotApiKey = String(riotApiKey).trim();
+  const henrik = String(henrikApiKey ?? riotApiKey ?? '').trim();
+  if (henrik && !henrik.startsWith('RGAPI-')) partial.henrikApiKey = henrik;
   if (riotRegion) partial.riotRegion = String(riotRegion).trim().toLowerCase();
   if (Object.keys(partial).length) saveGrindConfig(partial);
 
