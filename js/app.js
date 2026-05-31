@@ -13,7 +13,7 @@ import { startSession, endSession, closeSessionModal, closeSessionModalAndContin
 import {
   initQuickLog, showQuickDock, hideQuickDock, getQuickLogPayload,
   resetQuickAfterLog, loadPrefs, savePrefs, syncFormFromQuick, applyLiveStats, flashAutoLogged,
-  setQuickResult, setQuickMode, rerenderQuickTags, getLastModeForGame,
+  setQuickResult, setQuickMode, rerenderQuickTags, getLastModeForGame, getQuickMode,
 } from './quicklog.js';
 import { renderProfilePage } from './profile-ui.js';
 import { initRlLive, stopRlLive, refreshLiveStatus,
@@ -924,41 +924,42 @@ function wireGoogleSignIn() {
 }
 
 async function init() {
-  applyAppMode();
-  wireLoginScreen();
-  showLoggedOut();
+  try {
+    applyAppMode();
+    wireLoginScreen();
+    showLoggedOut();
 
-  const dateEl = document.getElementById('f-date');
-  if (dateEl) dateEl.value = new Date().toISOString().slice(0, 10);
+    const dateEl = document.getElementById('f-date');
+    if (dateEl) dateEl.value = new Date().toISOString().slice(0, 10);
 
-  subscribe(() => setSyncUI(state.syncStatus));
-  setSyncUI(state.syncStatus);
+    subscribe(() => setSyncUI(state.syncStatus));
+    setSyncUI(state.syncStatus);
 
-  wireNavigation();
-  document.getElementById('logo-home-btn')?.addEventListener('click', () => navigate('dashboard', 'home'));
-  wireBridgeStatusClick(() => navigate('setup', 'home'));
-  wireKeyboardShortcuts();
-  document.getElementById('dash-view-all-logs')?.addEventListener('click', () => {
-    navigate('log', 'home');
-  });
-  document.getElementById('matchlogs-export-btn')?.addEventListener('click', () => {
-    exportGamesCSV(getMatchLogsGames(), getDisplay().name, state.activeGame);
-    showToast('CSV downloaded');
-  });
-  wireLogForm();
-  wireEditModal();
-  initSessionUI();
-  initQuickLog({
-    submitQuick: () => submitGameLog('quick'),
-    getLastMMR: (mode) => getLastMMR(mode),
-    setFormResult: setResult,
-    setSelectedTags: tags => { state.ui.selectedTags = tags; },
-    onAutoLogToggle: () => {
-      if (state.activeGame === GAME_IDS.VALORANT) refreshValorantStatus();
-      else refreshLiveStatus();
-    },
-  });
-  initPostMatch({
+    wireNavigation();
+    document.getElementById('logo-home-btn')?.addEventListener('click', () => navigate('dashboard', 'home'));
+    wireBridgeStatusClick(() => navigate('setup', 'home'));
+    wireKeyboardShortcuts();
+    document.getElementById('dash-view-all-logs')?.addEventListener('click', () => {
+      navigate('log', 'home');
+    });
+    document.getElementById('matchlogs-export-btn')?.addEventListener('click', () => {
+      exportGamesCSV(getMatchLogsGames(), getDisplay().name, state.activeGame);
+      showToast('CSV downloaded');
+    });
+    wireLogForm();
+    wireEditModal();
+    initSessionUI();
+    initQuickLog({
+      submitQuick: () => submitGameLog('quick'),
+      getLastMMR: (mode) => getLastMMR(mode),
+      setFormResult: setResult,
+      setSelectedTags: tags => { state.ui.selectedTags = tags; },
+      onAutoLogToggle: () => {
+        if (state.activeGame === GAME_IDS.VALORANT) refreshValorantStatus();
+        else refreshLiveStatus();
+      },
+    });
+    initPostMatch({
       onConfirmMMR: async (mmr) => {
         const game = await patchLastGame({ endMMR: mmr });
         if (game) { renderAll(); return true; }
@@ -975,35 +976,34 @@ async function init() {
         return ok;
       },
       onOpen: () => refreshSessionUI(),
-    onClose: () => refreshSessionUI(),
-  });
-  document.addEventListener('rl-session-ui-refresh', () => {
-    renderHomePage();
-  });
-  onAuthChange(async (session) => {
-    if (session) {
-      if (!bootPromise) {
-        bootPromise = bootApp().finally(() => { bootPromise = null; });
+      onClose: () => refreshSessionUI(),
+    });
+    document.addEventListener('rl-session-ui-refresh', () => {
+      renderHomePage();
+    });
+    onAuthChange(async (session) => {
+      if (session) {
+        if (!bootPromise) {
+          bootPromise = bootApp().finally(() => { bootPromise = null; });
+        }
+        try {
+          await bootPromise;
+        } catch (e) {
+          console.error(e);
+          showToast(e?.message || 'Could not load after sign-in — try refreshing', 'error');
+        }
+      } else {
+        bootPromise = null;
+        showLoggedOut();
       }
-      try {
-        await bootPromise;
-      } catch (e) {
-        console.error(e);
-        showToast(e?.message || 'Could not load after sign-in — try refreshing', 'error');
-      }
-    } else {
-      bootPromise = null;
-      showLoggedOut();
-    }
-  });
+    });
 
-  try {
     await withTimeout(initAuth(), 15000, 'Sign-in check timed out — refresh and try again');
     if (!getAuthUser()) showLoggedOut();
   } catch (e) {
     console.error(e);
     showLoggedOut();
-    showToast(e.message || 'Auth setup error — try signing in again', 'error');
+    showToast(e?.message || 'Tracker failed to start — refresh the page', 'error');
   }
 }
 

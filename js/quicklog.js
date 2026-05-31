@@ -368,6 +368,8 @@ function getQuickMode() {
     ?? getLastModeForGame(state.activeGame);
 }
 
+export { getQuickMode };
+
 export function setQuickMode(mode) {
   getDockModePillsEl()?.querySelectorAll('button[data-mode]').forEach(b => {
     b.classList.toggle('active', b.dataset.mode === mode);

@@ -20,6 +20,7 @@
   <div class="login-card">
     <div class="logo login-logo">Twans <span>Ultimate Tracker</span></div>
     <p class="login-tagline">Track Rocket League &amp; Valorant in one place.<br>Sign in once — log, stats, and squads sync everywhere.</p>
+    <p id="boot-failure-note" class="login-boot-error hidden" role="alert"></p>
 
     <form id="email-login-form" class="login-email-form" autocomplete="on">
       <div class="form-group login-field">
@@ -430,20 +431,30 @@
 <div class="toast" id="toast"></div>
 
 <script>
-  /* If a JS module fails to load, don’t leave the page stuck on “Loading…” forever */
-  window.addEventListener('unhandledrejection', () => {
-    if (typeof window.__navigate !== 'undefined') return;
+  function showBootFailure(message) {
     document.body.classList.remove('is-loading');
     document.getElementById('login-screen')?.classList.remove('hidden');
+    const note = document.getElementById('boot-failure-note');
+    if (note) {
+      note.textContent = message || 'The tracker could not start. Hard refresh (Ctrl+F5) or check the browser console (F12).';
+      note.classList.remove('hidden');
+    }
+  }
+  window.addEventListener('error', (e) => {
+    if (typeof window.__navigate !== 'undefined') return;
+    showBootFailure(e.message || 'Script failed to load');
+  });
+  window.addEventListener('unhandledrejection', (e) => {
+    if (typeof window.__navigate !== 'undefined') return;
+    showBootFailure(e.reason?.message || 'Startup failed');
   });
   setTimeout(() => {
     if (typeof window.__navigate !== 'undefined') return;
     if (document.body.classList.contains('is-loading')) {
-      document.body.classList.remove('is-loading');
-      document.getElementById('login-screen')?.classList.remove('hidden');
+      showBootFailure('Loading timed out — hard refresh (Ctrl+F5). If using Brave, allow scripts for localhost:8080.');
     }
   }, 12000);
 </script>
-<script type="module" src="js/app.js?v=20260531v"></script>
+<script type="module" src="js/app.js?v=20260531w"></script>
 </body>
 </html>

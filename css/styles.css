@@ -1337,6 +1337,11 @@ body:not(.logged-out) #login-screen { display: none !important; }
 }
 .login-logo { font-size: 24px; margin-bottom: 12px; max-width: 280px; margin-left: auto; margin-right: auto; }
 .login-tagline { color: var(--muted); font-size: 14px; line-height: 1.6; margin-bottom: 22px; }
+.login-boot-error {
+  color: #ff8a80; background: rgba(255, 80, 80, 0.12); border: 1px solid rgba(255, 100, 100, 0.35);
+  border-radius: 8px; padding: 10px 12px; font-size: 13px; line-height: 1.5; margin-bottom: 16px;
+}
+.login-boot-error.hidden { display: none; }
 .login-email-form {
   text-align: left;
   margin-bottom: 12px;

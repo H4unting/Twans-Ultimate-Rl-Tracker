@@ -36,6 +36,13 @@ export function formatApiError(e, fallback = 'Something went wrong') {
   return raw || fallback;
 }
 
+function fetchTimeout(ms) {
+  if (typeof AbortSignal?.timeout === 'function') return AbortSignal.timeout(ms);
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), ms);
+  return controller.signal;
+}
+
 async function sbFetch(path, method = 'GET', body = null, extra = {}) {
   const token = getAccessToken() ?? SUPABASE_KEY;
   const opts = {
@@ -46,7 +53,7 @@ async function sbFetch(path, method = 'GET', body = null, extra = {}) {
       'Content-Type': 'application/json',
       ...extra,
     },
-    signal: AbortSignal.timeout(25000),
+    signal: fetchTimeout(25000),
   };
   if (body) opts.body = JSON.stringify(body);
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, opts);
@@ -166,10 +173,21 @@ export async function loadProfile() {
 export async function loadGames() {
   const user = getAuthUser();
   if (!user) return [];
-  const rows = await sbFetch(
-    `matches?user_id=eq.${user.id}&select=*&order=game.asc,match_num.asc`,
-  );
-  return normalizePlayerGames((rows ?? []).map(matchRowToGame));
+  try {
+    const rows = await sbFetch(
+      `matches?user_id=eq.${user.id}&select=*&order=game.asc,match_num.asc`,
+    );
+    return normalizePlayerGames((rows ?? []).map(matchRowToGame));
+  } catch (e) {
+    const msg = String(e?.message ?? e);
+    if (isMissingColumnError(e) || msg.includes('"game"') || msg.includes('game')) {
+      const rows = await sbFetch(
+        `matches?user_id=eq.${user.id}&select=*&order=match_num.asc`,
+      );
+      return normalizePlayerGames((rows ?? []).map(matchRowToGame));
+    }
+    throw e;
+  }
 }
 
 export async function saveGames(games, gameId = null) {

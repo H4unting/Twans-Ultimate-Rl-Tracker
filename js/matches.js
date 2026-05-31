@@ -4,9 +4,12 @@ import { state, setGames, getActiveGames, mergeActiveGames } from './state.js';
 import { formatDisplayDate, normalizeGame, getPriorEndMMRForMode, resolveGameStartMMR } from './utils.js';
 import { saveGames } from './supabase.js';
 import { showToast } from './ui.js';
-import { refreshSessionUI } from './sessions.js';
 import { getAuthUser } from './auth.js';
 import { GAME_IDS, getGameMeta, getRankDiff } from './games.js';
+
+function notifySessionUIRefresh() {
+  void import('./sessions.js').then(m => m.refreshSessionUI());
+}
 
 function requireSignedIn() {
   if (!getAuthUser()) {
@@ -73,7 +76,7 @@ export async function addGame(formData, selectedTags, onSuccess) {
   await persistActiveGames(games);
   const diff = getRankDiff(game, state.activeGame);
   showToast(`${isVal ? 'Match' : 'Game'} logged! ${diff >= 0 ? '+' : ''}${diff} ${rankLabel()}`);
-  refreshSessionUI();
+  notifySessionUIRefresh();
   if (onSuccess) onSuccess(game);
   return game;
 }
@@ -151,7 +154,7 @@ export async function patchLastGame({ endMMR, endRR, tags, notes }) {
 
   games[idx] = normalizeGame(g);
   await persistActiveGames(games);
-  refreshSessionUI();
+  notifySessionUIRefresh();
   return games[idx];
 }
 
@@ -164,7 +167,7 @@ export async function undoLastGame(skipConfirm = false) {
   const games = active.slice(0, -1);
   games.forEach((g, i) => { g.match = i + 1; });
   await persistActiveGames(games);
-  refreshSessionUI();
+  notifySessionUIRefresh();
   showToast(`Last ${state.activeGame === GAME_IDS.VALORANT ? 'match' : 'game'} removed`);
   return true;
 }

@@ -170,7 +170,10 @@ function createTrackerServer() {
 
 const config = loadGrindConfig();
 
-const playerName = process.argv[2]?.trim() || config.rlDisplayName || process.env.RL_PLAYER_NAME || '';
+const playerArg = process.argv[2]?.trim();
+const playerName = (playerArg && !playerArg.startsWith('--'))
+  ? playerArg
+  : (config.rlDisplayName || process.env.RL_PLAYER_NAME || '');
 
 const configuredTrackerUrl = (process.env.TRACKER_URL || config.trackerUrl || LOCAL_TRACKER_URL).trim();
 
