@@ -1,0 +1,586 @@
+/* Layout polish — spacing, alignment, and responsive structure */
+
+:root {
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --space-2xl: 32px;
+  --content-max: 1200px;
+  --header-pad-x: 24px;
+  --control-height: 40px;
+}
+
+/* ── Top bar: structured rows ───────────────────────────────────────────── */
+.top-bar {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto auto;
+  grid-template-rows: auto auto auto;
+  align-items: center;
+  column-gap: var(--space-lg);
+  row-gap: var(--space-sm);
+  padding: var(--space-md) var(--header-pad-x) 0;
+}
+
+.logo-home-btn {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+  white-space: nowrap;
+}
+
+.game-switcher {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+}
+
+.top-bar-meta {
+  grid-column: 4;
+  grid-row: 1;
+  justify-self: end;
+  align-self: center;
+}
+
+.user-bar {
+  grid-column: 5;
+  grid-row: 1;
+  margin-left: 0;
+  margin-right: 0;
+  justify-self: end;
+  align-self: center;
+}
+
+.primary-nav,
+.tabs.primary-nav {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  margin-left: 0;
+  margin-top: var(--space-xs);
+  padding-top: var(--space-md);
+  border-top: 1px solid #ffffff0a;
+  width: 100%;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.sub-nav {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  padding: var(--space-sm) 0 var(--space-md);
+  margin-top: 0;
+  width: 100%;
+  align-items: center;
+}
+
+.section-tab,
+.sub-nav-pill {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Page rhythm ────────────────────────────────────────────────────────── */
+.page {
+  padding: var(--space-xl) var(--header-pad-x);
+  max-width: var(--content-max);
+}
+
+.page-heading {
+  font-size: clamp(20px, 2.4vw, 26px);
+  line-height: 1.25;
+  margin-bottom: var(--space-sm);
+}
+
+.page-desc {
+  margin: 0 0 var(--space-lg);
+  max-width: 52ch;
+  line-height: 1.55;
+}
+
+.log-page-header {
+  margin-bottom: var(--space-xl);
+}
+
+.log-page-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  flex-wrap: wrap;
+}
+
+.section-title {
+  margin: var(--space-xl) 0 var(--space-md);
+}
+
+.dash-recent-head {
+  margin-top: var(--space-lg);
+  align-items: baseline;
+}
+
+.dash-recent-head .section-title {
+  margin: var(--space-xl) 0 var(--space-md);
+}
+
+.dash-recent-head .section-link {
+  margin-bottom: var(--space-md);
+}
+
+.bridge-hint-inner {
+  max-width: var(--content-max);
+  padding: 0 var(--header-pad-x);
+}
+
+/* ── Cards & stat grids ───────────────────────────────────────────────────── */
+.stat-grid,
+.insight-grid,
+.analytics-grid,
+.report-stats-grid {
+  gap: var(--space-md);
+  align-items: stretch;
+}
+
+.stat-card,
+.insight-card,
+.analytics-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  min-height: 92px;
+}
+
+.stat-label,
+.insight-label {
+  margin-bottom: var(--space-sm);
+}
+
+.stat-val,
+.insight-val {
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+
+.chart-row,
+.home-charts-inner,
+body[data-active-game="valorant"] .val-charts-inner {
+  gap: var(--space-md);
+  align-items: stretch;
+}
+
+.chart-box,
+.home-chart-box,
+body[data-active-game="valorant"] .val-chart-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+}
+
+.home-charts-inner {
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 160px);
+}
+
+.home-chart-box {
+  min-height: 140px;
+  height: 150px;
+}
+
+/* ── Home dashboard ───────────────────────────────────────────────────────── */
+.home-summary {
+  padding: var(--space-lg) 0 var(--space-xl);
+}
+
+.home-summary-empty,
+.empty-state,
+.empty {
+  padding: var(--space-lg) var(--space-xl);
+  text-align: center;
+  line-height: 1.5;
+}
+
+.home-mmr-row {
+  grid-template-columns: auto 40px minmax(0, 1fr) auto auto;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  align-items: center;
+}
+
+.home-mmr-rank,
+.home-mmr-val,
+.home-mmr-week {
+  white-space: nowrap;
+}
+
+.home-focus-card {
+  margin-bottom: var(--space-xl);
+}
+
+.home-activity-row {
+  grid-template-columns: 32px 52px minmax(0, 1fr) minmax(0, 1.1fr) auto;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  align-items: center;
+}
+
+.home-activity-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.val-hero,
+.val-queue-grid {
+  gap: var(--space-md);
+}
+
+.val-split {
+  gap: var(--space-md);
+}
+
+/* ── Forms & controls ───────────────────────────────────────────────────── */
+.form-grid {
+  gap: var(--space-md);
+  align-items: end;
+}
+
+.form-group input,
+.form-group select,
+.filter-group input,
+.filter-group select,
+.login-field input {
+  min-height: var(--control-height);
+}
+
+.btn,
+.tab,
+.pl-tab,
+.quick-filter-btn {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wl-toggle,
+.edit-wl {
+  min-height: var(--control-height);
+}
+
+.filter-row {
+  gap: var(--space-md);
+  align-items: flex-end;
+}
+
+.add-form,
+.filter-bar {
+  padding: var(--space-xl);
+}
+
+.table-wrap {
+  border: 1px solid #ffffff0a;
+  border-radius: var(--radius);
+}
+
+.log-table th,
+.log-table td {
+  padding: 10px 12px;
+  vertical-align: middle;
+}
+
+/* ── Quick dock ───────────────────────────────────────────────────────────── */
+.quick-dock {
+  padding: var(--space-sm) var(--space-md) var(--space-md);
+}
+
+.quick-dock-inner {
+  max-width: min(920px, calc(100vw - 24px));
+  width: 100%;
+}
+
+.quick-dock-mode {
+  padding: var(--space-sm) var(--space-md);
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.quick-dock-main {
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+}
+
+.quick-stats-row,
+.quick-wl {
+  align-items: center;
+}
+
+.quick-mmr-input,
+.quick-wl-btn,
+.quick-stat-bump,
+.quick-log-btn {
+  height: var(--control-height);
+}
+
+.quick-dock-tags {
+  padding: var(--space-sm) var(--space-md) var(--space-md);
+}
+
+.quick-tags {
+  align-items: center;
+}
+
+/* ── Login ────────────────────────────────────────────────────────────────── */
+.login-screen {
+  padding: var(--space-xl);
+}
+
+.login-card {
+  padding: clamp(28px, 5vw, 40px) clamp(24px, 4vw, 36px);
+}
+
+.login-auth-links {
+  align-items: center;
+}
+
+/* ── Groups & profile ─────────────────────────────────────────────────────── */
+.group-layout {
+  gap: var(--space-xl);
+}
+
+.group-sidebar {
+  top: calc(var(--space-2xl) + 120px);
+}
+
+.group-hero {
+  align-items: center;
+  gap: var(--space-xl);
+}
+
+.dashboard-grid {
+  gap: var(--space-xl);
+  align-items: start;
+}
+
+.profile-ranks-grid,
+.profile-edit-grid {
+  gap: var(--space-md);
+}
+
+.profile-edit-actions {
+  align-items: center;
+}
+
+/* ── Modals & toasts ─────────────────────────────────────────────────────── */
+.modal-overlay {
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xl);
+}
+
+.modal {
+  width: min(480px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+}
+
+.toast {
+  bottom: calc(var(--space-xl) + env(safe-area-inset-bottom, 0px));
+  right: var(--space-xl);
+  left: auto;
+  max-width: min(420px, calc(100vw - 32px));
+}
+
+body.has-quick-dock .toast {
+  bottom: calc(220px + env(safe-area-inset-bottom, 0px));
+}
+
+body.has-quick-dock.quick-dock-collapsed .toast {
+  bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+}
+
+@media (max-width: 768px) {
+  body.has-quick-dock.post-match-open .toast {
+    bottom: calc(360px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* ── Mobile nav offset for taller header ──────────────────────────────────── */
+.mobile-nav {
+  padding: var(--space-sm) var(--space-xs) calc(var(--space-sm) + env(safe-area-inset-bottom));
+  justify-content: space-around;
+}
+
+.mobile-nav-btn {
+  align-items: center;
+  justify-content: center;
+}
+
+body.has-quick-dock .mobile-nav {
+  bottom: 200px;
+}
+
+body.has-quick-dock.quick-dock-collapsed .mobile-nav {
+  bottom: 56px;
+}
+
+.post-match-inner {
+  max-width: min(920px, calc(100vw - 24px));
+  margin: 0 auto;
+}
+
+.post-match-top,
+.post-match-foot {
+  align-items: center;
+}
+
+.post-match-stat-grid {
+  align-items: stretch;
+}
+
+@media (max-width: 900px) {
+  :root {
+    --header-pad-x: 16px;
+  }
+
+  .top-bar {
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto auto auto auto;
+    padding-top: var(--space-md);
+  }
+
+  .logo-home-btn {
+    grid-column: 1;
+    grid-row: 1;
+    font-size: 15px;
+    max-width: calc(100vw - 140px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .user-bar {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .game-switcher {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: fit-content;
+  }
+
+  .top-bar-meta {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    justify-self: start;
+    flex-wrap: wrap;
+  }
+
+  .primary-nav {
+    grid-row: 4;
+    padding-top: var(--space-sm);
+  }
+
+  .sub-nav {
+    grid-row: 5;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: var(--space-md);
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .sub-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .sub-nav-pill {
+    flex-shrink: 0;
+  }
+
+  .group-sidebar {
+    top: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .page {
+    padding: var(--space-lg) var(--header-pad-x);
+  }
+
+  .home-activity-row {
+    grid-template-columns: 28px 44px minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+  }
+
+  .home-activity-tags {
+    grid-column: 1 / -1;
+  }
+
+  .home-activity-date {
+    grid-row: 1;
+    grid-column: 4;
+  }
+
+  .home-charts-inner {
+    grid-template-columns: 1fr;
+  }
+
+  .home-chart-wl {
+    max-width: none;
+    height: 130px;
+  }
+
+  .home-mmr-row {
+    grid-template-columns: auto 32px minmax(0, 1fr) auto;
+    gap: var(--space-sm);
+  }
+
+  .home-mmr-week {
+    grid-column: 4;
+  }
+
+  body[data-active-game="valorant"] .val-charts-inner {
+    grid-template-columns: 1fr;
+  }
+
+  .quick-dock-main {
+    justify-content: stretch;
+  }
+
+  .quick-stats-row {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .quick-mmr-input {
+    min-width: 0;
+    flex: 1 1 120px;
+  }
+}
+
+@media (max-width: 480px) {
+  .logo-home-btn {
+    font-size: 14px;
+  }
+
+  .game-switch-btn {
+    padding: 5px 8px;
+    font-size: 10px;
+  }
+
+  .sync-label {
+    max-width: 72px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .top-profile-btn {
+    padding: 5px 8px;
+    font-size: 11px;
+  }
+}

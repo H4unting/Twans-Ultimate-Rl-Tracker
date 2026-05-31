@@ -103,7 +103,8 @@ body[data-active-game="valorant"] .game-switch-btn[data-game="rocket_league"]:no
 }
 
 body[data-active-game="valorant"] .tabs .tab,
-body[data-active-game="valorant"] .sub-nav .sub-tab {
+body[data-active-game="valorant"] .sub-nav .sub-tab,
+body[data-active-game="valorant"] .sub-nav .sub-nav-pill {
   border-radius: 0;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -112,7 +113,8 @@ body[data-active-game="valorant"] .sub-nav .sub-tab {
 }
 
 body[data-active-game="valorant"] .tabs .tab.active,
-body[data-active-game="valorant"] .sub-nav .sub-tab.active {
+body[data-active-game="valorant"] .sub-nav .sub-tab.active,
+body[data-active-game="valorant"] .sub-nav .sub-nav-pill.active {
   background: #ff465518;
   border-color: var(--val-red);
   color: #fff;
