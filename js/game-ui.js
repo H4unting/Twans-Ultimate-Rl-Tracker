@@ -10,7 +10,7 @@ import { needsLocalTrackerForAutoLog } from './env.js';
 import { refreshValorantStatus } from './valorant-live.js';
 import { updateNavUI } from './nav.js';
 import { restoreSessionFromStorage, refreshSessionUI } from './sessions.js';
-import { renderLogSetupNudge } from './setup-wizard.js';
+import { renderLogSetupNudge, refreshSetupWizard } from './setup-wizard.js';
 import { applyDockForGame } from './dock-ui.js';
 
 let onGameChange = null;
@@ -46,6 +46,7 @@ export function initGameSwitcher({ onChange, getSettingsPayload }) {
     refreshQuickTagsOnGameSwitch();
     refreshSessionUI();
     renderLogSetupNudge();
+    if (document.body.dataset.page === 'setup') refreshSetupWizard();
     if (next === GAME_IDS.VALORANT) refreshValorantStatus();
     else refreshBridgeStatusUI();
     if (onGameChange) onGameChange(next);

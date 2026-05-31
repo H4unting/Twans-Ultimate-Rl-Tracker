@@ -1686,7 +1686,28 @@ body:not(.logged-out) #login-screen { display: none !important; }
 .setup-log-chip-loss { background: #666; }
 
 /* Setup wizard */
+body[data-active-game="rocket_league"] .setup-game-panel-val,
+body[data-active-game="rocket_league"] .setup-steps-val,
+body[data-active-game="rocket_league"] .setup-step[data-step="valorant"],
+body[data-active-game="rocket_league"] .setup-valorant-compact {
+  display: none !important;
+}
+body[data-active-game="valorant"] .setup-game-panel-rl,
+body[data-active-game="valorant"] .setup-steps-rl,
+body[data-active-game="valorant"] .setup-step[data-step="name"],
+body[data-active-game="valorant"] .setup-step[data-step="apply"] {
+  display: none !important;
+}
+
 #setup-wizard.hidden { display: none; }
+.setup-game-panel {
+  margin-top: 16px; padding: 18px; border-radius: 12px;
+  border: 1px solid var(--border); background: rgba(255,255,255,0.02);
+}
+.setup-game-panel-rl { border-color: #e65c0044; }
+.setup-game-panel-val { border-color: #ff465544; }
+body[data-active-game="valorant"] .setup-game-panel-val { box-shadow: 0 0 20px #ff465510; }
+body[data-active-game="rocket_league"] .setup-game-panel-rl { box-shadow: 0 0 20px #e65c0010; }
 .setup-wizard {
   background: linear-gradient(135deg, #111128ee, #0d1a28ee);
   border: 1px solid #00e5ff55; border-radius: var(--radius);

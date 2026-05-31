@@ -36,6 +36,79 @@ export function renderLogSetupNudge() {
   });
 }
 
+function renderRlPanel(profile, { compact = false } = {}) {
+  return `
+    <div class="setup-game-panel setup-game-panel-rl" data-setup-game="rocket_league">
+      <strong>Rocket League auto-log</strong>
+      <p>${compact
+    ? 'Update your in-game name or re-apply Stats API settings on this PC.'
+    : 'Your Rocket League display name is sent to the local auto-log app when a match ends.'}</p>
+      ${renderProfileNameStep(profile)}
+      ${renderApplySection(true)}
+    </div>`;
+}
+
+function renderValPanel(riotIdValue, riotRegionValue, { compact = false } = {}) {
+  return `
+    <div class="setup-game-panel setup-game-panel-val" data-setup-game="valorant">
+      <strong>Valorant auto-log</strong>
+      <p>Saved locally in <code>grind-config.json</code> on this PC.</p>
+      ${renderValorantFields(riotIdValue, riotRegionValue)}
+      ${renderApplySection(false)}
+    </div>`;
+}
+
+function renderBridgeStep(bridge, stepNum = 1) {
+  return `
+    <li class="setup-step${bridge ? ' done' : ''}" data-step="bridge">
+      <span class="setup-step-num">${stepNum}</span>
+      <div class="setup-step-body">
+        <strong>Run ${DESKTOP_APP.name}</strong>
+        <p>Double-click <code>${DESKTOP_APP.launcher}</code> in your tracker folder — leave it running while you play:</p>
+        <pre class="setup-code setup-code-highlight" id="setup-bridge-cmd">${DESKTOP_APP.launcher}</pre>
+        <p class="setup-hint">Optional: run <code>launcher\\build-bridge.bat</code> once to build <code>${DESKTOP_APP.exe}</code> (tray icon, no black window).</p>
+        <span class="setup-status-pill${bridge ? ' ok' : ''}" id="setup-bridge-pill">${bridge ? `● ${DESKTOP_APP.name} is running — ready for Apply & Go` : `○ Waiting for ${DESKTOP_APP.launcher}…`}</span>
+      </div>
+    </li>`;
+}
+
+function renderRlSteps(profile, rlName, bridge, allReady) {
+  if (allReady) return renderRlPanel(profile, { compact: true });
+  return `
+    <ol class="setup-steps setup-steps-rl">
+      <li class="setup-step${rlName ? ' done' : ''}" data-step="name">
+        <span class="setup-step-num">1</span>
+        <div class="setup-step-body">${renderProfileNameStep(profile)}</div>
+      </li>
+      ${renderBridgeStep(bridge, 2)}
+      <li class="setup-step" data-step="apply">
+        <span class="setup-step-num">3</span>
+        <div class="setup-step-body">
+          <strong>Apply &amp; Go</strong>
+          <p>We write your name into <code>start-grind.bat</code> and set up the Rocket League Stats API file on this PC.</p>
+          ${renderApplySection(true)}
+        </div>
+      </li>
+    </ol>`;
+}
+
+function renderValSteps(riotIdValue, riotRegionValue, bridge, allReady) {
+  if (allReady) return renderValPanel(riotIdValue, riotRegionValue, { compact: true });
+  return `
+    <ol class="setup-steps setup-steps-val">
+      ${renderBridgeStep(bridge)}
+      <li class="setup-step${riotIdValue ? ' done' : ''}" data-step="valorant">
+        <span class="setup-step-num">2</span>
+        <div class="setup-step-body">
+          <strong>Riot account + API key</strong>
+          <p>Saves to <code>grind-config.json</code> for Valorant auto-log only.</p>
+          ${renderValorantFields(riotIdValue, riotRegionValue)}
+          ${renderApplySection(false)}
+        </div>
+      </li>
+    </ol>`;
+}
+
 function renderValorantFields(riotIdValue, riotRegionValue) {
   return `
     <label>Riot ID <span class="setup-hint">(Name#TAG)</span></label>
@@ -85,20 +158,17 @@ export function renderSetupWizard(displayName = '') {
 
   if (compact) {
     el.innerHTML = `
-      <div class="setup-wizard setup-ready">
+      <div class="setup-wizard setup-ready" data-setup-game="${state.activeGame}">
         <div class="setup-callout setup-callout-success">
           <strong>${DESKTOP_APP.name} is running.</strong>
           ${isVal
-    ? 'Enter Riot ID + API key below, then Apply &amp; Go.'
-    : 'Rocket League auto-log is ready. Expand setup for Valorant or RL name changes.'}
+    ? 'Set your Riot ID + API key below, then Apply &amp; Go.'
+    : 'Rocket League auto-log is ready on this PC.'}
         </div>
-        <button type="button" class="btn btn-secondary" id="setup-show-steps">Show all setup steps</button>
-        <div class="setup-step-body setup-valorant-compact">
-          <strong>Valorant auto-log</strong>
-          <p>Saved locally in <code>grind-config.json</code> on this PC.</p>
-          ${renderValorantFields(riotIdValue, riotRegionValue)}
-          ${renderApplySection(false)}
-        </div>
+        <button type="button" class="btn btn-secondary" id="setup-show-steps">Show full setup steps</button>
+        ${isVal
+    ? renderValPanel(riotIdValue, riotRegionValue, { compact: true })
+    : renderRlPanel(profile, { compact: true })}
       </div>`;
     wireSetupWizard();
     wireSetupApplyGo();
@@ -107,26 +177,26 @@ export function renderSetupWizard(displayName = '') {
   }
 
   el.innerHTML = `
-    <div class="setup-wizard${allReady ? ' setup-ready' : ''}">
+    <div class="setup-wizard${allReady ? ' setup-ready' : ''}" data-setup-game="${state.activeGame}">
       ${allReady ? '' : `
       <div class="setup-banner">
         <span class="setup-banner-icon">👇</span>
         <div>
-          <strong>One-time setup on your PC</strong>
-          <p>Enter your name, run <code>${DESKTOP_APP.launcher}</code>, then click <strong>Apply &amp; Go</strong>.</p>
+          <strong>One-time setup on your PC — ${isVal ? 'Valorant' : 'Rocket League'}</strong>
+          <p>Run <code>${DESKTOP_APP.launcher}</code>, then click <strong>Apply &amp; Go</strong>.</p>
         </div>
       </div>`}
       <div class="setup-wizard-head">
         <div>
-          <span class="setup-kicker">${allReady ? 'All set' : 'One-time setup'}</span>
-          <h3>${allReady ? 'You\'re ready to grind' : 'Auto stats setup'}</h3>
+          <span class="setup-kicker">${allReady ? 'All set' : 'One-time setup'} · ${isVal ? 'Valorant' : 'Rocket League'}</span>
+          <h3>${allReady ? `You're ready — ${isVal ? 'Valorant' : 'Rocket League'}` : `${isVal ? 'Valorant' : 'Rocket League'} auto-log setup`}</h3>
           <p class="setup-desc">${allReady
     ? (isVal
-      ? `${DESKTOP_APP.name} is running. Set your Riot ID below and Apply — then play with auto-log ON.`
-      : 'Play a match — G/A/S fill in automatically. You only pick W/L and type your End MMR.')
+      ? `${DESKTOP_APP.name} is running. Set Riot ID + API key below, then play with auto-log ON.`
+      : 'G/A/S fill in automatically. You pick W/L and enter End MMR after each game.')
     : (isVal
-      ? `Enter Riot ID + API key, start ${DESKTOP_APP.launcher}, then hit Apply & Go.`
-      : `Enter your RL name, start ${DESKTOP_APP.launcher}, then hit Apply & Go — no manual file editing.`)}
+      ? `Valorant only — enter Riot ID + API key, start ${DESKTOP_APP.launcher}, then Apply & Go.`
+      : `Rocket League only — enter your RL name, start ${DESKTOP_APP.launcher}, then Apply & Go.`)}
           </p>
         ${allReady ? `<button type="button" class="setup-dismiss" id="setup-dismiss">Got it</button>` : ''}
       </div>
@@ -136,53 +206,19 @@ export function renderSetupWizard(displayName = '') {
       </div>
       <div class="setup-callout setup-callout-workflow">
         <strong>After each ${isVal ? 'match' : 'game'}:</strong> ${isVal
-    ? 'K/D/A fill automatically → confirm <strong>End RR</strong> on the card → tap tags → <span class="setup-log-chip">LOG</span> (or turn on auto-log in the dock)'
+    ? 'K/D/A fill automatically → confirm <strong>End RR</strong> → tap tags → <span class="setup-log-chip">LOG</span>'
     : `tap <span class="setup-log-chip">W</span> or <span class="setup-log-chip setup-log-chip-loss">L</span>
-        → check G/A/S → pick mode → tap tags if needed → enter <strong>End MMR</strong> → hit <span class="setup-log-chip">LOG</span>`}
+        → check G/A/S → tags → <strong>End MMR</strong> → <span class="setup-log-chip">LOG</span>`}
       </div>` : ''}
-      <ol class="setup-steps">
-        <li class="setup-step${allReady || isVal ? ' hidden' : ''}${rlName ? ' done' : ''}" data-step="name">
-          <span class="setup-step-num">1</span>
-          <div class="setup-step-body">
-            ${renderProfileNameStep(profile)}
-          </div>
-        </li>
-        <li class="setup-step${allReady ? ' hidden' : ''}${bridge ? ' done' : ''}" data-step="bridge">
-          <span class="setup-step-num">2</span>
-          <div class="setup-step-body">
-            <strong>Run ${DESKTOP_APP.name}</strong>
-            <p>Double-click <code>${DESKTOP_APP.launcher}</code> in your tracker folder — leave it running while you play:</p>
-            <pre class="setup-code setup-code-highlight" id="setup-bridge-cmd">${DESKTOP_APP.launcher}</pre>
-            <p class="setup-hint">Optional: run <code>launcher\\build-bridge.bat</code> once to build <code>${DESKTOP_APP.exe}</code> (tray icon, no black window).</p>
-            <span class="setup-status-pill${bridge ? ' ok' : ''}" id="setup-bridge-pill">${bridge ? `● ${DESKTOP_APP.name} is running — ready for Apply & Go` : `○ Waiting for ${DESKTOP_APP.launcher}…`}</span>
-          </div>
-        </li>
-        <li class="setup-step${allReady ? ' hidden' : ''}" data-step="apply">
-          <span class="setup-step-num">3</span>
-          <div class="setup-step-body">
-            <strong>Apply &amp; Go</strong>
-            <p>${isVal
-    ? 'Saves your Riot ID and API key to <code>grind-config.json</code> on this PC — used for Valorant auto-log only.'
-    : 'We write your name into <code>start-grind.bat</code> and set up the Rocket League Stats API file on this PC.'}</p>
-            ${isVal ? renderApplySection(false) : renderApplySection(true)}
-          </div>
-        </li>
-        <li class="setup-step${riotIdValue ? ' done' : ''}" data-step="valorant">
-          <span class="setup-step-num">4</span>
-          <div class="setup-step-body">
-            <strong>Valorant auto-log${allReady ? '' : ' (optional)'}</strong>
-            <p>Add your Riot ID and API key — saved locally in <code>grind-config.json</code> when you Apply.</p>
-            ${renderValorantFields(riotIdValue, riotRegionValue)}
-            ${allReady ? renderApplySection(false) : ''}
-          </div>
-        </li>
-      </ol>
+      ${isVal
+    ? renderValSteps(riotIdValue, riotRegionValue, bridge, allReady)
+    : renderRlSteps(profile, rlName, bridge, allReady)}
       <div class="setup-footer">
         ${!allReady ? `
         <div class="setup-callout setup-callout-workflow">
           <strong>After setup — between ${isVal ? 'matches' : 'games'}:</strong> ${isVal
     ? 'W/L → queue → K/D/A → tags → End RR → <span class="setup-log-chip">LOG</span>'
-    : `W/L → mode (1's/2's/3's) → G/A/S → tags → End MMR → <span class="setup-log-chip">LOG</span>`}
+    : `W/L → mode → G/A/S → tags → End MMR → <span class="setup-log-chip">LOG</span>`}
         </div>` : ''}
       </div>
     </div>`;
@@ -287,9 +323,9 @@ function wireSetupApplyGo() {
         (document.getElementById('setup-riot-id') ?? document.getElementById('setup-riot-key'))?.focus();
         return;
       }
-    } else if (!name && !riotId) {
-      showToast('Enter your Rocket League name or Riot ID first', 'error');
-      (input ?? document.getElementById('setup-riot-id'))?.focus();
+    } else if (!name) {
+      showToast('Enter your Rocket League display name first', 'error');
+      input?.focus();
       return;
     }
 
@@ -309,9 +345,9 @@ function wireSetupApplyGo() {
     try {
       const result = await applyBridgeSetup({
         rlDisplayName: isVal ? '' : name,
-        riotId,
-        riotApiKey,
-        riotRegion,
+        riotId: isVal ? riotId : '',
+        riotApiKey: isVal ? riotApiKey : '',
+        riotRegion: isVal ? riotRegion : undefined,
         patchIni,
       });
       if (riotId) savePrefs({ riotId, riotRegion });
@@ -448,7 +484,7 @@ function saveRlNameFromInput(inputEl) {
 }
 
 export function refreshSetupWizard(displayName) {
-  renderSetupWizard(displayName);
+  renderSetupWizard(displayName ?? displayNameFromAuth());
 }
 
 function updateBridgePill(bridge) {
