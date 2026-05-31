@@ -28,6 +28,22 @@ let pollTimer = null;
 let valorantRunning = false;
 let configured = false;
 let lastError = null;
+let lastOverwolfPing = 0;
+let overwolfActive = false;
+
+const OVERWOLF_TTL_MS = 45000;
+
+function isOverwolfConnected() {
+  return overwolfActive && (Date.now() - lastOverwolfPing) < OVERWOLF_TTL_MS;
+}
+
+function markOverwolfPing() {
+  lastOverwolfPing = Date.now();
+  overwolfActive = true;
+  configured = true;
+  seeded = true;
+  lastError = null;
+}
 
 function formatHenrikError(message, status) {
   const raw = String(message ?? '');
@@ -44,6 +60,74 @@ function formatHenrikError(message, status) {
     return 'Henrik rate limit — wait a minute and try again.';
   }
   return raw.length > 180 ? `${raw.slice(0, 180)}…` : raw;
+}
+
+function parseOverwolfGameMode(raw) {
+  try {
+    const o = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    const mode = String(o?.mode ?? '').toLowerCase();
+    const ranked = String(o?.ranked) === '1';
+    if (mode === 'bomb') return ranked ? 'Competitive' : 'Unrated';
+    if (mode === 'swiftplay') return 'Swiftplay';
+    if (mode === 'spikerush') return 'Spike Rush';
+    if (mode === 'deathmatch') return 'Deathmatch';
+    if (mode === 'ggteam' || mode === 'escalation') return 'Escalation';
+    if (mode === 'snowballfight') return 'Snowball Fight';
+    return MODE_MAP[mode] || (mode ? mode.charAt(0).toUpperCase() + mode.slice(1) : 'Unrated');
+  } catch {
+    return 'Unrated';
+  }
+}
+
+function readJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    let data = '';
+    req.on('data', (chunk) => { data += chunk; });
+    req.on('end', () => {
+      try {
+        resolve(data ? JSON.parse(data) : {});
+      } catch {
+        reject(new Error('Invalid JSON body'));
+      }
+    });
+    req.on('error', reject);
+  });
+}
+
+export function pushOverwolfMatch(payload = {}) {
+  markOverwolfPing();
+  const outcome = String(payload.match_outcome ?? payload.outcome ?? '').toLowerCase();
+  const result = payload.result
+    || (outcome === 'victory' ? 'W' : outcome === 'defeat' ? 'L' : null);
+  if (!result) return { ok: false, error: 'Missing match result' };
+
+  const matchId = payload.matchId
+    || payload.match_id
+    || payload.pseudo_match_id
+    || `ow-${Date.now()}`;
+  if (lastMatch && !lastMatch.consumed && lastMatch.matchId === matchId) {
+    return { ok: true, duplicate: true };
+  }
+
+  lastMatch = {
+    result,
+    mode: payload.mode || parseOverwolfGameMode(payload.game_mode),
+    kills: Number(payload.kills ?? 0),
+    deaths: Number(payload.deaths ?? 0),
+    valAssists: Number(payload.valAssists ?? payload.assists ?? 0),
+    acs: Number(payload.acs ?? 0),
+    agent: payload.agent || '',
+    map: payload.map || '',
+    matchId,
+    isRanked: String(payload.mode || '').toLowerCase() === 'competitive'
+      || parseOverwolfGameMode(payload.game_mode) === 'Competitive',
+    endedAt: Date.now(),
+    consumed: false,
+    source: 'overwolf',
+  };
+  lastSeenMatchId = matchId;
+  console.log(`Valorant match (Overwolf) — ${lastMatch.result} · ${lastMatch.mode} · K:${lastMatch.kills} D:${lastMatch.deaths} · ${lastMatch.agent || 'Agent'} · ${lastMatch.map || 'Map'}`);
+  return { ok: true, match: lastMatch };
 }
 
 function getBridgeConfig() {
@@ -150,6 +234,11 @@ async function fetchLatestHenrikMatch() {
 }
 
 async function pollLatestMatch() {
+  if (isOverwolfConnected()) {
+    valorantRunning = isValorantRunning();
+    return;
+  }
+
   const cfg = getBridgeConfig();
   configured = Boolean(cfg.henrikApiKey && cfg.riotId)
     || (Boolean(cfg.legacyRiotKey) && !cfg.legacyRiotKey.startsWith('RGAPI-') && cfg.riotId);
@@ -196,18 +285,43 @@ export function startValorantBridge() {
 export function handleValorantRequest(req, res) {
   const url = req.url?.split('?')[0];
 
+  if (url === '/valorant/overwolf/ping' && req.method === 'POST') {
+    markOverwolfPing();
+    valorantRunning = isValorantRunning();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true }));
+    return true;
+  }
+
+  if (url === '/valorant/overwolf-match' && req.method === 'POST') {
+    readJsonBody(req)
+      .then((body) => {
+        const out = pushOverwolfMatch(body);
+        res.writeHead(out.ok ? 200 : 400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(out));
+      })
+      .catch((e) => {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: e.message }));
+      });
+    return true;
+  }
+
   if (url === '/valorant/status') {
     const cfg = getBridgeConfig();
     const hasHenrik = Boolean(cfg.henrikApiKey)
       || (Boolean(cfg.legacyRiotKey) && !cfg.legacyRiotKey.startsWith('RGAPI-'));
+    const ow = isOverwolfConnected();
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
-      configured: Boolean(hasHenrik && cfg.riotId),
-      seeded,
+      configured: ow || Boolean(hasHenrik && cfg.riotId),
+      seeded: seeded || ow,
       valorantRunning,
       riotId: cfg.riotId || null,
-      lastError,
-      needsHenrikKey: Boolean(cfg.legacyRiotKey.startsWith('RGAPI-') && cfg.riotId && !cfg.henrikApiKey),
+      lastError: ow ? null : lastError,
+      needsHenrikKey: !ow && Boolean(cfg.legacyRiotKey.startsWith('RGAPI-') && cfg.riotId && !cfg.henrikApiKey),
+      source: ow ? 'overwolf' : 'henrik',
+      overwolfConnected: ow,
     }));
     return true;
   }

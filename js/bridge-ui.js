@@ -92,10 +92,28 @@ function renderValorantPill(el, valStatus, meta) {
 
   if (!valStatus.configured) {
     const prefs = loadPrefs();
-    el.textContent = prefs.riotId ? '● Needs Apply' : '● Setup Riot ID';
-    el.title = 'Riot ID + Henrik API key missing — click to open Auto-Log Setup → Apply & Go';
+    el.textContent = prefs.riotId ? '● Needs Apply' : '● Setup auto-log';
+    el.title = 'Run Twans Auto-Log + Overwolf app, or add Riot ID + Henrik key in Auto-Log Setup';
     el.classList.add('bridge-needs-setup');
     el.dataset.bridgeState = 'needs-setup';
+    return;
+  }
+
+  if (valStatus.source === 'overwolf') {
+    if (valStatus.valorantRunning && isAutoLogEnabled()) {
+      el.textContent = '● Auto-log ON';
+      el.title = 'Overwolf linked — finished matches save automatically';
+    } else if (valStatus.valorantRunning) {
+      el.textContent = '● Valorant live';
+      el.title = 'Overwolf sees Valorant — turn on auto-log or tap LOG after the match';
+    } else if (isAutoLogEnabled()) {
+      el.textContent = '● Overwolf ready';
+      el.title = 'Overwolf linked — launch Valorant and your next match will auto-log';
+    } else {
+      el.textContent = '● Overwolf linked';
+      el.title = 'Overwolf feeds match data — enable auto-log in the dock or log manually';
+    }
+    el.dataset.bridgeState = 'ready';
     return;
   }
 

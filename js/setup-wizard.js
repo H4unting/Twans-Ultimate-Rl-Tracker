@@ -27,7 +27,7 @@ export function renderLogSetupNudge() {
   el.innerHTML = `
     <div class="log-setup-nudge-inner">
       <span class="log-setup-nudge-text">${isVal
-        ? `Want Valorant auto-log? Run ${DESKTOP_APP.launcher} and set Riot ID + Henrik API key.`
+        ? `Want Valorant auto-log? Run ${DESKTOP_APP.launcher} + load the Overwolf app (see overwolf/README.md) — or use Riot ID + Henrik key in setup.`
         : `Want auto-log from Rocket League? Run ${DESKTOP_APP.launcher} on this PC.`}</span>
       <button type="button" class="btn-link" id="log-setup-nudge-link">Auto-Log Setup →</button>
     </div>`;
@@ -48,13 +48,37 @@ function renderRlPanel(profile, { compact = false } = {}) {
     </div>`;
 }
 
+function renderOverwolfStep(stepNum = 2) {
+  return `
+    <li class="setup-step" data-step="overwolf">
+      <span class="setup-step-num">${stepNum}</span>
+      <div class="setup-step-body">
+        <strong>Easy mode — Overwolf (recommended)</strong>
+        <p>Install <a href="https://www.overwolf.com/" target="_blank" rel="noopener">Overwolf</a>, enable developer mode, and load the <code>overwolf</code> folder from this tracker as an unpacked extension.</p>
+        <p class="setup-hint">No Riot ID or API keys needed — play a match and it auto-logs. Full steps in <code>overwolf/README.md</code>.</p>
+      </div>
+    </li>`;
+}
+
+function renderOverwolfCallout() {
+  return `
+    <div class="setup-overwolf-callout">
+      <strong>Easy mode — Overwolf (recommended)</strong>
+      <p>Install <a href="https://www.overwolf.com/" target="_blank" rel="noopener">Overwolf</a>, load the <code>overwolf</code> folder as an unpacked extension — no API keys. See <code>overwolf/README.md</code>.</p>
+    </div>`;
+}
+
 function renderValPanel(riotIdValue, riotRegionValue, { compact = false } = {}) {
   return `
     <div class="setup-game-panel setup-game-panel-val" data-setup-game="valorant">
       <div class="setup-panel-head">
         <strong>Valorant auto-log</strong>
-        <p class="setup-panel-desc">Saved locally in <code>grind-config.json</code> on this PC.</p>
+        <p class="setup-panel-desc">${compact
+    ? 'Overwolf is the simple path. Henrik API is the fallback below.'
+    : 'Use Overwolf (no keys) or Henrik API (saved in grind-config.json).'}</p>
       </div>
+      ${renderOverwolfCallout()}
+      <p class="setup-hint"><strong>Fallback — Henrik API</strong> (if you do not use Overwolf):</p>
       ${renderValorantFields(riotIdValue, riotRegionValue)}
       <div class="setup-apply-block">
         ${renderApplySection(false)}
@@ -100,12 +124,13 @@ function renderValSteps(riotIdValue, riotRegionValue, bridge, allReady) {
   if (allReady) return renderValPanel(riotIdValue, riotRegionValue, { compact: true });
   return `
     <ol class="setup-steps setup-steps-val">
-      ${renderBridgeStep(bridge)}
+      ${renderBridgeStep(bridge, 1)}
+      ${renderOverwolfStep(2)}
       <li class="setup-step${riotIdValue ? ' done' : ''}" data-step="valorant">
-        <span class="setup-step-num">2</span>
+        <span class="setup-step-num">3</span>
         <div class="setup-step-body">
-          <strong>Riot account + Henrik API key</strong>
-          <p>Saves to <code>grind-config.json</code>. Riot dev keys cannot read Val match history — use a free Henrik key.</p>
+          <strong>Fallback — Riot account + Henrik API key</strong>
+          <p>Only if you are not using Overwolf. Saves to <code>grind-config.json</code>.</p>
           ${renderValorantFields(riotIdValue, riotRegionValue)}
           <div class="setup-apply-block">
             ${renderApplySection(false)}

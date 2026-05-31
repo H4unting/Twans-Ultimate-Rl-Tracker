@@ -50,7 +50,8 @@ async function poll() {
   }
 
   if (state.activeGame !== GAME_IDS.VALORANT) return;
-  if (!valStatus?.configured || !valStatus.seeded) return;
+  if (!valStatus?.configured) return;
+  if (!valStatus.seeded && valStatus.source !== 'overwolf') return;
 
   try {
     const last = await fetchJson('/valorant/last-match');

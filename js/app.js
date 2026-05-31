@@ -4,7 +4,7 @@
 
 import { applyAppMode } from './env.js';
 import { state, subscribe, setGames, setSyncStatus, setGoals, setProfile, getUserDisplay, getActiveGames } from './state.js';
-import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, sendPasswordReset, signOut, onAuthChange, getAuthUser, hasPendingAuthHash } from './auth.js';
+import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, sendPasswordReset, signOut, onAuthChange, getAuthUser, hasPendingAuthHash, clearAuthHashFromUrl } from './auth.js';
 import { loadUserData, saveSettings, createGroup, joinGroup, leaveGroup, loadUserGroups, saveGames, saveProfile } from './supabase.js';
 import { applyFilters, DEFAULT_FILTERS } from './filters.js';
 import { calcStats, estimateMMRDelta } from './utils.js';
@@ -201,6 +201,17 @@ function showLoggedOut() {
   stopBridgeServices();
   wireLoginScreen();
   resetLoginForm();
+}
+
+function showAuthBootFailure(message) {
+  showLoading(false);
+  showLoginScreen(true);
+  wireLoginScreen();
+  const note = document.getElementById('boot-failure-note');
+  if (note) {
+    note.textContent = message;
+    note.classList.remove('hidden');
+  }
 }
 
 let loginMode = 'signin';
@@ -952,6 +963,7 @@ async function init() {
     wireLoginScreen();
     if (hasPendingAuthHash()) {
       showLoading(true);
+      document.body.classList.remove('logged-out');
       const overlayLabel = document.querySelector('#loading-overlay span');
       if (overlayLabel) overlayLabel.textContent = 'Finishing sign-in…';
     } else {
@@ -1033,12 +1045,28 @@ async function init() {
     });
 
     await withTimeout(initAuth(), 15000, 'Sign-in check timed out — refresh and try again');
-    if (!getAuthUser() && !hasPendingAuthHash()) showLoggedOut();
+    if (!getAuthUser()) {
+      if (hasPendingAuthHash()) {
+        showLoading(false);
+        clearAuthHashFromUrl();
+        showLoginScreen(true);
+        wireLoginScreen();
+        const note = document.getElementById('boot-failure-note');
+        if (note) {
+          note.textContent = 'Sign-in did not finish. Restart start-grind.bat, open http://localhost:8080/, and try Google sign-in again.';
+          note.classList.remove('hidden');
+        }
+      } else {
+        showLoggedOut();
+      }
+    }
   } catch (e) {
     console.error(e);
     if (hasPendingAuthHash()) {
       showLoading(false);
+      clearAuthHashFromUrl();
       showLoginScreen(true);
+      wireLoginScreen();
       const note = document.getElementById('boot-failure-note');
       if (note) {
         note.textContent = e?.message
@@ -1049,6 +1077,8 @@ async function init() {
       showLoggedOut();
     }
     showToast(e?.message || 'Tracker failed to start — refresh the page', 'error');
+  } finally {
+    window.__appReady = true;
   }
 }
 

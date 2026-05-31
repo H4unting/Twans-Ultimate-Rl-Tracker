@@ -452,20 +452,20 @@
     }
   }
   window.addEventListener('error', (e) => {
-    if (typeof window.__navigate !== 'undefined') return;
+    if (window.__appReady) return;
     showBootFailure(e.message || 'Script failed to load');
   });
   window.addEventListener('unhandledrejection', (e) => {
-    if (typeof window.__navigate !== 'undefined') return;
+    if (window.__appReady) return;
     showBootFailure(e.reason?.message || 'Startup failed');
   });
   setTimeout(() => {
-    if (typeof window.__navigate !== 'undefined') return;
+    if (window.__appReady) return;
     if (document.body.classList.contains('is-loading')) {
       showBootFailure('Loading timed out — close this tab, restart start-grind.bat, then open http://localhost:8080/ (Ctrl+F5). If using Brave, allow scripts for localhost:8080.');
     }
   }, 12000);
 </script>
-<script type="module" src="js/app.js?v=20260531b5"></script>
+<script type="module" src="js/app.js?v=20260531b6"></script>
 </body>
 </html>

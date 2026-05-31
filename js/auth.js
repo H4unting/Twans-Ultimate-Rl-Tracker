@@ -76,6 +76,10 @@ export function hasPendingAuthHash() {
   return Boolean(params.get('access_token') || params.get('error') || params.get('error_description'));
 }
 
+export function clearAuthHashFromUrl() {
+  stripAuthHashFromUrl();
+}
+
 function stripAuthHashFromUrl() {
   if (!hasPendingAuthHash()) return;
   const url = new URL(window.location.href);
@@ -108,6 +112,10 @@ async function recoverSessionFromUrlHash(client) {
   });
   if (error) throw error;
   return data.session ?? null;
+}
+
+export function clearPendingAuthHash() {
+  stripAuthHashFromUrl();
 }
 
 export function getRedirectUrl() {
