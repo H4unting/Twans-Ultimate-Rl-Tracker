@@ -10,7 +10,7 @@ import { applyFilters, DEFAULT_FILTERS } from './filters.js';
 import { calcStats, estimateMMRDelta } from './utils.js';
 import { RL } from './games/registry.js';
 import { routeActiveGame, getActiveGameModule } from './games/router.js';
-import { addGame, updateGame, deleteGame, getLastMMR, patchLastGame, undoLastGame, isMmrEstimated } from './matches.js';
+import { addGame, updateGame, deleteGame, getLastMMR, patchLastGame, undoLastGame, isMmrEstimated, purgeGhostValorantMatches, countGhostValorantMatches, clearGameHistory } from './matches.js';
 import { startSession, endSession, closeSessionModal, closeSessionModalAndContinue, initSessionUI, refreshSessionUI, restoreSessionFromStorage, getLoggingSessionNum } from './sessions.js';
 import {
   initQuickLog, showQuickDock, hideQuickDock, getQuickLogPayload,
@@ -23,7 +23,7 @@ import { initRlLive, stopRlLive, refreshLiveStatus,
   saveRlDisplayName, getRlDisplayName,
 } from './rl-live.js';
 import { initValorantLive, stopValorantLive, refreshValorantStatus } from './valorant-live.js';
-import { startBridgeHeartbeat, stopBridgeHeartbeat, subscribeBridgeOnline } from './bridge-client.js';
+import { startBridgeHeartbeat, stopBridgeHeartbeat, subscribeBridgeOnline, getBridgeUrl } from './bridge-client.js';
 import { wireBridgeStatusClick, refreshBridgeStatusUI } from './bridge-ui.js';
 import { initGameSwitcher, restoreActiveGameFromPrefs, applyGameShell, applyPageCopy, syncEditModal } from './game-ui.js';
 import { getDockModePillsEl } from './dock-ui.js';
@@ -132,6 +132,10 @@ async function bootApp() {
       await saveGames(allGames);
     }
     setGames(allGames);
+    const ghostRemoved = await purgeGhostValorantMatches({ silent: true });
+    if (ghostRemoved > 0) {
+      showToast(`Removed ${ghostRemoved} invalid auto-log ${ghostRemoved === 1 ? 'match' : 'matches'}`);
+    }
     setGoals(normalizeGoalsStorage(goals));
     state.profileBio = bio ?? '';
     state.groups = groups;
@@ -463,6 +467,43 @@ function renderMatchLogs() {
   }
   renderLog('log-history-table', games, null, true, state.activeGame);
   wireLogTableActions();
+  wireMatchLogMaintenanceButtons();
+}
+
+function wireMatchLogMaintenanceButtons() {
+  const isVal = state.activeGame === GAME_IDS.VALORANT;
+  const ghostCount = isVal ? countGhostValorantMatches() : 0;
+  const valCount = isVal ? getActiveGames().length : 0;
+
+  const purgeBtn = document.getElementById('matchlogs-purge-ghosts-btn');
+  if (purgeBtn) {
+    purgeBtn.classList.toggle('hidden', !isVal || ghostCount === 0);
+    purgeBtn.textContent = `Remove invalid logs (${ghostCount})`;
+    if (!purgeBtn.dataset.wired) {
+      purgeBtn.dataset.wired = '1';
+      purgeBtn.addEventListener('click', async () => {
+        const removed = await purgeGhostValorantMatches();
+        if (removed) renderAll();
+      });
+    }
+  }
+
+  const clearBtn = document.getElementById('matchlogs-clear-val-btn');
+  if (clearBtn) {
+    clearBtn.classList.toggle('hidden', !isVal || valCount === 0);
+    if (!clearBtn.dataset.wired) {
+      clearBtn.dataset.wired = '1';
+      clearBtn.addEventListener('click', async () => {
+        const ok = await clearGameHistory(GAME_IDS.VALORANT);
+        if (!ok) return;
+        try {
+          await fetch(`${getBridgeUrl()}/valorant/reset-baseline`, { method: 'POST' });
+        } catch { /* bridge optional */ }
+        refreshValorantStatus();
+        renderAll();
+      });
+    }
+  }
 }
 
 function renderSessionsPageContent() {
@@ -618,6 +659,14 @@ function estimateMMRDeltaForMode(result, mode) {
 
 async function handleValorantAutoLog(match) {
   if (state.activeGame !== GAME_IDS.VALORANT) return false;
+
+  const activity = Number(match.kills ?? 0) + Number(match.deaths ?? 0) + Number(match.valAssists ?? 0);
+  if (activity === 0 && !match.agent) {
+    try {
+      await fetch(`${getBridgeUrl()}/valorant/last-match/consume`, { method: 'POST' });
+    } catch { /* optional */ }
+    return false;
+  }
 
   const logMode = match.mode || getQuickMode() || 'Competitive';
   if (match.mode) setQuickMode(match.mode);

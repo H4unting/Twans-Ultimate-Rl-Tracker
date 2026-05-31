@@ -109,7 +109,7 @@ export async function clearGameHistory(gameId = state.activeGame) {
     showToast(`No ${mod.META.matchSingular}s to clear`, 'error');
     return false;
   }
-  const label = `${active.length} Val ${mod.META.matchSingular}${active.length === 1 ? '' : 'es'}`;
+  const label = `${active.length} ${mod.META.matchSingular}${active.length === 1 ? '' : 'es'}`;
   if (!confirm(`Delete all ${label}? This cannot be undone. Your other game data stays.`)) return false;
 
   await saveGames([], gameId);
@@ -118,6 +118,46 @@ export async function clearGameHistory(gameId = state.activeGame) {
   notifySessionUIRefresh();
   showToast(`Cleared ${active.length} ${mod.META.matchSingular}${active.length === 1 ? '' : 'es'}`);
   return true;
+}
+
+/** Bad Val auto-log rows: 0/0/0 with no agent, often missing RR. */
+export function isGhostValorantMatch(game) {
+  if ((game?.game ?? GAME_IDS.ROCKET_LEAGUE) !== GAME_IDS.VALORANT) return false;
+  const k = Number(game.kills ?? game.goals ?? 0);
+  const d = Number(game.deaths ?? game.assists ?? 0);
+  const a = Number(game.valAssists ?? game.saves ?? 0);
+  if (k + d + a > 0) return false;
+  if (game.agent) return false;
+  return true;
+}
+
+export function countGhostValorantMatches(games = state.games) {
+  return games.filter(isGhostValorantMatch).length;
+}
+
+/** Drop invalid Val rows (0/0/0 auto-log junk). Returns how many were removed. */
+export async function purgeGhostValorantMatches({ silent = false } = {}) {
+  if (!requireSignedIn()) return 0;
+  const gameId = GAME_IDS.VALORANT;
+  const valGames = state.games.filter(g => (g.game ?? GAME_IDS.ROCKET_LEAGUE) === gameId);
+  const ghosts = valGames.filter(isGhostValorantMatch);
+  if (!ghosts.length) return 0;
+
+  if (!silent && !confirm(`Remove ${ghosts.length} invalid match${ghosts.length === 1 ? '' : 'es'} (0/0/0 bad auto-log)?`)) {
+    return 0;
+  }
+
+  const cleaned = valGames.filter(g => !isGhostValorantMatch(g));
+  cleaned.forEach((g, i) => { g.match = i + 1; });
+
+  await saveGames(cleaned, gameId);
+  const rest = state.games.filter(g => (g.game ?? GAME_IDS.ROCKET_LEAGUE) !== gameId);
+  setGames([...rest, ...cleaned]);
+  notifySessionUIRefresh();
+  if (!silent) {
+    showToast(`Removed ${ghosts.length} invalid match${ghosts.length === 1 ? '' : 'es'}`);
+  }
+  return ghosts.length;
 }
 
 export function getLastMMR(mode) {

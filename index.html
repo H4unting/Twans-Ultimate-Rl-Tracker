@@ -130,7 +130,11 @@
           <p class="section-title">Match history</p>
           <p class="page-desc">Filter, edit, or delete any logged game.</p>
         </div>
-        <button type="button" class="btn btn-secondary btn-sm" id="matchlogs-export-btn">Export CSV</button>
+        <div class="log-history-actions">
+          <button type="button" class="btn btn-cancel btn-sm hidden" id="matchlogs-purge-ghosts-btn">Remove invalid logs</button>
+          <button type="button" class="btn btn-cancel btn-sm hidden" id="matchlogs-clear-val-btn">Clear all Val history</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="matchlogs-export-btn">Export CSV</button>
+        </div>
       </div>
       <div id="matchlogs-quick-filters"></div>
       <div id="matchlogs-filters"></div>
@@ -469,6 +473,6 @@
     }
   }, 30000);
 </script>
-<script type="module" src="js/app.js?v=20260529d9"></script>
+<script type="module" src="js/app.js?v=20260529e1"></script>
 </body>
 </html>

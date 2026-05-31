@@ -207,7 +207,22 @@ export async function saveGames(games, gameId = null) {
 
     if (targetGame) {
       const slice = normalized.filter(g => (g.game ?? DEFAULT_GAME) === targetGame);
-      await sbFetch(`matches?user_id=eq.${user.id}&game=eq.${targetGame}`, 'DELETE');
+      try {
+        await sbFetch(`matches?user_id=eq.${user.id}&game=eq.${targetGame}`, 'DELETE');
+      } catch (e) {
+        const msg = String(e?.message ?? e);
+        if (isMissingColumnError(e) || msg.includes('"game"') || msg.includes('game')) {
+          const kept = normalized.filter(g => (g.game ?? DEFAULT_GAME) !== targetGame);
+          await sbFetch(`matches?user_id=eq.${user.id}`, 'DELETE');
+          if (kept.length) {
+            const rows = kept.map(g => gameToMatchRow(user.id, g));
+            await sbFetch('matches', 'POST', rows, { Prefer: 'return=minimal' });
+          }
+          setSyncStatus('live');
+          return;
+        }
+        throw e;
+      }
       if (slice.length) {
         const rows = slice.map(g => gameToMatchRow(user.id, g));
         await sbFetch('matches', 'POST', rows, { Prefer: 'return=minimal' });
