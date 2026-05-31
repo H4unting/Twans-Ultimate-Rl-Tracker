@@ -4,10 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Twans Ultimate Tracker</title>
-<link rel="stylesheet" href="css/styles.css">
-<link rel="stylesheet" href="css/valorant-theme.css">
-<link rel="stylesheet" href="css/layout-polish.css">
+<link rel="stylesheet" href="css/styles.css?v=20260531b5">
+<link rel="stylesheet" href="css/valorant-theme.css?v=20260531b5">
+<link rel="stylesheet" href="css/layout-polish.css?v=20260531b5">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+(function () {
+  if (!location.hash.includes('access_token=')) return;
+  document.documentElement.classList.add('oauth-callback');
+  document.addEventListener('DOMContentLoaded', function () {
+    var span = document.querySelector('#loading-overlay span');
+    if (span) span.textContent = 'Finishing sign-in…';
+  });
+})();
+</script>
 </head>
 <body class="is-loading logged-out">
 
@@ -452,10 +462,10 @@
   setTimeout(() => {
     if (typeof window.__navigate !== 'undefined') return;
     if (document.body.classList.contains('is-loading')) {
-      showBootFailure('Loading timed out — hard refresh (Ctrl+F5). If using Brave, allow scripts for localhost:8080.');
+      showBootFailure('Loading timed out — close this tab, restart start-grind.bat, then open http://localhost:8080/ (Ctrl+F5). If using Brave, allow scripts for localhost:8080.');
     }
   }, 12000);
 </script>
-<script type="module" src="js/app.js?v=20260531b3"></script>
+<script type="module" src="js/app.js?v=20260531b5"></script>
 </body>
 </html>

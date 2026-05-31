@@ -155,8 +155,13 @@ function createTrackerServer() {
       }
 
       const ext = path.extname(filePath).toLowerCase();
+      const headers = { 'Content-Type': MIME[ext] || 'application/octet-stream' };
+      if (['.html', '.js', '.css', '.mjs'].includes(ext)) {
+        headers['Cache-Control'] = 'no-store, no-cache, must-revalidate';
+        headers.Pragma = 'no-cache';
+      }
 
-      res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
+      res.writeHead(200, headers);
 
       res.end(data);
 

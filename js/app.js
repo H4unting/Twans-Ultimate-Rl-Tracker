@@ -4,7 +4,7 @@
 
 import { applyAppMode } from './env.js';
 import { state, subscribe, setGames, setSyncStatus, setGoals, setProfile, getUserDisplay, getActiveGames } from './state.js';
-import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, sendPasswordReset, signOut, onAuthChange, getAuthUser } from './auth.js';
+import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, sendPasswordReset, signOut, onAuthChange, getAuthUser, hasPendingAuthHash } from './auth.js';
 import { loadUserData, saveSettings, createGroup, joinGroup, leaveGroup, loadUserGroups, saveGames, saveProfile } from './supabase.js';
 import { applyFilters, DEFAULT_FILTERS } from './filters.js';
 import { calcStats, estimateMMRDelta } from './utils.js';
@@ -950,7 +950,13 @@ async function init() {
   try {
     applyAppMode();
     wireLoginScreen();
-    showLoggedOut();
+    if (hasPendingAuthHash()) {
+      showLoading(true);
+      const overlayLabel = document.querySelector('#loading-overlay span');
+      if (overlayLabel) overlayLabel.textContent = 'Finishing sign-in…';
+    } else {
+      showLoggedOut();
+    }
 
     const dateEl = document.getElementById('f-date');
     if (dateEl) dateEl.value = new Date().toISOString().slice(0, 10);
@@ -1020,17 +1026,28 @@ async function init() {
           console.error(e);
           showToast(e?.message || 'Could not load after sign-in — try refreshing', 'error');
         }
-      } else {
+      } else if (!hasPendingAuthHash()) {
         bootPromise = null;
         showLoggedOut();
       }
     });
 
     await withTimeout(initAuth(), 15000, 'Sign-in check timed out — refresh and try again');
-    if (!getAuthUser()) showLoggedOut();
+    if (!getAuthUser() && !hasPendingAuthHash()) showLoggedOut();
   } catch (e) {
     console.error(e);
-    showLoggedOut();
+    if (hasPendingAuthHash()) {
+      showLoading(false);
+      showLoginScreen(true);
+      const note = document.getElementById('boot-failure-note');
+      if (note) {
+        note.textContent = e?.message
+          || 'Sign-in failed. Close this tab, restart start-grind.bat, open http://localhost:8080/, then sign in again.';
+        note.classList.remove('hidden');
+      }
+    } else {
+      showLoggedOut();
+    }
     showToast(e?.message || 'Tracker failed to start — refresh the page', 'error');
   }
 }

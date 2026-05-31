@@ -10,6 +10,7 @@ const SUPABASE_SOURCES = [
 
 let supabase = null;
 let currentSession = null;
+let authListenerWired = false;
 const authListeners = new Set();
 
 async function loadSupabaseModule() {
@@ -36,6 +37,7 @@ async function getSupabaseClient() {
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,
+      flowType: 'implicit',
     },
   });
   return supabase;
@@ -67,23 +69,124 @@ function notifyAuth(session) {
   authListeners.forEach(fn => fn(session));
 }
 
+export function hasPendingAuthHash() {
+  const hash = window.location.hash.replace(/^#/, '');
+  if (!hash) return false;
+  const params = new URLSearchParams(hash);
+  return Boolean(params.get('access_token') || params.get('error') || params.get('error_description'));
+}
+
+function stripAuthHashFromUrl() {
+  if (!hasPendingAuthHash()) return;
+  const url = new URL(window.location.href);
+  url.hash = '';
+  window.history.replaceState(null, '', `${url.pathname}${url.search}`);
+}
+
+function parseAuthHash() {
+  const hash = window.location.hash.replace(/^#/, '');
+  if (!hash) return null;
+  const params = new URLSearchParams(hash);
+  const error = params.get('error');
+  if (error) {
+    throw new Error(params.get('error_description') || error);
+  }
+  const access_token = params.get('access_token');
+  if (!access_token) return null;
+  return {
+    access_token,
+    refresh_token: params.get('refresh_token') || '',
+  };
+}
+
+async function recoverSessionFromUrlHash(client) {
+  const tokens = parseAuthHash();
+  if (!tokens) return null;
+  const { data, error } = await client.auth.setSession({
+    access_token: tokens.access_token,
+    refresh_token: tokens.refresh_token,
+  });
+  if (error) throw error;
+  return data.session ?? null;
+}
+
 export function getRedirectUrl() {
   const path = window.location.pathname.replace(/index\.html$/, '');
   const base = path.endsWith('/') ? path : `${path}/`;
   return `${window.location.origin}${base}`;
 }
 
-export async function initAuth() {
-  const client = await getSupabaseClient();
-  const { data: { session }, error } = await client.auth.getSession();
-  if (error) throw error;
-  notifyAuth(session);
-
+function wireSupabaseAuthListener(client) {
+  if (authListenerWired) return;
+  authListenerWired = true;
   client.auth.onAuthStateChange((_event, session) => {
     notifyAuth(session);
+    if (session) stripAuthHashFromUrl();
   });
+}
 
-  return session;
+export async function initAuth() {
+  const client = await getSupabaseClient();
+  wireSupabaseAuthListener(client);
+
+  const pendingHash = hasPendingAuthHash();
+
+  const { data: { session }, error } = await client.auth.getSession();
+  if (error) throw error;
+
+  if (session) {
+    notifyAuth(session);
+    stripAuthHashFromUrl();
+    return session;
+  }
+
+  if (pendingHash) {
+    try {
+      const manual = await recoverSessionFromUrlHash(client);
+      if (manual) {
+        notifyAuth(manual);
+        stripAuthHashFromUrl();
+        return manual;
+      }
+    } catch (e) {
+      console.warn('OAuth hash recovery failed:', e);
+      throw e;
+    }
+    const recovered = await waitForSession(client, 8000);
+    notifyAuth(recovered);
+    if (recovered) stripAuthHashFromUrl();
+    return recovered;
+  }
+
+  notifyAuth(null);
+  return null;
+}
+
+function waitForSession(client, timeoutMs) {
+  return new Promise((resolve) => {
+    let settled = false;
+    let authSub = null;
+    const finish = (session) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      authSub?.data?.subscription?.unsubscribe();
+      resolve(session);
+    };
+
+    authSub = client.auth.onAuthStateChange((_event, session) => {
+      if (session) finish(session);
+    });
+
+    client.auth.getSession().then(({ data: { session } }) => {
+      if (session) finish(session);
+    });
+
+    const timer = setTimeout(async () => {
+      const { data: { session } } = await client.auth.getSession();
+      finish(session ?? null);
+    }, timeoutMs);
+  });
 }
 
 export async function signInWithGoogle() {
