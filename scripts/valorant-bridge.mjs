@@ -46,14 +46,32 @@ let lastError = null;
 
 function formatRiotError(message) {
   const raw = String(message ?? '');
-  if (raw.includes('Unknown apikey') || raw.includes('status_code":401') || raw.includes('401')) {
+  let code;
+  let riotMsg;
+  try {
+    const j = JSON.parse(raw);
+    code = j.status?.status_code ?? j.statusCode;
+    riotMsg = j.status?.message ?? j.message;
+  } catch {
+    /* plain text */
+  }
+  const text = `${riotMsg ?? ''} ${raw}`.trim();
+  if (
+    code === 401
+    || /unknown apikey/i.test(text)
+    || /expired api/i.test(text)
+    || /invalid api/i.test(text)
+  ) {
     return 'Riot rejected your API key (expired or wrong). Dev keys last 24 hours — get a new RGAPI key at developer.riotgames.com, paste it in Auto-Log Setup, and click Apply & Go.';
   }
-  if (raw.includes('403')) {
+  if (code === 403 || raw.includes('403')) {
     return 'Riot API access denied — check your key permissions and region.';
   }
-  if (raw.includes('404') || raw.toLowerCase().includes('not found')) {
+  if (code === 404 || /not found/i.test(text)) {
     return 'Riot account not found — check Riot ID (Name#TAG) and region.';
+  }
+  if (code === 429 || /rate limit/i.test(text)) {
+    return 'Riot rate limit — wait a minute and click Apply & Go again.';
   }
   return raw.length > 160 ? `${raw.slice(0, 160)}…` : raw;
 }

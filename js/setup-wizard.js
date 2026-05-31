@@ -115,7 +115,10 @@ function renderValSteps(riotIdValue, riotRegionValue, bridge, allReady) {
     </ol>`;
 }
 
-function renderValorantFields(riotIdValue, riotRegionValue) {
+function renderValorantFields(riotIdValue, riotRegionValue, { keyHint = '', keySaved = false } = {}) {
+  const keyStatus = keySaved
+    ? `<p class="setup-hint setup-riot-key-saved">Key on this PC: <code>${escapeHtml(keyHint || 'saved')}</code> — paste a new RGAPI key above to replace it.</p>`
+    : '';
   return `
     <div class="setup-val-fields">
       <div class="setup-field">
@@ -124,8 +127,9 @@ function renderValorantFields(riotIdValue, riotRegionValue) {
       </div>
       <div class="setup-field">
         <label for="setup-riot-key">Riot API key <span class="setup-hint">(<a href="https://developer.riotgames.com/" target="_blank" rel="noopener">developer.riotgames.com</a>)</span></label>
-        <input type="password" id="setup-riot-key" class="setup-input" placeholder="RGAPI-..." autocomplete="off">
-        <p class="setup-hint setup-riot-key-note">Dev keys expire every <strong>24 hours</strong> — paste a fresh key from <a href="https://developer.riotgames.com/" target="_blank" rel="noopener">developer.riotgames.com</a> when you see a Riot API error.</p>
+        <input type="password" id="setup-riot-key" class="setup-input" placeholder="${keySaved ? 'Paste new RGAPI key to replace saved key' : 'RGAPI-...'}" autocomplete="off">
+        ${keyStatus}
+        <p class="setup-hint setup-riot-key-note">Dev keys expire every <strong>24 hours</strong>. On the developer portal, click <strong>Regenerate API Key</strong>, paste the new key here, then Apply &amp; Go.</p>
       </div>
       <div class="setup-field-row">
         <div class="setup-field setup-field-region">
@@ -250,6 +254,7 @@ async function prefillRiotFromBridge() {
     const cfg = setup.config ?? {};
     const riotInput = document.getElementById('setup-riot-id');
     const regionSel = document.getElementById('setup-riot-region');
+    const keyField = document.getElementById('setup-riot-key');
     if (riotInput && !riotInput.value && cfg.riotId) {
       riotInput.value = cfg.riotId;
       savePrefs({ riotId: cfg.riotId });
@@ -258,10 +263,20 @@ async function prefillRiotFromBridge() {
       regionSel.value = cfg.riotRegion;
       savePrefs({ riotRegion: cfg.riotRegion });
     }
-    document.querySelector('.setup-step[data-step="valorant"]')?.classList.toggle('done', Boolean(riotInput?.value.trim()));
+    if (keyField && cfg.riotApiKeySet && cfg.riotApiKeyHint) {
+      keyField.placeholder = 'Paste new RGAPI key to replace saved key';
+      const fieldWrap = keyField.closest('.setup-field');
+      if (fieldWrap && !fieldWrap.querySelector('.setup-riot-key-saved')) {
+        const note = document.createElement('p');
+        note.className = 'setup-hint setup-riot-key-saved';
+        note.innerHTML = `Key on this PC: <code>${escapeHtml(cfg.riotApiKeyHint)}</code> — paste a new RGAPI key above to replace it.`;
+        keyField.insertAdjacentElement('afterend', note);
+      }
+    }
+    document.querySelector('.setup-step[data-step="valorant"]')?.classList.toggle('done', Boolean(riotInput?.value.trim()) && cfg.riotApiKeySet);
     const pill = document.getElementById('setup-valorant-pill');
     if (pill && riotInput?.value.trim()) {
-      pill.textContent = '● Riot ID saved locally';
+      pill.textContent = cfg.riotApiKeySet ? '● Saved on this PC' : '○ Add API key';
       pill.classList.add('ok');
     }
   } catch {
@@ -333,10 +348,21 @@ function wireSetupApplyGo() {
     const riotApiKey = document.getElementById('setup-riot-key')?.value.trim() ?? '';
     const riotRegion = document.getElementById('setup-riot-region')?.value ?? 'na';
     const isVal = state.activeGame === GAME_IDS.VALORANT;
+    let savedKeySet = false;
     if (isVal) {
-      if (!riotId || !riotApiKey) {
-        showToast('Enter Riot ID and API key for Valorant auto-log', 'error');
-        (document.getElementById('setup-riot-id') ?? document.getElementById('setup-riot-key'))?.focus();
+      try {
+        savedKeySet = Boolean((await fetchBridgeSetupStatus()).config?.riotApiKeySet);
+      } catch { /* bridge check below */ }
+    }
+    if (isVal) {
+      if (!riotId) {
+        showToast('Enter your Riot ID (Name#TAG) for Valorant auto-log', 'error');
+        document.getElementById('setup-riot-id')?.focus();
+        return;
+      }
+      if (!riotApiKey && !savedKeySet) {
+        showToast('Paste your Riot API key — dev keys expire every 24 hours', 'error');
+        document.getElementById('setup-riot-key')?.focus();
         return;
       }
     } else if (!name) {
@@ -375,15 +401,17 @@ function wireSetupApplyGo() {
         resultEl.classList.remove('hidden');
         const lines = isVal
           ? [
-            result.files?.grindConfig ? '✓ Saved Riot ID + API key in grind-config.json' : null,
-            riotId ? `✓ Linked Riot account: ${riotId}` : null,
+            result.files?.grindConfig ? '✓ Saved Riot ID + settings to grind-config.json' : null,
             riotFailed
-              ? `✗ Riot rejected this key: ${result.riotValidation.error}`
+              ? `✗ ${result.riotValidation.error}`
               : result.riotValidation?.ok
-                ? '✓ Riot API key verified — play one match to sync'
-                : '↻ Play one match to sync — your next finished match can auto-log',
+                ? `✓ Riot account verified: ${result.riotValidation.riotId || riotId}`
+                : '↻ Re-checking saved key…',
+            !riotFailed && result.riotValidation?.ok
+              ? '✓ API key works — play one match to finish sync, then matches auto-log'
+              : null,
             riotFailed
-              ? '↻ On developer.riotgames.com click Regenerate API Key, paste the new RGAPI key above, Apply again'
+              ? '↻ developer.riotgames.com → Regenerate API Key → paste above → Apply again'
               : null,
             ...(result.warnings ?? []).map(w => `⚠ ${w}`),
           ]

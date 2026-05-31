@@ -103,41 +103,32 @@ export function getRankForPlaylist(mmr, playlist) {
 
 const DIVISION_NUM = { I: 1, II: 2, III: 3 };
 
-const GIST_BASE = 'https://gist.githubusercontent.com/armollica/2d03767d66218066680493b1f16cb21f/raw/b997d659e38095891d4dce2f0b16690d309bf004/';
+/** Official RL rank icons (256px) — Rocket League Wiki / Fandom */
+const WIKI_IMG = 'https://static.wikia.nocookie.net/rocketleague/images';
 
-const RANK_ICON_FILES = {
-  'champion-1': 'tier-16.png',
-  'champion-2': 'tier-17.png',
-  'champion-3': 'tier-18.png',
-};
-
-function getRankIconFile(key) {
-  return RANK_ICON_FILES[key] ?? `${key}.png`;
-}
-
-const RANK_ICON_CDN = {
-  'bronze-1': `${GIST_BASE}bronze-1.png`,
-  'bronze-2': `${GIST_BASE}bronze-2.png`,
-  'bronze-3': `${GIST_BASE}bronze-3.png`,
-  'silver-1': `${GIST_BASE}silver-1.png`,
-  'silver-2': `${GIST_BASE}silver-2.png`,
-  'silver-3': `${GIST_BASE}silver-3.png`,
-  'gold-1': `${GIST_BASE}gold-1.png`,
-  'gold-2': `${GIST_BASE}gold-2.png`,
-  'gold-3': `${GIST_BASE}gold-3.png`,
-  'platinum-1': `${GIST_BASE}platinum-1.png`,
-  'platinum-2': `${GIST_BASE}platinum-2.png`,
-  'platinum-3': `${GIST_BASE}platinum-3.png`,
-  'diamond-1': `${GIST_BASE}diamond-1.png`,
-  'diamond-2': `${GIST_BASE}diamond-2.png`,
-  'diamond-3': `${GIST_BASE}diamond-3.png`,
-  'champion-1': `${GIST_BASE}champion-1.png`,
-  'champion-2': `${GIST_BASE}champion-2.png`,
-  'champion-3': `${GIST_BASE}champion-3.png`,
-  'grand-champion-1': 'https://static.wikia.nocookie.net/rocketleague/images/d/d4/Grand_champion1_rank_icon.png/revision/latest/scale-to-width-down/64',
-  'grand-champion-2': 'https://static.wikia.nocookie.net/rocketleague/images/6/6a/Grand_champion2_rank_icon.png/revision/latest/scale-to-width-down/64',
-  'grand-champion-3': 'https://static.wikia.nocookie.net/rocketleague/images/0/0c/Grand_champion3_rank_icon.png/revision/latest/scale-to-width-down/64',
-  'supersonic-legend': 'https://static.wikia.nocookie.net/rocketleague/images/2/2d/Supersonic_Legend_rank_icon.png/revision/latest/scale-to-width-down/64',
+const RANK_ICON_SRC = {
+  'bronze-1': `${WIKI_IMG}/6/6c/Bronze1_rank_icon.png/revision/latest`,
+  'bronze-2': `${WIKI_IMG}/5/5d/Bronze2_rank_icon.png/revision/latest`,
+  'bronze-3': `${WIKI_IMG}/7/7a/Bronze3_rank_icon.png/revision/latest`,
+  'silver-1': `${WIKI_IMG}/d/d5/Silver1_rank_icon.png/revision/latest`,
+  'silver-2': `${WIKI_IMG}/f/f8/Silver2_rank_icon.png/revision/latest`,
+  'silver-3': `${WIKI_IMG}/7/7c/Silver3_rank_icon.png/revision/latest`,
+  'gold-1': `${WIKI_IMG}/8/8e/Gold1_rank_icon.png/revision/latest`,
+  'gold-2': `${WIKI_IMG}/b/be/Gold2_rank_icon.png/revision/latest`,
+  'gold-3': `${WIKI_IMG}/b/b1/Gold3_rank_icon.png/revision/latest`,
+  'platinum-1': `${WIKI_IMG}/7/77/Platinum1_rank_icon.png/revision/latest`,
+  'platinum-2': `${WIKI_IMG}/e/e4/Platinum2_rank_icon.png/revision/latest`,
+  'platinum-3': `${WIKI_IMG}/7/78/Platinum3_rank_icon.png/revision/latest`,
+  'diamond-1': `${WIKI_IMG}/1/1d/Diamond1_rank_icon.png/revision/latest`,
+  'diamond-2': `${WIKI_IMG}/b/b6/Diamond2_rank_icon.png/revision/latest`,
+  'diamond-3': `${WIKI_IMG}/7/7a/Diamond3_rank_icon.png/revision/latest`,
+  'champion-1': `${WIKI_IMG}/a/a7/Champion1_rank_icon.png/revision/latest`,
+  'champion-2': `${WIKI_IMG}/0/07/Champion2_rank_icon.png/revision/latest`,
+  'champion-3': `${WIKI_IMG}/d/d9/Champion3_rank_icon.png/revision/latest`,
+  'grand-champion-1': `${WIKI_IMG}/d/d4/Grand_champion1_rank_icon.png/revision/latest`,
+  'grand-champion-2': `${WIKI_IMG}/6/6a/Grand_champion2_rank_icon.png/revision/latest`,
+  'grand-champion-3': `${WIKI_IMG}/0/0c/Grand_champion3_rank_icon.png/revision/latest`,
+  'supersonic-legend': `${WIKI_IMG}/2/2d/Supersonic_Legend_rank_icon.png/revision/latest`,
 };
 
 export function getRankIconKey(rankName) {
@@ -150,18 +141,15 @@ export function getRankIconKey(rankName) {
   return `${tier.toLowerCase()}-${DIVISION_NUM[div] || 1}`;
 }
 
-const RANK_ICON_LOCAL = 'assets/ranks/';
-
 export function getRankIconSrc(rankName) {
   const key = getRankIconKey(rankName);
-  return `${RANK_ICON_LOCAL}${getRankIconFile(key)}`;
+  return RANK_ICON_SRC[key] ?? RANK_ICON_SRC['bronze-1'];
 }
 
 export function rankIconHTML(rankOrName, size = 20) {
   const name = typeof rankOrName === 'string' ? rankOrName : rankOrName.name;
-  const key = getRankIconKey(name);
   const src = getRankIconSrc(name);
-  const fallback = RANK_ICON_CDN[key] ?? RANK_ICON_CDN['bronze-1'];
+  const fallback = RANK_ICON_SRC['bronze-1'];
   return `<img class="rank-icon" src="${src}" alt="${name}" width="${size}" height="${size}" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${fallback}'">`;
 }
 

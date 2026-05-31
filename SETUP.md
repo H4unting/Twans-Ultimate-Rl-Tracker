@@ -111,6 +111,7 @@ Once signed in, you get the **same app** on GitHub Pages and localhost:
 | Can't save games | Sign in with Google first |
 | Session resets | Update to latest code — sessions persist in localStorage |
 | Policy / recursion error | Run `groups-schema-fix.sql` in Supabase |
+| Valorant `Riot API key` error | Dev keys expire every **24 hours**. At [developer.riotgames.com](https://developer.riotgames.com/) click **Regenerate API Key**, paste the new `RGAPI-…` key in Auto-Log Setup, click **Apply & Go**, then restart **Twans Auto-Log** if the pill still shows an error |
 
 ## Quick test
 

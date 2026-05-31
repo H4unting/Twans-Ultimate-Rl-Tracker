@@ -443,7 +443,8 @@ body.logged-out.has-quick-dock { padding-bottom: 0; }
   vertical-align: middle;
   object-fit: contain;
   flex-shrink: 0;
-  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.45));
+  image-rendering: auto;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
   transition: transform 0.15s ease;
 }
 .rank-badge:hover .rank-icon { transform: scale(1.08); }
@@ -1853,6 +1854,16 @@ body[data-active-game="rocket_league"] .setup-game-panel-rl { box-shadow: 0 0 20
   font-size: 12px;
   line-height: 1.5;
   color: var(--dim);
+}
+.setup-riot-key-saved {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--dim);
+}
+.setup-riot-key-saved code {
+  font-size: 11px;
+  color: var(--text-muted);
 }
 .setup-field-row {
   display: flex;

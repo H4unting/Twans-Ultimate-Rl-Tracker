@@ -299,7 +299,7 @@ export function startBridge(options = {}) {
         });
         resetValorantCache();
         setPlayerName(applied.rlDisplayName);
-        if (body.riotId && body.riotApiKey) {
+        if (body.riotId) {
           applied.riotValidation = await validateRiotConfig();
         }
         res.writeHead(200, { 'Content-Type': 'application/json' });
