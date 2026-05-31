@@ -46,7 +46,7 @@ export function refreshBridgeStatusUI() {
   el.dataset.bridgeState = up ? 'online' : 'offline';
 
   if (!up) {
-    if (!bridgeProbeDone && isLocalTrackerHost()) {
+    if (!isBridgeProbeDone() && isLocalTrackerHost()) {
       el.textContent = 'Connecting…';
       el.title = `Looking for ${DESKTOP_APP.name} on this PC…`;
       el.dataset.bridgeState = 'connecting';
@@ -182,7 +182,7 @@ function updateDesktopAppBanner(isVal, appUp, valStatus) {
   }
 
   if (!appUp) {
-    if (!bridgeProbeDone && isLocalTrackerHost()) {
+    if (!isBridgeProbeDone() && isLocalTrackerHost()) {
       banner.classList.add('hidden');
       return;
     }
