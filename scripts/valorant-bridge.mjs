@@ -121,11 +121,12 @@ function parseValorantMatch(data, puuid) {
     competitive: 'Competitive',
     unrated: 'Unrated',
     swiftplay: 'Swiftplay',
-    spike rush: 'Spike Rush',
+    spikeRush: 'Spike Rush',
     deathmatch: 'Deathmatch',
+    ggteam: 'Escalation',
     escalation: 'Escalation',
     replication: 'Replication',
-    snowball: 'Snowball Fight',
+    snowballFight: 'Snowball Fight',
   };
   const mode = modeMap[queue] || queue;
   const rounds = stats.roundsPlayed || 1;
