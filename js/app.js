@@ -5,7 +5,7 @@
 import { applyAppMode } from './env.js';
 import { state, subscribe, setGames, setSyncStatus, setGoals, setProfile, getUserDisplay, getActiveGames } from './state.js';
 import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, sendPasswordReset, signOut, onAuthChange, getAuthUser, hasPendingAuthHash, clearAuthHashFromUrl } from './auth.js';
-import { loadUserData, saveSettings, createGroup, joinGroup, leaveGroup, loadUserGroups, saveGames, saveProfile } from './supabase.js';
+import { loadUserData, saveSettings, createGroup, joinGroup, leaveGroup, loadUserGroups, saveGames, saveProfile, uploadProfileAvatar } from './supabase.js';
 import { applyFilters, DEFAULT_FILTERS } from './filters.js';
 import { calcStats, estimateMMRDelta } from './utils.js';
 import { RL } from './games/registry.js';
@@ -517,7 +517,9 @@ function getSettingsPayload(overrides = {}) {
   };
 }
 
-async function handleProfileSave({ displayName, rlName, primaryColor, secondaryColor, bio }) {
+async function handleProfileSave({
+  displayName, rlName, primaryColor, secondaryColor, bio, avatarFile, avatarUrl,
+}) {
   state.profileBio = bio;
   await saveSettings(getSettingsPayload({
     bio,
@@ -526,11 +528,19 @@ async function handleProfileSave({ displayName, rlName, primaryColor, secondaryC
     secondaryColor,
   }));
 
+  let nextAvatarUrl = state.profile?.avatar_url ?? null;
+  if (avatarFile) {
+    nextAvatarUrl = await uploadProfileAvatar(avatarFile);
+  } else if (avatarUrl !== undefined) {
+    nextAvatarUrl = avatarUrl || null;
+  }
+
   const { extended } = await saveProfile({
     display_name: displayName,
     primary_color: primaryColor,
     secondary_color: secondaryColor,
     accent_color: primaryColor,
+    avatar_url: nextAvatarUrl,
   });
 
   setProfile({
@@ -539,6 +549,7 @@ async function handleProfileSave({ displayName, rlName, primaryColor, secondaryC
     primary_color: primaryColor,
     secondary_color: secondaryColor,
     accent_color: primaryColor,
+    avatar_url: nextAvatarUrl,
   });
 
   saveRlDisplayName(rlName);

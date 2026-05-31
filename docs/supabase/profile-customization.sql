@@ -1,4 +1,4 @@
--- Profile colors + signup number (url#1, url#2, …)
+-- Profile colors + signup UID (UID 1, UID 2, …)
 -- Run once in Supabase SQL Editor after auth-schema.sql
 
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS primary_color text DEFAULT '#e65c00';
@@ -21,7 +21,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS profiles_profile_number_key ON profiles (profi
 
 ALTER TABLE profiles ALTER COLUMN profile_number SET DEFAULT nextval('profiles_profile_number_seq');
 
--- New sign-ups get the next url# automatically
+-- New sign-ups get the next UID automatically
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN

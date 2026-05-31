@@ -42,7 +42,9 @@ The in-app setup wizard also saves your name — **restart `start-grind.bat`** a
    - `auth-schema.sql` — auth policies
    - `multi-game.sql` — Rocket League + Valorant on one account
    - `groups-schema.sql` — squads (optional)
-   - `profile-customization.sql` — profile colors + url# signup numbers
+   - `profile-customization.sql` — profile colors + UID signup numbers
+   - `assign-uid-1-twan.sql` — optional: set twan to UID 1
+   - `avatar-storage.sql` — profile photo uploads
    - `groups-schema-fix.sql` — only if you see an "infinite recursion" policy error
 
 ## 6. Daily use

@@ -284,6 +284,7 @@ export async function saveSettings(settings) {
 function buildProfilePatch(updates, extended) {
   const payload = {};
   if (updates.display_name != null) payload.display_name = updates.display_name;
+  if (updates.avatar_url != null) payload.avatar_url = updates.avatar_url;
   if (updates.accent_color != null) payload.accent_color = updates.accent_color;
   if (extended) {
     if (updates.primary_color != null) payload.primary_color = updates.primary_color;
@@ -293,6 +294,41 @@ function buildProfilePatch(updates, extended) {
     payload.accent_color = updates.primary_color;
   }
   return payload;
+}
+
+export async function uploadProfileAvatar(file) {
+  const user = getAuthUser();
+  if (!user) throw new Error('Not signed in');
+  if (!file?.type?.startsWith('image/')) throw new Error('Choose a JPG, PNG, or WebP image');
+
+  const ext = file.type === 'image/png' ? 'png'
+    : file.type === 'image/webp' ? 'webp'
+      : file.type === 'image/gif' ? 'gif'
+        : 'jpg';
+  const objectPath = `${user.id}/avatar.${ext}`;
+  const token = getAccessToken() ?? SUPABASE_KEY;
+
+  const res = await fetch(`${SUPABASE_URL}/storage/v1/object/avatars/${objectPath}`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${token}`,
+      'Content-Type': file.type,
+      'x-upsert': 'true',
+    },
+    body: file,
+    signal: fetchTimeout(60000),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    if (/bucket/i.test(err)) {
+      throw new Error('Photo storage not set up — run docs/supabase/avatar-storage.sql in Supabase');
+    }
+    throw new Error(err || 'Upload failed');
+  }
+
+  return `${SUPABASE_URL}/storage/v1/object/public/avatars/${objectPath}?t=${Date.now()}`;
 }
 
 export async function saveProfile(updates) {

@@ -2084,13 +2084,61 @@ body[data-active-game="rocket_league"] .setup-game-panel-rl { box-shadow: 0 0 20
 .profile-banner { height: 140px; }
 .profile-hero-inner {
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
+  flex-direction: column;
   gap: 16px;
-  flex-wrap: wrap;
-  padding: 0 20px 18px;
+  padding: 0 20px 20px;
   margin-top: -36px;
 }
+.profile-hero-head {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.profile-hero-title { min-width: 0; padding-bottom: 4px; flex: 1; }
+.profile-level-hint-inline { margin: 4px 0 0; }
+.profile-avatar-change {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  text-align: center;
+  cursor: pointer;
+  opacity: 0.9;
+}
+.profile-avatar-change:hover { opacity: 1; text-decoration: underline; }
+.profile-edit-island {
+  background: #0d111799;
+  border: 1px solid #ffffff18;
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  backdrop-filter: blur(8px);
+}
+.profile-edit-island-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 12px;
+  margin-bottom: 14px;
+}
+.profile-edit-island-head strong { color: var(--teal); font-size: 14px; }
+.profile-edit-island-sub { font-size: 12px; color: var(--muted); }
+.profile-meta {
+  padding-top: 4px;
+  border-top: 1px solid #ffffff12;
+}
+.profile-uid-readonly,
+.profile-url-readonly {
+  font-family: Consolas, monospace;
+  font-weight: 700;
+  color: var(--teal);
+  padding: 8px 10px;
+  background: #00000044;
+  border-radius: 6px;
+  border: 1px solid #ffffff12;
+}
+.profile-bio-empty { display: none; }
 .profile-hero-left {
   display: flex;
   align-items: flex-end;
@@ -2138,7 +2186,8 @@ body[data-active-game="rocket_league"] .setup-game-panel-rl { box-shadow: 0 0 20
   color: #8f98a0;
 }
 .profile-rl-tag { color: #b8c8d8; }
-.profile-url-tag {
+.profile-url-tag,
+.profile-uid-tag {
   color: var(--teal);
   font-weight: 700;
   font-family: Consolas, monospace;
