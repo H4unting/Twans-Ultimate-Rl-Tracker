@@ -12,6 +12,7 @@ import { updateNavUI } from './nav.js';
 import { restoreSessionFromStorage, refreshSessionUI } from './sessions.js';
 import { renderLogSetupNudge, refreshSetupWizard } from './setup-wizard.js';
 import { applyDockForGame } from './dock-ui.js';
+import { routeActiveGame } from './games/router.js';
 
 let onGameChange = null;
 let switcherWired = false;
@@ -31,6 +32,7 @@ export function initGameSwitcher({ onChange, getSettingsPayload }) {
     if (!GAMES[next]) return;
 
     setActiveGame(next);
+    routeActiveGame(next);
     savePrefs({ activeGame: next });
     state.playlist = 'all';
     state.filters = { ...state.filters, playlist: 'all' };

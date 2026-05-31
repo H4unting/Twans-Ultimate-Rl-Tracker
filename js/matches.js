@@ -1,11 +1,12 @@
-/** Match CRUD — scoped to active game title */
+/** Match CRUD — delegates game-specific build/normalize to active game module */
 
 import { state, setGames, getActiveGames, mergeActiveGames } from './state.js';
-import { formatDisplayDate, normalizeGame, getPriorEndMMRForMode, resolveGameStartMMR } from './utils.js';
+import { normalizeGame } from './utils.js';
 import { saveGames } from './supabase.js';
 import { showToast } from './ui.js';
 import { getAuthUser } from './auth.js';
-import { GAME_IDS, getGameMeta, getRankDiff } from './games.js';
+import { getRankDiff } from './games.js';
+import { getActiveGameModule } from './games/router.js';
 
 function notifySessionUIRefresh() {
   void import('./sessions.js').then(m => m.refreshSessionUI());
@@ -25,57 +26,15 @@ async function persistActiveGames(activeGames) {
   setGames(merged);
 }
 
-function rankLabel() {
-  return getGameMeta(state.activeGame).diffLabel;
-}
-
 export async function addGame(formData, selectedTags, onSuccess) {
   if (!requireSignedIn()) return null;
+  const mod = getActiveGameModule();
   const games = JSON.parse(JSON.stringify(getActiveGames()));
-  const d = formData.date ? new Date(formData.date + 'T12:00:00') : new Date();
-  const isVal = state.activeGame === GAME_IDS.VALORANT;
-  const endRank = parseInt(isVal ? formData.endRR : formData.endMMR, 10) || 0;
-  const draft = {
-    match: games.length + 1,
-    mode: formData.mode,
-    result: formData.result,
-    endMMR: endRank,
-    endRR: endRank,
-    startMMR: parseInt(isVal ? formData.startRR : formData.startMMR, 10) || 0,
-    startRR: parseInt(isVal ? formData.startRR : formData.startMMR, 10) || 0,
-  };
-  const startRank = resolveGameStartMMR(games, draft);
-
-  const game = normalizeGame({
-    game: state.activeGame,
-    date: formatDisplayDate(d),
-    session: parseInt(formData.session, 10) || 1,
-    match: draft.match,
-    mode: draft.mode,
-    result: draft.result,
-    goals: parseInt(formData.goals, 10) || 0,
-    assists: parseInt(formData.assists, 10) || 0,
-    saves: parseInt(formData.saves, 10) || 0,
-    kills: parseInt(formData.kills, 10) || parseInt(formData.goals, 10) || 0,
-    deaths: parseInt(formData.deaths, 10) || parseInt(formData.assists, 10) || 0,
-    valAssists: parseInt(formData.valAssists, 10) || 0,
-    acs: parseInt(formData.acs, 10) || parseInt(formData.saves, 10) || 0,
-    agent: formData.agent ?? '',
-    map: formData.map ?? '',
-    startMMR: startRank,
-    endMMR: endRank,
-    startRR: startRank,
-    endRR: endRank,
-    mmrDiff: endRank - startRank,
-    rrDiff: endRank - startRank,
-    notes: formData.notes?.trim() ?? '',
-    tags: [...selectedTags],
-  });
-
+  const game = mod.buildGameFromForm(formData, games, selectedTags);
   games.push(game);
   await persistActiveGames(games);
   const diff = getRankDiff(game, state.activeGame);
-  showToast(`${isVal ? 'Match' : 'Game'} logged! ${diff >= 0 ? '+' : ''}${diff} ${rankLabel()}`);
+  showToast(`${mod.META.matchSingularCap} logged! ${diff >= 0 ? '+' : ''}${diff} ${mod.META.diffLabel}`);
   notifySessionUIRefresh();
   if (onSuccess) onSuccess(game);
   return game;
@@ -83,76 +42,32 @@ export async function addGame(formData, selectedTags, onSuccess) {
 
 export async function updateGame(matchNum, formData, selectedTags) {
   if (!requireSignedIn()) return;
+  const mod = getActiveGameModule();
   const games = JSON.parse(JSON.stringify(getActiveGames()));
   const idx = games.findIndex(g => g.match === matchNum);
   if (idx === -1) throw new Error('Game not found');
-
-  const d = formData.date ? new Date(formData.date + 'T12:00:00') : new Date();
-  const isVal = state.activeGame === GAME_IDS.VALORANT;
-  const endRank = parseInt(isVal ? formData.endRR : formData.endMMR, 10) || 0;
-  const draft = {
-    ...games[idx],
-    mode: formData.mode,
-    result: formData.result,
-    endMMR: endRank,
-    endRR: endRank,
-    startMMR: parseInt(isVal ? formData.startRR : formData.startMMR, 10) || 0,
-    startRR: parseInt(isVal ? formData.startRR : formData.startMMR, 10) || 0,
-  };
-  const startRank = resolveGameStartMMR(games.filter((_, i) => i !== idx), draft);
-
-  games[idx] = normalizeGame({
-    ...games[idx],
-    game: state.activeGame,
-    date: formatDisplayDate(d),
-    session: parseInt(formData.session, 10) || 1,
-    mode: draft.mode,
-    result: draft.result,
-    goals: parseInt(formData.goals, 10) || 0,
-    assists: parseInt(formData.assists, 10) || 0,
-    saves: parseInt(formData.saves, 10) || 0,
-    kills: parseInt(formData.kills, 10) || parseInt(formData.goals, 10) || 0,
-    deaths: parseInt(formData.deaths, 10) || parseInt(formData.assists, 10) || 0,
-    valAssists: parseInt(formData.valAssists, 10) || 0,
-    acs: parseInt(formData.acs, 10) || parseInt(formData.saves, 10) || 0,
-    agent: formData.agent ?? '',
-    map: formData.map ?? '',
-    startMMR: startRank,
-    endMMR: endRank,
-    startRR: startRank,
-    endRR: endRank,
-    mmrDiff: endRank - startRank,
-    rrDiff: endRank - startRank,
-    notes: formData.notes?.trim() ?? '',
-    tags: [...selectedTags],
-  });
-
+  games[idx] = mod.buildGameUpdate(formData, games, idx, selectedTags);
   await persistActiveGames(games);
-  showToast(`${state.activeGame === GAME_IDS.VALORANT ? 'Match' : 'Game'} updated!`);
+  showToast(`${mod.META.matchSingularCap} updated!`);
   return games[idx];
 }
 
 export async function patchLastGame({ endMMR, endRR, tags, notes }) {
   if (!requireSignedIn()) return null;
+  const mod = getActiveGameModule();
   const games = JSON.parse(JSON.stringify(getActiveGames()));
   if (!games.length) return null;
   const idx = games.length - 1;
-  const g = { ...games[idx] };
+  let g = { ...games[idx] };
   const endRank = endRR ?? endMMR;
 
   if (endRank != null) {
-    g.endMMR = endRank;
-    g.endRR = endRank;
-    g.startMMR = resolveGameStartMMR(games.slice(0, idx), { ...g, endMMR: endRank, endRR: endRank });
-    g.startRR = g.startMMR;
-    g.mmrDiff = endRank - g.startMMR;
-    g.rrDiff = g.mmrDiff;
-    g.notes = (g.notes || '').replace(/MMR estimated/g, '').replace(/RR estimated/g, '').replace(/\s·\s·/g, ' · ').trim();
+    g = mod.patchLastGameRank(g, games, idx, endRank);
   }
   if (tags) g.tags = [...tags];
   if (notes !== undefined) g.notes = notes;
 
-  games[idx] = normalizeGame(g);
+  games[idx] = normalizeGame({ ...g, game: state.activeGame });
   await persistActiveGames(games);
   notifySessionUIRefresh();
   return games[idx];
@@ -160,36 +75,39 @@ export async function patchLastGame({ endMMR, endRR, tags, notes }) {
 
 export async function undoLastGame(skipConfirm = false) {
   if (!requireSignedIn()) return false;
+  const mod = getActiveGameModule();
   const active = getActiveGames();
   if (!active.length) return false;
-  if (!skipConfirm && !confirm('Remove the last logged game?')) return false;
+  if (!skipConfirm && !confirm(`Remove the last logged ${mod.META.matchSingular}?`)) return false;
 
   const games = active.slice(0, -1);
   games.forEach((g, i) => { g.match = i + 1; });
   await persistActiveGames(games);
   notifySessionUIRefresh();
-  showToast(`Last ${state.activeGame === GAME_IDS.VALORANT ? 'match' : 'game'} removed`);
+  showToast(`Last ${mod.META.matchSingular} removed`);
   return true;
 }
 
 export async function deleteGame(matchNum) {
   if (!requireSignedIn()) return false;
-  if (!confirm('Delete this game?')) return false;
+  const mod = getActiveGameModule();
+  if (!confirm(`Delete this ${mod.META.matchSingular}?`)) return false;
   const games = getActiveGames().filter(g => g.match !== matchNum);
   games.forEach((g, i) => { g.match = i + 1; });
   await persistActiveGames(games);
-  showToast(`${state.activeGame === GAME_IDS.VALORANT ? 'Match' : 'Game'} deleted`);
+  showToast(`${mod.META.matchSingularCap} deleted`);
   return true;
 }
 
 export function getLastMMR(mode) {
   if (!mode) return '';
-  const end = getPriorEndMMRForMode(getActiveGames(), mode);
+  const mod = getActiveGameModule();
+  const end = mod.getPriorEndRank(getActiveGames(), mode);
   return end != null ? end : '';
 }
 
 export function isMmrEstimated(game) {
-  return (game?.notes || '').includes('MMR estimated') || (game?.notes || '').includes('RR estimated');
+  return getActiveGameModule().isRankEstimated(game);
 }
 
 export function lastGameNeedsMmrConfirm(games = getActiveGames()) {

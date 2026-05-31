@@ -7,13 +7,16 @@ import { state, subscribe, setGames, setSyncStatus, setGoals, setProfile, getUse
 import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, sendPasswordReset, signOut, onAuthChange, getAuthUser } from './auth.js';
 import { loadUserData, saveSettings, createGroup, joinGroup, leaveGroup, loadUserGroups, saveGames, saveProfile } from './supabase.js';
 import { applyFilters, DEFAULT_FILTERS } from './filters.js';
-import { calcStats, estimateMMRDelta, repairPlaylistMMRChain } from './utils.js';
+import { calcStats, estimateMMRDelta } from './utils.js';
+import { RL } from './games/registry.js';
+import { routeActiveGame, getActiveGameModule } from './games/router.js';
 import { addGame, updateGame, deleteGame, getLastMMR, patchLastGame, undoLastGame, isMmrEstimated } from './matches.js';
 import { startSession, endSession, closeSessionModal, closeSessionModalAndContinue, initSessionUI, refreshSessionUI, restoreSessionFromStorage, getLoggingSessionNum } from './sessions.js';
 import {
   initQuickLog, showQuickDock, hideQuickDock, getQuickLogPayload,
   resetQuickAfterLog, loadPrefs, savePrefs, syncFormFromQuick, applyLiveStats, flashAutoLogged,
   setQuickResult, setQuickMode, rerenderQuickTags, getLastModeForGame, getQuickMode,
+  getQuickEndRankInput,
 } from './quicklog.js';
 import { renderProfilePage } from './profile-ui.js';
 import { initRlLive, stopRlLive, refreshLiveStatus,
@@ -101,7 +104,7 @@ async function bootApp() {
       primary_color: profile?.primary_color || primaryColor || profile?.accent_color || '#e65c00',
       secondary_color: profile?.secondary_color || secondaryColor || '#4a2060',
     });
-    const { games: repaired, changed } = repairPlaylistMMRChain(
+    const { games: repaired, changed } = RL.repairPlaylistMMRChain(
       games.filter(g => (g.game ?? GAME_IDS.ROCKET_LEAGUE) === GAME_IDS.ROCKET_LEAGUE),
     );
     let allGames = games;
@@ -117,6 +120,7 @@ async function bootApp() {
     state.profileBio = bio ?? '';
     state.groups = groups;
     restoreActiveGameFromPrefs(activeGame);
+    routeActiveGame(state.activeGame);
     if (rlDisplayName && !loadPrefs().rlDisplayName) {
       saveRlDisplayName(rlDisplayName);
       savePrefs({ rlDisplayName });
@@ -550,7 +554,7 @@ function wireKeyboardShortcuts() {
     if (key === 'l') {
       e.preventDefault();
       navigate('log', 'home');
-      document.getElementById('quick-endmmr')?.focus();
+      getQuickEndRankInput()?.focus();
     } else if (key === 's') {
       e.preventDefault();
       document.getElementById('session-start-btn')?.click();
@@ -607,7 +611,7 @@ async function handleValorantAutoLog(match) {
     showToast(`First ${logMode} log — confirm your real RR after the match`, 'error');
   }
 
-  document.getElementById('quick-endmmr').value = endRR;
+  document.getElementById('quick-endrr').value = endRR;
   const fStart = document.getElementById('f-startmmr');
   if (fStart) fStart.value = priorEnd !== '' ? startRR : '';
 
@@ -653,12 +657,12 @@ async function handleAutoLog(match) {
 
   if (Number.isNaN(startMMR) || Number.isNaN(endMMR)) {
     showToast('Confirm MMR from the ranked screen after this match', 'error');
-    document.getElementById('quick-endmmr')?.focus();
+    getQuickEndRankInput()?.focus();
     return false;
   }
 
   const fStart = document.getElementById('f-startmmr');
-  const qEnd = document.getElementById('quick-endmmr');
+  const qEnd = getQuickEndRankInput();
   if (fStart) fStart.value = priorEnd !== '' ? startMMR : '';
   if (qEnd) qEnd.value = endMMR;
 
@@ -676,24 +680,28 @@ async function handleAutoLog(match) {
 }
 
 function recentGamesHaveMMR() {
-  return getActiveGames().slice(-3).some(g => g.endMMR);
+  const mod = getActiveGameModule();
+  return getActiveGames().slice(-3).some(g => mod.getRankValue(g));
 }
 
 async function submitGameLog(source = 'form') {
   const meta = getGameMeta(state.activeGame);
   const rankLabel = meta.rankLabel;
+  const isVal = state.activeGame === GAME_IDS.VALORANT;
 
   if (source === 'quick' || source === 'auto') {
     syncFormFromQuick();
   }
 
+  const endInput = getQuickEndRankInput();
   const endMMR = source === 'quick' || source === 'auto'
-    ? document.getElementById('quick-endmmr')?.value
-    : document.getElementById('f-endmmr')?.value;
+    ? endInput?.value
+    : document.getElementById(isVal ? 'f-endrr' : 'f-endmmr')?.value
+      ?? document.getElementById('f-endmmr')?.value;
 
   if (!endMMR) {
     showToast(`Enter end ${rankLabel}`, 'error');
-    document.getElementById(source === 'quick' || source === 'auto' ? 'quick-endmmr' : 'f-endmmr')?.focus();
+    (source === 'quick' || source === 'auto' ? endInput : document.getElementById(isVal ? 'f-endrr' : 'f-endmmr'))?.focus();
     return false;
   }
 
@@ -704,7 +712,6 @@ async function submitGameLog(source = 'form') {
   if (btn) { btn.disabled = true; btn.dataset.label = btn.textContent; btn.textContent = '…'; }
 
   try {
-    const isVal = state.activeGame === GAME_IDS.VALORANT;
     const payload = source === 'quick' || source === 'auto' ? getQuickLogPayload() : isVal ? {
       date: document.getElementById('f-date').value,
       session: getLoggingSessionNum(),

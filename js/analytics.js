@@ -1,20 +1,23 @@
 /** Analytics page rendering */
 
-import { countTags, getTagTrendBuckets } from './utils.js';
+import { countTags } from './utils.js';
 import { getPerformanceInsights } from './insights.js';
 import { rollingChart, trendChart } from './charts.js';
 import { renderInsightCards, renderCoachReport, renderActionItems, barRows } from './ui.js';
 import { state } from './state.js';
-import { getCategoryLabels, getCategoryOrder, getTagColors, getTagCat, GAME_IDS } from './games.js';
+import { getCategoryLabels, getCategoryOrder, getTagColors, getTagCat } from './games.js';
+import { getActiveGameModule } from './games/router.js';
 
 const MIN_GAMES_FOR_CHARTS = 10;
 
 export function renderAnalytics(games) {
+  const mod = getActiveGameModule();
   const gameId = state.activeGame;
   const { cards, report, correlations, actionItems } = getPerformanceInsights(games, gameId);
   const catLabels = getCategoryLabels(gameId);
   const catOrder = getCategoryOrder(gameId);
   const cmap = getTagColors(gameId);
+  const categoryTitle = mod.ANALYTICS.categoryTitle;
 
   renderActionItems(actionItems);
   renderInsightCards(cards);
@@ -45,10 +48,6 @@ export function renderAnalytics(games) {
   const taggedLossPct = losses.length
     ? Math.round(losses.filter(g => g.tags?.length).length / losses.length * 100) : 0;
 
-  const categoryTitle = gameId === GAME_IDS.VALORANT
-    ? 'Improvement Pillars'
-    : 'Category Breakdown';
-
   const corrHTML = correlations.slice(0, 5).map(c => `
     <div class="bar-row">
       <div class="bar-label">${c.tag}</div>
@@ -76,6 +75,6 @@ export function renderAnalytics(games) {
 
   if (games.length >= MIN_GAMES_FOR_CHARTS) {
     rollingChart('rollingChart', games);
-    trendChart('trendChart', getTagTrendBuckets(games, gameId), gameId);
+    trendChart('trendChart', mod.getTagTrendBuckets(games), gameId);
   }
 }

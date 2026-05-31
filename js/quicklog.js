@@ -22,6 +22,10 @@ function endRankInput() {
   return document.getElementById(isValDock() ? 'quick-endrr' : 'quick-endmmr');
 }
 
+export function getQuickEndRankInput() {
+  return endRankInput();
+}
+
 function wlWinBtn() {
   return document.getElementById(isValDock() ? 'quick-wl-win-val' : 'quick-wl-win');
 }
