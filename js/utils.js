@@ -18,6 +18,7 @@ export {
   getWeekStart, getWeekEnd, formatWeekLabel, getWeekKey,
   countTags, getMostCommonTag, getGamesForMode, getGamesInWeek,
   getRollingWinrate, getTrendDirection,
+  calculateWinrate, sumRankDiff,
 };
 
 export const calcStreak = coreCalcStreak;
