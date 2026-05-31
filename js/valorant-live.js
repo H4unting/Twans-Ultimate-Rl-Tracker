@@ -7,7 +7,6 @@ import { isAutoLogEnabled } from './quicklog.js';
 import { isBridgeUp, getBridgeUrl, setBridgeOnline } from './bridge-client.js';
 import { setCachedValorantStatus, refreshBridgeStatusUI } from './bridge-ui.js';
 
-const BRIDGE = getBridgeUrl();
 let pollId = null;
 let wasBridgeUp = false;
 let autoLogInFlight = false;
@@ -16,7 +15,7 @@ let onStatus = null;
 let onAutoLog = null;
 
 async function fetchJson(path, timeoutMs = 4000) {
-  const res = await fetch(`${BRIDGE}${path}`, { signal: AbortSignal.timeout(timeoutMs) });
+  const res = await fetch(`${getBridgeUrl()}${path}`, { signal: AbortSignal.timeout(timeoutMs) });
   if (!res.ok) throw new Error('Auto-log app error');
   return res.json();
 }
@@ -31,7 +30,7 @@ async function poll() {
 
   if (!online) {
     try {
-      const res = await fetch(`${BRIDGE}/status`, { signal: AbortSignal.timeout(3000) });
+      const res = await fetch(`${getBridgeUrl()}/status`, { signal: AbortSignal.timeout(3000) });
       if (res.ok) {
         setBridgeOnline(true);
         online = true;
@@ -88,7 +87,7 @@ async function poll() {
 
     if (!isAutoLogEnabled()) {
       showToast(`${last.result === 'W' ? 'Win' : 'Loss'} · K:${last.kills} D:${last.deaths} — tap LOG`);
-      await fetch(`${BRIDGE}/valorant/last-match/consume`, { method: 'POST' });
+      await fetch(`${getBridgeUrl()}/valorant/last-match/consume`, { method: 'POST' });
       return;
     }
 
@@ -97,7 +96,7 @@ async function poll() {
     try {
       const logged = await onAutoLog(last);
       if (logged) {
-        await fetch(`${BRIDGE}/valorant/last-match/consume`, { method: 'POST' });
+        await fetch(`${getBridgeUrl()}/valorant/last-match/consume`, { method: 'POST' });
         showToast(`${last.result === 'W' ? 'Win' : 'Loss'} · K:${last.kills} D:${last.deaths} — logged`);
       }
     } finally {

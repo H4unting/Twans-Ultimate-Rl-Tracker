@@ -1,6 +1,6 @@
 /** Shared local bridge online state (RL + Valorant) — one heartbeat, debounced */
 
-const BRIDGE = 'http://127.0.0.1:49200';
+const BRIDGE_PORT = 49200;
 const HEARTBEAT_MS = 2500;
 const PING_TIMEOUT_MS = 4000;
 /** Consecutive failed pings before going offline (after grace expires) */
@@ -25,7 +25,15 @@ export function subscribeBridgeOnline(fn) {
 }
 
 export function getBridgeUrl() {
-  return BRIDGE;
+  const h = window.location.hostname;
+  if (h === 'localhost' || h === '127.0.0.1') {
+    return `http://${h}:${BRIDGE_PORT}`;
+  }
+  return `http://127.0.0.1:${BRIDGE_PORT}`;
+}
+
+function bridgeBase() {
+  return getBridgeUrl();
 }
 
 function notifyBridgeOnline() {
@@ -51,7 +59,7 @@ export function isBridgeProbeDone() {
 }
 
 async function pingBridgeOnce() {
-  const res = await fetch(`${BRIDGE}/status`, { signal: AbortSignal.timeout(PING_TIMEOUT_MS) });
+  const res = await fetch(`${bridgeBase()}/status`, { signal: AbortSignal.timeout(PING_TIMEOUT_MS) });
   if (!res.ok) throw new Error('bridge offline');
   return res.json();
 }

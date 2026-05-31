@@ -2,7 +2,7 @@
 
 import { state } from './state.js';
 import { GAME_IDS, getGameMeta } from './games.js';
-import { isBridgeUp, isBridgeProbeDone } from './bridge-client.js';
+import { isBridgeUp, isBridgeProbeDone, getBridgeUrl } from './bridge-client.js';
 import { isAutoLogEnabled, loadPrefs, syncAutoLogToggleUI } from './quicklog.js';
 import { setBridgeHintVisible, needsLocalTrackerForAutoLog, getLocalTrackerUrl, isLocalTrackerHost } from './env.js';
 import { DESKTOP_APP } from './config.js';
@@ -193,8 +193,13 @@ function updateDesktopAppBanner(isVal, appUp, valStatus) {
     }
     banner.classList.remove('hidden');
     badge.textContent = 'Auto-log off';
-    p.innerHTML = `Run <code>${DESKTOP_APP.launcher}</code> on this PC while playing. `
-      + '<button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>';
+    p.innerHTML = isLocalTrackerHost()
+      ? `Bridge not connected — keep <code>${DESKTOP_APP.launcher}</code> open, then `
+        + `<a href="${getBridgeUrl()}/status" class="btn-link" target="_blank" rel="noopener">test bridge</a> `
+        + 'or hard refresh (Ctrl+F5). '
+        + '<button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>'
+      : `Run <code>${DESKTOP_APP.launcher}</code> on this PC while playing. `
+        + '<button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>';
     return;
   }
 
