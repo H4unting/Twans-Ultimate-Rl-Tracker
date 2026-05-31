@@ -10,6 +10,8 @@ const HENRIK_BASE = 'https://api.henrikdev.xyz';
 const HENRIK_POLL_MS = 20000;
 const HENRIK_DEFER_MS = 45000;
 const AUTO_ARM_MS = 45000;
+const MAX_SEEN_IDS = 64;
+const RECENT_MATCHES_SIZE = 10;
 
 const MODE_MAP = {
   competitive: 'Competitive',
@@ -26,6 +28,8 @@ const MODE_MAP = {
 let lastMatch = null;
 let lastSeenMatchId = null;
 let seeded = false;
+let baselineGameStart = 0;
+let seenMatchIds = new Set();
 let pollTimer = null;
 let deferTimer = null;
 let pollingArmed = false;
@@ -145,18 +149,87 @@ export function pushOverwolfMatch(payload = {}) {
   return { ok: true, match: lastMatch };
 }
 
+function getMatchId(match) {
+  const meta = match?.metadata ?? {};
+  return meta.matchid ?? meta.match_id ?? null;
+}
+
+function parseGameStart(meta = {}) {
+  const raw = meta.game_start ?? meta.gameStart ?? 0;
+  if (typeof raw === 'number') return raw > 1e12 ? raw : raw * 1000;
+  const t = Date.parse(String(raw));
+  return Number.isFinite(t) ? t : 0;
+}
+
+function rememberMatchId(matchId) {
+  if (!matchId) return;
+  seenMatchIds.add(String(matchId));
+  if (seenMatchIds.size > MAX_SEEN_IDS) {
+    seenMatchIds = new Set([...seenMatchIds].slice(-MAX_SEEN_IDS));
+  }
+}
+
+function findPlayerInMatch(match, riotId) {
+  const { name, tag } = splitRiotId(riotId);
+  const nameL = name.toLowerCase();
+  const tagL = tag.toLowerCase();
+  const pools = [
+    match?.players?.all_players,
+    match?.players,
+  ].filter(Array.isArray);
+  for (const pool of pools) {
+    const hit = pool.find((p) =>
+      String(p.name ?? p.gameName ?? '').toLowerCase() === nameL
+      && String(p.tag ?? p.tagLine ?? '').toLowerCase() === tagL);
+    if (hit) return hit;
+  }
+  if (match?.stats && (match.stats.kills != null || match.stats.character)) {
+    return { character: match.stats.character, stats: match.stats, team: match.stats.team };
+  }
+  return null;
+}
+
+function isLoggableHenrikMatch(parsed) {
+  if (!parsed?.matchId) return false;
+  const activity = parsed.kills + parsed.deaths + parsed.valAssists;
+  if (activity === 0 && !parsed.agent) return false;
+  if (baselineGameStart && parsed.gameStart && parsed.gameStart <= baselineGameStart) return false;
+  return true;
+}
+
+function ingestRecentMatches(recent = []) {
+  let maxStart = baselineGameStart;
+  for (const m of recent) {
+    const id = getMatchId(m);
+    if (id) rememberMatchId(id);
+    const gs = parseGameStart(m?.metadata ?? {});
+    if (gs > maxStart) maxStart = gs;
+  }
+  if (maxStart > baselineGameStart) baselineGameStart = maxStart;
+  const latestId = getMatchId(recent[0]);
+  if (latestId) lastSeenMatchId = latestId;
+  seeded = true;
+  persistState();
+}
+
 function restorePersistedState() {
   const saved = loadValorantBridgeState();
   if (saved.lastSeenMatchId) {
     lastSeenMatchId = saved.lastSeenMatchId;
     seeded = Boolean(saved.seeded);
   }
+  baselineGameStart = Number(saved.baselineGameStart) || 0;
+  seenMatchIds = new Set(
+    Array.isArray(saved.seenMatchIds) ? saved.seenMatchIds.slice(-MAX_SEEN_IDS) : [],
+  );
 }
 
 function persistState() {
   saveValorantBridgeState({
     lastSeenMatchId,
     seeded,
+    baselineGameStart,
+    seenMatchIds: [...seenMatchIds].slice(-MAX_SEEN_IDS),
   });
 }
 
@@ -170,21 +243,18 @@ export async function seedValorantBaseline() {
   }
 
   try {
-    const latest = await fetchLatestHenrikMatch();
-    const matchId = latest?.metadata?.matchid ?? latest?.metadata?.match_id ?? null;
-    if (!matchId) {
+    const recent = await fetchRecentHenrikMatches(RECENT_MATCHES_SIZE);
+    if (!recent.length) {
       seeded = false;
       lastSeenMatchId = null;
       persistState();
       return { ok: false, error: 'No match history found for this Riot ID yet' };
     }
 
-    lastSeenMatchId = matchId;
-    seeded = true;
+    ingestRecentMatches(recent);
     lastError = null;
-    persistState();
     console.log('Valorant baseline set — your next finished match will auto-log');
-    return { ok: true, matchId };
+    return { ok: true, matchId: lastSeenMatchId };
   } catch (e) {
     lastError = formatHenrikError(e.message, e.status);
     return { ok: false, error: lastError };
@@ -251,9 +321,12 @@ async function henrikFetch(path) {
 function parseHenrikMatch(match, riotId) {
   if (!match) return null;
   const meta = match.metadata ?? {};
-  const stats = match.stats ?? {};
+  const player = findPlayerInMatch(match, riotId);
+  if (!player) return null;
+
+  const stats = player.stats ?? player;
   const teams = match.teams ?? {};
-  const team = String(stats.team ?? '').toLowerCase();
+  const team = String(player.team ?? stats.team ?? '').toLowerCase();
   const won = team === 'red'
     ? Boolean(teams.red?.has_won ?? teams.Red?.has_won)
     : team === 'blue'
@@ -261,6 +334,7 @@ function parseHenrikMatch(match, riotId) {
       : false;
   const queue = meta.queue ?? meta.mode ?? 'unknown';
   const rounds = stats.rounds_played || stats.roundsPlayed || 1;
+  const agent = player.character ?? stats.character ?? stats.agent ?? '';
 
   return {
     result: won ? 'W' : 'L',
@@ -269,23 +343,29 @@ function parseHenrikMatch(match, riotId) {
     deaths: stats.deaths ?? 0,
     valAssists: stats.assists ?? 0,
     acs: Math.round((stats.score ?? 0) / Math.max(rounds, 1)),
-    agent: stats.character ?? stats.agent ?? '',
+    agent,
     map: meta.map ?? '',
-    matchId: meta.matchid ?? meta.match_id ?? null,
+    matchId: getMatchId(match),
+    gameStart: parseGameStart(meta),
     isRanked: queue === 'competitive',
     endedAt: Date.now(),
     consumed: false,
   };
 }
 
-async function fetchLatestHenrikMatch() {
+async function fetchRecentHenrikMatches(size = RECENT_MATCHES_SIZE) {
   const { riotId, riotRegion } = getBridgeConfig();
   const { name, tag } = splitRiotId(riotId);
   const region = encodeURIComponent(riotRegion);
   const body = await henrikFetch(
-    `/valorant/v3/matches/${region}/${encodeURIComponent(name)}/${encodeURIComponent(tag)}?size=1`,
+    `/valorant/v3/matches/${region}/${encodeURIComponent(name)}/${encodeURIComponent(tag)}?size=${size}`,
   );
-  return body.data?.[0] ?? null;
+  return body.data ?? [];
+}
+
+async function fetchLatestHenrikMatch() {
+  const recent = await fetchRecentHenrikMatches(1);
+  return recent[0] ?? null;
 }
 
 async function pollLatestMatch() {
@@ -306,7 +386,7 @@ async function pollLatestMatch() {
 
   try {
     const latest = await fetchLatestHenrikMatch();
-    const matchId = latest?.metadata?.matchid ?? latest?.metadata?.match_id ?? null;
+    const matchId = getMatchId(latest);
     if (!matchId) return;
 
     if (!seeded) {
@@ -316,11 +396,28 @@ async function pollLatestMatch() {
 
     if (matchId === lastSeenMatchId) return;
 
-    const parsed = parseHenrikMatch(latest, cfg.riotId);
-    if (!parsed) return;
-
+    const alreadySeen = seenMatchIds.has(String(matchId));
+    rememberMatchId(matchId);
     lastSeenMatchId = matchId;
+
+    if (alreadySeen) {
+      persistState();
+      return;
+    }
+
+    const parsed = parseHenrikMatch(latest, cfg.riotId);
+    if (!parsed || !isLoggableHenrikMatch(parsed)) {
+      persistState();
+      return;
+    }
+
+    if (lastMatch && !lastMatch.consumed && lastMatch.matchId === matchId) {
+      persistState();
+      return;
+    }
+
     lastMatch = parsed;
+    baselineGameStart = Math.max(baselineGameStart, parsed.gameStart || 0);
     lastError = null;
     persistState();
     console.log(`Valorant match — ${parsed.result} · ${parsed.mode} · K:${parsed.kills} D:${parsed.deaths} A:${parsed.valAssists} · ${parsed.agent || 'Agent'} · ${parsed.map || 'Map'}`);
@@ -338,8 +435,20 @@ export function armValorantPolling(options = {}) {
   }
   const pollMs = Number(options.pollMs ?? HENRIK_POLL_MS);
   console.log('Valorant match polling armed — will check Henrik for new finished matches');
-  pollTimer = setInterval(pollLatestMatch, pollMs);
-  pollLatestMatch();
+
+  const startLoop = () => {
+    if (pollTimer) return;
+    pollTimer = setInterval(pollLatestMatch, pollMs);
+    pollLatestMatch();
+  };
+
+  fetchRecentHenrikMatches(RECENT_MATCHES_SIZE)
+    .then((recent) => {
+      if (recent.length) ingestRecentMatches(recent);
+    })
+    .catch(() => {})
+    .finally(startLoop);
+
   return { ok: true };
 }
 
@@ -458,6 +567,8 @@ export function resetValorantCache({ full = false } = {}) {
   if (!full) return;
   lastSeenMatchId = null;
   seeded = false;
+  baselineGameStart = 0;
+  seenMatchIds = new Set();
   clearValorantBridgeState();
 }
 
