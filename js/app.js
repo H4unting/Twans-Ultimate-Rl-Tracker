@@ -407,6 +407,7 @@ function renderAll() {
   renderFocusPage(games, getActiveGoals(), display);
   renderGroupsPage(getGroupsCtx());
   renderSessionsPageContent();
+  renderProfilePageContent();
 
   refreshSessionUI();
   wireLogTableActions();
