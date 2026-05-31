@@ -974,6 +974,7 @@ function wireGoogleSignIn() {
 }
 
 async function init() {
+  window.__appBootstrapped = true;
   try {
     applyAppMode();
     wireLoginScreen();
@@ -1063,21 +1064,34 @@ async function init() {
       }
     });
 
-    await withTimeout(initAuth(), 15000, 'Sign-in check timed out — refresh and try again');
-    if (!getAuthUser()) {
-      if (hasPendingAuthHash()) {
+    await withTimeout(initAuth(), 20000, 'Sign-in check timed out — refresh and try again');
+    window.__appReady = true;
+
+    if (getAuthUser()) {
+      if (!bootPromise) {
+        bootPromise = bootApp().finally(() => { bootPromise = null; });
+      }
+      try {
+        await bootPromise;
+      } catch (e) {
+        console.error(e);
+        showToast(e?.message || 'Could not load your data — try refreshing', 'error');
         showLoading(false);
-        clearAuthHashFromUrl();
         showLoginScreen(true);
         wireLoginScreen();
-        const note = document.getElementById('boot-failure-note');
-        if (note) {
-          note.textContent = 'Sign-in did not finish. Restart start-grind.bat, open http://localhost:8080/, and try Google sign-in again.';
-          note.classList.remove('hidden');
-        }
-      } else {
-        showLoggedOut();
       }
+    } else if (hasPendingAuthHash()) {
+      showLoading(false);
+      clearAuthHashFromUrl();
+      showLoginScreen(true);
+      wireLoginScreen();
+      const note = document.getElementById('boot-failure-note');
+      if (note) {
+        note.textContent = 'Sign-in did not finish. Restart start-grind.bat, open http://localhost:8080/, and try Google sign-in again.';
+        note.classList.remove('hidden');
+      }
+    } else {
+      showLoggedOut();
     }
   } catch (e) {
     console.error(e);

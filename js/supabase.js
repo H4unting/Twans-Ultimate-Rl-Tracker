@@ -455,7 +455,10 @@ async function ensureFounderUid(profile) {
   if (!user?.email || user.email.toLowerCase() !== FOUNDER_EMAIL) return profile;
   if (Number(profile?.profile_number) === 1) return profile;
   try {
-    await sbFetch('rpc/claim_founder_uid', 'POST', {});
+    await Promise.race([
+      sbFetch('rpc/claim_founder_uid', 'POST', {}),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('founder uid timeout')), 4000)),
+    ]);
     return await loadProfile();
   } catch {
     return profile;

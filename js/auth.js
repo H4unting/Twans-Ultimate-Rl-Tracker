@@ -3,9 +3,9 @@
 import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
 
 const SUPABASE_SOURCES = [
-  './vendor/supabase-js.mjs',
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/+esm',
-  'https://esm.sh/@supabase/supabase-js@2.49.1',
+  'https://esm.sh/@supabase/supabase-js@2.49.1?bundle',
+  './vendor/supabase-js.mjs',
 ];
 
 let supabase = null;
@@ -13,13 +13,23 @@ let currentSession = null;
 let authListenerWired = false;
 const authListeners = new Set();
 
+function importWithTimeout(specifier, ms = 10000) {
+  return Promise.race([
+    import(specifier),
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(`Timed out loading sign-in library (${ms / 1000}s)`)), ms);
+    }),
+  ]);
+}
+
 async function loadSupabaseModule() {
   let lastError = null;
   for (const src of SUPABASE_SOURCES) {
     try {
-      return await import(src);
+      return await importWithTimeout(src, 10000);
     } catch (e) {
       lastError = e;
+      console.warn('[auth] Supabase module failed:', src, e?.message || e);
     }
   }
   throw new Error(

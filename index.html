@@ -461,11 +461,14 @@
   });
   setTimeout(() => {
     if (window.__appReady) return;
-    if (document.body.classList.contains('is-loading')) {
-      showBootFailure('Loading timed out — close this tab, restart start-grind.bat, then open http://localhost:8080/ (Ctrl+F5). If using Brave, allow scripts for localhost:8080.');
+    const msg = !window.__appBootstrapped
+      ? 'Script failed to load — hard refresh (Ctrl+F5). If using Brave, allow scripts for localhost:8080.'
+      : 'Loading timed out — hard refresh (Ctrl+F5). If it keeps happening, check your internet or disable Brave Shields for localhost:8080.';
+    if (!window.__appBootstrapped || document.body.classList.contains('is-loading')) {
+      showBootFailure(msg);
     }
-  }, 12000);
+  }, 30000);
 </script>
-<script type="module" src="js/app.js?v=20260529d8"></script>
+<script type="module" src="js/app.js?v=20260529d9"></script>
 </body>
 </html>
