@@ -728,7 +728,12 @@ body[data-active-game="valorant"] .home-activity-tag.util { color: #00e5ff; bord
 body[data-active-game="valorant"] .home-activity-tag.team { color: #a78bfa; border-color: #7c3aed44; }
 body[data-active-game="valorant"] .home-activity-tag.men { color: #c084fc; border-color: #a855f744; }
 
-body[data-active-game="valorant"] .val-focus-rr {
+body[data-active-game="valorant"] .val-squad-rr {
+  color: var(--val-red);
+  font-weight: 700;
+  margin-left: 4px;
+}
+
   font-family: var(--val-font-display, inherit);
   font-size: 1.4rem;
   font-weight: 700;

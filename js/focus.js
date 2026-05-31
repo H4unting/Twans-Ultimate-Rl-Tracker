@@ -44,7 +44,7 @@ export function renderFocusPage(games, goals, display) {
   const modeRR = getCurrentMMRForMode(games, mode);
   const week = buildWeeklyReport(games, 0);
   const insights = getPerformanceInsights(games, gameId);
-  const goalItems = getGoalProgress(games, goals);
+  const goalItems = getGoalProgress(games, goals, gameId);
   const correlations = getTagLossCorrelations(games, gameId);
   const primary = correlations.find(c => c.inLosses >= 2) ?? correlations[0] ?? null;
   const secondary = correlations.find(c => c.tag !== primary?.tag && c.inLosses >= 1) ?? correlations[1] ?? null;
@@ -75,7 +75,7 @@ export function renderFocusPage(games, goals, display) {
       </div>` : ''}
       <div class="focus-auto-col focus-auto-goal">
         <span class="focus-auto-label">Goal</span>
-        <strong>Play ${focusGoalGames} games without either tag</strong>
+        <strong>Play ${focusGoalGames} ${isVal ? 'matches' : 'games'} without either tag</strong>
       </div>
     </div>
     <p class="focus-auto-tip">${primaryTip}</p>
@@ -93,7 +93,7 @@ export function renderFocusPage(games, goals, display) {
         <span class="focus-progress-lbl">Clean-game streak</span>
       </div>
     </div>` : `
-    <div class="empty-state">Log at least 3 games and tag losses — your auto focus will appear here.</div>`;
+    <div class="empty-state">Log at least 3 ${isVal ? 'matches' : 'games'} and tag losses — your ${isVal ? 'mission brief' : 'auto focus'} will appear here.</div>`;
 
   const customFocusHTML = goals?.focusTag ? `
     <div class="coach-section coach-focus-week">

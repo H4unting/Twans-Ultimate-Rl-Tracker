@@ -151,7 +151,8 @@ export function renderHomeContext(games) {
   if (!el) return;
 
   if (!games.length) {
-    el.innerHTML = `<p class="home-context-line muted">No games yet — start a session and log from the dock below.</p>`;
+    const isVal = state.activeGame === GAME_IDS.VALORANT;
+    el.innerHTML = `<p class="home-context-line muted">No ${isVal ? 'matches' : 'games'} yet — start a ${isVal ? 'grind block' : 'session'} and log from the dock below.</p>`;
     return;
   }
 

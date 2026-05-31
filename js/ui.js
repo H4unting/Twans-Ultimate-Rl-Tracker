@@ -95,12 +95,38 @@ export function renderStats(containerId, stats, playlist = 'all', gameId = state
     </div>`).join('');
 }
 
-export function renderLog(tableId, games, limit, editable = false) {
+export function renderLog(tableId, games, limit, editable = false, gameId = state.activeGame) {
   const t = document.getElementById(tableId);
   if (!t) return;
+  const meta = getGameMeta(gameId);
+  const isVal = gameId === GAME_IDS.VALORANT;
   const rows = limit ? [...games].reverse().slice(0, limit) : [...games].reverse();
   if (!rows.length) {
-    t.innerHTML = `<tr><td colspan="12" class="empty">No games logged yet. Start grinding!</td></tr>`;
+    t.innerHTML = `<tr><td colspan="12" class="empty">No ${isVal ? 'matches' : 'games'} logged yet. Start grinding!</td></tr>`;
+    return;
+  }
+  if (isVal) {
+    t.innerHTML = `
+    <thead><tr>
+      <th>#</th><th>Date</th><th>Mode</th><th>Result</th>
+      <th>K</th><th>D</th><th>A</th><th>Start</th><th>End</th><th>+/-</th>
+      <th>Tags / Notes</th><th></th>
+    </tr></thead>
+    <tbody>${rows.map(g => `
+      <tr>
+        <td style="color:#555">${g.match}</td>
+        <td style="color:#777;white-space:nowrap">${g.date}</td>
+        <td style="color:#777">${g.mode}${g.agent ? `<br><span style="font-size:11px;color:#888">${g.agent}</span>` : ''}</td>
+        <td><span class="badge ${g.result}">${g.result === 'W' ? 'WIN' : 'LOSS'}</span></td>
+        <td>${g.kills ?? g.goals ?? 0}</td><td>${g.deaths ?? 0}</td><td>${g.assists ?? 0}</td>
+        <td>${g.startMMR}</td>
+        <td>${g.endMMR}</td>
+        <td class="${(g.mmrDiff || 0) >= 0 ? 'pos' : 'neg'}">${(g.mmrDiff || 0) >= 0 ? '+' : ''}${g.mmrDiff || 0}</td>
+        <td style="max-width:190px">${renderInlineTags(g.tags, gameId)}${g.notes ? `<div class="note-cell">${g.notes}</div>` : ''}</td>
+        <td style="white-space:nowrap">${editable ? `
+          <button class="action-btn edit" data-match="${g.match}" title="Edit">✏️</button>
+          <button class="action-btn del" data-match="${g.match}" title="Delete">🗑️</button>` : ''}</td>
+      </tr>`).join('')}</tbody>`;
     return;
   }
   t.innerHTML = `
@@ -119,7 +145,7 @@ export function renderLog(tableId, games, limit, editable = false) {
         <td>${g.startMMR}</td>
         <td><span style="margin-right:4px">${g.endMMR}</span>${rankIconHTML(getRank(g.endMMR, g.mode), 22)}</td>
         <td class="${(g.mmrDiff || 0) >= 0 ? 'pos' : 'neg'}">${(g.mmrDiff || 0) >= 0 ? '+' : ''}${g.mmrDiff || 0}</td>
-        <td style="max-width:190px">${renderInlineTags(g.tags)}${g.notes ? `<div class="note-cell">${g.notes}</div>` : ''}</td>
+        <td style="max-width:190px">${renderInlineTags(g.tags, gameId)}${g.notes ? `<div class="note-cell">${g.notes}</div>` : ''}</td>
         <td style="white-space:nowrap">${editable ? `
           <button class="action-btn edit" data-match="${g.match}" title="Edit">✏️</button>
           <button class="action-btn del" data-match="${g.match}" title="Delete">🗑️</button>` : ''}</td>

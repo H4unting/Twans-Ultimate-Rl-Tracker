@@ -26,7 +26,7 @@ import { VAL_DEFAULT_RR_SWING } from './valorant-config.js';
 import { renderSetupWizard, refreshSetupWizard, onBridgeStatusChange, renderLogSetupNudge } from './setup-wizard.js';
 import { mmrChart, wlChart } from './charts.js';
 import { renderAnalytics } from './analytics.js';
-import { renderReportsPage } from './reports-ui.js';
+import { normalizeGoalsStorage, getActiveGoals } from './goals.js';
 import { renderFocusPage } from './focus.js';
 import { initPostMatch, showPostMatchCard } from './post-match.js';
 import { renderGroupsPage, resetGroupsUI } from './groups.js';
@@ -111,7 +111,7 @@ async function bootApp() {
       await saveGames(allGames);
     }
     setGames(allGames);
-    setGoals(goals);
+    setGoals(normalizeGoalsStorage(goals));
     state.profileBio = bio ?? '';
     state.groups = groups;
     restoreActiveGameFromPrefs(activeGame);
@@ -348,7 +348,7 @@ async function handleLegacyClaim(legacyId) {
 }
 
 function renderHomePage() {
-  renderHome(getActiveGames(), state.goals);
+  renderHome(getActiveGames(), getActiveGoals());
   const games = getActiveGames();
   const modeGames = getHomeChartGames(games);
   const isVal = state.activeGame === GAME_IDS.VALORANT;
@@ -413,7 +413,7 @@ function renderAll() {
   renderAnalyticsPage();
 
   renderReportsPageContent();
-  renderFocusPage(games, state.goals, display);
+  renderFocusPage(games, getActiveGoals(), display);
   renderGroupsPage(getGroupsCtx());
   renderSessionsPageContent();
 
@@ -441,7 +441,7 @@ function renderMatchLogs() {
   if (qf !== 'all') {
     games = applyQuickFilter(games, qf, getQuickFilterSessionNum());
   }
-  renderLog('log-history-table', games, null, true);
+  renderLog('log-history-table', games, null, true, state.activeGame);
   wireLogTableActions();
 }
 
@@ -457,7 +457,6 @@ function renderSessionsPageContent() {
 function renderReportsPageContent() {
   renderReportsPage(
     getActiveGames(),
-    state.goals,
     getDisplay().name,
     state.reportsWeekOffset,
     offset => { state.reportsWeekOffset = offset; renderReportsPageContent(); },
@@ -465,7 +464,7 @@ function renderReportsPageContent() {
       setGoals(nextGoals);
       await saveSettings(getSettingsPayload({ goals: nextGoals }));
       renderHomePage();
-      renderFocusPage(getActiveGames(), state.goals, getDisplay());
+      renderFocusPage(getActiveGames(), getActiveGoals(), getDisplay());
       showToast('Goals saved!');
     },
   );
@@ -541,7 +540,7 @@ function navigate(pageId, section) {
   if (pageId === 'profile') renderProfilePageContent();
   if (pageId === 'analytics') renderAnalyticsPage();
   if (pageId === 'reports') renderReportsPageContent();
-  if (pageId === 'focus') renderFocusPage(getActiveGames(), state.goals, getDisplay());
+  if (pageId === 'focus') renderFocusPage(getActiveGames(), getActiveGoals(), getDisplay());
   if (pageId === 'group') renderGroupsPage(getGroupsCtx());
   if (pageId === 'sessions') renderSessionsPageContent();
 }

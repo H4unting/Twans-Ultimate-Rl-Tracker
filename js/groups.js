@@ -6,6 +6,23 @@ import { getPerformanceInsights } from './insights.js';
 import { rankBadgeHTML } from './ranks.js';
 import { loadGroupMembers, loadMemberGames } from './supabase.js';
 import { showToast } from './ui.js';
+import { state } from './state.js';
+import { GAME_IDS, getGameMeta, filterGamesByTitle } from './games.js';
+
+function squadCopy() {
+  const isVal = state.activeGame === GAME_IDS.VALORANT;
+  const meta = getGameMeta(state.activeGame);
+  return {
+    isVal,
+    meta,
+    matchLabel: isVal ? 'matches' : 'games',
+    matchSingular: isVal ? 'match' : 'game',
+  };
+}
+
+function filterSquadGames(games) {
+  return filterGamesByTitle(games ?? [], state.activeGame);
+}
 
 const ui = {
   selectedGroupId: null,
@@ -43,33 +60,35 @@ function avatarHTML(member, size = 32) {
 }
 
 function statMiniHTML(stats, games) {
+  const copy = squadCopy();
   const last = games[games.length - 1];
-  const mode = last?.mode ?? "2's";
+  const mode = last?.mode ?? (copy.isVal ? 'Competitive' : "2's");
   return `
     <div class="group-stat-grid">
-      <div class="group-stat"><span class="group-stat-label">Games</span><span class="group-stat-val">${stats.totalGames}</span></div>
+      <div class="group-stat"><span class="group-stat-label">${copy.isVal ? 'Matches' : 'Games'}</span><span class="group-stat-val">${stats.totalGames}</span></div>
       <div class="group-stat"><span class="group-stat-label">Win Rate</span><span class="group-stat-val">${stats.winRate}%</span></div>
-      <div class="group-stat"><span class="group-stat-label">MMR Gain</span><span class="group-stat-val ${stats.totalMMRGain >= 0 ? 'green' : 'red'}">${stats.totalMMRGain >= 0 ? '+' : ''}${stats.totalMMRGain}</span></div>
-      <div class="group-stat"><span class="group-stat-label">Current</span><span class="group-stat-val">${stats.currentMMR || '—'}${stats.currentMMR ? rankBadgeHTML(stats.currentMMR, 16, mode) : ''}</span></div>
+      <div class="group-stat"><span class="group-stat-label">${copy.meta.diffLabel} Gain</span><span class="group-stat-val ${stats.totalMMRGain >= 0 ? 'green' : 'red'}">${stats.totalMMRGain >= 0 ? '+' : ''}${stats.totalMMRGain}</span></div>
+      <div class="group-stat"><span class="group-stat-label">Current ${copy.meta.rankLabel}</span><span class="group-stat-val">${stats.currentMMR || '—'}${!copy.isVal && stats.currentMMR ? rankBadgeHTML(stats.currentMMR, 16, mode) : copy.isVal && stats.currentMMR ? ` <span class="val-squad-rr">${stats.currentMMR} RR</span>` : ''}</span></div>
     </div>`;
 }
 
 function recentGamesHTML(games) {
+  const copy = squadCopy();
   const recent = [...games].slice(-5).reverse();
-  if (!recent.length) return '<div class="empty" style="padding:12px">No games logged yet</div>';
+  if (!recent.length) return `<div class="empty" style="padding:12px">No ${copy.matchLabel} logged yet</div>`;
   return `<div class="group-recent">
     ${recent.map(g => `
       <div class="group-recent-row ${g.result === 'W' ? 'win' : 'loss'}">
         <span>#${g.match}</span>
-        <span>${g.mode}</span>
+        <span>${g.mode}${copy.isVal && g.agent ? ` · ${g.agent}` : ''}</span>
         <span class="group-recent-result">${g.result}</span>
-        <span>${g.mmrDiff >= 0 ? '+' : ''}${g.mmrDiff} MMR</span>
+        <span>${g.mmrDiff >= 0 ? '+' : ''}${g.mmrDiff} ${copy.meta.diffLabel}</span>
       </div>`).join('')}
   </div>`;
 }
 
 function insightsHTML(games) {
-  const { actionItems } = getPerformanceInsights(games);
+  const { actionItems } = getPerformanceInsights(games, state.activeGame);
   const items = (actionItems ?? []).slice(0, 3);
   if (!items.length) return '';
   return `<div class="group-insights">
@@ -86,7 +105,7 @@ async function renderWeeklySnapshot(members, userId) {
     if (!ui.gamesCache[m.user_id]) {
       ui.gamesCache[m.user_id] = await loadMemberGames(m.user_id);
     }
-    const week = buildWeeklyReport(ui.gamesCache[m.user_id], 0);
+    const week = buildWeeklyReport(filterSquadGames(ui.gamesCache[m.user_id]), 0);
     return { member: m, week };
   }));
 
@@ -95,7 +114,7 @@ async function renderWeeklySnapshot(members, userId) {
       return `<div class="group-week-card">
         ${avatarHTML(member, 24)}
         <span class="group-week-name">${member.display_name}</span>
-        <span class="group-week-empty">No games this week</span>
+        <span class="group-week-empty">No ${squadCopy().matchLabel} this week</span>
       </div>`;
     }
     const wrClass = week.winRate >= 50 ? 'green' : 'red';
@@ -103,7 +122,7 @@ async function renderWeeklySnapshot(members, userId) {
       ${avatarHTML(member, 24)}
       <span class="group-week-name">${member.display_name}</span>
       <span class="group-week-stat">${week.games}g · <span class="${wrClass}">${week.winRate}%</span></span>
-      <span class="group-week-stat ${week.mmrGain >= 0 ? 'green' : 'red'}">${week.mmrGain >= 0 ? '+' : ''}${week.mmrGain} MMR</span>
+      <span class="group-week-stat ${week.mmrGain >= 0 ? 'green' : 'red'}">${week.mmrGain >= 0 ? '+' : ''}${week.mmrGain} ${squadCopy().meta.diffLabel}</span>
     </div>`;
   }).join('');
 
@@ -119,19 +138,20 @@ async function loadMemberDetail(groupId, member, myRole) {
   if (!ui.gamesCache[key]) {
     ui.gamesCache[key] = await loadMemberGames(key);
   }
-  const games = ui.gamesCache[key];
+  const games = filterSquadGames(ui.gamesCache[key]);
   const stats = calcStats(games);
+  const copy = squadCopy();
   return `
     <div class="group-member-detail">
       <div class="group-member-detail-head">
         ${avatarHTML(member, 40)}
         <div>
           <h3 style="color:${member.accent_color}">${member.display_name}</h3>
-          <div class="coach-sub">${roleLabel(member.role)} · ${stats.totalGames} games logged</div>
+          <div class="coach-sub">${roleLabel(member.role)} · ${stats.totalGames} ${copy.matchLabel} logged · ${copy.isVal ? 'Valorant' : 'Rocket League'}</div>
         </div>
       </div>
       ${statMiniHTML(stats, games)}
-      <h4 class="group-section-label">Recent Games</h4>
+      <h4 class="group-section-label">Recent ${copy.isVal ? 'Matches' : 'Games'}</h4>
       ${recentGamesHTML(games)}
       ${myRole === 'coach' ? insightsHTML(games) : ''}
     </div>`;
