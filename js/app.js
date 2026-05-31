@@ -20,7 +20,7 @@ import { initRlLive, stopRlLive, refreshLiveStatus,
   saveRlDisplayName, getRlDisplayName,
 } from './rl-live.js';
 import { initValorantLive, stopValorantLive, refreshValorantStatus } from './valorant-live.js';
-import { initGameSwitcher, restoreActiveGameFromPrefs, applyGameShell, applyPageCopy } from './game-ui.js';
+import { initGameSwitcher, restoreActiveGameFromPrefs, applyGameShell, applyPageCopy, syncEditModal } from './game-ui.js';
 import { GAME_IDS, getTagGroups } from './games.js';
 import { VAL_DEFAULT_RR_SWING } from './valorant-config.js';
 import { renderSetupWizard, refreshSetupWizard, onBridgeStatusChange, renderLogSetupNudge } from './setup-wizard.js';
@@ -791,6 +791,8 @@ function setEditResult(r) {
 function openEditModal(matchNum) {
   const game = getActiveGames().find(g => g.match === matchNum);
   if (!game) return;
+  const isVal = state.activeGame === GAME_IDS.VALORANT;
+  syncEditModal(state.activeGame);
   state.ui.editingMatch = matchNum;
   state.ui.editTags = [...(game.tags || [])];
   document.getElementById('edit-modal-sub').textContent = `Match #${matchNum}`;
@@ -798,9 +800,17 @@ function openEditModal(matchNum) {
   document.getElementById('e-date').value = `20${yy}-${mm}-${dd}`;
   document.getElementById('e-session').value = game.session;
   document.getElementById('e-mode').value = game.mode;
-  document.getElementById('e-goals').value = game.goals;
-  document.getElementById('e-assists').value = game.assists || 0;
-  document.getElementById('e-saves').value = game.saves;
+  if (isVal) {
+    document.getElementById('e-kills').value = game.kills ?? game.goals ?? 0;
+    document.getElementById('e-deaths').value = game.deaths ?? 0;
+    document.getElementById('e-val-assists').value = game.assists ?? 0;
+    document.getElementById('e-agent').value = game.agent ?? '';
+    document.getElementById('e-map').value = game.map ?? '';
+  } else {
+    document.getElementById('e-goals').value = game.goals;
+    document.getElementById('e-assists').value = game.assists || 0;
+    document.getElementById('e-saves').value = game.saves;
+  }
   document.getElementById('e-startmmr').value = game.startMMR;
   document.getElementById('e-endmmr').value = game.endMMR;
   document.getElementById('e-notes').value = game.notes || '';
@@ -844,20 +854,30 @@ function closeEditModal() {
 async function handleSaveEdit() {
   const matchNum = state.ui.editingMatch;
   if (!matchNum) return;
+  const isVal = state.activeGame === GAME_IDS.VALORANT;
   const btn = document.getElementById('save-edit-btn');
   btn.disabled = true;
   btn.textContent = 'Saving...';
   try {
+    const startRank = document.getElementById('e-startmmr').value;
+    const endRank = document.getElementById('e-endmmr').value;
     await updateGame(matchNum, {
       date: document.getElementById('e-date').value,
       session: document.getElementById('e-session').value,
       mode: document.getElementById('e-mode').value,
       result: document.getElementById('e-wl-win').classList.contains('active') ? 'W' : 'L',
-      goals: document.getElementById('e-goals').value,
-      assists: document.getElementById('e-assists').value,
-      saves: document.getElementById('e-saves').value,
-      startMMR: document.getElementById('e-startmmr').value,
-      endMMR: document.getElementById('e-endmmr').value,
+      goals: isVal ? document.getElementById('e-kills').value : document.getElementById('e-goals').value,
+      assists: isVal ? document.getElementById('e-val-assists').value : document.getElementById('e-assists').value,
+      saves: isVal ? 0 : document.getElementById('e-saves').value,
+      kills: document.getElementById('e-kills')?.value ?? 0,
+      deaths: document.getElementById('e-deaths')?.value ?? 0,
+      valAssists: document.getElementById('e-val-assists')?.value ?? 0,
+      agent: document.getElementById('e-agent')?.value ?? '',
+      map: document.getElementById('e-map')?.value ?? '',
+      startMMR: startRank,
+      endMMR: endRank,
+      startRR: startRank,
+      endRR: endRank,
       notes: document.getElementById('e-notes').value,
     }, state.ui.editTags);
     closeEditModal();

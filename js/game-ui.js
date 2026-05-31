@@ -98,6 +98,7 @@ export function applyGameShell(gameId = state.activeGame) {
   renderQuickModePills(gameId);
   toggleDockLayouts(gameId);
   toggleGamePageChrome(gameId);
+  syncEditModal(gameId);
   applyPageCopy(gameId);
 
   const agentSel = document.getElementById('quick-agent');
@@ -147,6 +148,45 @@ function toggleGamePageChrome(gameId) {
   const recentHead = document.querySelector('.dash-recent-head .section-title');
   if (recentHead) {
     recentHead.textContent = gameId === GAME_IDS.VALORANT ? 'Match Feed' : 'Recent activity';
+  }
+}
+
+export function syncEditModal(gameId = state.activeGame) {
+  const meta = getGameMeta(gameId);
+  const isVal = gameId === GAME_IDS.VALORANT;
+
+  const title = document.getElementById('edit-modal-title');
+  if (title) title.textContent = isVal ? 'Edit Match' : 'Edit Game';
+
+  const startLbl = document.getElementById('e-start-label');
+  const endLbl = document.getElementById('e-end-label');
+  if (startLbl) startLbl.textContent = `Starting ${meta.rankLabel}`;
+  if (endLbl) endLbl.textContent = `Ending ${meta.rankLabel}`;
+
+  const modeSel = document.getElementById('e-mode');
+  if (modeSel) {
+    const modes = getPlaylists(gameId).filter(p => p.mode);
+    modeSel.innerHTML = modes.map(p => `<option value="${p.mode}">${p.label}</option>`).join('');
+  }
+
+  const agentSel = document.getElementById('e-agent');
+  if (agentSel && agentSel.options.length <= 1) {
+    getAgents().forEach(a => {
+      const opt = document.createElement('option');
+      opt.value = a;
+      opt.textContent = a;
+      agentSel.appendChild(opt);
+    });
+  }
+
+  const mapSel = document.getElementById('e-map');
+  if (mapSel && mapSel.options.length <= 1) {
+    getMaps().forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m;
+      opt.textContent = m;
+      mapSel.appendChild(opt);
+    });
   }
 }
 
