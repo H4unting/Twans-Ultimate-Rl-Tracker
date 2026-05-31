@@ -1,11 +1,12 @@
 /** Game switcher + dock UI for RL / Valorant */
 
 import { state, setActiveGame, subscribe } from './state.js';
-import { GAMES, GAME_IDS, getGameMeta, getTagGroups, getPlaylists, getAgents, getMaps } from './games.js';
+import { GAMES, GAME_IDS, getGameMeta, getTagGroups, getPlaylists, getAgents, getMaps, getPageCopy } from './games.js';
 import { saveSettings } from './supabase.js';
 import { savePrefs, loadPrefs } from './quicklog.js';
 import { refreshLiveStatus } from './rl-live.js';
 import { refreshValorantStatus } from './valorant-live.js';
+import { updateNavUI } from './nav.js';
 
 let onGameChange = null;
 let switcherWired = false;
@@ -32,6 +33,8 @@ export function initGameSwitcher({ onChange, getSettingsPayload }) {
     }
 
     applyGameShell(next);
+    updateNavUI(document.body.dataset.page || 'dashboard', next);
+    applyPageCopy(next);
     if (next === GAME_IDS.VALORANT) refreshValorantStatus();
     else refreshLiveStatus();
     if (onGameChange) onGameChange(next);
@@ -95,6 +98,7 @@ export function applyGameShell(gameId = state.activeGame) {
   renderQuickModePills(gameId);
   toggleDockLayouts(gameId);
   toggleGamePageChrome(gameId);
+  applyPageCopy(gameId);
 
   const agentSel = document.getElementById('quick-agent');
   const mapSel = document.getElementById('quick-map');
@@ -166,6 +170,30 @@ export function restoreActiveGameFromPrefs(settingsActiveGame) {
   const game = settingsActiveGame || prefs.activeGame || GAME_IDS.ROCKET_LEAGUE;
   setActiveGame(GAMES[game] ? game : GAME_IDS.ROCKET_LEAGUE);
   applyGameShell(state.activeGame);
+  applyPageCopy(state.activeGame);
+}
+
+/** Update static page headings for the active game */
+export function applyPageCopy(gameId = state.activeGame) {
+  const pages = ['log', 'setup', 'focus', 'sessions', 'analytics', 'reports', 'group'];
+  pages.forEach(pageId => {
+    const copy = getPageCopy(pageId, gameId);
+    if (!copy) return;
+    const page = document.getElementById(`page-${pageId}`);
+    const heading = page?.querySelector('.page-heading');
+    const desc = page?.querySelector('.page-desc');
+    if (heading) heading.textContent = copy.heading;
+    if (desc) desc.textContent = copy.desc;
+  });
+
+  const analyticsSections = document.querySelectorAll('#page-analytics .section-title');
+  if (gameId === GAME_IDS.VALORANT) {
+    if (analyticsSections[0]) analyticsSections[0].textContent = 'Intel Cards';
+    if (analyticsSections[1]) analyticsSections[1].textContent = 'Coach Brief';
+  } else {
+    if (analyticsSections[0]) analyticsSections[0].textContent = 'Insights';
+    if (analyticsSections[1]) analyticsSections[1].textContent = 'Trends';
+  }
 }
 
 export { getTagGroups, getPlaylists };

@@ -137,19 +137,34 @@ export function rollingChart(id, games) {
   });
 }
 
-export function trendChart(id, buckets) {
+export function trendChart(id, buckets, gameId = 'rocket_league') {
   destroyChart(id);
   const el = document.getElementById(id);
   if (!el || !buckets.length) return;
+
+  const isVal = gameId === 'valorant';
+  const datasets = isVal ? [
+    { label: 'Aim', key: 'aim', bg: '#ff465555', border: '#ff4655' },
+    { label: 'Utility', key: 'util', bg: '#00e5ff55', border: '#00e5ff' },
+    { label: 'Teamplay', key: 'team', bg: '#7c3aed55', border: '#7c3aed' },
+    { label: 'Mental', key: 'men', bg: '#a855f755', border: '#a855f7' },
+  ] : [
+    { label: 'Defensive', key: 'def', bg: '#00e5ff55', border: '#00e5ff' },
+    { label: 'Offensive', key: 'off', bg: '#e65c0055', border: '#e65c00' },
+    { label: 'Mental', key: 'men', bg: '#a855f755', border: '#a855f7' },
+  ];
+
   charts[id] = new Chart(el.getContext('2d'), {
     type: 'bar',
     data: {
       labels: buckets.map(b => b.label),
-      datasets: [
-        { label: 'Defensive', data: buckets.map(b => b.def), backgroundColor: '#00e5ff55', borderColor: '#00e5ff', borderWidth: 1 },
-        { label: 'Offensive', data: buckets.map(b => b.off), backgroundColor: '#e65c0055', borderColor: '#e65c00', borderWidth: 1 },
-        { label: 'Mental', data: buckets.map(b => b.men), backgroundColor: '#a855f755', borderColor: '#a855f7', borderWidth: 1 },
-      ],
+      datasets: datasets.map(d => ({
+        label: d.label,
+        data: buckets.map(b => b[d.key] ?? 0),
+        backgroundColor: d.bg,
+        borderColor: d.border,
+        borderWidth: 1,
+      })),
     },
     options: {
       responsive: true, maintainAspectRatio: false,

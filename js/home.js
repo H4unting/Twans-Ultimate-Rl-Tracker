@@ -5,10 +5,9 @@ import {
   getMostRecentMode, getGamesForMode, calculateWinrate,
 } from './utils.js';
 import { getRank, rankBadgeHTML } from './ranks.js';
-import { getTagLossCorrelations, ACTION_FOCUS_TIPS } from './insights.js';
-import { TAG_CATS } from './config.js';
+import { getTagLossCorrelations } from './insights.js';
+import { getActionFocusTips, getGameMeta, GAME_IDS, getTagCat } from './games.js';
 import { state } from './state.js';
-import { getGameMeta, GAME_IDS } from './games.js';
 import { getLoggingSessionNum } from './sessions.js';
 
 function ensureHomeChartMode(games) {
@@ -253,7 +252,7 @@ export function renderHomeFocus(games) {
   const lossNote = losses
     ? `${top.inLosses}× in ${losses} loss${losses === 1 ? '' : 'es'}`
     : `${top.inLosses}× tagged`;
-  const tip = ACTION_FOCUS_TIPS[top.tag] ?? 'Slow down and review before you queue again.';
+  const tip = getActionFocusTips(state.activeGame)[top.tag] ?? 'Slow down and review before you queue again.';
 
   el.innerHTML = `
     <div class="home-focus-card">
@@ -324,7 +323,7 @@ export function renderHomeActivity(games, limit = 10) {
         const diff = g.mmrDiff || 0;
         const diffCls = diff >= 0 ? 'up' : 'down';
         const tags = (g.tags || []).slice(0, 2).map(t =>
-          `<span class="home-activity-tag ${TAG_CATS[t] || 'def'}">${t}</span>`,
+          `<span class="home-activity-tag ${getTagCat(t, state.activeGame)}">${t}</span>`,
         ).join('');
         return `
         <li class="home-activity-row">

@@ -50,6 +50,25 @@ export const TAG_GROUPS = [
   { cat: 'men', label: 'Mental', tags: Object.keys(TAG_DEFINITIONS).filter(t => TAG_DEFINITIONS[t].cat === 'men') },
 ];
 
+export const RL_CATEGORY_LABELS = { def: 'Defensive', off: 'Offensive', men: 'Mental' };
+export const RL_CATEGORY_ORDER = ['def', 'off', 'men'];
+
+export const RL_ACTION_FOCUS_TIPS = {
+  'Giving Away Possession': 'Slow down before clearing — look for a safe pass or controlled touch first.',
+  'Bad Positioning': 'Stay goal-side of the play and rotate back post when your teammate commits.',
+  'Overcommitting': 'One challenges, one covers. Ask "am I last back?" before going.',
+  'Weak Recoveries': 'Land on wheels facing the play. Boost to corner before challenging again.',
+  'Tilt': 'Take a breath between games. Queue only when you can tag honestly.',
+  'Autopilot': 'Pick one thing to focus on for the next 3 games only.',
+  'Hesitation': 'Commit faster when you have the beat — half-challenges lose every time.',
+  'Slow Rotations': 'Rotate wide and back — don\'t cut through the middle under pressure.',
+  'Double Commits': 'Call "I got it" or "you" — only one touches the ball.',
+  'Bad Shadow Defense': 'Shadow at an angle that covers both shot and pass.',
+  'Poor Shot Placement': 'Aim corners — force a save or a awkward clear, not a free outlet.',
+  'Missed Open Nets': 'Slow down on open nets; placement beats power.',
+  'Panic Challenges': 'Last back doesn\'t challenge — cover the net and force a pass.',
+};
+
 export const SEED_ANTHONY = [
   { date: '05/25/26', session: 1, match: 1, mode: "1's", result: 'L', goals: 4, assists: 0, saves: 3, startMMR: 809, endMMR: 797, mmrDiff: -12, notes: '', tags: [] },
   { date: '05/25/26', session: 1, match: 2, mode: "1's", result: 'W', goals: 4, assists: 0, saves: 1, startMMR: 797, endMMR: 807, mmrDiff: 10, notes: '', tags: [] },

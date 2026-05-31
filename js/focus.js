@@ -3,10 +3,11 @@
 import { calcStats, getPrimaryMode, getCurrentMMRForMode } from './utils.js';
 import { buildWeeklyReport } from './reports.js';
 import { getGoalProgress } from './goals.js';
-import { getPerformanceInsights, getTagLossCorrelations, ACTION_FOCUS_TIPS } from './insights.js';
+import { getPerformanceInsights, getTagLossCorrelations } from './insights.js';
 import { rankBadgeHTML } from './ranks.js';
 import { getLoggingSessionNum } from './sessions.js';
 import { state } from './state.js';
+import { GAME_IDS, getActionFocusTips } from './games.js';
 
 function gamesSinceLastTag(games, tag) {
   for (let i = games.length - 1; i >= 0; i--) {
@@ -35,13 +36,16 @@ export function renderFocusPage(games, goals, display) {
   const container = document.getElementById('focus-content');
   if (!container) return;
 
+  const gameId = state.activeGame;
+  const isVal = gameId === GAME_IDS.VALORANT;
+  const tips = getActionFocusTips(gameId);
   const stats = calcStats(games);
-  const mode = getPrimaryMode(games);
-  const modeMMR = getCurrentMMRForMode(games, mode);
+  const mode = getPrimaryMode(games, gameId);
+  const modeRR = getCurrentMMRForMode(games, mode);
   const week = buildWeeklyReport(games, 0);
-  const insights = getPerformanceInsights(games);
+  const insights = getPerformanceInsights(games, gameId);
   const goalItems = getGoalProgress(games, goals);
-  const correlations = getTagLossCorrelations(games);
+  const correlations = getTagLossCorrelations(games, gameId);
   const primary = correlations.find(c => c.inLosses >= 2) ?? correlations[0] ?? null;
   const secondary = correlations.find(c => c.tag !== primary?.tag && c.inLosses >= 1) ?? correlations[1] ?? null;
   const focusTags = [primary?.tag, secondary?.tag].filter(Boolean);
@@ -54,7 +58,7 @@ export function renderFocusPage(games, goals, display) {
     : [];
 
   const focusGoalGames = 10;
-  const primaryTip = primary ? (ACTION_FOCUS_TIPS[primary.tag] ?? 'Tag honestly after losses to track progress.') : '';
+  const primaryTip = primary ? (tips[primary.tag] ?? 'Tag honestly after losses to track progress.') : '';
 
   const autoFocusHTML = primary ? `
     <div class="focus-auto-card">
@@ -126,12 +130,12 @@ export function renderFocusPage(games, goals, display) {
     <div class="coach-player-card focus-page-card">
       <div class="coach-player-header">
         <div>
-          <h2 style="color:${display.color}">Focus Mode</h2>
-          <div class="coach-sub">${stats.totalGames} games · ${state.session.active ? `Session ${sessionNum} · ${sessionGames.length} logged` : week.label}</div>
+          <h2 style="color:${display.color}">${isVal ? 'Mission Brief' : 'Focus Mode'}</h2>
+          <div class="coach-sub">${stats.totalGames} ${isVal ? 'matches' : 'games'} · ${state.session.active ? `Session ${sessionNum} · ${sessionGames.length} logged` : week.label}</div>
         </div>
-        ${modeMMR ? rankBadgeHTML(modeMMR, 24, mode) : ''}
+        ${!isVal && modeRR ? rankBadgeHTML(modeRR, 24, mode) : isVal && modeRR ? `<span class="val-focus-rr">${modeRR} RR</span>` : ''}
       </div>
-      <div class="coach-section"><h3>Auto Focus</h3>${autoFocusHTML}</div>
+      <div class="coach-section"><h3>${isVal ? 'Primary Target' : 'Auto Focus'}</h3>${autoFocusHTML}</div>
       ${customFocusHTML}
       <div class="coach-section"><h3>Actions</h3><div class="action-item-grid">${actionHTML || '<div class="empty">Log games for insights</div>'}</div></div>
       <div class="coach-section coach-section-compact"><h3>Goals</h3>${goalsHTML}</div>

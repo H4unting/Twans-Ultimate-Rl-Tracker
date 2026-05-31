@@ -1,10 +1,15 @@
 /** DOM rendering, toasts, modals, filters UI */
 
-import { TAG_CATS, TAG_COLORS, TAG_GROUPS, PLAYLISTS } from './config.js';
+import { TAG_COLORS, PLAYLISTS } from './config.js';
 import { getRank, rankIconHTML, rankBadgeHTML } from './ranks.js';
 import { calcStats } from './utils.js';
 import { getGoalProgress } from './goals.js';
 import { getUniqueSessions } from './filters.js';
+import { state } from './state.js';
+import {
+  GAME_IDS, getPlaylists, getTagGroups, getTagColors, getTagCat, getGameMeta, getDefaultMode,
+  getTagDefinitions,
+} from './games.js';
 
 export function showToast(msg, type = 'success') {
   const t = document.getElementById('toast');
@@ -28,15 +33,15 @@ export function setSyncUI(status) {
   if (label) label.textContent = txt;
 }
 
-export function renderInlineTags(tags) {
+export function renderInlineTags(tags, gameId = state.activeGame) {
   if (!tags?.length) return '';
-  return tags.map(t => `<span class="inline-tag ${TAG_CATS[t] || 'def'}">${t}</span>`).join('');
+  return tags.map(t => `<span class="inline-tag ${getTagCat(t, gameId)}">${t}</span>`).join('');
 }
 
-export function renderTagChips(containerId, selectedTags, onToggle) {
+export function renderTagChips(containerId, selectedTags, onToggle, gameId = state.activeGame) {
   const container = document.getElementById(containerId);
   if (!container) return;
-  container.innerHTML = TAG_GROUPS.map(group => `
+  container.innerHTML = getTagGroups(gameId).map(group => `
     <div class="tag-section">
       <div class="tag-section-label"><span class="dot ${group.cat}"></span>${group.label}</div>
       <div class="tags-row">
@@ -55,18 +60,28 @@ export function renderTagChips(containerId, selectedTags, onToggle) {
   });
 }
 
-export function renderStats(containerId, stats, playlist = 'all') {
+export function renderStats(containerId, stats, playlist = 'all', gameId = state.activeGame) {
   const el = document.getElementById(containerId);
   if (!el) return;
-  const modeLabel = { '1s': "1's", '2s': "2's", '3s': "3's", all: "2's" };
-  const rankMode = modeLabel[playlist] || "2's";
+  const meta = getGameMeta(gameId);
+  const diffLabel = meta.diffLabel;
+  const isVal = gameId === GAME_IDS.VALORANT;
+  const playlists = getPlaylists(gameId);
+  const pl = playlists.find(p => p.id === playlist) ?? playlists[0];
+  const rankMode = pl?.mode ?? getDefaultMode(gameId);
+
   const cards = [
-    { label: 'Current MMR', val: stats.currentMMR, cls: 'gold', extra: stats.currentMMR ? rankBadgeHTML(stats.currentMMR, 18, rankMode) : '' },
-    { label: 'Total Games', val: stats.totalGames, cls: 'teal' },
+    {
+      label: `Current ${diffLabel}`,
+      val: stats.currentMMR,
+      cls: 'gold',
+      extra: !isVal && stats.currentMMR ? rankBadgeHTML(stats.currentMMR, 18, rankMode) : '',
+    },
+    { label: isVal ? 'Matches' : 'Total Games', val: stats.totalGames, cls: 'teal' },
     { label: 'Wins', val: stats.wins, cls: 'green' },
     { label: 'Losses', val: stats.losses, cls: 'red' },
     { label: 'Win Rate', val: stats.winRate + '%', cls: 'orange' },
-    { label: 'MMR Gain', val: (stats.totalMMRGain >= 0 ? '+' : '') + stats.totalMMRGain, cls: stats.totalMMRGain >= 0 ? 'green' : 'red' },
+    { label: `${diffLabel} Gain`, val: (stats.totalMMRGain >= 0 ? '+' : '') + stats.totalMMRGain, cls: stats.totalMMRGain >= 0 ? 'green' : 'red' },
     { label: 'Avg/Session', val: (stats.avgMMRSession >= 0 ? '+' : '') + stats.avgMMRSession, cls: stats.avgMMRSession >= 0 ? 'green' : 'red' },
     { label: 'Best Game', val: (stats.bestGame !== '-' && stats.bestGame > 0 ? '+' : '') + stats.bestGame, cls: 'green' },
     { label: 'Worst Game', val: stats.worstGame, cls: 'red' },
@@ -182,10 +197,10 @@ export function showLoginScreen(show) {
   document.getElementById('app-shell')?.classList.toggle('hidden', show);
 }
 
-export function renderPlaylistTabs(containerId, activePlaylist, onSelect) {
+export function renderPlaylistTabs(containerId, activePlaylist, onSelect, gameId = state.activeGame) {
   const container = document.getElementById(containerId);
   if (!container) return;
-  container.innerHTML = PLAYLISTS.map(pl => `
+  container.innerHTML = getPlaylists(gameId).map(pl => `
     <button class="pl-tab${pl.id === activePlaylist ? ' active' : ''}" data-playlist="${pl.id}">${pl.label}</button>
   `).join('');
   container.querySelectorAll('.pl-tab').forEach(btn => {
@@ -193,10 +208,11 @@ export function renderPlaylistTabs(containerId, activePlaylist, onSelect) {
   });
 }
 
-export function renderFilterBar(containerId, games, filters, onChange) {
+export function renderFilterBar(containerId, games, filters, onChange, gameId = state.activeGame) {
   const el = document.getElementById(containerId);
   if (!el) return;
   const sessions = getUniqueSessions(games);
+  const allTags = Object.keys(getTagDefinitions(gameId));
 
   el.innerHTML = `
     <div class="filter-bar">
@@ -228,8 +244,8 @@ export function renderFilterBar(containerId, games, filters, onChange) {
       </div>
       <div class="filter-tags-row">
         <span class="filter-tags-label">Tags:</span>
-        ${Object.keys(TAG_CATS).map(tag => `
-          <button type="button" class="filter-tag-chip${filters.tags.includes(tag) ? ' active' : ''}" data-tag="${tag}">${tag}</button>
+        ${allTags.map(tag => `
+          <button type="button" class="filter-tag-chip filter-tag-${getTagCat(tag, gameId)}${filters.tags.includes(tag) ? ' active' : ''}" data-tag="${tag}">${tag}</button>
         `).join('')}
       </div>
     </div>`;
@@ -304,12 +320,12 @@ export function renderActionItems(items) {
     </div>`;
 }
 
-export function barRows(entries, max, cmap) {
+export function barRows(entries, max, cmap, gameId = state.activeGame) {
   if (!entries.length) return '<div class="empty" style="padding:12px">No tags logged yet</div>';
   return entries.slice(0, 8).map(([tag, count]) => `
     <div class="bar-row">
       <div class="bar-label">${tag}</div>
-      <div class="bar-track"><div class="bar-fill" style="width:${Math.round(count / max * 100)}%;background:${cmap[TAG_CATS[tag] || 'def']}"></div></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.round(count / max * 100)}%;background:${cmap[getTagCat(tag, gameId)]}"></div></div>
       <div class="bar-count">${count}</div>
     </div>`).join('');
 }

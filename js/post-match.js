@@ -1,10 +1,13 @@
-/** Post-match card — confirm MMR, tags, undo after auto/manual log */
+/** Post-match card — confirm RR/MMR, tags, undo after auto/manual log */
 
-import { TAG_GROUPS } from './config.js';
+import { GAME_IDS, getGameMeta, getTagGroups } from './games.js';
+import { state } from './state.js';
 import { showToast } from './ui.js';
 import { isDockCollapsed, expandDock, collapseDock } from './quicklog.js';
 
-const HOT_TAGS = ['Tilt', 'Autopilot', 'Bad Positioning', 'Overcommitting', 'Giving Away Possession', 'Hesitation'];
+const RL_HOT_TAGS = ['Tilt', 'Autopilot', 'Bad Positioning', 'Overcommitting', 'Giving Away Possession', 'Hesitation'];
+const VAL_HOT_TAGS = ['Tilt', 'Autopilot', 'Bad Crosshair Placement', 'Overpeeking', 'Ego Peek', 'Bad Utility Timing'];
+
 let dismissTimer = null;
 let currentMatch = null;
 let selectedTags = [];
@@ -13,6 +16,10 @@ let mmrConfirmed = false;
 let callbacks = {};
 let wired = false;
 let restoreDockCollapsed = false;
+
+function getHotTags() {
+  return state.activeGame === GAME_IDS.VALORANT ? VAL_HOT_TAGS : RL_HOT_TAGS;
+}
 
 export function initPostMatch(cbs) {
   callbacks = cbs;
@@ -47,8 +54,9 @@ export function showPostMatchCard(game, { estimated = false } = {}) {
 }
 
 export function hidePostMatchCard(force = false) {
+  const meta = getGameMeta(state.activeGame);
   if (needsMmrConfirm && !mmrConfirmed && !force) {
-    showToast('Confirm MMR from ranked screen first', 'error');
+    showToast(`Confirm ${meta.rankLabel} from ranked screen first`, 'error');
     document.getElementById('pm-mmr')?.focus();
     pulseMmrSection();
     return;
@@ -67,40 +75,48 @@ export function hidePostMatchCard(force = false) {
 }
 
 function renderCard(el, game, estimated) {
+  const meta = getGameMeta(state.activeGame);
+  const isVal = state.activeGame === GAME_IDS.VALORANT;
   const win = game.result === 'W';
   const delta = game.mmrDiff ?? 0;
+  const matchLabel = isVal ? 'Match' : 'Game';
+
   el.innerHTML = `
     <div class="post-match-inner ${win ? 'pm-win' : 'pm-loss'}${estimated ? ' pm-needs-mmr' : ''}">
       <div class="post-match-top">
         <div class="post-match-hero">
           <span class="post-match-badge ${win ? 'win' : 'loss'}">${win ? 'WIN' : 'LOSS'}</span>
-          <span class="post-match-title">Game ${game.match} · ${game.mode}${game.playlist ? ` · ${game.playlist}` : ''}</span>
+          <span class="post-match-title">${matchLabel} ${game.match} · ${game.mode}${game.playlist ? ` · ${game.playlist}` : ''}${isVal && game.agent ? ` · ${game.agent}` : ''}</span>
         </div>
         <div class="post-match-delta ${delta >= 0 ? 'pos' : 'neg'}${estimated ? ' estimated' : ''}">
           ${estimated ? '~' : ''}${delta >= 0 ? '+' : ''}${delta}
-          <span class="post-match-delta-unit">MMR</span>
+          <span class="post-match-delta-unit">${meta.diffLabel}</span>
         </div>
         <button type="button" class="post-match-close" id="pm-dismiss" aria-label="Dismiss">✕</button>
       </div>
 
       <div class="post-match-stat-grid">
-        <div class="pm-stat"><span class="pm-stat-val">${game.goals}</span><span class="pm-stat-lbl">Goals</span></div>
-        <div class="pm-stat"><span class="pm-stat-val">${game.assists ?? 0}</span><span class="pm-stat-lbl">Assists</span></div>
-        <div class="pm-stat"><span class="pm-stat-val">${game.saves}</span><span class="pm-stat-lbl">Saves</span></div>
+        ${isVal
+          ? `<div class="pm-stat"><span class="pm-stat-val">${game.kills ?? game.goals ?? 0}</span><span class="pm-stat-lbl">Kills</span></div>
+             <div class="pm-stat"><span class="pm-stat-val">${game.deaths ?? 0}</span><span class="pm-stat-lbl">Deaths</span></div>
+             <div class="pm-stat"><span class="pm-stat-val">${game.assists ?? 0}</span><span class="pm-stat-lbl">Assists</span></div>`
+          : `<div class="pm-stat"><span class="pm-stat-val">${game.goals}</span><span class="pm-stat-lbl">Goals</span></div>
+             <div class="pm-stat"><span class="pm-stat-val">${game.assists ?? 0}</span><span class="pm-stat-lbl">Assists</span></div>
+             <div class="pm-stat"><span class="pm-stat-val">${game.saves}</span><span class="pm-stat-lbl">Saves</span></div>`}
       </div>
 
       <div class="post-match-section post-match-mmr-section" id="pm-mmr-section">
         <div class="post-match-section-head">
-          <span>${estimated ? 'Required — confirm MMR' : 'Confirm MMR'}</span>
+          <span>${estimated ? `Required — confirm ${meta.rankLabel}` : `Confirm ${meta.rankLabel}`}</span>
           <span class="post-match-section-sub">from ranked screen</span>
         </div>
         <div class="post-match-mmr-input-row">
           <input type="number" id="pm-mmr" class="post-match-mmr-input"
-            placeholder="e.g. 807" value="${estimated ? '' : game.endMMR}" min="0" inputmode="numeric"
-            aria-label="MMR from ranked screen">
+            placeholder="e.g. ${isVal ? '45' : '807'}" value="${estimated ? '' : game.endMMR}" min="0" inputmode="numeric"
+            aria-label="${meta.rankLabel} from ranked screen">
           <button type="button" class="btn btn-primary" id="pm-mmr-save">Save</button>
         </div>
-        ${estimated ? '<p class="post-match-mmr-hint">Auto-log estimated MMR — type the real number before your next game.</p>' : ''}
+        ${estimated ? `<p class="post-match-mmr-hint">Auto-log estimated ${meta.diffLabel} — type the real number before your next ${isVal ? 'match' : 'game'}.</p>` : ''}
       </div>
 
       <div class="post-match-section">
@@ -110,7 +126,7 @@ function renderCard(el, game, estimated) {
 
       <div class="post-match-foot">
         <button type="button" class="btn btn-cancel" id="pm-undo">Undo log</button>
-        <button type="button" class="btn btn-primary" id="pm-next"${estimated && !mmrConfirmed ? ' disabled title="Save MMR first"' : ''}>Next game →</button>
+        <button type="button" class="btn btn-primary" id="pm-next"${estimated && !mmrConfirmed ? ` disabled title="Save ${meta.rankLabel} first"` : ''}>Next ${isVal ? 'match' : 'game'} →</button>
       </div>
     </div>`;
 }
@@ -122,8 +138,9 @@ function pulseMmrSection() {
 }
 
 function renderTagButtons() {
-  return HOT_TAGS.map(tag => {
-    const cat = TAG_GROUPS.find(g => g.tags.includes(tag))?.cat ?? 'def';
+  const groups = getTagGroups(state.activeGame);
+  return getHotTags().map(tag => {
+    const cat = groups.find(g => g.tags.includes(tag))?.cat ?? (state.activeGame === GAME_IDS.VALORANT ? 'aim' : 'def');
     const sel = selectedTags.includes(tag) ? ' selected' : '';
     return `<button type="button" class="tag-chip ${cat}${sel}" data-tag="${tag}">${tag}</button>`;
   }).join('');
@@ -165,9 +182,10 @@ function wireCardEvents() {
 }
 
 async function saveMMR() {
+  const meta = getGameMeta(state.activeGame);
   const val = parseInt(document.getElementById('pm-mmr')?.value, 10);
   if (!val || Number.isNaN(val)) {
-    showToast('Enter your MMR from the ranked screen', 'error');
+    showToast(`Enter your ${meta.rankLabel} from the ranked screen`, 'error');
     pulseMmrSection();
     return;
   }
@@ -175,7 +193,7 @@ async function saveMMR() {
   if (ok) {
     mmrConfirmed = true;
     needsMmrConfirm = false;
-    showToast(`MMR saved — ${val}`);
+    showToast(`${meta.rankLabel} saved — ${val}`);
     document.getElementById('pm-next')?.removeAttribute('disabled');
     hidePostMatchCard(true);
   }

@@ -45,3 +45,29 @@ export const VAL_TAG_GROUPS = [
 
 /** Rough RR swing when estimating before confirm */
 export const VAL_DEFAULT_RR_SWING = { W: 18, L: -18 };
+
+/** Coaching tips keyed by Valorant mistake tags */
+export const VAL_ACTION_FOCUS_TIPS = {
+  'Bad Crosshair Placement': 'Pre-aim common angles before you peek — crosshair at head height, not floor.',
+  'Overpeeking': 'Jiggle peek for info; wide swing only when you have util or a trade lined up.',
+  'Whiffed Easy Shots': 'Reset between fights — counter-strafe, then click. Don\'t spray transfer too early.',
+  'Bad Utility Timing': 'Use util before the duel, not after you\'re already losing the fight.',
+  'Wasted Utility': 'Every molly/flash should have a purpose — don\'t throw on cooldown.',
+  'No Trade Support': 'Play within trade range of a teammate; if they die alone, you\'re next.',
+  'Bad Rotations': 'Rotate early with info, not after the spike is already down.',
+  'Playing Alone': 'Group for execs and retakes — isolated picks lose rounds.',
+  'Tilt': 'Stop queue after two tilt-tagged losses. Deathmatch or break for 10 minutes.',
+  'Autopilot': 'Call one focus for the next 3 rounds: trade, util, or crosshair only.',
+  'Ego Peek': 'If you whiffed once, don\'t re-peek the same angle — rotate or use util.',
+  'Panic Swinging': 'When low HP, play time and angles — don\'t wide swing for hero plays.',
+};
+
+/** Display labels for Valorant improvement pillars */
+export const VAL_CATEGORY_LABELS = {
+  aim: 'Aim',
+  util: 'Utility',
+  team: 'Teamplay',
+  men: 'Mental',
+};
+
+export const VAL_CATEGORY_ORDER = ['aim', 'util', 'team', 'men'];

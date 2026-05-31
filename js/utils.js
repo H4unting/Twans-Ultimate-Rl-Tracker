@@ -348,13 +348,16 @@ function mergedTagLookup(games) {
   return merged;
 }
 
-export function getTagCategoryBreakdown(games) {
+export function getTagCategoryBreakdown(games, gameId = DEFAULT_GAME) {
   const counts = countTags(games);
-  const defs = mergedTagLookup(games);
-  const breakdown = { def: 0, off: 0, men: 0, aim: 0, util: 0, team: 0 };
+  const defs = getTagDefinitions(gameId);
+  const order = gameId === GAME_IDS.VALORANT
+    ? ['aim', 'util', 'team', 'men']
+    : ['def', 'off', 'men'];
+  const breakdown = Object.fromEntries(order.map(k => [k, 0]));
   Object.entries(counts).forEach(([tag, count]) => {
     const cat = defs[tag]?.cat;
-    if (cat) breakdown[cat] = (breakdown[cat] ?? 0) + count;
+    if (cat && breakdown[cat] != null) breakdown[cat] += count;
   });
   return { counts, breakdown, total: Object.values(counts).reduce((a, b) => a + b, 0) };
 }
@@ -377,8 +380,8 @@ export function getPlaylistStats(games) {
   })).sort((a, b) => b.winRate - a.winRate);
 }
 
-export function getPrimaryMode(games) {
-  if (!games.length) return "2's";
+export function getPrimaryMode(games, gameId = DEFAULT_GAME) {
+  if (!games.length) return getDefaultMode(gameId);
   const counts = {};
   games.forEach(g => { counts[g.mode] = (counts[g.mode] || 0) + 1; });
   return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
@@ -411,17 +414,19 @@ export function getTrendDirection(games, windowSize = 5) {
   return 'stable';
 }
 
-export function getTagTrendBuckets(games, bucketSize = 5) {
-  const defs = mergedTagLookup(games);
+export function getTagTrendBuckets(games, gameId = DEFAULT_GAME, bucketSize = 5) {
+  const defs = getTagDefinitions(gameId);
+  const cats = gameId === GAME_IDS.VALORANT
+    ? ['aim', 'util', 'team', 'men']
+    : ['def', 'off', 'men'];
   const buckets = [];
   for (let i = 0; i < games.length; i += bucketSize) {
     const chunk = games.slice(i, i + bucketSize);
-    buckets.push({
-      label: `#${i + 1}-${Math.min(i + bucketSize, games.length)}`,
-      def: chunk.reduce((s, g) => s + (g.tags || []).filter(t => defs[t]?.cat === 'def').length, 0),
-      off: chunk.reduce((s, g) => s + (g.tags || []).filter(t => defs[t]?.cat === 'off').length, 0),
-      men: chunk.reduce((s, g) => s + (g.tags || []).filter(t => defs[t]?.cat === 'men').length, 0),
+    const row = { label: `#${i + 1}-${Math.min(i + bucketSize, games.length)}` };
+    cats.forEach(cat => {
+      row[cat] = chunk.reduce((s, g) => s + (g.tags || []).filter(t => defs[t]?.cat === cat).length, 0);
     });
+    buckets.push(row);
   }
   return buckets;
 }

@@ -1,46 +1,21 @@
-/** 3-section navigation: Home · Review · Squad */
+/** 3-section navigation: Home/Ops · Review/Intel · Squad */
+
+import { getNavSections } from './games.js';
+import { state } from './state.js';
 
 const TOP_BAR_PAGE_IDS = new Set(['profile']);
 
-export const NAV_SECTIONS = {
-  home: {
-    label: 'Home',
-    icon: '🏠',
-    defaultPage: 'dashboard',
-    pages: [
-      { id: 'dashboard', label: 'Dashboard' },
-      { id: 'log', label: 'Match Logs' },
-      { id: 'profile', label: 'Profile' },
-      { id: 'setup', label: 'Auto Setup' },
-      { id: 'focus', label: 'Focus' },
-    ],
-  },
-  review: {
-    label: 'Review',
-    icon: '📊',
-    defaultPage: 'analytics',
-    pages: [
-      { id: 'sessions', label: 'Sessions' },
-      { id: 'analytics', label: 'Analytics' },
-      { id: 'reports', label: 'Reports' },
-    ],
-  },
-  squad: {
-    label: 'Squad',
-    icon: '👥',
-    defaultPage: 'group',
-    pages: [{ id: 'group', label: 'Squad' }],
-  },
-};
+function pageSectionMap(gameId = state.activeGame) {
+  const sections = getNavSections(gameId);
+  return Object.fromEntries(
+    Object.entries(sections).flatMap(([section, cfg]) =>
+      cfg.pages.map(p => [p.id, section]),
+    ),
+  );
+}
 
-const PAGE_SECTION = Object.fromEntries(
-  Object.entries(NAV_SECTIONS).flatMap(([section, cfg]) =>
-    cfg.pages.map(p => [p.id, section]),
-  ),
-);
-
-export function getSectionForPage(pageId) {
-  return PAGE_SECTION[pageId] ?? 'home';
+export function getSectionForPage(pageId, gameId = state.activeGame) {
+  return pageSectionMap(gameId)[pageId] ?? 'home';
 }
 
 export function wireNavigation({ onNavigate, getActivePage }) {
@@ -50,7 +25,7 @@ export function wireNavigation({ onNavigate, getActivePage }) {
   primary?.querySelectorAll('[data-section]').forEach(btn => {
     btn.addEventListener('click', () => {
       const section = btn.dataset.section;
-      const cfg = NAV_SECTIONS[section];
+      const cfg = getNavSections(state.activeGame)[section];
       onNavigate(cfg.defaultPage, section);
     });
   });
@@ -64,7 +39,7 @@ export function wireNavigation({ onNavigate, getActivePage }) {
   document.querySelectorAll('.mobile-nav-btn[data-section]').forEach(btn => {
     btn.addEventListener('click', () => {
       const section = btn.dataset.section;
-      onNavigate(NAV_SECTIONS[section].defaultPage, section);
+      onNavigate(getNavSections(state.activeGame)[section].defaultPage, section);
     });
   });
 
@@ -89,13 +64,19 @@ export function mountDock() {
   document.body.classList.remove('dock-in-home');
 }
 
-export function updateNavUI(pageId) {
-  const section = getSectionForPage(pageId);
+export function updateNavUI(pageId, gameId = state.activeGame) {
+  const section = getSectionForPage(pageId, gameId);
   const sub = document.getElementById('sub-nav');
-  const cfg = NAV_SECTIONS[section];
+  const cfg = getNavSections(gameId)[section];
+  const allSections = getNavSections(gameId);
 
   document.querySelectorAll('.section-tab').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.section === section);
+    const key = btn.dataset.section;
+    btn.classList.toggle('active', key === section);
+    const secCfg = allSections[key];
+    if (secCfg) {
+      btn.textContent = secCfg.label;
+    }
   });
 
   if (sub && cfg) {
@@ -108,9 +89,29 @@ export function updateNavUI(pageId) {
 
   document.getElementById('top-profile-btn')?.classList.toggle('active', pageId === 'profile');
 
-  document.querySelectorAll('.mobile-nav-btn[data-section]').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.section === section);
+  const mobileNav = document.getElementById('mobile-nav');
+  mobileNav?.querySelectorAll('.mobile-nav-btn[data-section]').forEach(btn => {
+    const key = btn.dataset.section;
+    btn.classList.toggle('active', key === section);
+    const secCfg = allSections[key];
+    if (secCfg) {
+      const label = btn.querySelector('span:last-child') || btn;
+      if (btn.childNodes.length >= 2) {
+        btn.lastChild.textContent = secCfg.label;
+      }
+    }
   });
+
+  const logBtn = mobileNav?.querySelector('.mobile-nav-btn[data-page="log"]');
+  if (logBtn) {
+    const logPage = allSections.home?.pages.find(p => p.id === 'log');
+    if (logPage && logBtn.lastChild) logBtn.lastChild.textContent = logPage.label;
+  }
+  const focusBtn = mobileNav?.querySelector('.mobile-nav-btn[data-page="focus"]');
+  if (focusBtn) {
+    const focusPage = allSections.home?.pages.find(p => p.id === 'focus');
+    if (focusPage && focusBtn.lastChild) focusBtn.lastChild.textContent = focusPage.label;
+  }
 
   document.body.dataset.section = section;
   document.body.dataset.page = pageId;

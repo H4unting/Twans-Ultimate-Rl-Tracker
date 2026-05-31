@@ -20,8 +20,8 @@ import { initRlLive, stopRlLive, refreshLiveStatus,
   saveRlDisplayName, getRlDisplayName,
 } from './rl-live.js';
 import { initValorantLive, stopValorantLive, refreshValorantStatus } from './valorant-live.js';
-import { initGameSwitcher, restoreActiveGameFromPrefs, applyGameShell } from './game-ui.js';
-import { GAME_IDS } from './games.js';
+import { initGameSwitcher, restoreActiveGameFromPrefs, applyGameShell, applyPageCopy } from './game-ui.js';
+import { GAME_IDS, getTagGroups } from './games.js';
 import { VAL_DEFAULT_RR_SWING } from './valorant-config.js';
 import { renderSetupWizard, refreshSetupWizard, onBridgeStatusChange, renderLogSetupNudge } from './setup-wizard.js';
 import { mmrChart, wlChart } from './charts.js';
@@ -379,7 +379,7 @@ function renderAnalyticsPage() {
   const filtered = getAnalyticsGames();
   const stats = calcStats(filtered);
   const display = getDisplay();
-  renderStats('analytics-stats', stats, state.playlist);
+  renderStats('analytics-stats', stats, state.playlist, state.activeGame);
   mmrChart('dashMMR', filtered, display.color);
   wlChart('dashWL', stats);
   renderAnalytics(filtered);
@@ -397,7 +397,7 @@ function renderAll() {
     document.querySelectorAll('#pl-tabs .pl-tab').forEach(b => b.classList.remove('active'));
     btn?.classList.add('active');
     renderAnalyticsPage();
-  });
+  }, state.activeGame);
 
   renderMatchLogs();
 
@@ -419,6 +419,7 @@ function renderAll() {
 
   refreshSessionUI();
   wireLogTableActions();
+  applyPageCopy(state.activeGame);
   updateNavUI(state.activePage || 'dashboard');
   mountDock();
 }
@@ -809,7 +810,19 @@ function openEditModal(matchNum) {
 }
 
 function renderEditTags() {
-  document.querySelectorAll('#edit-tags .tag-chip').forEach(chip => {
+  const wrap = document.getElementById('edit-tags');
+  if (!wrap) return;
+  wrap.innerHTML = getTagGroups(state.activeGame).map(group => `
+    <div class="tag-section">
+      <div class="tag-section-label"><span class="dot ${group.cat}"></span>${group.label}</div>
+      <div class="edit-tag-row tags-row">
+        ${group.tags.map(tag => `
+          <span class="tag-chip ${group.cat}${state.ui.editTags.includes(tag) ? ' selected' : ''}" data-tag="${tag}">${tag}</span>
+        `).join('')}
+      </div>
+    </div>`).join('');
+
+  wrap.querySelectorAll('.tag-chip').forEach(chip => {
     chip.classList.toggle('selected', state.ui.editTags.includes(chip.dataset.tag));
     chip.onclick = () => {
       chip.classList.toggle('selected');

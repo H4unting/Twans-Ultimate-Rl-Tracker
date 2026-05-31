@@ -698,3 +698,40 @@ body[data-active-game="valorant"] .home-summary-empty {
   text-align: center;
   clip-path: var(--val-cut);
 }
+
+/* Valorant improvement pillars — Aim · Utility · Teamplay · Mental */
+body[data-active-game="valorant"] .tag-chip.aim { border-color: #ff465533; color: #ff465588; }
+body[data-active-game="valorant"] .tag-chip.aim:hover { border-color: #ff465577; color: var(--val-red); }
+body[data-active-game="valorant"] .tag-chip.aim.selected { border-color: var(--val-red); color: #fff; background: var(--val-red); }
+body[data-active-game="valorant"] .tag-chip.util { border-color: #00e5ff33; color: #00e5ff66; }
+body[data-active-game="valorant"] .tag-chip.util:hover { border-color: #00e5ff77; color: #00e5ff; }
+body[data-active-game="valorant"] .tag-chip.util.selected { border-color: #00e5ff; color: #0a0e12; background: #00e5ff; }
+body[data-active-game="valorant"] .tag-chip.team { border-color: #7c3aed33; color: #7c3aed66; }
+body[data-active-game="valorant"] .tag-chip.team:hover { border-color: #7c3aed77; color: #a78bfa; }
+body[data-active-game="valorant"] .tag-chip.team.selected { border-color: #7c3aed; color: #fff; background: #7c3aed; }
+body[data-active-game="valorant"] .tag-chip.men { border-color: #a855f733; color: #a855f766; }
+body[data-active-game="valorant"] .tag-chip.men:hover { border-color: #a855f777; color: #c084fc; }
+body[data-active-game="valorant"] .tag-chip.men.selected { border-color: #a855f7; color: #fff; background: #a855f7; }
+
+body[data-active-game="valorant"] .inline-tag.aim { background: #ff465515; color: var(--val-red); border: 1px solid #ff465522; }
+body[data-active-game="valorant"] .inline-tag.util { background: #00e5ff15; color: #00e5ff; border: 1px solid #00e5ff22; }
+body[data-active-game="valorant"] .inline-tag.team { background: #7c3aed15; color: #a78bfa; border: 1px solid #7c3aed22; }
+body[data-active-game="valorant"] .inline-tag.men { background: #a855f715; color: #c084fc; border: 1px solid #a855f722; }
+
+body[data-active-game="valorant"] .tag-section-label .dot.aim { background: var(--val-red); }
+body[data-active-game="valorant"] .tag-section-label .dot.util { background: #00e5ff; }
+body[data-active-game="valorant"] .tag-section-label .dot.team { background: #7c3aed; }
+body[data-active-game="valorant"] .tag-section-label .dot.men { background: #a855f7; }
+
+body[data-active-game="valorant"] .home-activity-tag.aim { color: var(--val-red); border-color: #ff465544; }
+body[data-active-game="valorant"] .home-activity-tag.util { color: #00e5ff; border-color: #00e5ff44; }
+body[data-active-game="valorant"] .home-activity-tag.team { color: #a78bfa; border-color: #7c3aed44; }
+body[data-active-game="valorant"] .home-activity-tag.men { color: #c084fc; border-color: #a855f744; }
+
+body[data-active-game="valorant"] .val-focus-rr {
+  font-family: var(--val-font-display, inherit);
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--val-red);
+  letter-spacing: 0.04em;
+}
