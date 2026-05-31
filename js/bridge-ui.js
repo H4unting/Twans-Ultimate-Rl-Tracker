@@ -130,16 +130,23 @@ function renderValorantPill(el, valStatus, meta) {
     return;
   }
 
+  if (valStatus.pollingArmed === false) {
+    el.textContent = '● Paused';
+    el.title = 'Bridge running — open this tracker tab once to arm auto-log (safe for Val load-in)';
+    el.dataset.bridgeState = 'syncing';
+    return;
+  }
+
   if (!valStatus.seeded) {
     el.textContent = '● Syncing…';
-    el.title = `${DESKTOP_APP.name} is linked — play one match to finish setup, then the next auto-logs`;
+    el.title = `${DESKTOP_APP.name} is setting your match baseline — finish one game, then the next auto-logs`;
     el.dataset.bridgeState = 'syncing';
     return;
   }
 
   if (valStatus.valorantRunning && isAutoLogEnabled()) {
     el.textContent = '● Auto-log ON';
-    el.title = 'Valorant is open — auto-log saves when the match ends (not during agent select)';
+    el.title = 'Ready — when Henrik sees a new finished match, it saves automatically (1–3 min delay)';
   } else if (valStatus.valorantRunning) {
     el.textContent = '● Valorant live';
     el.title = 'Valorant is running — turn on auto-log or tap LOG after the match';
@@ -219,10 +226,18 @@ function updateDesktopAppBanner(isVal, appUp, valStatus) {
     return;
   }
 
+  if (appUp && isVal && valStatus?.configured && valStatus?.pollingArmed === false) {
+    banner.classList.remove('hidden');
+    badge.textContent = 'Safe mode';
+    p.innerHTML = `${DESKTOP_APP.name} is running with <strong>no external network</strong> until you keep this tab open. `
+      + 'That avoids VAN errors during Val load-in. Switch to Val after you see the pill change to Auto-log ON.';
+    return;
+  }
+
   if (appUp && isVal && valStatus?.configured && !valStatus.seeded) {
     banner.classList.remove('hidden');
     badge.textContent = 'Almost ready';
-    p.textContent = `${DESKTOP_APP.name} is connected — play one match to sync. The next finished match will auto-log.`;
+    p.textContent = `${DESKTOP_APP.name} is connected — syncing your match baseline. Play one game if needed; the next finished match auto-logs.`;
     return;
   }
 }

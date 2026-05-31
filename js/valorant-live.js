@@ -10,6 +10,7 @@ import { setCachedValorantStatus, refreshBridgeStatusUI } from './bridge-ui.js';
 let pollId = null;
 let wasBridgeUp = false;
 let autoLogInFlight = false;
+let pollingArmSent = false;
 let onStats = null;
 let onStatus = null;
 let onAutoLog = null;
@@ -25,7 +26,22 @@ function setValorantLiveStatus(valStatus = null) {
   refreshBridgeStatusUI();
 }
 
+async function ensurePollingArmed() {
+  if (pollingArmSent) return;
+  if (state.activeGame !== GAME_IDS.VALORANT) return;
+  if (!isBridgeUp()) return;
+  if (document.visibilityState === 'hidden') return;
+  try {
+    const res = await fetch(`${getBridgeUrl()}/valorant/arm`, {
+      method: 'POST',
+      signal: AbortSignal.timeout(4000),
+    });
+    if (res.ok) pollingArmSent = true;
+  } catch { /* bridge may not support arm yet */ }
+}
+
 async function poll() {
+  await ensurePollingArmed();
   let online = isBridgeUp();
 
   if (!online) {
@@ -65,6 +81,7 @@ async function poll() {
 
   if (state.activeGame !== GAME_IDS.VALORANT) return;
   if (!valStatus?.configured) return;
+  if (!valStatus.pollingArmed && valStatus.source !== 'overwolf') return;
   if (!valStatus.seeded && valStatus.source !== 'overwolf') return;
 
   try {
@@ -112,8 +129,12 @@ export function initValorantLive(applyStats, statusCb, autoLogCb) {
   onStatus = statusCb;
   onAutoLog = autoLogCb;
   stopValorantLive();
+  pollingArmSent = false;
   pollId = setInterval(poll, 8000);
   poll();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') ensurePollingArmed();
+  });
 }
 
 export function stopValorantLive() {

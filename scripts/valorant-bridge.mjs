@@ -4,9 +4,11 @@
  * Requires riotId (Name#TAG), riotRegion, and henrikApiKey in grind-config.json.
  */
 
-import { loadGrindConfig } from './local-setup.mjs';
+import { loadGrindConfig, loadValorantBridgeState, saveValorantBridgeState, clearValorantBridgeState } from './local-setup.mjs';
 
 const HENRIK_BASE = 'https://api.henrikdev.xyz';
+const HENRIK_POLL_MS = 20000;
+const HENRIK_DEFER_MS = 45000;
 
 const MODE_MAP = {
   competitive: 'Competitive',
@@ -24,6 +26,8 @@ let lastMatch = null;
 let lastSeenMatchId = null;
 let seeded = false;
 let pollTimer = null;
+let deferTimer = null;
+let pollingArmed = false;
 let valorantRunning = false;
 let configured = false;
 let lastError = null;
@@ -35,6 +39,7 @@ const OVERWOLF_TTL_MS = 45000;
 /** Ready to auto-log next finished match (no tasklist — scanning Val during load-in caused freezes). */
 function isValorantReady() {
   if (isOverwolfConnected()) return true;
+  if (!pollingArmed) return false;
   const cfg = getBridgeConfig();
   const hasHenrik = Boolean(cfg.henrikApiKey)
     || (Boolean(cfg.legacyRiotKey) && !cfg.legacyRiotKey.startsWith('RGAPI-'));
@@ -134,8 +139,55 @@ export function pushOverwolfMatch(payload = {}) {
     source: 'overwolf',
   };
   lastSeenMatchId = matchId;
+  persistState();
   console.log(`Valorant match (Overwolf) — ${lastMatch.result} · ${lastMatch.mode} · K:${lastMatch.kills} D:${lastMatch.deaths} · ${lastMatch.agent || 'Agent'} · ${lastMatch.map || 'Map'}`);
   return { ok: true, match: lastMatch };
+}
+
+function restorePersistedState() {
+  const saved = loadValorantBridgeState();
+  if (saved.lastSeenMatchId) {
+    lastSeenMatchId = saved.lastSeenMatchId;
+    seeded = Boolean(saved.seeded);
+  }
+}
+
+function persistState() {
+  saveValorantBridgeState({
+    lastSeenMatchId,
+    seeded,
+  });
+}
+
+/** Set baseline to latest Henrik match so the *next* finished game auto-logs. */
+export async function seedValorantBaseline() {
+  const cfg = getBridgeConfig();
+  configured = Boolean(cfg.henrikApiKey && cfg.riotId)
+    || (Boolean(cfg.legacyRiotKey) && !cfg.legacyRiotKey.startsWith('RGAPI-') && cfg.riotId);
+  if (!configured) {
+    return { ok: false, error: 'Riot ID and Henrik key required' };
+  }
+
+  try {
+    const latest = await fetchLatestHenrikMatch();
+    const matchId = latest?.metadata?.matchid ?? latest?.metadata?.match_id ?? null;
+    if (!matchId) {
+      seeded = false;
+      lastSeenMatchId = null;
+      persistState();
+      return { ok: false, error: 'No match history found for this Riot ID yet' };
+    }
+
+    lastSeenMatchId = matchId;
+    seeded = true;
+    lastError = null;
+    persistState();
+    console.log('Valorant baseline set — your next finished match will auto-log');
+    return { ok: true, matchId };
+  } catch (e) {
+    lastError = formatHenrikError(e.message, e.status);
+    return { ok: false, error: lastError };
+  }
 }
 
 function getBridgeConfig() {
@@ -257,10 +309,7 @@ async function pollLatestMatch() {
     if (!matchId) return;
 
     if (!seeded) {
-      lastSeenMatchId = matchId;
-      seeded = true;
-      lastError = null;
-      console.log('Valorant bridge seeded — waiting for your next match');
+      await seedValorantBaseline();
       return;
     }
 
@@ -272,20 +321,66 @@ async function pollLatestMatch() {
     lastSeenMatchId = matchId;
     lastMatch = parsed;
     lastError = null;
+    persistState();
     console.log(`Valorant match — ${parsed.result} · ${parsed.mode} · K:${parsed.kills} D:${parsed.deaths} A:${parsed.valAssists} · ${parsed.agent || 'Agent'} · ${parsed.map || 'Map'}`);
   } catch (e) {
     lastError = formatHenrikError(e.message, e.status);
   }
 }
 
-export function startValorantBridge() {
-  if (pollTimer) return;
-  pollTimer = setInterval(pollLatestMatch, 12000);
+export function armValorantPolling(options = {}) {
+  if (pollTimer) return { ok: true, already: true };
+  pollingArmed = true;
+  if (deferTimer) {
+    clearTimeout(deferTimer);
+    deferTimer = null;
+  }
+  const pollMs = Number(options.pollMs ?? HENRIK_POLL_MS);
+  console.log('Valorant match polling armed — will check Henrik for new finished matches');
+  pollTimer = setInterval(pollLatestMatch, pollMs);
   pollLatestMatch();
+  return { ok: true };
+}
+
+export function startValorantBridge(options = {}) {
+  restorePersistedState();
+  if (seeded && lastSeenMatchId) {
+    console.log('Valorant baseline restored — next new match will auto-log');
+  }
+
+  const manualArm = options.manualArm !== false;
+  if (manualArm) {
+    console.log('Valorant polling paused — no external network until you open the tracker');
+    console.log('  (prevents load-in / VAN connection issues while Val is starting)');
+    return;
+  }
+
+  pollingArmed = true;
+  const deferMs = Number(options.deferPollMs ?? HENRIK_DEFER_MS);
+  const pollMs = Number(options.pollMs ?? HENRIK_POLL_MS);
+  const beginPolling = () => {
+    if (pollTimer) return;
+    pollTimer = setInterval(pollLatestMatch, pollMs);
+    pollLatestMatch();
+  };
+
+  if (deferMs > 0) {
+    console.log(`Valorant match polling starts in ${Math.round(deferMs / 1000)}s`);
+    deferTimer = setTimeout(beginPolling, deferMs);
+  } else {
+    beginPolling();
+  }
 }
 
 export function handleValorantRequest(req, res) {
   const url = req.url?.split('?')[0];
+
+  if (url === '/valorant/arm' && req.method === 'POST') {
+    const out = armValorantPolling();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(out));
+    return true;
+  }
 
   if (url === '/valorant/overwolf/ping' && req.method === 'POST') {
     markOverwolfPing();
@@ -325,6 +420,7 @@ export function handleValorantRequest(req, res) {
       needsHenrikKey: !ow && Boolean(cfg.legacyRiotKey.startsWith('RGAPI-') && cfg.riotId && !cfg.henrikApiKey),
       source: ow ? 'overwolf' : 'henrik',
       overwolfConnected: ow,
+      pollingArmed: ow || pollingArmed,
     }));
     return true;
   }
@@ -346,11 +442,13 @@ export function handleValorantRequest(req, res) {
   return false;
 }
 
-export function resetValorantCache() {
-  lastSeenMatchId = null;
-  seeded = false;
+export function resetValorantCache({ full = false } = {}) {
   lastMatch = null;
   lastError = null;
+  if (!full) return;
+  lastSeenMatchId = null;
+  seeded = false;
+  clearValorantBridgeState();
 }
 
 /** Test saved Riot ID + Henrik key (used right after Apply). */
@@ -368,9 +466,11 @@ export async function validateRiotConfig() {
     return { ok: false, error: 'Henrik API key required — free at api.henrikdev.xyz/dashboard' };
   }
   try {
-    await fetchLatestHenrikMatch();
-    lastError = null;
-    return { ok: true, riotId: cfg.riotId };
+    const seed = await seedValorantBaseline();
+    if (!seed.ok) {
+      return { ok: false, error: seed.error || 'Could not set Valorant baseline' };
+    }
+    return { ok: true, riotId: cfg.riotId, seeded: true };
   } catch (e) {
     const msg = formatHenrikError(e.message, e.status);
     lastError = msg;

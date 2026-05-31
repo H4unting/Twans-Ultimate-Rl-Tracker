@@ -1,4 +1,5 @@
 grind-config.json
+.valorant-bridge-state.json
 node_modules/
 bridge.log
 Twans-Tracker-Bridge.exe

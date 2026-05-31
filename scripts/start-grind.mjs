@@ -223,6 +223,10 @@ const configuredTrackerUrl = (process.env.TRACKER_URL || config.trackerUrl || LO
 
 const skipBrowser = process.env.BRIDGE_NO_BROWSER === '1' || process.argv.includes('--no-browser');
 
+const valOnly = process.env.VAL_ONLY === '1' || process.argv.includes('--val-only');
+
+const autoPoll = process.argv.includes('--auto-poll');
+
 const quiet = process.env.BRIDGE_QUIET === '1';
 
 
@@ -241,6 +245,10 @@ log('  Twans Ultimate Tracker');
 
 log(`  Player: ${playerName || '(set via tracker setup — Apply & Go)'}`);
 
+if (valOnly) {
+  log('  Mode: Valorant only (no Rocket League TCP bridge)');
+}
+
 log(`  Local tracker: ${LOCAL_TRACKER_URL}`);
 
 if (!isLocalTrackerUrl(configuredTrackerUrl)) {
@@ -253,7 +261,7 @@ log('');
 
 
 
-await startBridge({ playerName });
+await startBridge({ playerName, skipRl: valOnly, manualValPoll: !autoPoll });
 
 
 
@@ -292,6 +300,14 @@ if (!quiet) {
   console.log('  >>> KEEP THIS RUNNING while you play <<<');
 
   console.log('  >>> Use localhost:8080 on your gaming PC (not GitHub Pages) <<<');
+
+  if (valOnly) {
+    console.log('  >>> Valorant: run bat BEFORE launching Val, or from the Val main menu <<<');
+    console.log('  >>> Then open http://localhost:8080 once — that arms auto-log <<<');
+    console.log('  >>> Do not Ctrl+C mid-match <<<');
+  } else {
+    console.log('  >>> Playing Val only? Use start-val-grind.bat instead <<<');
+  }
 
   console.log('');
 

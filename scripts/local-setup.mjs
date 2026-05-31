@@ -14,6 +14,31 @@ function resolveTrackerRoot() {
 
 const ROOT = resolveTrackerRoot();
 const CONFIG_FILE = path.join(ROOT, 'grind-config.json');
+const VAL_BRIDGE_STATE_FILE = path.join(ROOT, '.valorant-bridge-state.json');
+
+export function loadValorantBridgeState() {
+  try {
+    return JSON.parse(fs.readFileSync(VAL_BRIDGE_STATE_FILE, 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
+export function saveValorantBridgeState(partial) {
+  const next = {
+    ...loadValorantBridgeState(),
+    ...partial,
+    updatedAt: new Date().toISOString(),
+  };
+  fs.writeFileSync(VAL_BRIDGE_STATE_FILE, `${JSON.stringify(next, null, 2)}\n`, 'utf8');
+  return next;
+}
+
+export function clearValorantBridgeState() {
+  try {
+    fs.unlinkSync(VAL_BRIDGE_STATE_FILE);
+  } catch { /* ignore */ }
+}
 
 const INI_SECTION = '[TAGame.MatchStatsExporter_TA]';
 const INI_KEYS = { Port: '49123', PacketSendRate: '10' };

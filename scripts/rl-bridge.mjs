@@ -10,6 +10,7 @@ import { fileURLToPath } from 'url';
 import { applyLocalSetup, getSetupStatus, loadGrindConfig } from './local-setup.mjs';
 import {
   handleValorantRequest, resetValorantCache, startValorantBridge, validateRiotConfig,
+  armValorantPolling,
 } from './valorant-bridge.mjs';
 
 const RL_PORT = 49123;
@@ -82,6 +83,8 @@ export function startBridge(options = {}) {
     ?? ''
   ).trim();
   const httpPort = options.httpPort ?? DEFAULT_HTTP_PORT;
+  const skipRl = Boolean(options.skipRl);
+  const manualValPoll = options.manualValPoll !== false;
 
   let rlConnected = false;
   let inMatch = false;
@@ -221,6 +224,7 @@ export function startBridge(options = {}) {
   }
 
   let lastRlRetryLogAt = 0;
+  const RL_RETRY_MS = skipRl ? 0 : 15000;
   const logRlRetry = (msg) => {
     const now = Date.now();
     if (now - lastRlRetryLogAt < 30000) return;
@@ -244,15 +248,15 @@ export function startBridge(options = {}) {
     socket.on('close', () => {
       rlConnected = false;
       inMatch = false;
-      logRlRetry('RL connection closed — retrying in 3s… (RL not running or Stats API off)');
-      setTimeout(connectRL, 3000);
+      logRlRetry('RL connection closed — retrying in 15s… (RL not running or Stats API off)');
+      setTimeout(connectRL, RL_RETRY_MS);
     });
 
     socket.on('error', () => {
       rlConnected = false;
       socket.destroy();
-      logRlRetry('RL Stats API unavailable — retrying in 3s…');
-      setTimeout(connectRL, 3000);
+      logRlRetry('RL Stats API unavailable — retrying in 15s…');
+      setTimeout(connectRL, RL_RETRY_MS);
     });
   }
 
@@ -297,10 +301,11 @@ export function startBridge(options = {}) {
           riotRegion: body.riotRegion,
           patchIni: body.patchIni !== false,
         });
-        resetValorantCache();
+        resetValorantCache({ full: true });
         setPlayerName(applied.rlDisplayName);
         if (body.riotId) {
           applied.riotValidation = await validateRiotConfig();
+          if (applied.riotValidation?.ok) armValorantPolling();
         }
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(applied));
@@ -346,8 +351,15 @@ export function startBridge(options = {}) {
       } else {
         console.log(`Watching player: ${activePlayerName}`);
       }
-      connectRL();
-      startValorantBridge();
+      if (!skipRl) {
+        console.log('Rocket League bridge connects in 30s (use start-val-grind.bat if you are only playing Val)');
+        setTimeout(connectRL, 30000);
+      } else {
+        console.log('Valorant-only mode — Rocket League TCP bridge skipped');
+      }
+      startValorantBridge({
+        manualArm: manualValPoll,
+      });
       resolve(server);
     });
   });
