@@ -166,8 +166,9 @@ export function syncEditModal(gameId = state.activeGame) {
   }
 
   const agentSel = document.getElementById('e-agent');
-  if (agentSel && agentSel.options.length <= 1) {
-    getAgents().forEach(a => {
+  if (isVal && agentSel) {
+    agentSel.innerHTML = '<option value="">—</option>';
+    getAgents(gameId).forEach(a => {
       const opt = document.createElement('option');
       opt.value = a;
       opt.textContent = a;
@@ -176,8 +177,9 @@ export function syncEditModal(gameId = state.activeGame) {
   }
 
   const mapSel = document.getElementById('e-map');
-  if (mapSel && mapSel.options.length <= 1) {
-    getMaps().forEach(m => {
+  if (isVal && mapSel) {
+    mapSel.innerHTML = '<option value="">—</option>';
+    getMaps(gameId).forEach(m => {
       const opt = document.createElement('option');
       opt.value = m;
       opt.textContent = m;
@@ -212,18 +214,18 @@ export function syncFullLogForm(gameId = state.activeGame) {
 
   const agentSel = document.getElementById('f-agent');
   const mapSel = document.getElementById('f-map');
-  if (agentSel && agentSel.options.length <= 1) {
+  if (isVal && agentSel) {
     agentSel.innerHTML = '<option value="">—</option>';
-    getAgents().forEach(a => {
+    getAgents(gameId).forEach(a => {
       const opt = document.createElement('option');
       opt.value = a;
       opt.textContent = a;
       agentSel.appendChild(opt);
     });
   }
-  if (mapSel && mapSel.options.length <= 1) {
+  if (isVal && mapSel) {
     mapSel.innerHTML = '<option value="">—</option>';
-    getMaps().forEach(m => {
+    getMaps(gameId).forEach(m => {
       const opt = document.createElement('option');
       opt.value = m;
       opt.textContent = m;

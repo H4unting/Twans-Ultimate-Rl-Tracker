@@ -60,21 +60,31 @@ function updateDockStatLabels(gameId) {
 function populateValSelects() {
   const agentSel = document.getElementById('quick-agent');
   const mapSel = document.getElementById('quick-map');
-  if (agentSel && agentSel.options.length <= 1) {
-    getAgents().forEach(a => {
+  const agents = getAgents(GAME_IDS.VALORANT);
+  const maps = getMaps(GAME_IDS.VALORANT);
+
+  if (agentSel) {
+    const current = agentSel.value;
+    agentSel.innerHTML = '<option value="">Agent</option>';
+    agents.forEach(a => {
       const opt = document.createElement('option');
       opt.value = a;
       opt.textContent = a;
       agentSel.appendChild(opt);
     });
+    if (current && agents.includes(current)) agentSel.value = current;
   }
-  if (mapSel && mapSel.options.length <= 1) {
-    getMaps().forEach(m => {
+
+  if (mapSel) {
+    const current = mapSel.value;
+    mapSel.innerHTML = '<option value="">Map</option>';
+    maps.forEach(m => {
       const opt = document.createElement('option');
       opt.value = m;
       opt.textContent = m;
       mapSel.appendChild(opt);
     });
+    if (current && maps.includes(current)) mapSel.value = current;
   }
 }
 
