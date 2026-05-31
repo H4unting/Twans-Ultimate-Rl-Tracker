@@ -88,6 +88,7 @@ function withTimeout(promise, ms, message = 'Timed out') {
 
 let bootPromise = null;
 let bridgeServicesStarted = false;
+let initialBootDone = false;
 
 function ensureBridgeServices() {
   startBridgeHeartbeat();
@@ -104,6 +105,7 @@ function stopBridgeServices() {
 }
 
 async function bootApp() {
+  if (initialBootDone) return;
   showLoginScreen(false);
   showLoading(true);
 
@@ -201,6 +203,7 @@ async function bootApp() {
     }
   } finally {
     showLoading(false);
+    initialBootDone = true;
   }
 }
 
@@ -368,6 +371,8 @@ async function handleSignOut() {
   hideQuickDock();
   stopBridgeHeartbeat();
   stopBridgeServices();
+  initialBootDone = false;
+  bootPromise = null;
   showLoginScreen(true);
 }
 
@@ -701,19 +706,25 @@ async function handleValorantAutoLog(match) {
   });
 
   const priorEnd = getLastMMR(logMode);
-  const delta = priorEnd !== ''
-    ? (match.result === 'W' ? VAL_DEFAULT_RR_SWING.W : VAL_DEFAULT_RR_SWING.L)
-    : (match.result === 'W' ? VAL_DEFAULT_RR_SWING.W : VAL_DEFAULT_RR_SWING.L);
   let startRR;
   let endRR;
 
-  if (priorEnd !== '') {
+  if (match.endRR != null && match.rrChange != null) {
+    endRR = parseInt(match.endRR, 10);
+    startRR = Math.max(0, endRR - parseInt(match.rrChange, 10));
+  } else if (match.rrChange != null && priorEnd !== '') {
     startRR = parseInt(priorEnd, 10);
-    endRR = Math.max(0, startRR + delta);
+    endRR = Math.max(0, Math.min(100, startRR + parseInt(match.rrChange, 10)));
   } else {
-    startRR = 0;
-    endRR = delta;
-    showToast(`First ${logMode} log — confirm your real RR after the match`, 'error');
+    const delta = match.result === 'W' ? VAL_DEFAULT_RR_SWING.W : VAL_DEFAULT_RR_SWING.L;
+    if (priorEnd !== '') {
+      startRR = parseInt(priorEnd, 10);
+      endRR = Math.max(0, Math.min(100, startRR + delta));
+    } else {
+      startRR = 0;
+      endRR = Math.abs(delta);
+      showToast(`First ${logMode} log — confirm your real RR after the match`, 'error');
+    }
   }
 
   document.getElementById('quick-endrr').value = endRR;
@@ -871,8 +882,8 @@ async function submitGameLog(source = 'form') {
       showPostMatchCard(game, { estimated: isMmrEstimated(game) });
     }
     return true;
-  } catch {
-    showToast('Failed to save', 'error');
+  } catch (e) {
+    showToast(e?.message || 'Failed to save', 'error');
     return false;
   } finally {
     if (btn) {
@@ -1115,17 +1126,20 @@ async function init() {
     ensureBridgeServices();
     onAuthChange(async (session) => {
       if (session) {
-        if (!bootPromise) {
+        if (!initialBootDone && !bootPromise) {
           bootPromise = bootApp().finally(() => { bootPromise = null; });
         }
-        try {
-          await bootPromise;
-        } catch (e) {
-          console.error(e);
-          showToast(e?.message || 'Could not load after sign-in — try refreshing', 'error');
+        if (bootPromise) {
+          try {
+            await bootPromise;
+          } catch (e) {
+            console.error(e);
+            showToast(e?.message || 'Could not load after sign-in — try refreshing', 'error');
+          }
         }
       } else if (!hasPendingAuthHash()) {
         bootPromise = null;
+        initialBootDone = false;
         showLoggedOut();
       }
     });

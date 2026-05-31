@@ -363,6 +363,31 @@ async function fetchRecentHenrikMatches(size = RECENT_MATCHES_SIZE) {
   return body.data ?? [];
 }
 
+async function fetchMmrHistoryForMatch(matchId) {
+  if (!matchId) return null;
+  const { riotId, riotRegion } = getBridgeConfig();
+  const { name, tag } = splitRiotId(riotId);
+  const region = encodeURIComponent(riotRegion);
+  try {
+    const body = await henrikFetch(
+      `/valorant/v2/mmr-history/${region}/pc/${encodeURIComponent(name)}/${encodeURIComponent(tag)}?size=8`,
+    );
+    const rows = body.data ?? [];
+    return rows.find(r => String(r.match_id) === String(matchId)) ?? rows[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function attachRankData(parsed, matchId) {
+  if (!parsed?.isRanked || !matchId) return parsed;
+  const mmrRow = await fetchMmrHistoryForMatch(matchId);
+  if (!mmrRow) return parsed;
+  parsed.rrChange = mmrRow.mmr_change_to_last_game ?? null;
+  parsed.endRR = mmrRow.ranking_in_tier ?? null;
+  return parsed;
+}
+
 async function fetchLatestHenrikMatch() {
   const recent = await fetchRecentHenrikMatches(1);
   return recent[0] ?? null;
@@ -405,7 +430,7 @@ async function pollLatestMatch() {
       return;
     }
 
-    const parsed = parseHenrikMatch(latest, cfg.riotId);
+    let parsed = parseHenrikMatch(latest, cfg.riotId);
     if (!parsed || !isLoggableHenrikMatch(parsed)) {
       persistState();
       return;
@@ -416,6 +441,7 @@ async function pollLatestMatch() {
       return;
     }
 
+    parsed = await attachRankData(parsed, matchId);
     lastMatch = parsed;
     baselineGameStart = Math.max(baselineGameStart, parsed.gameStart || 0);
     lastError = null;

@@ -26,18 +26,26 @@ function setValorantLiveStatus(valStatus = null) {
   refreshBridgeStatusUI();
 }
 
-async function ensurePollingArmed() {
-  if (pollingArmSent) return;
-  if (state.activeGame !== GAME_IDS.VALORANT) return;
-  if (!isBridgeUp()) return;
-  if (document.visibilityState === 'hidden') return;
+export async function armValorantPolling() {
+  if (state.activeGame !== GAME_IDS.VALORANT) return false;
+  if (!isBridgeUp()) return false;
   try {
     const res = await fetch(`${getBridgeUrl()}/valorant/arm`, {
       method: 'POST',
       signal: AbortSignal.timeout(4000),
     });
     if (res.ok) pollingArmSent = true;
-  } catch { /* bridge may not support arm yet */ }
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function ensurePollingArmed() {
+  if (pollingArmSent) return;
+  if (state.activeGame !== GAME_IDS.VALORANT) return;
+  if (!isBridgeUp()) return;
+  await armValorantPolling();
 }
 
 async function poll() {
@@ -74,7 +82,6 @@ async function poll() {
     valStatus = await fetchJson('/valorant/status');
     setValorantLiveStatus(valStatus);
   } catch {
-    /* val status failed — bridge may still be up */
     refreshBridgeStatusUI();
     return;
   }
@@ -100,6 +107,8 @@ async function poll() {
       mode: last.mode,
       agent: last.agent,
       map: last.map,
+      rrChange: last.rrChange,
+      endRR: last.endRR,
     });
 
     if (!isAutoLogEnabled()) {
@@ -130,10 +139,16 @@ export function initValorantLive(applyStats, statusCb, autoLogCb) {
   onAutoLog = autoLogCb;
   stopValorantLive();
   pollingArmSent = false;
-  pollId = setInterval(poll, 8000);
+  pollId = setInterval(poll, 5000);
   poll();
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') ensurePollingArmed();
+    if (document.visibilityState === 'visible') {
+      ensurePollingArmed();
+      poll();
+    }
+  });
+  document.addEventListener('rl-session-start', () => {
+    if (state.activeGame === GAME_IDS.VALORANT) void armValorantPolling();
   });
 }
 

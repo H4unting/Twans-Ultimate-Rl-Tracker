@@ -167,17 +167,13 @@ export function restoreSessionFromStorage(games = getActiveGames()) {
     stored = loadStoredSession();
   }
 
-  // Never auto-go "Live" on page load — user must tap ▶ Start Session / Start Block
-  if (stored?.active) {
-    saveStoredSession({
-      active: false,
-      sessionNum: stored.sessionNum,
-      startTime: null,
-      startMMR: null,
-      nextSessionNum: stored.nextSessionNum ?? stored.sessionNum,
-      lastEndedSession: stored.lastEndedSession ?? 0,
+  if (stored?.active && stored.startTime && stored.sessionNum) {
+    activateSession(stored.sessionNum, {
+      startTime: stored.startTime,
+      startMMR: stored.startMMR ?? null,
+      silent: true,
     });
-    stored = loadStoredSession();
+    return;
   }
 
   const openNum = inferOpenSession(games, stored);

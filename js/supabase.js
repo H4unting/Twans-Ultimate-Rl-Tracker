@@ -198,6 +198,22 @@ export async function loadGames() {
   }
 }
 
+async function syncGameSliceLegacy(userId, gameId, slice) {
+  await sbFetch(`matches?user_id=eq.${userId}&game=eq.${gameId}`, 'DELETE');
+  if (!slice.length) return;
+  const rows = slice.map(g => gameToMatchRow(userId, g));
+  await sbFetch('matches', 'POST', rows, { Prefer: 'return=minimal' });
+}
+
+function isUpsertUnavailable(e) {
+  const msg = String(e?.message ?? e);
+  return msg.includes('on_conflict')
+    || msg.includes('42P10')
+    || msg.includes('matches_user_game_match_num_key')
+    || msg.includes('there is no unique')
+    || msg.includes('duplicate key');
+}
+
 async function syncGameSlice(userId, gameId, slice) {
   if (!slice.length) {
     await sbFetch(`matches?user_id=eq.${userId}&game=eq.${gameId}`, 'DELETE');
@@ -205,18 +221,27 @@ async function syncGameSlice(userId, gameId, slice) {
   }
 
   const rows = slice.map(g => gameToMatchRow(userId, g));
-  await sbFetch(
-    'matches?on_conflict=user_id,game,match_num',
-    'POST',
-    rows,
-    { Prefer: 'resolution=merge-duplicates,return=minimal' },
-  );
+  try {
+    await sbFetch(
+      'matches?on_conflict=user_id,game,match_num',
+      'POST',
+      rows,
+      { Prefer: 'resolution=merge-duplicates,return=minimal' },
+    );
 
-  const matchNums = [...new Set(slice.map(g => g.match))].join(',');
-  await sbFetch(
-    `matches?user_id=eq.${userId}&game=eq.${gameId}&match_num=not.in.(${matchNums})`,
-    'DELETE',
-  );
+    const matchNums = [...new Set(slice.map(g => g.match))].join(',');
+    await sbFetch(
+      `matches?user_id=eq.${userId}&game=eq.${gameId}&match_num=not.in.(${matchNums})`,
+      'DELETE',
+    );
+  } catch (e) {
+    if (isUpsertUnavailable(e)) {
+      console.warn('[supabase] upsert unavailable — falling back to replace save');
+      await syncGameSliceLegacy(userId, gameId, slice);
+      return;
+    }
+    throw e;
+  }
 }
 
 export async function saveGames(games, gameId = null) {
@@ -235,11 +260,6 @@ export async function saveGames(games, gameId = null) {
         if (isMissingColumnError(e) || msg.includes('"game"') || msg.includes('game')) {
           throw new Error(
             'Multi-game database column missing — run docs/supabase/multi-game.sql in Supabase before clearing or saving per-game data.',
-          );
-        }
-        if (msg.includes('matches_user_game_match_num_key') || msg.includes('on_conflict') || msg.includes('42P10')) {
-          throw new Error(
-            'Match upsert index missing — run docs/supabase/sync-matches.sql (or multi-game.sql) in Supabase SQL Editor.',
           );
         }
         throw e;
