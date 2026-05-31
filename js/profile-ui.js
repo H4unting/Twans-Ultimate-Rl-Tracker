@@ -121,14 +121,20 @@ export function renderProfilePage({
             <div class="profile-hero-title">
               <h1 class="profile-display-name" id="profile-display-heading">${escapeHtml(display.name)}</h1>
               <p class="profile-level-hint profile-level-hint-inline">${stats.totalGames} ${isVal ? 'matches' : 'games'} logged · Level ${level}</p>
+              <div class="profile-meta">
+                <div class="profile-subline">
+                  ${uidLabel ? `<span class="profile-uid-tag">${escapeHtml(uidLabel)}</span><span class="profile-dot">·</span>` : ''}
+                  ${identityTag}
+                  <span class="profile-dot">·</span>
+                  <span>${formatMemberSince(profile?.created_at)}</span>
+                </div>
+                ${bio ? `<p class="profile-bio" id="profile-bio-display">${escapeHtml(bio)}</p>` : '<p class="profile-bio profile-bio-empty hidden" id="profile-bio-display"></p>'}
+              </div>
             </div>
           </div>
 
-          <details class="profile-edit-island" id="profile-edit-island">
-            <summary class="profile-edit-island-summary">
-              <span class="profile-edit-island-title">Edit profile</span>
-              <span class="profile-edit-island-sub">Display name, photo, colors, bio</span>
-            </summary>
+          <details class="profile-edit-dropdown" id="profile-edit-island">
+            <summary class="profile-edit-trigger"><span>Edit profile</span></summary>
             <div class="profile-edit-form">
               <div class="profile-edit-grid">
                 <div class="form-group">
@@ -177,16 +183,6 @@ export function renderProfilePage({
               </div>
             </div>
           </details>
-
-          <div class="profile-meta">
-            <div class="profile-subline">
-              ${uidLabel ? `<span class="profile-uid-tag">${escapeHtml(uidLabel)}</span><span class="profile-dot">·</span>` : ''}
-              ${identityTag}
-              <span class="profile-dot">·</span>
-              <span>${formatMemberSince(profile?.created_at)}</span>
-            </div>
-            ${bio ? `<p class="profile-bio" id="profile-bio-display">${escapeHtml(bio)}</p>` : '<p class="profile-bio profile-bio-empty hidden" id="profile-bio-display"></p>'}
-          </div>
         </div>
       </div>
 

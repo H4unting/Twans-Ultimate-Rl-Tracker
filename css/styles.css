@@ -2085,8 +2085,8 @@ body[data-active-game="rocket_league"] .setup-game-panel-rl { box-shadow: 0 0 20
 .profile-hero-inner {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 0 20px 20px;
+  gap: 12px;
+  padding: 0 20px 18px;
   margin-top: -36px;
 }
 .profile-hero-head {
@@ -2095,8 +2095,15 @@ body[data-active-game="rocket_league"] .setup-game-panel-rl { box-shadow: 0 0 20
   gap: 16px;
   flex-wrap: wrap;
 }
-.profile-hero-title { min-width: 0; padding-bottom: 4px; flex: 1; }
-.profile-level-hint-inline { margin: 4px 0 0; }
+.profile-hero-title { min-width: 0; padding-bottom: 2px; flex: 1; }
+.profile-level-hint-inline { margin: 4px 0 0; font-size: 12px; }
+.profile-hero-title .profile-meta {
+  margin-top: 10px;
+  padding-top: 0;
+  border-top: none;
+}
+.profile-hero-title .profile-subline { font-size: 12px; gap: 5px; }
+.profile-hero-title .profile-bio { margin: 5px 0 0; font-size: 13px; }
 .profile-avatar-change {
   display: block;
   margin-top: 6px;
@@ -2108,6 +2115,49 @@ body[data-active-game="rocket_league"] .setup-game-panel-rl { box-shadow: 0 0 20
   opacity: 0.9;
 }
 .profile-avatar-change:hover { opacity: 1; text-decoration: underline; }
+.profile-edit-dropdown {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+.profile-edit-dropdown[open] {
+  background: #0d111799;
+  border: 1px solid #ffffff18;
+  border-radius: var(--radius);
+  padding: 0 16px 14px;
+  backdrop-filter: blur(8px);
+}
+.profile-edit-trigger {
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 0;
+  cursor: pointer;
+  user-select: none;
+  width: fit-content;
+}
+.profile-edit-trigger::-webkit-details-marker { display: none; }
+.profile-edit-trigger span {
+  color: var(--teal);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.profile-edit-trigger:hover span { text-decoration: underline; }
+.profile-edit-trigger::after {
+  content: '▾';
+  font-size: 9px;
+  color: var(--teal);
+  opacity: 0.85;
+  transition: transform 0.15s ease;
+}
+.profile-edit-dropdown:not([open]) .profile-edit-trigger::after {
+  transform: rotate(-90deg);
+}
+.profile-edit-dropdown .profile-edit-form { padding-top: 10px; }
+.profile-edit-dropdown:not([open]) .profile-edit-form { display: none; }
 .profile-edit-island {
   background: #0d111799;
   border: 1px solid #ffffff18;
@@ -2153,8 +2203,7 @@ body[data-active-game="rocket_league"] .setup-game-panel-rl { box-shadow: 0 0 20
 }
 .profile-edit-island-head strong { color: var(--teal); font-size: 14px; }
 .profile-meta {
-  padding-top: 4px;
-  border-top: 1px solid #ffffff12;
+  padding-top: 0;
 }
 .profile-uid-readonly,
 .profile-url-readonly {
@@ -2199,10 +2248,10 @@ body[data-active-game="rocket_league"] .setup-game-panel-rl { box-shadow: 0 0 20
 }
 .profile-identity { min-width: 0; padding-bottom: 4px; align-self: center; }
 .profile-display-name {
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 700;
   color: #fff;
-  margin: 0 0 6px;
+  margin: 0 0 4px;
   line-height: 1.15;
 }
 .profile-subline {
