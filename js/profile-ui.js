@@ -8,6 +8,7 @@ import { showToast } from './ui.js';
 import { formatApiError } from './supabase.js';
 import { GAME_IDS, getGameMeta } from './games.js';
 import { state } from './state.js';
+import { DESKTOP_APP } from './config.js';
 
 function escapeHtml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -171,7 +172,7 @@ export function renderProfilePage({
             <div class="form-group${isVal ? '' : ' hidden'}">
               <label for="profile-riot-input">Riot ID</label>
               <input type="text" id="profile-riot-input" value="${escapeAttr(riotId)}" maxlength="48" spellcheck="false" placeholder="Name#TAG">
-              <span class="form-hint">Used for Valorant bridge auto-log — set in Bridge Setup too.</span>
+              <span class="form-hint">Used for Valorant auto-log — also set in Auto-Log Setup.</span>
             </div>
             <div class="form-group form-span-2 profile-colors-group">
               <label>Profile colors</label>

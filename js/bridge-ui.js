@@ -1,10 +1,11 @@
-/** Unified bridge status pill + hint banner for RL and Valorant */
+/** Unified auto-log status pill + hint banner for RL and Valorant */
 
 import { state } from './state.js';
 import { GAME_IDS, getGameMeta } from './games.js';
 import { isBridgeUp } from './bridge-client.js';
 import { isAutoLogEnabled, loadPrefs } from './quicklog.js';
-import { setBridgeHintVisible } from './env.js';
+import { setBridgeHintVisible, needsLocalTrackerForAutoLog, getLocalTrackerUrl } from './env.js';
+import { DESKTOP_APP } from './config.js';
 
 let cachedValStatus = null;
 let cachedRlInMatch = false;
@@ -31,12 +32,16 @@ export function refreshBridgeStatusUI() {
   el.dataset.bridgeState = up ? 'online' : 'offline';
 
   if (!up) {
-    el.textContent = 'Auto stats off';
-    el.title = isVal
-      ? 'Click to open Bridge Setup — run Twans-Tracker-Bridge.exe and set Riot ID + API key'
-      : 'Click to open Setup — run Twans-Tracker-Bridge.exe and set your RL name';
+    el.textContent = 'Auto-log off';
+    if (needsLocalTrackerForAutoLog()) {
+      el.title = `Auto-log only works on this PC — open ${getLocalTrackerUrl()} while ${DESKTOP_APP.exe} is running`;
+    } else {
+      el.title = isVal
+        ? `Click for setup — run ${DESKTOP_APP.exe} on this PC and add Riot ID + API key`
+        : `Click for setup — run ${DESKTOP_APP.exe} on this PC and set your RL name`;
+    }
     setBridgeHintVisible(!loggedOut);
-    updateBridgeBanner(isVal, false);
+    updateDesktopAppBanner(isVal, false);
     return;
   }
 
@@ -48,7 +53,7 @@ export function refreshBridgeStatusUI() {
   } else {
     renderRocketLeaguePill(el, cachedRlInMatch, meta);
   }
-  updateBridgeBanner(isVal, true, cachedValStatus);
+  updateDesktopAppBanner(isVal, true, cachedValStatus);
 }
 
 function renderValorantPill(el, valStatus, meta) {
@@ -56,8 +61,8 @@ function renderValorantPill(el, valStatus, meta) {
 
   if (!valStatus?.configured) {
     const prefs = loadPrefs();
-    el.textContent = prefs.riotId ? '● Apply in Setup' : '● Setup Riot ID';
-    el.title = 'Riot ID + API key missing — click to open Bridge Setup → Apply & Go';
+    el.textContent = prefs.riotId ? '● Needs Apply' : '● Setup Riot ID';
+    el.title = 'Riot ID + API key missing — click to open Auto-Log Setup → Apply & Go';
     el.classList.add('bridge-needs-setup');
     el.dataset.bridgeState = 'needs-setup';
     return;
@@ -65,7 +70,7 @@ function renderValorantPill(el, valStatus, meta) {
 
   if (valStatus.lastError) {
     el.textContent = '● Riot API error';
-    el.title = `${valStatus.lastError} — click to check Bridge Setup`;
+    el.title = `${valStatus.lastError} — click to check Auto-Log Setup`;
     el.classList.add('bridge-error');
     el.dataset.bridgeState = 'error';
     return;
@@ -73,7 +78,7 @@ function renderValorantPill(el, valStatus, meta) {
 
   if (!valStatus.seeded) {
     el.textContent = '● Syncing…';
-    el.title = 'Bridge linked your account — play one match to seed, then the next auto-logs';
+    el.title = `${DESKTOP_APP.name} is linked — play one match to finish setup, then the next auto-logs`;
     el.dataset.bridgeState = 'syncing';
     return;
   }
@@ -89,7 +94,7 @@ function renderValorantPill(el, valStatus, meta) {
     el.title = 'Riot API connected — launch Valorant and your next match will auto-log';
   } else {
     el.textContent = '● Connected';
-    el.title = 'Riot API connected — enable auto-log in the dock or log manually';
+    el.title = `${DESKTOP_APP.name} is running — enable auto-log in the dock or log manually`;
   }
   el.dataset.bridgeState = 'ready';
 }
@@ -105,12 +110,12 @@ function renderRocketLeaguePill(el, inMatch, meta) {
     el.title = 'Games log automatically when a match ends';
   } else {
     el.textContent = '● Stats ready';
-    el.title = 'Stats fill in from the game — you tap LOG';
+    el.title = `${DESKTOP_APP.name} is running — stats fill in; you tap LOG`;
   }
   el.dataset.bridgeState = inMatch ? 'in-match' : 'ready';
 }
 
-function updateBridgeBanner(isVal, bridgeUp, valStatus) {
+function updateDesktopAppBanner(isVal, appUp, valStatus) {
   const banner = document.getElementById('bridge-hint-banner');
   if (!banner) return;
 
@@ -118,25 +123,42 @@ function updateBridgeBanner(isVal, bridgeUp, valStatus) {
   const p = banner.querySelector('p');
   if (!badge || !p) return;
 
-  if (bridgeUp && isVal && valStatus && !valStatus.configured) {
+  if (!appUp && needsLocalTrackerForAutoLog()) {
     banner.classList.remove('hidden');
-    badge.textContent = 'Valorant setup needed';
-    p.innerHTML = 'Bridge is running but Riot ID / API key are not applied yet. '
-      + '<button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Bridge Setup →</button>';
+    badge.textContent = 'Use local tracker';
+    p.innerHTML = `Auto-log can't connect from this bookmark. On your gaming PC, open `
+      + `<a href="${getLocalTrackerUrl()}" class="btn-link">${getLocalTrackerUrl()}</a> `
+      + `with <code>${DESKTOP_APP.exe}</code> running (same stats — sign in once).`;
     return;
   }
 
-  if (bridgeUp && isVal && valStatus?.lastError) {
+  if (!appUp) {
+    banner.classList.remove('hidden');
+    badge.textContent = 'Auto-log off';
+    p.innerHTML = `Run <code>${DESKTOP_APP.exe}</code> on this PC while playing. `
+      + '<button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>';
+    return;
+  }
+
+  if (appUp && isVal && valStatus && !valStatus.configured) {
+    banner.classList.remove('hidden');
+    badge.textContent = 'Setup needed';
+    p.innerHTML = `${DESKTOP_APP.name} is running but Riot ID / API key are not applied yet. `
+      + '<button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>';
+    return;
+  }
+
+  if (appUp && isVal && valStatus?.lastError) {
     banner.classList.remove('hidden');
     badge.textContent = 'Riot API error';
     p.textContent = valStatus.lastError;
     return;
   }
 
-  if (bridgeUp && isVal && valStatus?.configured && !valStatus.seeded) {
+  if (appUp && isVal && valStatus?.configured && !valStatus.seeded) {
     banner.classList.remove('hidden');
     badge.textContent = 'Almost ready';
-    p.textContent = 'Bridge connected — play one match to sync. The next finished match will auto-log.';
+    p.textContent = `${DESKTOP_APP.name} is connected — play one match to sync. The next finished match will auto-log.`;
     return;
   }
 }

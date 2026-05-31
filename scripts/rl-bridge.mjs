@@ -218,6 +218,14 @@ export function startBridge(options = {}) {
     }
   }
 
+  let lastRlRetryLogAt = 0;
+  const logRlRetry = (msg) => {
+    const now = Date.now();
+    if (now - lastRlRetryLogAt < 30000) return;
+    lastRlRetryLogAt = now;
+    console.log(msg);
+  };
+
   function connectRL() {
     const socket = net.connect(RL_PORT, '127.0.0.1');
     socket.setEncoding('utf8');
@@ -234,13 +242,14 @@ export function startBridge(options = {}) {
     socket.on('close', () => {
       rlConnected = false;
       inMatch = false;
-      console.log('RL connection closed — retrying in 3s…');
+      logRlRetry('RL connection closed — retrying in 3s… (RL not running or Stats API off)');
       setTimeout(connectRL, 3000);
     });
 
     socket.on('error', () => {
       rlConnected = false;
       socket.destroy();
+      logRlRetry('RL Stats API unavailable — retrying in 3s…');
       setTimeout(connectRL, 3000);
     });
   }
@@ -249,6 +258,7 @@ export function startBridge(options = {}) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Private-Network', 'true');
     if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
     try {

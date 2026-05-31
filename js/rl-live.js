@@ -6,6 +6,7 @@ import { state } from './state.js';
 import { GAME_IDS } from './games.js';
 import { setBridgeOnline, isBridgeUp } from './bridge-client.js';
 import { setCachedRlInMatch, refreshBridgeStatusUI } from './bridge-ui.js';
+import { DESKTOP_APP } from './config.js';
 
 const BRIDGE = 'http://127.0.0.1:49200';
 let pollId = null;
@@ -50,12 +51,13 @@ async function pollBridge() {
   if (online !== wasBridgeUp) {
     wasBridgeUp = online;
     if (!online && state.activeGame === GAME_IDS.ROCKET_LEAGUE) {
-      showToast('Game bridge disconnected', 'error');
+      showToast(`${DESKTOP_APP.name} disconnected`, 'error');
     }
     callbacks.onStatusChange?.();
   }
 
   if (state.activeGame !== GAME_IDS.ROCKET_LEAGUE) {
+    refreshBridgeStatusUI();
     return;
   }
 

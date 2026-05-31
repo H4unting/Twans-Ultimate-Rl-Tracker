@@ -5,6 +5,8 @@ import { GAMES, GAME_IDS, getGameMeta, getTagGroups, getPlaylists, getAgents, ge
 import { saveSettings } from './supabase.js';
 import { savePrefs, loadPrefs, refreshQuickTagsOnGameSwitch, getLastModeForGame, rerenderQuickTags } from './quicklog.js';
 import { refreshBridgeStatusUI } from './bridge-ui.js';
+import { DESKTOP_APP, LOCAL_TRACKER_URL } from './config.js';
+import { needsLocalTrackerForAutoLog } from './env.js';
 import { refreshValorantStatus } from './valorant-live.js';
 import { updateNavUI } from './nav.js';
 import { restoreSessionFromStorage, refreshSessionUI } from './sessions.js';
@@ -90,16 +92,24 @@ export function applyGameShell(gameId = state.activeGame) {
 
   const bridgeStatus = document.getElementById('live-bridge-status');
   if (bridgeStatus) {
-    bridgeStatus.title = `Automatic stats from ${meta.bridgeLabel}`;
+    bridgeStatus.title = `${DESKTOP_APP.name} — automatic stats from ${meta.bridgeLabel}`;
   }
 
   const banner = document.getElementById('bridge-hint-banner');
   if (banner) {
+    const badge = banner.querySelector('.bridge-hint-badge');
+    if (badge) badge.textContent = needsLocalTrackerForAutoLog() ? 'Use local tracker' : 'Auto-log off';
     const p = banner.querySelector('p');
     if (p) {
-      p.innerHTML = gameId === GAME_IDS.VALORANT
-        ? 'Run <code>Twans-Tracker-Bridge.exe</code> on this PC while playing for Valorant auto-log. Set Riot ID in <button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Setup guide →</button>'
-        : 'Run <code>Twans-Tracker-Bridge.exe</code> on this PC while playing for auto-log from Rocket League. <button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Setup guide →</button>';
+      if (needsLocalTrackerForAutoLog()) {
+        p.innerHTML = `Auto-log can't connect from this bookmark. On your gaming PC open `
+          + `<a href="${LOCAL_TRACKER_URL}" class="btn-link">${LOCAL_TRACKER_URL}</a> `
+          + `with <code>${DESKTOP_APP.exe}</code> running.`;
+      } else {
+        p.innerHTML = gameId === GAME_IDS.VALORANT
+          ? `Run <code>${DESKTOP_APP.exe}</code> on this PC while playing for Valorant auto-log. Set Riot ID in <button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>`
+          : `Run <code>${DESKTOP_APP.exe}</code> on this PC while playing for Rocket League auto-log. <button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>`;
+      }
     }
   }
 

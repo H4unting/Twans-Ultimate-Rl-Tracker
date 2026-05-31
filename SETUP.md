@@ -1,6 +1,6 @@
 # Twans Ultimate Tracker — Setup
 
-One app everywhere. Sign in with **Google or email** — log games, view stats, and manage squads from **any device**. Auto-log from Rocket League when `start-grind.bat` is running on your gaming PC.
+One app everywhere. Sign in with **Google or email** — log games, view stats, and manage squads from **any device**. Auto-log from Rocket League when **Twans Auto-Log** or `start-grind.bat` is running on your gaming PC.
 
 ## 1. Download the full repo
 
@@ -27,7 +27,7 @@ node --version
 
 Open `start-grind.bat` and set `RLNAME` to match your Rocket League display name **exactly** (case-sensitive).
 
-The in-app setup wizard also saves your name — **restart `start-grind.bat`** after changing it so the bridge picks it up.
+The in-app setup wizard also saves your name — **restart `start-grind.bat`** after changing it so auto-log picks it up.
 
 ## 5. Sign-in & Supabase (first time)
 
@@ -47,10 +47,10 @@ The in-app setup wizard also saves your name — **restart `start-grind.bat`** a
 
 ## 6. Daily use
 
-**Recommended — tray launcher (no black window):**
+**Recommended — tray app (no black window):**
 
-1. One-time: open `launcher\build-bridge.bat` to build `Twans-Tracker-Bridge.exe` in the tracker folder.
-2. Before you queue: double-click **`Twans-Tracker-Bridge.exe`**.
+1. One-time: open `launcher\build-bridge.bat` to build **`Twans Auto-Log.exe`** in the tracker folder.
+2. Before you queue: double-click **`Twans Auto-Log.exe`**.
 3. A tray icon appears (orange = waiting for RL, green = connected). Right-click for **Open tracker** or **Quit**.
 4. Optional: edit `bridge-launcher.json` for your tracker URL and whether to open the browser on start.
 
@@ -58,9 +58,9 @@ The in-app setup wizard also saves your name — **restart `start-grind.bat`** a
 
 Double-click `start-grind.bat` before you queue. Edit `TRACKER_URL` in that file (or use `bridge-launcher.json` with the tray app).
 
-| What the bridge does |
-|----------------------|
-| Starts the RL stats bridge (auto-log from matches) |
+| What Twans Auto-Log does |
+|--------------------------|
+| Reads RL / Valorant stats on your PC and auto-logs matches |
 | Opens your tracker URL in the browser (bat only; tray uses menu or `openTrackerOnStart`) |
 | Keep it running while you play |
 
@@ -71,22 +71,22 @@ Use `http://localhost:8080` as the tracker URL only if you want the local copy f
 | Service | When |
 |---------|------|
 | Your tracker URL | GitHub Pages bookmark (or localhost if you changed it) |
-| Stats bridge | `Twans-Tracker-Bridge.exe` or `start-grind.bat` on gaming PC |
+| Auto-log app | **`Twans Auto-Log.exe`** or `start-grind.bat` on gaming PC |
 | Rocket League API | TCP :49123 (BakkesMod) |
 
 ## 7. After each game
 
-When a match ends (with bridge connected):
+When a match ends (with auto-log running):
 
 1. **Auto-log** saves W/L, mode, G/A/S, and estimated MMR.
 2. The **post-match card** appears — **type your real MMR** from the ranked screen when estimated.
 3. Tap **quick tags** if something went wrong.
 4. **Undo log** if the game was logged by mistake.
 
-**Without bridge:** use the dock manually — W/L, G/A/S, End MMR, LOG.
+**Without auto-log:** use the dock manually — W/L, G/A/S, End MMR, LOG.
 
 **Dock toggles:**
-- **Auto-log** — save games automatically on match end (needs bridge)
+- **Auto-log** — save games automatically on match end (needs **Twans Auto-Log** running)
 - **🔔** — sound on auto-log
 
 ## 8. What's the same everywhere
@@ -97,16 +97,16 @@ Once signed in, you get the **same app** on GitHub Pages and localhost:
 - Sessions, post-match card, squads, goals, reports
 - Data syncs via Supabase
 
-**Only difference:** auto-stats from Rocket League need the bridge running on the PC where you're playing (`Twans-Tracker-Bridge.exe` or `start-grind.bat`).
+**Only difference:** automatic stats need **Twans Auto-Log** (or `start-grind.bat`) running on the PC where you're playing.
 
 ## Troubleshooting
 
 | Problem | Fix |
 |---------|-----|
 | `MODULE_NOT_FOUND` for scripts | Download the full repo ZIP, not just the bat file |
-| Auto stats off | Run `Twans-Tracker-Bridge.exe` or `start-grind.bat`, keep RL open, check BakkesMod Stats API |
-| Wrong player stats | Use **Apply & Go** in tracker setup, or set `RLNAME` in `start-grind.bat`, then restart bridge |
-| Bridge build | Run `launcher\build-bridge.bat` once (needs Node.js) |
+| Auto-log off in dock | Run **`Twans Auto-Log.exe`** or `start-grind.bat`, keep RL open, check BakkesMod Stats API |
+| Wrong player stats | Use **Apply & Go** in Auto-Log Setup, or set `RLNAME` in `start-grind.bat`, then restart auto-log |
+| Build the tray app | Run `launcher\build-bridge.bat` once (needs Node.js) |
 | Port already in use | Close old terminal windows / restart the bat file |
 | Can't save games | Sign in with Google first |
 | Session resets | Update to latest code — sessions persist in localStorage |
@@ -116,7 +116,7 @@ Once signed in, you get the **same app** on GitHub Pages and localhost:
 
 - [ ] Sign in on your bookmarked URL
 - [ ] `TRACKER_URL` in `start-grind.bat` matches your GitHub Pages URL
-- [ ] `Twans-Tracker-Bridge.exe` or `start-grind.bat` → bridge connected (green in dock)
+- [ ] **`Twans Auto-Log.exe`** or `start-grind.bat` → dock shows connected (green pill)
 - [ ] Start session → play a game → post-match card
 - [ ] Refresh — same session # and stats
 - [ ] Open on phone — same games visible

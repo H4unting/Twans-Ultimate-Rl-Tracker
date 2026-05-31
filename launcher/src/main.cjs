@@ -1,6 +1,6 @@
 /**
- * Twans Tracker Bridge — Windows tray launcher
- * Bridge scripts are bundled inside the app; config lives next to the exe.
+ * Twans Auto-Log — Windows tray app
+ * Stats scripts are bundled inside the app; config lives next to the exe.
  */
 
 const {
@@ -13,7 +13,7 @@ const http = require('http');
 
 const APP_VERSION = '1.1.0';
 const BRIDGE_STATUS_URL = 'http://127.0.0.1:49200/status';
-const DEFAULT_TRACKER_URL = 'https://h4unting.github.io/Twans-Ultimate-Rl-Tracker/';
+const DEFAULT_TRACKER_URL = 'http://localhost:8080';
 
 let tray = null;
 let bridgeProc = null;
@@ -118,6 +118,13 @@ function findNodeExecutable(dataRoot) {
 function appendBridgeLog(dataRoot, chunk) {
   if (!dataRoot) return;
   const logPath = path.join(dataRoot, 'bridge.log');
+  try {
+    if (fs.existsSync(logPath) && fs.statSync(logPath).size > 2_000_000) {
+      fs.writeFileSync(logPath, `[log rotated ${new Date().toISOString()}]\n`);
+    }
+  } catch {
+    /* ignore rotation errors */
+  }
   fs.appendFile(logPath, chunk, () => {});
 }
 
@@ -167,9 +174,9 @@ function fetchBridgeStatus() {
 
 function statusLine() {
   if (bridgeState.error) return bridgeState.error;
-  if (!bridgeState.running) return 'Bridge starting…';
-  if (bridgeState.rlConnected) return 'RL connected — auto-stats on';
-  return 'Bridge running — waiting for Rocket League';
+  if (!bridgeState.running) return 'Starting…';
+  if (bridgeState.rlConnected) return 'RL connected — auto-log on';
+  return 'Running — waiting for Rocket League';
 }
 
 function buildMenu() {
@@ -178,7 +185,7 @@ function buildMenu() {
     : 'Player: set name in tracker setup';
 
   return Menu.buildFromTemplate([
-    { label: `Twans Tracker Bridge v${APP_VERSION}`, enabled: false },
+    { label: `Twans Auto-Log v${APP_VERSION}`, enabled: false },
     { label: statusLine(), enabled: false },
     { label: player, enabled: false },
     { type: 'separator' },
@@ -187,7 +194,7 @@ function buildMenu() {
       click: () => shell.openExternal(launcherConfig.trackerUrl),
     },
     {
-      label: 'Restart bridge',
+      label: 'Restart auto-log',
       click: () => {
         stopBridge();
         startBridge(app.dataRoot, app.scriptsDir, app.nodePath);
@@ -204,7 +211,7 @@ function buildMenu() {
 function refreshTray() {
   if (!tray) return;
   tray.setImage(createTrayIcon(bridgeState.rlConnected));
-  tray.setToolTip(`Twans Tracker Bridge — ${statusLine()}`);
+  tray.setToolTip(`Twans Auto-Log — ${statusLine()}`);
   tray.setContextMenu(buildMenu());
 }
 
@@ -263,7 +270,7 @@ function startBridge(dataRoot, scriptsDir, nodePath) {
 
   bridgeProc.on('exit', (code) => {
     if (code && code !== 0) {
-      bridgeState.error = `Bridge exited (${code}) — see bridge.log`;
+      bridgeState.error = `Auto-log exited (${code}) — see bridge.log`;
     }
     bridgeProc = null;
     bridgeState.running = false;
@@ -277,7 +284,7 @@ function startBridge(dataRoot, scriptsDir, nodePath) {
 }
 
 function showSetupError(message) {
-  dialog.showErrorBox(`Twans Tracker Bridge v${APP_VERSION}`, message);
+  dialog.showErrorBox(`Twans Auto-Log v${APP_VERSION}`, message);
 }
 
 app.whenReady().then(() => {
@@ -286,8 +293,8 @@ app.whenReady().then(() => {
 
   if (!scriptsDir) {
     showSetupError(
-      'Bridge scripts are missing from this build.\n\n'
-      + 'Run launcher\\build-bridge.bat again to rebuild the exe.',
+      'Stats scripts are missing from this build.\n\n'
+      + 'Run launcher\\build-bridge.bat again to rebuild Twans Auto-Log.exe.',
     );
     app.quit();
     return;
@@ -296,7 +303,7 @@ app.whenReady().then(() => {
   const nodePath = findNodeExecutable(dataRoot);
   if (!nodePath) {
     showSetupError(
-      'Node.js is required to run the RL bridge.\n\n'
+      'Node.js is required to run auto-log.\n\n'
       + 'Install Node.js LTS from https://nodejs.org\n'
       + 'Or use start-grind.bat until Node is installed.',
     );
@@ -310,7 +317,7 @@ app.whenReady().then(() => {
   loadLauncherConfig(dataRoot);
 
   tray = new Tray(createTrayIcon(false));
-  tray.setToolTip('Twans Tracker Bridge');
+  tray.setToolTip('Twans Auto-Log');
   tray.on('double-click', () => shell.openExternal(launcherConfig.trackerUrl));
   refreshTray();
 

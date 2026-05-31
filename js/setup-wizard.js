@@ -7,6 +7,7 @@ import { getUserDisplay, state } from './state.js';
 import { GAME_IDS } from './games.js';
 import { showToast } from './ui.js';
 import { refreshBridgeStatusUI } from './bridge-ui.js';
+import { DESKTOP_APP } from './config.js';
 
 const SETUP_KEY = 'rl-grind-setup';
 
@@ -25,9 +26,9 @@ export function renderLogSetupNudge() {
   el.innerHTML = `
     <div class="log-setup-nudge-inner">
       <span class="log-setup-nudge-text">${isVal
-        ? 'Want Valorant auto-log? Run the bridge and set Riot ID + API key.'
-        : 'Want auto-log from Rocket League?'}</span>
-      <button type="button" class="btn-link" id="log-setup-nudge-link">Open setup guide →</button>
+        ? `Want Valorant auto-log? Run ${DESKTOP_APP.exe} and set Riot ID + API key.`
+        : `Want auto-log from Rocket League? Run ${DESKTOP_APP.exe} on this PC.`}</span>
+      <button type="button" class="btn-link" id="log-setup-nudge-link">Auto-Log Setup →</button>
     </div>`;
   document.getElementById('log-setup-nudge-link')?.addEventListener('click', () => {
     window.__navigate?.('setup', 'home');
@@ -84,7 +85,7 @@ export function renderSetupWizard(displayName = '') {
     el.innerHTML = `
       <div class="setup-wizard setup-ready">
         <div class="setup-callout setup-callout-success">
-          <strong>Bridge connected.</strong>
+          <strong>${DESKTOP_APP.name} is running.</strong>
           ${isVal
     ? 'Enter Riot ID + API key below, then Apply &amp; Go — no Rocket League setup needed.'
     : 'Rocket League auto-log is ready. Expand setup for Valorant or RL name changes.'}
@@ -110,7 +111,7 @@ export function renderSetupWizard(displayName = '') {
         <span class="setup-banner-icon">👇</span>
         <div>
           <strong>One-time setup on your PC</strong>
-          <p>Enter your name, run <code>Twans-Tracker-Bridge.exe</code>, then click <strong>Apply &amp; Go</strong>.</p>
+          <p>Enter your name, run <code>${DESKTOP_APP.exe}</code>, then click <strong>Apply &amp; Go</strong>.</p>
         </div>
       </div>`}
       <div class="setup-wizard-head">
@@ -119,21 +120,21 @@ export function renderSetupWizard(displayName = '') {
           <h3>${allReady ? 'You\'re ready to grind' : 'Auto stats setup'}</h3>
           <p class="setup-desc">${allReady
     ? (isVal
-      ? 'Bridge is connected. Set your Riot ID below and Apply — then play with auto-log ON.'
+      ? `${DESKTOP_APP.name} is running. Set your Riot ID below and Apply — then play with auto-log ON.`
       : 'Play a match — G/A/S fill in automatically. You only pick W/L and type your End MMR.')
     : (isVal
-      ? 'Enter Riot ID + API key, start the bridge, then hit Apply & Go.'
-      : 'Enter your RL name, start the bridge, then hit Apply & Go — no manual file editing.')}</p>
-        </div>
+      ? `Enter Riot ID + API key, start ${DESKTOP_APP.exe}, then hit Apply & Go.`
+      : `Enter your RL name, start ${DESKTOP_APP.exe}, then hit Apply & Go — no manual file editing.`)}
+          </p>
         ${allReady ? `<button type="button" class="setup-dismiss" id="setup-dismiss">Got it</button>` : ''}
       </div>
       ${allReady ? `
       <div class="setup-callout setup-callout-success">
-        <strong>While you play:</strong> keep <code>Twans-Tracker-Bridge.exe</code> running in the system tray.
+        <strong>While you play:</strong> keep <code>${DESKTOP_APP.exe}</code> running in the system tray (look for the tray icon).
       </div>
       <div class="setup-callout setup-callout-workflow">
         <strong>After each ${isVal ? 'match' : 'game'}:</strong> ${isVal
-    ? 'K/D/A fill from the bridge → confirm <strong>End RR</strong> on the card → tap tags → <span class="setup-log-chip">LOG</span> (or turn on auto-log in the dock)'
+    ? 'K/D/A fill automatically → confirm <strong>End RR</strong> on the card → tap tags → <span class="setup-log-chip">LOG</span> (or turn on auto-log in the dock)'
     : `tap <span class="setup-log-chip">W</span> or <span class="setup-log-chip setup-log-chip-loss">L</span>
         → check G/A/S → pick mode → tap tags if needed → enter <strong>End MMR</strong> → hit <span class="setup-log-chip">LOG</span>`}
       </div>` : ''}
@@ -147,10 +148,10 @@ export function renderSetupWizard(displayName = '') {
         <li class="setup-step${allReady ? ' hidden' : ''}${bridge ? ' done' : ''}" data-step="bridge">
           <span class="setup-step-num">2</span>
           <div class="setup-step-body">
-            <strong>Start the bridge</strong>
-            <p>Double-click <code>Twans-Tracker-Bridge.exe</code> in your tracker folder (keep it running):</p>
-            <pre class="setup-code setup-code-highlight" id="setup-bridge-cmd">Twans-Tracker-Bridge.exe</pre>
-            <span class="setup-status-pill${bridge ? ' ok' : ''}" id="setup-bridge-pill">${bridge ? '● Bridge connected — ready for Apply & Go' : '○ Waiting for Twans-Tracker-Bridge.exe…'}</span>
+            <strong>Run ${DESKTOP_APP.name}</strong>
+            <p>Double-click <code>${DESKTOP_APP.exe}</code> in your tracker folder (small tray app — keep it running while you play):</p>
+            <pre class="setup-code setup-code-highlight" id="setup-bridge-cmd">${DESKTOP_APP.exe}</pre>
+            <span class="setup-status-pill${bridge ? ' ok' : ''}" id="setup-bridge-pill">${bridge ? `● ${DESKTOP_APP.name} is running — ready for Apply & Go` : `○ Waiting for ${DESKTOP_APP.exe}…`}</span>
           </div>
         </li>
         <li class="setup-step${allReady ? ' hidden' : ''}" data-step="apply">
@@ -290,7 +291,7 @@ function wireSetupApplyGo() {
     }
 
     if (!isBridgeUp()) {
-      showToast('Run Twans-Tracker-Bridge.exe first, then click Apply & Go', 'error');
+      showToast(`Run ${DESKTOP_APP.exe} first, then click Apply & Go`, 'error');
       return;
     }
 
@@ -317,7 +318,7 @@ function wireSetupApplyGo() {
           ? [
             result.files?.grindConfig ? '✓ Saved Riot ID + API key in grind-config.json' : null,
             riotId ? `✓ Linked Riot account: ${riotId}` : null,
-            '↻ Play one match to seed the bridge — your next finished match can auto-log',
+            '↻ Play one match to sync — your next finished match can auto-log',
             ...(result.warnings ?? []).map(w => `⚠ ${w}`),
           ]
           : [
@@ -334,13 +335,13 @@ function wireSetupApplyGo() {
       if (name && !isVal) document.querySelector('.setup-step[data-step="name"]')?.classList.add('done');
       document.querySelector('.setup-step[data-step="valorant"]')?.classList.toggle('done', Boolean(riotId));
       saveSetupPrefs({ iniDone: true });
-      showToast(isVal ? 'Valorant bridge linked on this PC!' : 'Settings applied on your PC!');
+      showToast(isVal ? 'Valorant auto-log linked on this PC!' : 'Settings applied on your PC!');
     } catch (e) {
       if (resultEl) {
         resultEl.classList.remove('hidden');
         resultEl.innerHTML = `<div class="setup-callout setup-callout-important">${escapeHtml(e.message || 'Apply failed')}</div>`;
       }
-      showToast(e.message || 'Apply failed — is Twans-Tracker-Bridge.exe running?', 'error');
+      showToast(e.message || `Apply failed — is ${DESKTOP_APP.exe} running?`, 'error');
     } finally {
       btn.disabled = false;
       btn.textContent = 'Apply & Go';
@@ -434,7 +435,7 @@ export function refreshSetupWizard(displayName) {
 function updateBridgePill(bridge) {
   const pill = document.getElementById('setup-bridge-pill');
   if (pill) {
-    pill.textContent = bridge ? '● Bridge connected — you\'re good' : '○ Waiting for Twans-Tracker-Bridge.exe…';
+    pill.textContent = bridge ? `● ${DESKTOP_APP.name} is running — you're good` : `○ Waiting for ${DESKTOP_APP.exe}…`;
     pill.classList.toggle('ok', bridge);
   }
   if (bridge) {

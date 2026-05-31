@@ -17,24 +17,24 @@ let onAutoLog = null;
 
 async function fetchJson(path) {
   const res = await fetch(`${BRIDGE}${path}`, { signal: AbortSignal.timeout(2000) });
-  if (!res.ok) throw new Error('Bridge error');
+  if (!res.ok) throw new Error('Auto-log app error');
   return res.json();
 }
 
 function setValorantLiveStatus(online, valStatus = null) {
   if (valStatus) setCachedValorantStatus(valStatus);
-  if (state.activeGame === GAME_IDS.VALORANT) refreshBridgeStatusUI();
+  refreshBridgeStatusUI();
 }
 
 async function poll() {
   let valStatus = null;
   try {
-    valStatus = await fetchJson('/valorant/status');
+    await fetchJson('/status');
     setBridgeOnline(true);
-    const bridgeUp = true;
-    if (bridgeUp !== wasBridgeUp) {
-      onStatus?.(bridgeUp, valStatus);
-      wasBridgeUp = bridgeUp;
+    valStatus = await fetchJson('/valorant/status');
+    if (wasBridgeUp !== true) {
+      onStatus?.(true, valStatus);
+      wasBridgeUp = true;
     }
     setValorantLiveStatus(true, valStatus);
   } catch {

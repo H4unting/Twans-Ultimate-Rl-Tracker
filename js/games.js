@@ -130,7 +130,7 @@ export const NAV_BY_GAME = {
         { id: 'dashboard', label: 'Combat Report' },
         { id: 'log', label: 'Match History' },
         { id: 'focus', label: 'Mission Brief' },
-        { id: 'setup', label: 'Bridge Setup' },
+        { id: 'setup', label: 'Auto-Log Setup' },
       ],
     },
     review: {
@@ -156,7 +156,7 @@ export const NAV_BY_GAME = {
 export const PAGE_COPY = {
   [GAME_IDS.ROCKET_LEAGUE]: {
     log: { heading: 'Match Logs', desc: 'Log games from the dock below — filter, edit, or delete any match in your history.' },
-    setup: { heading: 'Auto Tracker Setup', desc: 'One-time setup on your PC — bridge for auto-log from Rocket League and Valorant.' },
+    setup: { heading: 'Auto Tracker Setup', desc: 'One-time setup on your PC — run Twans Auto-Log while playing for automatic stats.' },
     focus: { heading: 'Focus', desc: 'What to work on — auto-generated from your tagged mistakes.' },
     sessions: { heading: 'Session History', desc: 'Every grind block — games, W/L, MMR change, and top mistake tags.' },
     analytics: { heading: 'Analytics', desc: 'Stats, trends, and coaching insights — defensive, offensive, and mental breakdown.' },
@@ -165,7 +165,7 @@ export const PAGE_COPY = {
   },
   [GAME_IDS.VALORANT]: {
     log: { heading: 'Match History', desc: 'Every logged round — filter by queue, review K/D/A, RR swings, and mistake tags.' },
-    setup: { heading: 'Bridge Setup', desc: 'Connect Riot ID + API key for Valorant auto-log from the desktop bridge.' },
+    setup: { heading: 'Auto-Log Setup', desc: 'Run Twans Auto-Log on your PC and connect Riot ID + API key for automatic match logging.' },
     focus: { heading: 'Mission Brief', desc: 'Your top leaks — aim, utility, teamplay, and mental — from tagged losses.' },
     sessions: { heading: 'Grind Blocks', desc: 'Session-by-session RR, W/L, and which improvement pillars showed up.' },
     analytics: { heading: 'Performance Intel', desc: 'Aim · Utility · Teamplay · Mental — where your mistakes cluster.' },

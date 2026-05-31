@@ -7,8 +7,8 @@ REM Leave blank here unless you want a fallback before first setup
 set RLNAME=twan
 
 REM === Your tracker bookmark (GitHub Pages) — one URL for everything ===
-REM Use http://localhost:8080 instead if you want the local copy from this folder
-set TRACKER_URL=https://h4unting.github.io/Twans-Ultimate-Rl-Tracker/
+REM Use http://localhost:8080 on your gaming PC (auto-log needs this — not GitHub Pages)
+set TRACKER_URL=http://localhost:8080
 
 echo.
 echo  ============================================
@@ -16,7 +16,7 @@ echo   Twans Ultimate Tracker - Starting...
 echo   Name: %RLNAME%
 echo   Site: %TRACKER_URL%
 echo.
-echo   Or use Twans-Tracker-Bridge.exe (tray app, no black window).
+echo   Or use Twans Auto-Log.exe (tray app, no black window).
 echo   Build once with launcher\build-bridge.bat
 echo  ============================================
 echo.
