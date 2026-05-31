@@ -53,6 +53,19 @@ function renderGameSwitcher() {
 export function applyGameShell(gameId = state.activeGame) {
   const meta = getGameMeta(gameId);
   document.body.dataset.activeGame = gameId;
+  document.body.classList.toggle('theme-valorant', gameId === GAME_IDS.VALORANT);
+  document.body.classList.toggle('theme-rocket-league', gameId === GAME_IDS.ROCKET_LEAGUE);
+
+  document.title = gameId === GAME_IDS.VALORANT
+    ? 'Twans VAL Tracker'
+    : 'Twans Ultimate Tracker';
+
+  const logoBtn = document.getElementById('logo-home-btn');
+  if (logoBtn) {
+    logoBtn.innerHTML = gameId === GAME_IDS.VALORANT
+      ? 'TWANS <span class="val-logo-accent">VAL</span> TRACKER'
+      : 'Twans <span>Ultimate Tracker</span>';
+  }
 
   const rankInput = document.getElementById('quick-endmmr');
   if (rankInput) rankInput.placeholder = `End ${meta.rankLabel}`;
@@ -81,6 +94,7 @@ export function applyGameShell(gameId = state.activeGame) {
 
   renderQuickModePills(gameId);
   toggleDockLayouts(gameId);
+  toggleGamePageChrome(gameId);
 
   const agentSel = document.getElementById('quick-agent');
   const mapSel = document.getElementById('quick-map');
@@ -113,7 +127,7 @@ function renderQuickModePills(gameId) {
   `).join('');
 }
 
-function toggleDockLayouts(gameId) {
+function toggleGamePageChrome(gameId) {
   document.querySelectorAll('[data-game-ui="rl"]').forEach(el => {
     el.classList.toggle('hidden', gameId !== GAME_IDS.ROCKET_LEAGUE);
   });
@@ -121,6 +135,18 @@ function toggleDockLayouts(gameId) {
     el.classList.toggle('hidden', gameId !== GAME_IDS.VALORANT);
   });
 
+  const rlCharts = document.querySelector('.home-charts-row.rl-only');
+  const valCharts = document.querySelector('.val-charts-row');
+  if (rlCharts) rlCharts.classList.toggle('hidden', gameId !== GAME_IDS.ROCKET_LEAGUE);
+  if (valCharts) valCharts.classList.toggle('hidden', gameId !== GAME_IDS.VALORANT);
+
+  const recentHead = document.querySelector('.dash-recent-head .section-title');
+  if (recentHead) {
+    recentHead.textContent = gameId === GAME_IDS.VALORANT ? 'Match Feed' : 'Recent activity';
+  }
+}
+
+function toggleDockLayouts(gameId) {
   const adv = document.querySelector('.quick-advanced-stats .qs-label');
   if (gameId === GAME_IDS.VALORANT) {
     const labels = document.querySelectorAll('.quick-advanced-stats .qs-label');

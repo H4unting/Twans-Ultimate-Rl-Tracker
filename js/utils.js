@@ -126,7 +126,9 @@ export function getModeWeeklyGain(games, mode, weekOffset = 0) {
 }
 
 /** Per-playlist MMR snapshot for Home — each mode tracked separately */
-export function getPlaylistMMRRows(games) {
+export function getPlaylistMMRRows(games, gameId = DEFAULT_GAME) {
+  if (gameId === GAME_IDS.VALORANT) return getValorantQueueRows(games);
+
   return MODES.map(mode => {
     const modeGames = getGamesForMode(games, mode);
     const weekGames = getGamesInWeek(modeGames, 0);
@@ -136,6 +138,26 @@ export function getPlaylistMMRRows(games) {
       weekGain: calculateMMRGain(weekGames),
       weekGameCount: weekGames.length,
       totalGames: modeGames.length,
+      wins: modeGames.filter(g => g.result === 'W').length,
+      losses: modeGames.filter(g => g.result === 'L').length,
+    };
+  }).filter(r => r.mmr != null);
+}
+
+/** Valorant queue rows — one card per queue you've logged */
+function getValorantQueueRows(games) {
+  const modes = [...new Set(games.map(g => g.mode).filter(Boolean))];
+  return modes.map(mode => {
+    const modeGames = getGamesForMode(games, mode);
+    const weekGames = getGamesInWeek(modeGames, 0);
+    return {
+      mode,
+      mmr: modeGames.length ? modeGames[modeGames.length - 1].endMMR : null,
+      weekGain: calculateMMRGain(weekGames),
+      weekGameCount: weekGames.length,
+      totalGames: modeGames.length,
+      wins: modeGames.filter(g => g.result === 'W').length,
+      losses: modeGames.filter(g => g.result === 'L').length,
     };
   }).filter(r => r.mmr != null);
 }

@@ -1,0 +1,700 @@
+/* Valorant mode — full red/black tactical UI when body[data-active-game="valorant"] */
+
+body[data-active-game="valorant"] {
+  --bg: #0a0e12;
+  --surface: #0f1419;
+  --surface-2: #1a2229;
+  --border: #2b3139;
+  --text: #ece8e1;
+  --muted: #8b9399;
+  --dim: #5a6168;
+  --accent: #ff4655;
+  --green: #3dd68c;
+  --red: #ff4655;
+  --gold: #f4c542;
+  --purple: #c084fc;
+  --radius: 2px;
+  --val-red: #ff4655;
+  --val-red-dim: #ff465533;
+  --val-black: #0a0e12;
+  --val-panel: #11161c;
+  --val-cut: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+}
+
+/* Background — tactical grid + red glow */
+body[data-active-game="valorant"] {
+  background:
+    linear-gradient(135deg, #ff465508 0%, transparent 40%),
+    linear-gradient(rgba(255, 70, 85, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 70, 85, 0.03) 1px, transparent 1px),
+    radial-gradient(ellipse 80% 50% at 100% 0%, #ff465512, transparent 55%),
+    radial-gradient(ellipse 60% 40% at 0% 100%, #ff465508, transparent 50%),
+    var(--bg);
+  background-size: auto, 24px 24px, 24px 24px, auto, auto, auto;
+}
+
+body[data-active-game="valorant"]::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 80px,
+    rgba(255, 70, 85, 0.015) 80px,
+    rgba(255, 70, 85, 0.015) 81px
+  );
+}
+
+body[data-active-game="valorant"] #app-shell {
+  position: relative;
+  z-index: 1;
+}
+
+/* Top bar — sharp, black, red accent */
+body[data-active-game="valorant"] .top-bar {
+  background: linear-gradient(180deg, #12171d 0%, #0a0e12 100%);
+  border-bottom: 2px solid var(--val-red);
+  box-shadow: 0 4px 24px #00000088, 0 1px 0 #ff465544;
+  padding: 10px 20px;
+}
+
+body[data-active-game="valorant"] .logo {
+  color: var(--val-red);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+body[data-active-game="valorant"] .logo span,
+body[data-active-game="valorant"] .val-logo-accent {
+  color: #fff;
+}
+
+body[data-active-game="valorant"] .val-logo-accent {
+  color: var(--val-red);
+  text-shadow: 0 0 20px #ff465566;
+}
+
+body[data-active-game="valorant"] .game-switcher {
+  background: #00000066;
+  border: 1px solid #ff465544;
+  border-radius: 2px;
+  clip-path: var(--val-cut);
+}
+
+body[data-active-game="valorant"] .game-switch-btn {
+  border-radius: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 10px;
+}
+
+body[data-active-game="valorant"] .game-switch-btn.active {
+  background: var(--val-red);
+  box-shadow: inset 0 0 20px #ffffff22;
+}
+
+body[data-active-game="valorant"] .game-switch-btn[data-game="rocket_league"]:not(.active) {
+  opacity: 0.45;
+}
+
+body[data-active-game="valorant"] .tabs .tab,
+body[data-active-game="valorant"] .sub-nav .sub-tab {
+  border-radius: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+body[data-active-game="valorant"] .tabs .tab.active,
+body[data-active-game="valorant"] .sub-nav .sub-tab.active {
+  background: #ff465518;
+  border-color: var(--val-red);
+  color: #fff;
+  box-shadow: inset 3px 0 0 var(--val-red);
+}
+
+body[data-active-game="valorant"] .sync-dot.live { background: var(--val-red); box-shadow: 0 0 8px var(--val-red); }
+body[data-active-game="valorant"] .top-profile-btn:hover { border-color: var(--val-red); color: var(--val-red); }
+
+/* Bridge banner */
+body[data-active-game="valorant"] .bridge-hint-banner {
+  background: linear-gradient(90deg, #ff465515, #0a0e12);
+  border-bottom: 1px solid #ff465533;
+}
+
+body[data-active-game="valorant"] .bridge-hint-badge {
+  background: var(--val-red);
+  border-radius: 0;
+  clip-path: var(--val-cut);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 10px;
+}
+
+/* Pages — general */
+body[data-active-game="valorant"] .page-heading {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 800;
+}
+
+body[data-active-game="valorant"] .page-heading::after {
+  content: '';
+  display: block;
+  width: 48px;
+  height: 3px;
+  background: var(--val-red);
+  margin-top: 8px;
+}
+
+body[data-active-game="valorant"] .section-title {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 11px;
+  color: var(--val-red);
+}
+
+body[data-active-game="valorant"] .btn-primary {
+  background: var(--val-red);
+  border-color: var(--val-red);
+  border-radius: 0;
+  clip-path: var(--val-cut);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 800;
+}
+
+body[data-active-game="valorant"] .btn-primary:hover {
+  background: #ff5a68;
+  box-shadow: 0 0 24px #ff465544;
+}
+
+body[data-active-game="valorant"] .btn-secondary {
+  border-radius: 0;
+  border-color: #ff465555;
+  color: var(--text);
+}
+
+body[data-active-game="valorant"] .stat-card,
+body[data-active-game="valorant"] .player-card,
+body[data-active-game="valorant"] .insight-card {
+  border-radius: 0;
+  border-left: 3px solid var(--val-red);
+  background: linear-gradient(135deg, #11161c, #0d1116);
+}
+
+body[data-active-game="valorant"] .stat-val.gold { color: var(--val-red); }
+
+/* RL home hidden styling when on val — val dashboard takes over */
+body[data-active-game="valorant"] .home-mmr-grid,
+body[data-active-game="valorant"] .home-charts-row.rl-only { display: none !important; }
+
+body[data-active-game="valorant"] .val-dashboard { display: block; }
+
+/* Valorant dashboard layout */
+.val-dashboard { display: none; }
+
+body[data-active-game="valorant"] .val-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.val-hero {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  align-items: stretch;
+  padding: 20px 22px;
+  background: linear-gradient(135deg, #141a22 0%, #0a0e12 100%);
+  border: 1px solid #ff465533;
+  clip-path: var(--val-cut);
+  position: relative;
+  overflow: hidden;
+}
+
+.val-hero::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 120px;
+  height: 120px;
+  background: radial-gradient(circle, #ff465520, transparent 70%);
+  pointer-events: none;
+}
+
+.val-hero-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--val-red);
+  margin-bottom: 6px;
+}
+
+.val-hero-title {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #fff;
+  line-height: 1.2;
+}
+
+.val-hero-sub {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+.val-hero-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 140px;
+}
+
+.val-hero-stat {
+  text-align: right;
+  padding: 8px 12px;
+  background: #00000055;
+  border-right: 3px solid var(--val-red);
+}
+
+.val-hero-stat-val {
+  font-size: 20px;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1;
+}
+
+.val-hero-stat-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.val-queue-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.val-queue-card {
+  position: relative;
+  padding: 14px 16px;
+  background: #11161c;
+  border: 1px solid #ffffff0a;
+  clip-path: var(--val-cut);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+
+.val-queue-card:hover {
+  border-color: #ff465555;
+  transform: translateY(-1px);
+}
+
+.val-queue-card.active {
+  border-color: var(--val-red);
+  box-shadow: 0 0 0 1px #ff465544, inset 0 0 30px #ff465510;
+}
+
+.val-queue-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: var(--val-red);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.val-queue-card.active::after { opacity: 1; }
+
+.val-queue-name {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--val-red);
+  margin-bottom: 8px;
+}
+
+.val-queue-rr {
+  font-size: 28px;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.val-queue-rr span {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-left: 4px;
+}
+
+.val-queue-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #ffffff0a;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.val-queue-wl { color: var(--muted); }
+.val-queue-week.up { color: var(--green); }
+.val-queue-week.down { color: var(--val-red); }
+
+.val-split {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 720px) {
+  .val-split { grid-template-columns: 1fr; }
+  .val-hero { grid-template-columns: 1fr; }
+  .val-hero-stats { flex-direction: row; flex-wrap: wrap; }
+  .val-hero-stat { flex: 1; min-width: 90px; text-align: center; border-right: none; border-bottom: 3px solid var(--val-red); }
+}
+
+/* Focus card — Valorant tactical */
+body[data-active-game="valorant"] .home-focus-card {
+  border-radius: 0;
+  border: 1px solid #ff465544;
+  border-left: 4px solid var(--val-red);
+  background: linear-gradient(160deg, #161c24, #0d1116);
+  clip-path: var(--val-cut);
+}
+
+body[data-active-game="valorant"] .home-focus-label {
+  color: var(--val-red);
+  letter-spacing: 0.12em;
+}
+
+body[data-active-game="valorant"] .home-focus-tag-name {
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+body[data-active-game="valorant"] .home-focus-stat { color: var(--val-red); }
+
+/* Context strip */
+body[data-active-game="valorant"] .home-context-line {
+  padding: 10px 14px;
+  background: #11161c;
+  border-left: 3px solid var(--val-red);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+body[data-active-game="valorant"] .home-context-live {
+  background: var(--val-red);
+  border-radius: 0;
+  clip-path: var(--val-cut);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 9px;
+  padding: 3px 8px;
+}
+
+body[data-active-game="valorant"] .home-link { color: var(--val-red); }
+
+/* Valorant match feed */
+.val-match-feed { display: none; }
+body[data-active-game="valorant"] .val-match-feed { display: block; }
+body[data-active-game="valorant"] .home-activity-list { display: none; }
+
+.val-match-feed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  list-style: none;
+}
+
+.val-match-card {
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  background: #11161c;
+  border: 1px solid #ffffff0a;
+  clip-path: var(--val-cut);
+  transition: border-color 0.15s;
+}
+
+.val-match-card:hover { border-color: #ff465544; }
+
+.val-match-result {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 900;
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+}
+
+.val-match-result.W {
+  background: #3dd68c22;
+  color: var(--green);
+  border: 1px solid #3dd68c55;
+}
+
+.val-match-result.L {
+  background: #ff465522;
+  color: var(--val-red);
+  border: 1px solid #ff465555;
+}
+
+.val-match-main { min-width: 0; }
+
+.val-match-queue {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--val-red);
+}
+
+.val-match-agent {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  margin-top: 2px;
+}
+
+.val-match-map {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.val-match-kda {
+  font-size: 11px;
+  color: var(--dim);
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.val-match-side {
+  text-align: right;
+}
+
+.val-match-rr {
+  font-size: 16px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.val-match-rr.up { color: var(--green); }
+.val-match-rr.down { color: var(--val-red); }
+
+.val-match-date {
+  font-size: 10px;
+  color: var(--dim);
+  margin-top: 4px;
+}
+
+.val-match-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.val-match-tag {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  background: #ff465515;
+  border: 1px solid #ff465533;
+  color: #ff8a93;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Charts row — Valorant style */
+body[data-active-game="valorant"] .val-charts-row {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 20px;
+}
+
+body[data-active-game="valorant"] .val-charts-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--val-red);
+  margin-bottom: 10px;
+}
+
+body[data-active-game="valorant"] .val-charts-inner {
+  display: grid;
+  grid-template-columns: 1fr 130px;
+  gap: 10px;
+}
+
+body[data-active-game="valorant"] .val-chart-box {
+  background: #11161c;
+  border: 1px solid #ff465522;
+  clip-path: var(--val-cut);
+  padding: 10px;
+  min-height: 130px;
+  height: 140px;
+}
+
+/* Quick dock — tactical command bar */
+body[data-active-game="valorant"] .quick-dock {
+  background: linear-gradient(to top, #0a0e12 0%, #0a0e12ee 70%, transparent);
+}
+
+body[data-active-game="valorant"] .quick-dock-inner {
+  background: linear-gradient(180deg, #161c24 0%, #0a0e12 100%);
+  border: 1px solid #ff465555;
+  border-radius: 0;
+  clip-path: polygon(0 8px, 8px 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
+  box-shadow: 0 -8px 40px #000c, 0 0 0 1px #ff465522;
+}
+
+body[data-active-game="valorant"] .quick-dock-inner.session-live {
+  border-color: var(--val-red);
+  box-shadow: 0 -8px 40px #000c, 0 0 32px #ff465525;
+}
+
+body[data-active-game="valorant"] .quick-dock-mode button.active,
+body[data-active-game="valorant"] .quick-mode-pills button.active {
+  background: var(--val-red);
+  border-color: var(--val-red);
+  border-radius: 0;
+}
+
+body[data-active-game="valorant"] .quick-wl-btn.win.active {
+  background: #3dd68c;
+  border-color: #3dd68c;
+}
+
+body[data-active-game="valorant"] .quick-wl-btn.loss.active {
+  background: var(--val-red);
+  border-color: var(--val-red);
+}
+
+body[data-active-game="valorant"] .quick-log-btn {
+  background: var(--val-red);
+  border-radius: 0;
+  clip-path: var(--val-cut);
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+body[data-active-game="valorant"] .quick-val-select {
+  border-radius: 0;
+  border-color: #ff465544;
+  background: #0a0e12;
+}
+
+body[data-active-game="valorant"] .quick-dock-hint {
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+body[data-active-game="valorant"] .quick-dock-collapsed-tab {
+  border-color: #ff465555;
+  border-radius: 0;
+  clip-path: var(--val-cut);
+}
+
+body[data-active-game="valorant"] .quick-dock-collapsed-tab:hover {
+  border-color: var(--val-red);
+  color: var(--val-red);
+}
+
+body[data-active-game="valorant"] .quick-dock-expand-icon { color: var(--val-red); }
+
+body[data-active-game="valorant"] .session-btn.start {
+  background: var(--val-red);
+  border-color: var(--val-red);
+  border-radius: 0;
+}
+
+body[data-active-game="valorant"] .auto-log-toggle.active {
+  background: #ff465522;
+  border-color: var(--val-red);
+  color: var(--val-red);
+}
+
+body[data-active-game="valorant"] .live-bridge-status.online {
+  color: var(--green);
+  border-color: #3dd68c55;
+}
+
+/* Mobile nav */
+body[data-active-game="valorant"] .mobile-nav {
+  background: #0a0e12ee;
+  border-top: 2px solid var(--val-red);
+}
+
+body[data-active-game="valorant"] .mobile-nav-btn.active {
+  color: var(--val-red);
+}
+
+/* Tags, tables, forms */
+body[data-active-game="valorant"] .tag-chip.selected,
+body[data-active-game="valorant"] .quick-tags button.active {
+  background: var(--val-red);
+  border-color: var(--val-red);
+}
+
+body[data-active-game="valorant"] .log-table th {
+  color: var(--val-red);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 10px;
+}
+
+body[data-active-game="valorant"] .wl-btn.win.active {
+  background: #3dd68c;
+  border-color: #3dd68c;
+}
+
+body[data-active-game="valorant"] .wl-btn.loss.active {
+  background: var(--val-red);
+  border-color: var(--val-red);
+}
+
+body[data-active-game="valorant"] .loading-spinner {
+  border-top-color: var(--val-red);
+}
+
+body[data-active-game="valorant"] .home-summary-empty {
+  padding: 16px;
+  border: 1px dashed #ff465544;
+  text-align: center;
+  clip-path: var(--val-cut);
+}

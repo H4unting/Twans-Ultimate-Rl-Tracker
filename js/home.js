@@ -2,17 +2,17 @@
 
 import {
   calcStats, getGamesInWeek, formatDuration, getPlaylistMMRRows,
-  getMostRecentMode, getGamesForMode, getCurrentMMRForMode,
+  getMostRecentMode, getGamesForMode, calculateWinrate,
 } from './utils.js';
 import { getRank, rankBadgeHTML } from './ranks.js';
 import { getTagLossCorrelations, ACTION_FOCUS_TIPS } from './insights.js';
 import { TAG_CATS } from './config.js';
 import { state } from './state.js';
-import { getGameMeta } from './games.js';
+import { getGameMeta, GAME_IDS } from './games.js';
 import { getLoggingSessionNum } from './sessions.js';
 
 function ensureHomeChartMode(games) {
-  const rows = getPlaylistMMRRows(games);
+  const rows = getPlaylistMMRRows(games, state.activeGame);
   if (!rows.length) {
     state.homeChartMode = null;
     return null;
@@ -24,11 +24,16 @@ function ensureHomeChartMode(games) {
 }
 
 export function renderHomeSummary(games, goals) {
+  if (state.activeGame === GAME_IDS.VALORANT) {
+    renderValorantHomeSummary(games, goals);
+    return;
+  }
+
   const el = document.getElementById('home-summary');
   if (!el) return;
 
   const meta = getGameMeta(state.activeGame);
-  const rows = getPlaylistMMRRows(games);
+  const rows = getPlaylistMMRRows(games, state.activeGame);
   if (!rows.length) {
     el.innerHTML = `<p class="home-summary-empty">Log a ${meta.label} game to see your ${meta.rankLabel} by queue.</p>`;
     return;
@@ -80,6 +85,68 @@ export function renderHomeSummary(games, goals) {
   });
 }
 
+function renderValorantHomeSummary(games, goals) {
+  const dash = document.getElementById('val-dashboard');
+  const legacy = document.getElementById('home-summary');
+  if (legacy) legacy.innerHTML = '';
+  if (!dash) return;
+
+  const meta = getGameMeta(state.activeGame);
+  const rows = getPlaylistMMRRows(games, state.activeGame);
+  const stats = calcStats(games);
+
+  if (!rows.length) {
+    dash.innerHTML = `<p class="home-summary-empty">Log a ${meta.label} match to see your ${meta.rankLabel} by queue.</p>`;
+    return;
+  }
+
+  const chartMode = ensureHomeChartMode(games);
+  const activeRow = rows.find(r => r.mode === chartMode) ?? rows[0];
+  const wr = calculateWinrate(games);
+
+  dash.innerHTML = `
+    <div class="val-hero">
+      <div>
+        <div class="val-hero-label">Combat Report</div>
+        <div class="val-hero-title">${activeRow.mode}</div>
+        <div class="val-hero-sub">${stats.totalGames} matches logged · ${stats.wins}W ${stats.losses}L</div>
+      </div>
+      <div class="val-hero-stats">
+        <div class="val-hero-stat">
+          <div class="val-hero-stat-val">${activeRow.mmr}<span style="font-size:11px;color:var(--muted)"> RR</span></div>
+          <div class="val-hero-stat-label">Current RR</div>
+        </div>
+        <div class="val-hero-stat">
+          <div class="val-hero-stat-val">${wr}<span style="font-size:11px;color:var(--muted)">%</span></div>
+          <div class="val-hero-stat-label">Win Rate</div>
+        </div>
+      </div>
+    </div>
+    <div class="val-queue-grid">
+      ${rows.map(r => {
+        const wkCls = r.weekGain >= 0 ? 'up' : 'down';
+        const wk = `${r.weekGain >= 0 ? '+' : ''}${r.weekGain}`;
+        const wl = `${r.wins ?? 0}W ${r.losses ?? 0}L`;
+        return `
+        <button type="button" class="val-queue-card${r.mode === chartMode ? ' active' : ''}" data-home-mode="${r.mode}">
+          <div class="val-queue-name">${r.mode}</div>
+          <div class="val-queue-rr">${r.mmr}<span>RR</span></div>
+          <div class="val-queue-meta">
+            <span class="val-queue-wl">${wl}</span>
+            <span class="val-queue-week ${wkCls}">${wk} wk</span>
+          </div>
+        </button>`;
+      }).join('')}
+    </div>`;
+
+  dash.querySelectorAll('[data-home-mode]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.homeChartMode = btn.dataset.homeMode;
+      window.__refreshHome?.();
+    });
+  });
+}
+
 export function renderHomeContext(games) {
   const el = document.getElementById('home-context');
   if (!el) return;
@@ -99,9 +166,10 @@ export function renderHomeContext(games) {
       if (!byMode[g.mode]) byMode[g.mode] = 0;
       byMode[g.mode] += g.mmrDiff || 0;
     });
+    const diffLabel = getGameMeta(state.activeGame).diffLabel;
     const modeParts = Object.entries(byMode).map(([mode, gain]) => {
       const cls = gain >= 0 ? 'up' : 'down';
-      return `${mode} <span class="${cls}">${gain >= 0 ? '+' : ''}${gain}</span>`;
+      return `${mode} <span class="${cls}">${gain >= 0 ? '+' : ''}${gain} ${diffLabel}</span>`;
     }).join(' · ');
     const elapsed = formatDuration(Date.now() - (state.session.startTime || Date.now()));
     el.innerHTML = `
@@ -113,11 +181,12 @@ export function renderHomeContext(games) {
     return;
   }
 
-  const weekRows = getPlaylistMMRRows(games).filter(r => r.weekGameCount > 0);
+  const weekRows = getPlaylistMMRRows(games, state.activeGame).filter(r => r.weekGameCount > 0);
   if (weekRows.length) {
+    const diffLabel = getGameMeta(state.activeGame).diffLabel;
     const parts = weekRows.map(r => {
       const cls = r.weekGain >= 0 ? 'up' : 'down';
-      return `${r.mode} <span class="${cls}">${r.weekGain >= 0 ? '+' : ''}${r.weekGain}</span> (${r.weekGameCount}g)`;
+      return `${r.mode} <span class="${cls}">${r.weekGain >= 0 ? '+' : ''}${r.weekGain} ${diffLabel}</span> (${r.weekGameCount}g)`;
     }).join(' · ');
     el.innerHTML = `
       <p class="home-context-line">
@@ -151,11 +220,20 @@ export function renderHomeFocus(games) {
   const el = document.getElementById('home-focus');
   if (!el) return;
 
+  const isVal = state.activeGame === GAME_IDS.VALORANT;
+  const focusLabel = isVal ? 'Mission Brief' : "Today's Focus";
+  const emptyHint = isVal
+    ? 'Log matches and tag losses — your biggest leak shows up here.'
+    : 'Log a few games and tag losses — your top mistake shows up here.';
+  const tagEmpty = isVal
+    ? 'Tag mistakes after losses to unlock your mission brief.'
+    : 'Tag mistakes after losses to unlock your focus area.';
+
   if (games.length < 2) {
     el.innerHTML = `
       <div class="home-focus-card home-focus-card-empty">
-        <span class="home-focus-label">Today's Focus</span>
-        <p class="home-focus-empty-text">Log a few games and tag losses — your top mistake shows up here.</p>
+        <span class="home-focus-label">${focusLabel}</span>
+        <p class="home-focus-empty-text">${emptyHint}</p>
       </div>`;
     return;
   }
@@ -165,8 +243,8 @@ export function renderHomeFocus(games) {
   if (!top) {
     el.innerHTML = `
       <div class="home-focus-card home-focus-card-empty">
-        <span class="home-focus-label">Today's Focus</span>
-        <p class="home-focus-empty-text">Tag mistakes after losses to unlock your focus area.</p>
+        <span class="home-focus-label">${focusLabel}</span>
+        <p class="home-focus-empty-text">${tagEmpty}</p>
       </div>`;
     return;
   }
@@ -180,7 +258,7 @@ export function renderHomeFocus(games) {
   el.innerHTML = `
     <div class="home-focus-card">
       <div class="home-focus-card-head">
-        <span class="home-focus-label">Today's Focus</span>
+        <span class="home-focus-label">${focusLabel}</span>
         <a href="#" class="home-focus-more" data-goto="focus">Details →</a>
       </div>
       <div class="home-focus-tag-name">${top.tag}</div>
@@ -192,13 +270,53 @@ export function renderHomeFocus(games) {
 
 export function renderHomeActivity(games, limit = 10) {
   const el = document.getElementById('home-activity');
+  const valFeed = document.getElementById('val-match-feed');
   if (!el) return;
 
   const recent = [...games].reverse().slice(0, limit);
   if (!recent.length) {
-    el.innerHTML = `<div class="empty-state">Your recent games will show up here.</div>`;
+    const empty = `<div class="empty-state">Your recent matches will show up here.</div>`;
+    el.innerHTML = empty;
+    if (valFeed) valFeed.innerHTML = '';
     return;
   }
+
+  if (state.activeGame === GAME_IDS.VALORANT && valFeed) {
+    el.innerHTML = '';
+    valFeed.innerHTML = `
+      <ul class="val-match-feed-list">
+        ${recent.map(g => {
+          const diff = g.mmrDiff || 0;
+          const diffCls = diff >= 0 ? 'up' : 'down';
+          const agent = g.agent || 'Unknown Agent';
+          const map = g.map || 'Unknown Map';
+          const k = g.kills ?? g.goals ?? 0;
+          const d = g.deaths ?? 0;
+          const a = g.assists ?? 0;
+          const tags = (g.tags || []).slice(0, 2).map(t =>
+            `<span class="val-match-tag">${t}</span>`,
+          ).join('');
+          return `
+          <li class="val-match-card">
+            <div class="val-match-result ${g.result}">${g.result}</div>
+            <div class="val-match-main">
+              <div class="val-match-queue">${g.mode}</div>
+              <div class="val-match-agent">${agent}</div>
+              <div class="val-match-map">${map} · S${g.session}</div>
+              <div class="val-match-kda">${k} / ${d} / ${a}</div>
+              ${tags ? `<div class="val-match-tags">${tags}</div>` : ''}
+            </div>
+            <div class="val-match-side">
+              <div class="val-match-rr ${diffCls}">${diff >= 0 ? '+' : ''}${diff} RR</div>
+              <div class="val-match-date">${g.date}</div>
+            </div>
+          </li>`;
+        }).join('')}
+      </ul>`;
+    return;
+  }
+
+  if (valFeed) valFeed.innerHTML = '';
 
   el.innerHTML = `
     <ul class="home-activity-list">
@@ -226,6 +344,9 @@ export function getHomeChartGames(games) {
 }
 
 export function renderHome(games, goals) {
+  const dash = document.getElementById('val-dashboard');
+  if (dash && state.activeGame !== GAME_IDS.VALORANT) dash.innerHTML = '';
+
   renderHomeSummary(games, goals);
   renderHomeContext(games);
   renderHomeFocus(games);

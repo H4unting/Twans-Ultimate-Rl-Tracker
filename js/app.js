@@ -349,18 +349,29 @@ async function handleLegacyClaim(legacyId) {
 
 function renderHomePage() {
   renderHome(getActiveGames(), state.goals);
-  const modeGames = getHomeChartGames(getActiveGames());
-  const label = document.getElementById('home-charts-label');
-  if (label) {
-    label.textContent = modeGames.length
-      ? `${getHomeChartModeLabel(getActiveGames())} — tap a row above to switch`
-      : '';
-  }
+  const games = getActiveGames();
+  const modeGames = getHomeChartGames(games);
+  const isVal = state.activeGame === GAME_IDS.VALORANT;
+  const chartColor = isVal ? '#ff4655' : getDisplay().color;
+
+  const rlLabel = document.getElementById('home-charts-label');
+  const valLabel = document.getElementById('val-charts-label');
+  const chartCaption = modeGames.length
+    ? `${getHomeChartModeLabel(games)} — tap a queue above to switch`
+    : '';
+
+  if (rlLabel) rlLabel.textContent = !isVal ? chartCaption : '';
+  if (valLabel) valLabel.textContent = isVal ? chartCaption : '';
+
   if (modeGames.length >= 1) {
     const stats = calcStats(modeGames);
-    const display = getDisplay();
-    mmrChart('homeMMR', modeGames.slice(-20), display.color);
-    wlChart('homeWL', stats);
+    if (isVal) {
+      mmrChart('valHomeRR', modeGames.slice(-20), chartColor, 'RR');
+      wlChart('valHomeWL', stats);
+    } else {
+      mmrChart('homeMMR', modeGames.slice(-20), chartColor);
+      wlChart('homeWL', stats);
+    }
   }
 }
 

@@ -27,7 +27,7 @@ export const GAMES = {
     id: GAME_IDS.VALORANT,
     label: 'Valorant',
     shortLabel: 'VAL',
-    emoji: '🎯',
+    emoji: '◆',
     rankLabel: 'RR',
     rankField: 'endRR',
     diffLabel: 'RR',

@@ -18,7 +18,7 @@ const baseScales = {
   y: { ticks: { color: '#555', font: { size: 10 } }, grid: { color: '#1a1a2e' } },
 };
 
-export function mmrChart(id, games, color) {
+export function mmrChart(id, games, color, label = 'MMR') {
   destroyChart(id);
   const el = document.getElementById(id);
   if (!el || !games.length) return;
@@ -27,7 +27,7 @@ export function mmrChart(id, games, color) {
     data: {
       labels: games.map(g => `#${g.match}`),
       datasets: [{
-        label: 'MMR', data: games.map(g => g.endMMR),
+        label, data: games.map(g => g.endMMR),
         borderColor: color, backgroundColor: color + '18',
         borderWidth: 2, pointRadius: 3, pointBackgroundColor: color, fill: true, tension: 0.3,
       }],

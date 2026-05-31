@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Twans Ultimate Tracker</title>
 <link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/valorant-theme.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 </head>
 <body class="is-loading logged-out">
@@ -76,20 +77,29 @@
   <!-- DASHBOARD / HOME -->
   <div id="page-dashboard" class="page active">
     <div id="legacy-import"></div>
+    <div id="val-dashboard" class="val-dashboard"></div>
     <div id="home-summary"></div>
     <div id="home-context"></div>
     <div id="home-focus"></div>
-    <div class="home-charts-row">
+    <div class="home-charts-row rl-only">
       <p class="home-charts-label" id="home-charts-label"></p>
       <div class="home-charts-inner">
       <div class="home-chart-box"><canvas id="homeMMR"></canvas></div>
       <div class="home-chart-box home-chart-wl"><canvas id="homeWL"></canvas></div>
       </div>
     </div>
+    <div class="val-charts-row hidden" data-game-ui="valorant">
+      <p class="val-charts-label" id="val-charts-label"></p>
+      <div class="val-charts-inner">
+        <div class="val-chart-box"><canvas id="valHomeRR"></canvas></div>
+        <div class="val-chart-box"><canvas id="valHomeWL"></canvas></div>
+      </div>
+    </div>
     <div class="dash-recent-head">
       <p class="section-title">Recent activity</p>
       <button type="button" class="section-link" id="dash-view-all-logs">View history →</button>
     </div>
+    <div id="val-match-feed" class="val-match-feed"></div>
     <div id="home-activity" class="home-activity"></div>
   </div>
 
@@ -398,6 +408,6 @@
 
 <div class="toast" id="toast"></div>
 
-<script type="module" src="js/app.js?v=20260531c"></script>
+<script type="module" src="js/app.js?v=20260531d"></script>
 </body>
 </html>
