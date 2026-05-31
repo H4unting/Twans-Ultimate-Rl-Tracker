@@ -1,6 +1,6 @@
 /** Pure data utilities — no DOM, no side effects. All stats flow through here. */
 
-import { TAG_DEFINITIONS } from './config.js';
+import { DEFAULT_GAME, GAME_IDS, getDefaultMode, getTagDefinitions } from './games.js';
 
 // ── Normalization ─────────────────────────────────────────────────────────────
 
@@ -26,28 +26,69 @@ export function formatDuration(ms) {
 
 /** Ensure every match has a consistent shape (handles legacy data) */
 export function normalizeGame(raw) {
-  const startMMR = raw.startMMR ?? raw.start_mmr ?? 0;
-  const endMMR = raw.endMMR ?? raw.end_mmr ?? 0;
-  const tags = Array.isArray(raw.tags) ? raw.tags.filter(t => TAG_DEFINITIONS[t]) : [];
-  return {
+  const game = raw.game ?? DEFAULT_GAME;
+  const tagDefs = getTagDefinitions(game);
+  const tags = Array.isArray(raw.tags) ? raw.tags.filter(t => tagDefs[t]) : [];
+  const startMMR = raw.startMMR ?? raw.start_mmr ?? raw.startRR ?? 0;
+  const endMMR = raw.endMMR ?? raw.end_mmr ?? raw.endRR ?? 0;
+
+  const base = {
+    game,
     date: raw.date ?? '',
     session: raw.session ?? 1,
     match: raw.match ?? 0,
-    mode: raw.mode ?? "2's",
+    mode: raw.mode ?? getDefaultMode(game),
     result: raw.result === 'L' ? 'L' : 'W',
+    notes: raw.notes ?? '',
+    tags,
+  };
+
+  if (game === GAME_IDS.VALORANT) {
+    const startRR = raw.startRR ?? startMMR ?? 0;
+    const endRR = raw.endRR ?? endMMR ?? 0;
+    const kills = raw.kills ?? raw.goals ?? 0;
+    const deaths = raw.deaths ?? raw.assists ?? 0;
+    const valAssists = raw.valAssists ?? raw.val_assists ?? 0;
+    const acs = raw.acs ?? raw.saves ?? 0;
+    const rrDiff = raw.rrDiff ?? endRR - startRR;
+    return {
+      ...base,
+      kills,
+      deaths,
+      valAssists,
+      acs,
+      agent: raw.agent ?? '',
+      map: raw.map ?? '',
+      startRR,
+      endRR,
+      rrDiff,
+      goals: kills,
+      assists: deaths,
+      saves: acs,
+      startMMR: startRR,
+      endMMR: endRR,
+      mmrDiff: rrDiff,
+    };
+  }
+
+  return {
+    ...base,
     goals: raw.goals ?? 0,
     assists: raw.assists ?? 0,
     saves: raw.saves ?? 0,
     startMMR,
     endMMR,
     mmrDiff: raw.mmrDiff ?? endMMR - startMMR,
-    notes: raw.notes ?? '',
-    tags,
   };
 }
 
 export function normalizePlayerGames(games) {
-  return (games ?? []).map(normalizeGame).sort((a, b) => a.match - b.match);
+  return (games ?? []).map(normalizeGame).sort((a, b) => {
+    const ga = a.game ?? DEFAULT_GAME;
+    const gb = b.game ?? DEFAULT_GAME;
+    if (ga !== gb) return ga.localeCompare(gb);
+    return a.match - b.match;
+  });
 }
 
 // ── Player / playlist access ──────────────────────────────────────────────────

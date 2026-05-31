@@ -5,7 +5,14 @@ import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+function resolveTrackerRoot() {
+  if (process.env.TWANS_TRACKER_ROOT) {
+    return path.resolve(process.env.TWANS_TRACKER_ROOT);
+  }
+  return path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+}
+
+const ROOT = resolveTrackerRoot();
 const CONFIG_FILE = path.join(ROOT, 'grind-config.json');
 
 const INI_SECTION = '[TAGame.MatchStatsExporter_TA]';
@@ -126,25 +133,32 @@ export function getSetupStatus() {
   };
 }
 
-export function applyLocalSetup({ rlDisplayName, patchIni = true }) {
+export function applyLocalSetup({ rlDisplayName, riotId, riotApiKey, riotRegion, patchIni = true }) {
   const name = String(rlDisplayName ?? '').trim();
-  if (!name) throw new Error('Enter your Rocket League display name first');
+  const partial = {};
+  if (name) partial.rlDisplayName = name;
+  if (riotId) partial.riotId = String(riotId).trim();
+  if (riotApiKey) partial.riotApiKey = String(riotApiKey).trim();
+  if (riotRegion) partial.riotRegion = String(riotRegion).trim().toLowerCase();
+  if (Object.keys(partial).length) saveGrindConfig(partial);
+
+  if (!name && !riotId) throw new Error('Enter your Rocket League or Riot ID first');
 
   const result = {
     ok: true,
-    rlDisplayName: name,
+    rlDisplayName: name || partial.rlDisplayName || '',
     files: {},
     warnings: [],
   };
 
-  saveGrindConfig({ rlDisplayName: name });
   result.files.grindConfig = CONFIG_FILE;
 
-  try {
-    result.files.startGrindBat = patchStartGrindBat(name);
-  } catch (e) {
-    result.ok = false;
-    result.warnings.push(`Could not update start-grind.bat: ${e.message}`);
+  if (name) {
+    try {
+      result.files.startGrindBat = patchStartGrindBat(name);
+    } catch (e) {
+      result.warnings.push(`Could not update start-grind.bat: ${e.message}`);
+    }
   }
 
   if (patchIni) {

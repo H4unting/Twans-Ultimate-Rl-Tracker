@@ -13,7 +13,15 @@ import { startBridge } from './rl-bridge.mjs';
 import { loadGrindConfig } from './local-setup.mjs';
 
 const TRACKER_PORT = 8080;
-const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+function resolveTrackerRoot() {
+  if (process.env.TWANS_TRACKER_ROOT) {
+    return path.resolve(process.env.TWANS_TRACKER_ROOT);
+  }
+  return path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+}
+
+const ROOT = resolveTrackerRoot();
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -76,14 +84,20 @@ function createTrackerServer() {
 
 const config = loadGrindConfig();
 const playerName = process.argv[2]?.trim() || config.rlDisplayName || process.env.RL_PLAYER_NAME || '';
-const trackerUrl = (process.env.TRACKER_URL || `http://localhost:${TRACKER_PORT}`).trim();
+const trackerUrl = (process.env.TRACKER_URL || config.trackerUrl || `http://localhost:${TRACKER_PORT}`).trim();
 const useLocalServer = isLocalTrackerUrl(trackerUrl);
+const skipBrowser = process.env.BRIDGE_NO_BROWSER === '1' || process.argv.includes('--no-browser');
+const quiet = process.env.BRIDGE_QUIET === '1';
 
-console.log('');
-console.log('  Twans Ultimate Tracker');
-console.log(`  Player: ${playerName || '(set RLNAME in start-grind.bat)'}`);
-console.log(`  Tracker URL: ${trackerUrl}`);
-console.log('');
+function log(...args) {
+  if (!quiet) console.log(...args);
+}
+
+log('');
+log('  Twans Ultimate Tracker');
+log(`  Player: ${playerName || '(set via tracker setup — Apply & Go)'}`);
+log(`  Tracker URL: ${trackerUrl}`);
+log('');
 
 await startBridge({ playerName });
 
@@ -94,24 +108,23 @@ if (useLocalServer) {
     tracker.listen(TRACKER_PORT, '127.0.0.1', resolve);
   });
 } else {
-  console.log('  Bridge only — tracker opens from your bookmark (no local site server).');
+  log('  Bridge only — tracker opens from your bookmark (no local site server).');
 }
 
-console.log('');
-console.log('  ============================================');
-console.log('  TWANS ULTIMATE TRACKER — READ THIS');
-console.log('  ============================================');
-console.log('');
-console.log('  Tracker:  ' + trackerUrl);
-console.log('  Bridge:   http://127.0.0.1:49200 (auto-log from RL)');
-console.log('  Player:   ' + (playerName || '(edit RLNAME in start-grind.bat)'));
-console.log('');
-console.log('  >>> KEEP THIS WINDOW OPEN while you play <<<');
-console.log('  >>> Close it only when you\'re done grinding <<<');
-console.log('');
-console.log('  Auto-log works when this window is open and you use the tracker in your browser.');
-console.log('');
-console.log('  ============================================');
-console.log('');
+if (!quiet) {
+  console.log('');
+  console.log('  ============================================');
+  console.log('  TWANS ULTIMATE TRACKER — READ THIS');
+  console.log('  ============================================');
+  console.log('');
+  console.log('  Tracker:  ' + trackerUrl);
+  console.log('  Bridge:   http://127.0.0.1:49200 (auto-log from RL)');
+  console.log('  Player:   ' + (playerName || '(use Apply & Go in tracker setup)'));
+  console.log('');
+  console.log('  >>> KEEP THIS RUNNING while you play <<<');
+  console.log('');
+}
 
-openBrowser(trackerUrl);
+if (!skipBrowser) {
+  openBrowser(trackerUrl);
+}

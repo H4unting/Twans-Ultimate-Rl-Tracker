@@ -49,6 +49,7 @@
 <div id="app-shell" class="hidden">
   <div class="top-bar">
     <button type="button" class="logo logo-home-btn" id="logo-home-btn" aria-label="Go to Home">Twans <span>Ultimate Tracker</span></button>
+    <div class="game-switcher" id="game-switcher" role="group" aria-label="Game"></div>
     <div class="top-bar-meta">
       <div class="sync-status">
         <div class="sync-dot" id="sync-dot"></div>
@@ -263,7 +264,15 @@
           <button type="button" class="quick-wl-btn win active" id="quick-wl-win" aria-label="Win">W</button>
           <button type="button" class="quick-wl-btn loss" id="quick-wl-loss" aria-label="Loss">L</button>
         </div>
-        <input type="number" id="quick-endmmr" class="quick-mmr-input" placeholder="End MMR" min="0" inputmode="numeric" aria-label="End MMR">
+        <div class="quick-val-meta hidden" data-game-ui="valorant">
+          <select id="quick-agent" class="quick-val-select" aria-label="Agent">
+            <option value="">Agent</option>
+          </select>
+          <select id="quick-map" class="quick-val-select" aria-label="Map">
+            <option value="">Map</option>
+          </select>
+        </div>
+        <input type="number" id="quick-endmmr" class="quick-mmr-input" placeholder="End MMR" min="0" inputmode="numeric" aria-label="End rank">
         <button type="button" class="quick-log-btn" id="quick-log-btn">LOG</button>
       </div>
       <div class="quick-dock-tags">
@@ -294,6 +303,7 @@
         </div>
       </details>
       <input type="hidden" id="quick-notes" value="">
+      <input type="hidden" id="quick-val-assists" value="0">
       </div>
     </div>
     <div class="quick-dock-hint">Match ends → auto-log saves · confirm MMR on the card · tap tags · undo if wrong</div>
@@ -388,6 +398,6 @@
 
 <div class="toast" id="toast"></div>
 
-<script type="module" src="js/app.js?v=20260529b"></script>
+<script type="module" src="js/app.js?v=20260530"></script>
 </body>
 </html>

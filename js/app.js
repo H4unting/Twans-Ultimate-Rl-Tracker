@@ -3,7 +3,7 @@
  */
 
 import { applyAppMode } from './env.js';
-import { state, subscribe, setGames, setSyncStatus, setGoals, setProfile, getUserDisplay } from './state.js';
+import { state, subscribe, setGames, setSyncStatus, setGoals, setProfile, getUserDisplay, getActiveGames } from './state.js';
 import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, sendPasswordReset, signOut, onAuthChange, getAuthUser } from './auth.js';
 import { loadUserData, saveSettings, claimLegacyData, createGroup, joinGroup, leaveGroup, loadUserGroups, saveGames, saveProfile } from './supabase.js';
 import { applyFilters, DEFAULT_FILTERS } from './filters.js';
@@ -20,6 +20,10 @@ import {
   initRlLive, stopRlLive, refreshLiveStatus,
   saveRlDisplayName, getRlDisplayName,
 } from './rl-live.js';
+import { initValorantLive, stopValorantLive, refreshValorantStatus } from './valorant-live.js';
+import { initGameSwitcher, restoreActiveGameFromPrefs, applyGameShell } from './game-ui.js';
+import { GAME_IDS } from './games.js';
+import { VAL_DEFAULT_RR_SWING } from './valorant-config.js';
 import { renderSetupWizard, refreshSetupWizard, onBridgeStatusChange, renderLogSetupNudge } from './setup-wizard.js';
 import { mmrChart, wlChart } from './charts.js';
 import { renderAnalytics } from './analytics.js';
@@ -52,15 +56,15 @@ window.goToDashboardFromSession = () => {
 };
 
 function getDashboardGames() {
-  return applyFilters(state.games, { ...DEFAULT_FILTERS, playlist: state.playlist ?? 'all' });
+  return applyFilters(getActiveGames(), { ...DEFAULT_FILTERS, playlist: state.playlist ?? 'all' });
 }
 
 function getMatchLogsGames() {
-  return applyFilters(state.games, { ...state.matchLogFilters, playlist: 'all' });
+  return applyFilters(getActiveGames(), { ...state.matchLogFilters, playlist: 'all' });
 }
 
 function getAnalyticsGames() {
-  return applyFilters(state.games, { ...state.filters, playlist: state.playlist ?? 'all' });
+  return applyFilters(getActiveGames(), { ...state.filters, playlist: state.playlist ?? 'all' });
 }
 
 function getFilteredGames() {
@@ -76,18 +80,31 @@ async function bootApp() {
   showLoading(true);
 
   try {
-    const { profile, games, goals, groups, bio, rlDisplayName, primaryColor, secondaryColor } = await loadUserData();
+    const {
+      profile, games, goals, groups, bio, rlDisplayName,
+      primaryColor, secondaryColor, activeGame,
+    } = await loadUserData();
     setProfile({
       ...(profile ?? {}),
       primary_color: profile?.primary_color || primaryColor || profile?.accent_color || '#e65c00',
       secondary_color: profile?.secondary_color || secondaryColor || '#4a2060',
     });
-    const { games: repaired, changed } = repairPlaylistMMRChain(games);
-    if (changed) await saveGames(repaired);
-    setGames(repaired);
+    const { games: repaired, changed } = repairPlaylistMMRChain(
+      games.filter(g => (g.game ?? GAME_IDS.ROCKET_LEAGUE) === GAME_IDS.ROCKET_LEAGUE),
+    );
+    let allGames = games;
+    if (changed) {
+      allGames = [
+        ...games.filter(g => (g.game ?? GAME_IDS.ROCKET_LEAGUE) !== GAME_IDS.ROCKET_LEAGUE),
+        ...repaired,
+      ];
+      await saveGames(allGames);
+    }
+    setGames(allGames);
     setGoals(goals);
     state.profileBio = bio ?? '';
     state.groups = groups;
+    restoreActiveGameFromPrefs(activeGame);
     if (rlDisplayName && !loadPrefs().rlDisplayName) {
       saveRlDisplayName(rlDisplayName);
       savePrefs({ rlDisplayName });
@@ -101,10 +118,15 @@ async function bootApp() {
     applyLogPrefs();
 
     showQuickDock();
-    restoreSessionFromStorage(games);
+    restoreSessionFromStorage(getActiveGames());
     renderSetupWizard(getDisplay().name);
     renderLogSetupNudge();
+    initGameSwitcher({
+      onChange: () => renderAll(),
+      getSettingsPayload,
+    });
     initRlLive(applyLiveStats, onBridgeStatusChange, handleAutoLog);
+    initValorantLive(applyLiveStats, onBridgeStatusChange, handleValorantAutoLog);
 
     renderAll();
     showLoading(false);
@@ -296,12 +318,12 @@ async function handleLegacyClaim(legacyId) {
 }
 
 function renderHomePage() {
-  renderHome(state.games, state.goals);
-  const modeGames = getHomeChartGames(state.games);
+  renderHome(getActiveGames(), state.goals);
+  const modeGames = getHomeChartGames(getActiveGames());
   const label = document.getElementById('home-charts-label');
   if (label) {
     label.textContent = modeGames.length
-      ? `${getHomeChartModeLabel(state.games)} — tap a row above to switch`
+      ? `${getHomeChartModeLabel(getActiveGames())} — tap a row above to switch`
       : '';
   }
   if (modeGames.length >= 1) {
@@ -323,7 +345,7 @@ function renderAnalyticsPage() {
 }
 
 function renderAll() {
-  const games = state.games;
+  const games = getActiveGames();
   const display = getDisplay();
 
   renderLegacyImportBanner(state.profile, handleLegacyClaim);
@@ -367,7 +389,7 @@ function renderDashboard() {
 function renderMatchLogs() {
   renderLogSetupNudge();
   renderQuickFilters('matchlogs-quick-filters', () => renderMatchLogs());
-  renderFilterBar('matchlogs-filters', state.games, state.matchLogFilters, filters => {
+  renderFilterBar('matchlogs-filters', getActiveGames(), state.matchLogFilters, filters => {
     state.matchLogFilters = { ...state.matchLogFilters, ...filters };
     renderMatchLogs();
   });
@@ -381,7 +403,7 @@ function renderMatchLogs() {
 }
 
 function renderSessionsPageContent() {
-  renderSessionsPage(state.games, getDisplay().name, {
+  renderSessionsPage(getActiveGames(), getDisplay().name, {
     onViewSession: sessionNum => {
       state.matchLogFilters = { ...state.matchLogFilters, session: String(sessionNum) };
       navigate('log', 'home');
@@ -391,7 +413,7 @@ function renderSessionsPageContent() {
 
 function renderReportsPageContent() {
   renderReportsPage(
-    state.games,
+    getActiveGames(),
     state.goals,
     getDisplay().name,
     state.reportsWeekOffset,
@@ -400,7 +422,7 @@ function renderReportsPageContent() {
       setGoals(nextGoals);
       await saveSettings(getSettingsPayload({ goals: nextGoals }));
       renderHomePage();
-      renderFocusPage(state.games, state.goals, getDisplay());
+      renderFocusPage(getActiveGames(), state.goals, getDisplay());
       showToast('Goals saved!');
     },
   );
@@ -408,7 +430,7 @@ function renderReportsPageContent() {
 
 function renderProfilePageContent() {
   renderProfilePage({
-    games: state.games,
+    games: getActiveGames(),
     profile: state.profile,
     display: getDisplay(),
     authUser: getAuthUser(),
@@ -421,6 +443,7 @@ function getSettingsPayload(overrides = {}) {
   return {
     goals: state.goals,
     bio: state.profileBio ?? '',
+    activeGame: state.activeGame,
     rlDisplayName: getRlDisplayName() || loadPrefs().rlDisplayName || '',
     primaryColor: state.profile?.primary_color ?? '',
     secondaryColor: state.profile?.secondary_color ?? '',
@@ -472,7 +495,7 @@ function navigate(pageId, section) {
   if (pageId === 'profile') renderProfilePageContent();
   if (pageId === 'analytics') renderAnalyticsPage();
   if (pageId === 'reports') renderReportsPageContent();
-  if (pageId === 'focus') renderFocusPage(state.games, state.goals, getDisplay());
+  if (pageId === 'focus') renderFocusPage(getActiveGames(), state.goals, getDisplay());
   if (pageId === 'group') renderGroupsPage(getGroupsCtx());
   if (pageId === 'sessions') renderSessionsPageContent();
 }
@@ -510,10 +533,66 @@ function applyLogPrefs() {
 }
 
 function estimateMMRDeltaForMode(result, mode) {
-  return estimateMMRDelta(state.games, result, mode);
+  return estimateMMRDelta(getActiveGames(), result, mode);
+}
+
+async function handleValorantAutoLog(match) {
+  if (state.activeGame !== GAME_IDS.VALORANT) return false;
+
+  const logMode = match.mode || getQuickMode() || 'Competitive';
+  if (match.mode) setQuickMode(match.mode);
+  if (match.result) setQuickResult(match.result);
+  applyLiveStats({
+    goals: match.kills,
+    assists: match.deaths,
+    saves: match.acs,
+    kills: match.kills,
+    deaths: match.deaths,
+    valAssists: match.valAssists,
+    acs: match.acs,
+    result: match.result,
+    mode: match.mode,
+  });
+
+  const priorEnd = getLastMMR(logMode);
+  const delta = priorEnd !== ''
+    ? (match.result === 'W' ? VAL_DEFAULT_RR_SWING.W : VAL_DEFAULT_RR_SWING.L)
+    : (match.result === 'W' ? VAL_DEFAULT_RR_SWING.W : VAL_DEFAULT_RR_SWING.L);
+  let startRR;
+  let endRR;
+
+  if (priorEnd !== '') {
+    startRR = parseInt(priorEnd, 10);
+    endRR = Math.max(0, startRR + delta);
+  } else {
+    startRR = 0;
+    endRR = delta;
+    showToast(`First ${logMode} log — confirm your real RR after the match`, 'error');
+  }
+
+  document.getElementById('quick-endmmr').value = endRR;
+  document.getElementById('f-endrr') && (document.getElementById('f-endrr').value = endRR);
+
+  state.ui.autoLogNote = [
+    priorEnd === '' ? 'RR estimated' : '',
+    match.agent ? match.agent : '',
+    match.map ? match.map : '',
+  ].filter(Boolean).join(' · ');
+
+  if (!state.session.active) startSession();
+  const ok = await submitGameLog('auto');
+  if (!ok) return false;
+  flashAutoLogged();
+  refreshValorantStatus();
+  return true;
+}
+
+function getQuickMode() {
+  return document.querySelector('#quick-mode-pills .active')?.dataset.mode ?? 'Competitive';
 }
 
 async function handleAutoLog(match) {
+  if (state.activeGame !== GAME_IDS.ROCKET_LEAGUE) return false;
   const logMode = match.mode || document.querySelector('#quick-mode-pills .active')?.dataset.mode || "2's";
   if (match.mode) setQuickMode(match.mode);
   if (match.result) setQuickResult(match.result);
@@ -561,7 +640,7 @@ async function handleAutoLog(match) {
 }
 
 function recentGamesHaveMMR() {
-  return state.games.slice(-3).some(g => g.endMMR);
+  return getActiveGames().slice(-3).some(g => g.endMMR);
 }
 
 async function submitGameLog(source = 'form') {
@@ -663,7 +742,7 @@ function setEditResult(r) {
 }
 
 function openEditModal(matchNum) {
-  const game = state.games.find(g => g.match === matchNum);
+  const game = getActiveGames().find(g => g.match === matchNum);
   if (!game) return;
   state.ui.editingMatch = matchNum;
   state.ui.editTags = [...(game.tags || [])];

@@ -40,30 +40,38 @@ The in-app setup wizard also saves your name — **restart `start-grind.bat`** a
 4. Run the SQL files from the repo:
    - `schema.sql` — games & profile
    - `auth-schema.sql` — auth policies
+   - `multi-game.sql` — Rocket League + Valorant on one account
    - `groups-schema.sql` — squads (optional)
    - `profile-customization.sql` — profile colors + url# signup numbers
    - `groups-schema-fix.sql` — only if you see an "infinite recursion" policy error
 
 ## 6. Daily use
 
-**On your gaming PC:** double-click `start-grind.bat` before you queue.
+**Recommended — tray launcher (no black window):**
 
-Edit `TRACKER_URL` in `start-grind.bat` to your GitHub Pages bookmark (already set by default). The bat opens that URL and runs the RL bridge — **no localhost tab needed**.
+1. One-time: open `launcher\build-bridge.bat` to build `Twans-Tracker-Bridge.exe` in the tracker folder.
+2. Before you queue: double-click **`Twans-Tracker-Bridge.exe`**.
+3. A tray icon appears (orange = waiting for RL, green = connected). Right-click for **Open tracker** or **Quit**.
+4. Optional: edit `bridge-launcher.json` for your tracker URL and whether to open the browser on start.
 
-| What `start-grind.bat` does |
-|-----------------------------|
+**Classic — batch file:**
+
+Double-click `start-grind.bat` before you queue. Edit `TRACKER_URL` in that file (or use `bridge-launcher.json` with the tray app).
+
+| What the bridge does |
+|----------------------|
 | Starts the RL stats bridge (auto-log from matches) |
-| Opens your tracker URL in the browser |
-| Keep the black window open while you play |
+| Opens your tracker URL in the browser (bat only; tray uses menu or `openTrackerOnStart`) |
+| Keep it running while you play |
 
-Use `http://localhost:8080` as `TRACKER_URL` only if you want to run the site from this folder offline.
+Use `http://localhost:8080` as the tracker URL only if you want the local copy from this folder offline.
 
 **On phone / another device:** open the same GitHub Pages bookmark, sign in — same stats, manual logging via the dock.
 
 | Service | When |
 |---------|------|
 | Your tracker URL | GitHub Pages bookmark (or localhost if you changed it) |
-| Stats bridge | Runs with `start-grind.bat` on gaming PC |
+| Stats bridge | `Twans-Tracker-Bridge.exe` or `start-grind.bat` on gaming PC |
 | Rocket League API | TCP :49123 (BakkesMod) |
 
 ## 7. After each game
@@ -89,15 +97,16 @@ Once signed in, you get the **same app** on GitHub Pages and localhost:
 - Sessions, post-match card, squads, goals, reports
 - Data syncs via Supabase
 
-**Only difference:** auto-stats from Rocket League need `start-grind.bat` running on the PC where you're playing.
+**Only difference:** auto-stats from Rocket League need the bridge running on the PC where you're playing (`Twans-Tracker-Bridge.exe` or `start-grind.bat`).
 
 ## Troubleshooting
 
 | Problem | Fix |
 |---------|-----|
 | `MODULE_NOT_FOUND` for scripts | Download the full repo ZIP, not just the bat file |
-| Auto stats off | Run `start-grind.bat`, keep RL open, check BakkesMod Stats API |
-| Wrong player stats | Fix `RLNAME` in `start-grind.bat` and restart |
+| Auto stats off | Run `Twans-Tracker-Bridge.exe` or `start-grind.bat`, keep RL open, check BakkesMod Stats API |
+| Wrong player stats | Use **Apply & Go** in tracker setup, or set `RLNAME` in `start-grind.bat`, then restart bridge |
+| Bridge build | Run `launcher\build-bridge.bat` once (needs Node.js) |
 | Port already in use | Close old terminal windows / restart the bat file |
 | Can't save games | Sign in with Google first |
 | Session resets | Update to latest code — sessions persist in localStorage |
@@ -107,7 +116,7 @@ Once signed in, you get the **same app** on GitHub Pages and localhost:
 
 - [ ] Sign in on your bookmarked URL
 - [ ] `TRACKER_URL` in `start-grind.bat` matches your GitHub Pages URL
-- [ ] `start-grind.bat` → browser opens your bookmark, bridge connected (green in dock)
+- [ ] `Twans-Tracker-Bridge.exe` or `start-grind.bat` → bridge connected (green in dock)
 - [ ] Start session → play a game → post-match card
 - [ ] Refresh — same session # and stats
 - [ ] Open on phone — same games visible

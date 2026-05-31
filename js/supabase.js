@@ -7,6 +7,7 @@ import {
 import { setSyncStatus } from './state.js';
 import { DEFAULT_GOALS } from './goals.js';
 import { getAccessToken, getAuthUser } from './auth.js';
+import { DEFAULT_GAME, GAME_IDS } from './games.js';
 
 /** Set from loadProfile — avoids PATCHing columns that are not in Supabase yet */
 let profileSchemaExtended = false;
@@ -57,7 +58,10 @@ function matchRowToGame(row) {
   const raw = row.played_at ?? '';
   const iso = typeof raw === 'string' ? raw.slice(0, 10) : raw;
   const date = iso ? formatDisplayDate(new Date(`${iso}T12:00:00`)) : '';
+  const gameId = row.game ?? DEFAULT_GAME;
+  const stats = row.stats ?? {};
   return normalizeGame({
+    game: gameId,
     date,
     session: row.session,
     match: row.match_num,
@@ -71,6 +75,15 @@ function matchRowToGame(row) {
     mmrDiff: row.mmr_diff ?? row.end_mmr - row.start_mmr,
     notes: row.notes,
     tags: row.tags,
+    kills: stats.kills,
+    deaths: stats.deaths,
+    valAssists: stats.valAssists,
+    acs: stats.acs,
+    agent: stats.agent,
+    map: stats.map,
+    startRR: stats.startRR ?? row.start_mmr,
+    endRR: stats.endRR ?? row.end_mmr,
+    rrDiff: stats.rrDiff,
   });
 }
 
@@ -79,8 +92,10 @@ function gameToMatchRow(userId, game) {
   const played_at = d
     ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
     : new Date().toISOString().slice(0, 10);
-  return {
+  const gameId = game.game ?? DEFAULT_GAME;
+  const row = {
     user_id: userId,
+    game: gameId,
     match_num: game.match,
     session: game.session,
     played_at,
@@ -93,7 +108,29 @@ function gameToMatchRow(userId, game) {
     end_mmr: game.endMMR ?? 0,
     notes: game.notes ?? '',
     tags: game.tags ?? [],
+    stats: {},
   };
+
+  if (gameId === GAME_IDS.VALORANT) {
+    row.goals = game.kills ?? game.goals ?? 0;
+    row.assists = game.deaths ?? game.assists ?? 0;
+    row.saves = game.acs ?? game.saves ?? 0;
+    row.start_mmr = game.startRR ?? game.startMMR ?? 0;
+    row.end_mmr = game.endRR ?? game.endMMR ?? 0;
+    row.stats = {
+      kills: game.kills ?? game.goals ?? 0,
+      deaths: game.deaths ?? game.assists ?? 0,
+      valAssists: game.valAssists ?? 0,
+      acs: game.acs ?? game.saves ?? 0,
+      agent: game.agent ?? '',
+      map: game.map ?? '',
+      startRR: game.startRR ?? game.startMMR ?? 0,
+      endRR: game.endRR ?? game.endMMR ?? 0,
+      rrDiff: game.rrDiff ?? game.mmrDiff ?? 0,
+    };
+  }
+
+  return row;
 }
 
 export async function loadProfile() {
@@ -128,20 +165,33 @@ export async function loadProfile() {
 export async function loadGames() {
   const user = getAuthUser();
   if (!user) return [];
-  const rows = await sbFetch(`matches?user_id=eq.${user.id}&select=*&order=match_num.asc`);
+  const rows = await sbFetch(
+    `matches?user_id=eq.${user.id}&select=*&order=game.asc,match_num.asc`,
+  );
   return normalizePlayerGames((rows ?? []).map(matchRowToGame));
 }
 
-export async function saveGames(games) {
+export async function saveGames(games, gameId = null) {
   const user = getAuthUser();
   if (!user) throw new Error('Not signed in');
   setSyncStatus('saving');
   try {
     const normalized = normalizePlayerGames(games);
-    await sbFetch(`matches?user_id=eq.${user.id}`, 'DELETE');
-    if (normalized.length) {
-      const rows = normalized.map(g => gameToMatchRow(user.id, g));
-      await sbFetch('matches', 'POST', rows, { Prefer: 'return=minimal' });
+    const targetGame = gameId ?? null;
+
+    if (targetGame) {
+      const slice = normalized.filter(g => (g.game ?? DEFAULT_GAME) === targetGame);
+      await sbFetch(`matches?user_id=eq.${user.id}&game=eq.${targetGame}`, 'DELETE');
+      if (slice.length) {
+        const rows = slice.map(g => gameToMatchRow(user.id, g));
+        await sbFetch('matches', 'POST', rows, { Prefer: 'return=minimal' });
+      }
+    } else {
+      await sbFetch(`matches?user_id=eq.${user.id}`, 'DELETE');
+      if (normalized.length) {
+        const rows = normalized.map(g => gameToMatchRow(user.id, g));
+        await sbFetch('matches', 'POST', rows, { Prefer: 'return=minimal' });
+      }
     }
     setSyncStatus('live');
   } catch (e) {
@@ -152,7 +202,18 @@ export async function saveGames(games) {
 
 export async function loadSettings() {
   const user = getAuthUser();
-  if (!user) return { goals: { ...DEFAULT_GOALS }, bio: '', rlDisplayName: '', primaryColor: '', secondaryColor: '' };
+  if (!user) {
+    return {
+      goals: { ...DEFAULT_GOALS },
+      bio: '',
+      rlDisplayName: '',
+      riotId: '',
+      riotRegion: 'na',
+      activeGame: DEFAULT_GAME,
+      primaryColor: '',
+      secondaryColor: '',
+    };
+  }
   try {
     const rows = await sbFetch(`user_settings?user_id=eq.${user.id}&select=data`);
     const data = rows?.[0]?.data ?? {};
@@ -160,13 +221,25 @@ export async function loadSettings() {
       goals: { ...DEFAULT_GOALS, ...(data.goals ?? {}) },
       bio: data.bio ?? '',
       rlDisplayName: data.rlDisplayName ?? '',
+      riotId: data.riotId ?? '',
+      riotRegion: data.riotRegion ?? 'na',
+      activeGame: data.activeGame ?? DEFAULT_GAME,
       primaryColor: data.primaryColor ?? '',
       secondaryColor: data.secondaryColor ?? '',
     };
   } catch {
     /* table may not exist yet */
   }
-  return { goals: { ...DEFAULT_GOALS }, bio: '', rlDisplayName: '', primaryColor: '', secondaryColor: '' };
+  return {
+    goals: { ...DEFAULT_GOALS },
+    bio: '',
+    rlDisplayName: '',
+    riotId: '',
+    riotRegion: 'na',
+    activeGame: DEFAULT_GAME,
+    primaryColor: '',
+    secondaryColor: '',
+  };
 }
 
 export async function saveSettings(settings) {
@@ -287,7 +360,7 @@ export async function loadUserData() {
     const settings = await loadSettings();
     const groups = await loadUserGroups();
     setSyncStatus('live');
-    return { profile, games, goals: settings.goals, groups, bio: settings.bio, rlDisplayName: settings.rlDisplayName, primaryColor: settings.primaryColor, secondaryColor: settings.secondaryColor };
+    return { profile, games, goals: settings.goals, groups, bio: settings.bio, rlDisplayName: settings.rlDisplayName, primaryColor: settings.primaryColor, secondaryColor: settings.secondaryColor, activeGame: settings.activeGame, riotId: settings.riotId, riotRegion: settings.riotRegion };
   } catch (e) {
     setSyncStatus('error');
     throw e;

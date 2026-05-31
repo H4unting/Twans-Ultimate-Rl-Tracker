@@ -3,6 +3,8 @@
 import { showToast } from './ui.js';
 import { setBridgeHintVisible } from './env.js';
 import { loadPrefs, savePrefs, isAutoLogEnabled } from './quicklog.js';
+import { state } from './state.js';
+import { GAME_IDS } from './games.js';
 
 const BRIDGE = 'http://127.0.0.1:49200';
 let pollId = null;
@@ -29,6 +31,10 @@ export function stopRlLive() {
 }
 
 async function pollBridge() {
+  if (state.activeGame !== GAME_IDS.ROCKET_LEAGUE) {
+    setLiveStatus(false);
+    return;
+  }
   try {
     const res = await fetch(`${BRIDGE}/status`, { signal: AbortSignal.timeout(1500) });
     if (!res.ok) throw new Error('offline');
@@ -120,14 +126,23 @@ export async function fetchBridgeSetupStatus() {
   return res.json();
 }
 
-export async function applyBridgeSetup({ rlDisplayName, patchIni = true }) {
+export async function applyBridgeSetup({
+  rlDisplayName, riotId, riotApiKey, riotRegion, patchIni = true,
+}) {
   const name = rlDisplayName?.trim();
-  if (!name) throw new Error('Enter your Rocket League display name first');
+  const riot = riotId?.trim();
+  if (!name && !riot) throw new Error('Enter your Rocket League name or Riot ID first');
 
   const res = await fetch(`${BRIDGE}/setup/apply`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ rlDisplayName: name, patchIni }),
+    body: JSON.stringify({
+      rlDisplayName: name,
+      riotId: riot,
+      riotApiKey: riotApiKey?.trim() || undefined,
+      riotRegion: riotRegion?.trim() || undefined,
+      patchIni,
+    }),
     signal: AbortSignal.timeout(15000),
   });
 
@@ -142,7 +157,9 @@ export async function applyBridgeSetup({ rlDisplayName, patchIni = true }) {
     throw new Error(data.error || 'Could not apply settings');
   }
 
-  saveRlDisplayName(name);
-  savePrefs({ rlDisplayName: name });
+  if (name) {
+    saveRlDisplayName(name);
+    savePrefs({ rlDisplayName: name });
+  }
   return data;
 }

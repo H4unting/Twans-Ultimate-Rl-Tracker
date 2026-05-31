@@ -104,6 +104,26 @@ export function renderSetupWizard(displayName = '') {
             <div id="setup-apply-result" class="setup-apply-result hidden" aria-live="polite"></div>
           </div>
         </li>
+        <li class="setup-step" data-step="valorant">
+          <span class="setup-step-num">4</span>
+          <div class="setup-step-body">
+            <strong>Valorant auto-log (optional)</strong>
+            <p>Add your Riot ID and API key — saved locally in <code>grind-config.json</code> when you Apply.</p>
+            <label>Riot ID <span class="setup-hint">(Name#TAG)</span></label>
+            <input type="text" id="setup-riot-id" class="setup-input" placeholder="PlayerName#NA1" autocomplete="off">
+            <label>Riot API key <span class="setup-hint">(<a href="https://developer.riotgames.com/" target="_blank" rel="noopener">developer.riotgames.com</a>)</span></label>
+            <input type="password" id="setup-riot-key" class="setup-input" placeholder="RGAPI-..." autocomplete="off">
+            <label>Region</label>
+            <select id="setup-riot-region" class="setup-input">
+              <option value="na">NA</option>
+              <option value="eu">EU</option>
+              <option value="ap">AP</option>
+              <option value="kr">KR</option>
+              <option value="latam">LATAM</option>
+              <option value="br">BR</option>
+            </select>
+          </div>
+        </li>
       </ol>
       <div class="setup-footer">
         ${!allReady ? `
@@ -173,8 +193,11 @@ function wireSetupApplyGo() {
   btn.addEventListener('click', async () => {
     const input = document.getElementById('setup-rl-name');
     const name = input?.value.trim() ?? '';
-    if (!name) {
-      showToast('Enter your Rocket League display name first', 'error');
+    const riotId = document.getElementById('setup-riot-id')?.value.trim() ?? '';
+    const riotApiKey = document.getElementById('setup-riot-key')?.value.trim() ?? '';
+    const riotRegion = document.getElementById('setup-riot-region')?.value ?? 'na';
+    if (!name && !riotId) {
+      showToast('Enter your Rocket League name or Riot ID first', 'error');
       input?.focus();
       return;
     }
@@ -192,7 +215,13 @@ function wireSetupApplyGo() {
     const patchIni = document.getElementById('setup-patch-ini')?.checked !== false;
 
     try {
-      const result = await applyBridgeSetup({ rlDisplayName: name, patchIni });
+      const result = await applyBridgeSetup({
+        rlDisplayName: name,
+        riotId,
+        riotApiKey,
+        riotRegion,
+        patchIni,
+      });
       if (resultEl) {
         resultEl.classList.remove('hidden');
         const lines = [
@@ -206,7 +235,8 @@ function wireSetupApplyGo() {
         resultEl.innerHTML = `<div class="setup-callout setup-callout-success">${lines.map(l => `<div>${escapeHtml(l)}</div>`).join('')}</div>`;
       }
       document.querySelector('.setup-step[data-step="apply"]')?.classList.add('done');
-      document.querySelector('.setup-step[data-step="name"]')?.classList.add('done');
+      if (name) document.querySelector('.setup-step[data-step="name"]')?.classList.add('done');
+      document.querySelector('.setup-step[data-step="valorant"]')?.classList.toggle('done', Boolean(riotId));
       saveSetupPrefs({ iniDone: true });
       showToast('Settings applied on your PC!');
     } catch (e) {

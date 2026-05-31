@@ -1,11 +1,13 @@
 /** Central app state — auth-first, single-user by default */
 
 import { DEFAULT_GOALS } from './goals.js';
+import { DEFAULT_GAME, GAME_IDS, filterGamesByTitle } from './games.js';
 
 export const state = {
   authReady: false,
   profile: null,
   games: [],
+  activeGame: DEFAULT_GAME,
   loading: true,
   syncStatus: 'connecting',
   activePage: 'dashboard',
@@ -77,6 +79,23 @@ export function setProfile(profile) {
 export function setGoals(goals) {
   state.goals = goals;
   notify();
+}
+
+export function setActiveGame(gameId) {
+  state.activeGame = gameId;
+  notify();
+}
+
+/** Matches for the currently selected title. */
+export function getActiveGames() {
+  return filterGamesByTitle(state.games, state.activeGame);
+}
+
+/** Replace active-title slice while keeping other games intact. */
+export function mergeActiveGames(activeSlice) {
+  const rest = state.games.filter(g => (g.game ?? GAME_IDS.ROCKET_LEAGUE) !== state.activeGame);
+  const tagged = activeSlice.map(g => ({ ...g, game: state.activeGame }));
+  return [...rest, ...tagged];
 }
 
 export function getUserDisplay(authUser) {

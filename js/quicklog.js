@@ -1,6 +1,7 @@
 /** Quick Log dock — fast mid-session logging with keyboard shortcuts */
 
-import { TAG_GROUPS } from './config.js';
+import { state } from './state.js';
+import { GAME_IDS, getTagGroups, getAgents, getMaps } from './games.js';
 import { showToast } from './ui.js';
 import { getLoggingSessionNum } from './sessions.js';
 
@@ -208,26 +209,58 @@ export function syncFormFromQuick() {
 
 export function getQuickLogPayload() {
   syncFormFromQuick();
-  return {
+  const isVal = state.activeGame === GAME_IDS.VALORANT;
+  const base = {
     date: document.getElementById('f-date')?.value,
     session: getLoggingSessionNum(),
     mode: getQuickMode(),
     result: getQuickResult(),
+    notes: document.getElementById('quick-notes')?.value ?? '',
+  };
+  if (isVal) {
+    return {
+      ...base,
+      kills: getQuickStat('goals'),
+      deaths: getQuickStat('assists'),
+      valAssists: parseInt(document.getElementById('quick-val-assists')?.value, 10) || 0,
+      acs: getQuickStat('saves'),
+      goals: getQuickStat('goals'),
+      assists: getQuickStat('assists'),
+      saves: getQuickStat('saves'),
+      agent: document.getElementById('quick-agent')?.value ?? '',
+      map: document.getElementById('quick-map')?.value ?? '',
+      startRR: document.getElementById('f-startmmr')?.value,
+      endRR: document.getElementById('quick-endmmr')?.value,
+      startMMR: document.getElementById('f-startmmr')?.value,
+      endMMR: document.getElementById('quick-endmmr')?.value,
+    };
+  }
+  return {
+    ...base,
     goals: getQuickStat('goals'),
     assists: getQuickStat('assists'),
     saves: getQuickStat('saves'),
     startMMR: document.getElementById('f-startmmr')?.value,
     endMMR: document.getElementById('quick-endmmr')?.value,
-    notes: document.getElementById('quick-notes')?.value ?? '',
   };
 }
 
 export function applyLiveStats(stats) {
-  setQuickStat('goals', stats.goals ?? 0);
-  setQuickStat('assists', stats.assists ?? 0);
-  setQuickStat('saves', stats.saves ?? 0);
+  setQuickStat('goals', stats.kills ?? stats.goals ?? 0);
+  setQuickStat('assists', stats.deaths ?? stats.assists ?? 0);
+  setQuickStat('saves', stats.acs ?? stats.saves ?? 0);
+  const va = document.getElementById('quick-val-assists');
+  if (va) va.value = stats.valAssists ?? 0;
   if (stats.result) setQuickResult(stats.result);
   if (stats.mode) setQuickMode(stats.mode);
+  if (stats.agent) {
+    const agentSel = document.getElementById('quick-agent');
+    if (agentSel) agentSel.value = stats.agent;
+  }
+  if (stats.map) {
+    const mapSel = document.getElementById('quick-map');
+    if (mapSel) mapSel.value = stats.map;
+  }
 }
 
 export function getQuickStat(stat) {
@@ -310,9 +343,10 @@ export function flashAutoLogged() {
 function renderQuickTags() {
   const el = document.getElementById('quick-tags');
   if (!el) return;
-  const hotTags = ['Tilt', 'Autopilot', 'Bad Positioning', 'Overcommitting', 'Giving Away Possession', 'Hesitation'];
+  const groups = getTagGroups(state.activeGame);
+  const hotTags = (groups.flatMap(g => g.tags)).slice(0, 6);
   el.innerHTML = hotTags.map(tag => {
-    const cat = TAG_GROUPS.find(g => g.tags.includes(tag))?.cat ?? 'def';
+    const cat = groups.find(g => g.tags.includes(tag))?.cat ?? 'def';
     const sel = quickTags.includes(tag) ? ' selected' : '';
     return `<button type="button" class="tag-chip ${cat}${sel}" data-tag="${tag}">${tag}</button>`;
   }).join('');

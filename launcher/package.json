@@ -1,0 +1,50 @@
+{
+  "name": "twans-tracker-bridge",
+  "version": "1.1.0",
+  "description": "System tray launcher for Twans Ultimate Tracker RL bridge",
+  "main": "src/main.cjs",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win portable",
+    "postbuild": "node scripts/copy-exe.cjs"
+  },
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.twans.rl-tracker-bridge",
+    "productName": "Twans Tracker Bridge",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../scripts",
+        "to": "bridge-scripts",
+        "filter": [
+          "*.mjs"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "signAndEditExecutable": false
+    },
+    "portable": {
+      "artifactName": "Twans-Tracker-Bridge.exe"
+    }
+  }
+}

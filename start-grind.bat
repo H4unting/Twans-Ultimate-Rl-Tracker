@@ -16,8 +16,8 @@ echo   Twans Ultimate Tracker - Starting...
 echo   Name: %RLNAME%
 echo   Site: %TRACKER_URL%
 echo.
-echo   A black window will stay open - DO NOT close
-echo   it while you play. Your browser opens auto.
+echo   Or use Twans-Tracker-Bridge.exe (tray app, no black window).
+echo   Build once with launcher\build-bridge.bat
 echo  ============================================
 echo.
 

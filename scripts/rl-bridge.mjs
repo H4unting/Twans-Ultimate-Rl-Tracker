@@ -8,6 +8,7 @@ import http from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { applyLocalSetup, getSetupStatus, loadGrindConfig } from './local-setup.mjs';
+import { handleValorantRequest, startValorantBridge } from './valorant-bridge.mjs';
 
 const RL_PORT = 49123;
 const DEFAULT_HTTP_PORT = 49200;
@@ -279,6 +280,9 @@ export function startBridge(options = {}) {
         const body = await readJsonBody(req);
         const applied = applyLocalSetup({
           rlDisplayName: body.rlDisplayName,
+          riotId: body.riotId,
+          riotApiKey: body.riotApiKey,
+          riotRegion: body.riotRegion,
           patchIni: body.patchIni !== false,
         });
         setPlayerName(applied.rlDisplayName);
@@ -307,6 +311,8 @@ export function startBridge(options = {}) {
         return;
       }
 
+      if (handleValorantRequest(req, res)) return;
+
       res.writeHead(404);
       res.end('Not found');
     } catch (err) {
@@ -325,6 +331,7 @@ export function startBridge(options = {}) {
         console.log(`Watching player: ${activePlayerName}`);
       }
       connectRL();
+      startValorantBridge();
       resolve(server);
     });
   });
