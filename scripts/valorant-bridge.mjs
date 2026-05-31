@@ -32,6 +32,9 @@ let lastOverwolfPing = 0;
 let overwolfActive = false;
 
 const OVERWOLF_TTL_MS = 45000;
+const VAL_PROC_CACHE_MS = 5000;
+const VAL_PROC_STICKY_MS = 3 * 60 * 1000;
+let valProcessCache = { checkedAt: 0, running: false, lastSeenAt: 0 };
 
 function isOverwolfConnected() {
   return overwolfActive && (Date.now() - lastOverwolfPing) < OVERWOLF_TTL_MS;
@@ -148,16 +151,31 @@ function getBridgeConfig() {
 
 function isValorantRunning() {
   if (process.platform !== 'win32') return false;
+  const now = Date.now();
+  if (now - valProcessCache.checkedAt < VAL_PROC_CACHE_MS) {
+    return valProcessCache.running
+      || (valProcessCache.lastSeenAt && (now - valProcessCache.lastSeenAt) < VAL_PROC_STICKY_MS);
+  }
+
   const names = ['VALORANT-Win64-Shipping.exe', 'VALORANT.exe'];
+  let running = false;
   for (const name of names) {
     const r = spawnSync(
       'tasklist',
       ['/FI', `IMAGENAME eq ${name}`, '/NH'],
-      { encoding: 'utf8', windowsHide: true },
+      { encoding: 'utf8', windowsHide: true, timeout: 8000 },
     );
-    if ((r.stdout || '').toLowerCase().includes(name.toLowerCase())) return true;
+    if ((r.stdout || '').toLowerCase().includes(name.toLowerCase())) {
+      running = true;
+      break;
+    }
   }
-  return false;
+
+  valProcessCache.checkedAt = now;
+  valProcessCache.running = running;
+  if (running) valProcessCache.lastSeenAt = now;
+  return running
+    || (valProcessCache.lastSeenAt && (now - valProcessCache.lastSeenAt) < VAL_PROC_STICKY_MS);
 }
 
 function splitRiotId(riotId) {

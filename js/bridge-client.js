@@ -4,9 +4,11 @@ const BRIDGE = 'http://127.0.0.1:49200';
 const HEARTBEAT_MS = 2500;
 const PING_TIMEOUT_MS = 4000;
 /** Consecutive failed pings before going offline (after grace expires) */
-const OFFLINE_AFTER_MISSES = 5;
+const OFFLINE_AFTER_MISSES = 20;
 /** Stay "online" through brief hiccups right after a good ping */
-const ONLINE_GRACE_MS = 20000;
+const ONLINE_GRACE_MS = 120000;
+/** While the tab is hidden (you're in Val), stay optimistic much longer */
+const HIDDEN_GRACE_MS = 15 * 60 * 1000;
 
 let bridgeOnline = false;
 let failStreak = 0;
@@ -63,9 +65,12 @@ async function heartbeatTick() {
       failStreak = 0;
       setBridgeOnline(true);
     } catch {
-      failStreak += 1;
-      const withinGrace = lastSuccessAt && (Date.now() - lastSuccessAt) < ONLINE_GRACE_MS;
-      if (!withinGrace && failStreak >= OFFLINE_AFTER_MISSES) {
+      const hidden = document.visibilityState === 'hidden';
+      if (!hidden) failStreak += 1;
+      const age = lastSuccessAt ? Date.now() - lastSuccessAt : Infinity;
+      const withinGrace = age < ONLINE_GRACE_MS;
+      const withinHiddenGrace = hidden && age < HIDDEN_GRACE_MS;
+      if (!withinGrace && !withinHiddenGrace && failStreak >= OFFLINE_AFTER_MISSES) {
         setBridgeOnline(false);
       }
     } finally {
@@ -104,7 +109,6 @@ export function stopBridgeHeartbeat() {
 
 /** Game pollers can fetch /status without affecting online state */
 export async function fetchBridgeStatus() {
-  if (!isBridgeUp()) return null;
   try {
     return await pingBridgeOnce();
   } catch {

@@ -4,7 +4,7 @@ import { state } from './state.js';
 import { GAME_IDS } from './games.js';
 import { showToast } from './ui.js';
 import { isAutoLogEnabled } from './quicklog.js';
-import { isBridgeUp, getBridgeUrl } from './bridge-client.js';
+import { isBridgeUp, getBridgeUrl, setBridgeOnline } from './bridge-client.js';
 import { setCachedValorantStatus, refreshBridgeStatusUI } from './bridge-ui.js';
 
 const BRIDGE = getBridgeUrl();
@@ -27,7 +27,21 @@ function setValorantLiveStatus(valStatus = null) {
 }
 
 async function poll() {
-  const online = isBridgeUp();
+  let online = isBridgeUp();
+
+  if (!online) {
+    try {
+      const res = await fetch(`${BRIDGE}/status`, { signal: AbortSignal.timeout(3000) });
+      if (res.ok) {
+        setBridgeOnline(true);
+        online = true;
+      }
+    } catch {
+      setValorantLiveStatus(null);
+      refreshBridgeStatusUI();
+      return;
+    }
+  }
 
   if (online !== wasBridgeUp) {
     wasBridgeUp = online;
@@ -36,6 +50,7 @@ async function poll() {
 
   if (!online) {
     setValorantLiveStatus(null);
+    refreshBridgeStatusUI();
     return;
   }
 
