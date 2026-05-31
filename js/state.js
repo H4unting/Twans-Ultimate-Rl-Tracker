@@ -1,7 +1,13 @@
 /** Central app state — auth-first, single-user by default */
 
-import { getActiveGoals, normalizeGoalsStorage, DEFAULT_GOALS } from './goals.js';
 import { DEFAULT_GAME, GAME_IDS, filterGamesByTitle } from './games.js';
+
+const INITIAL_GOALS = {
+  mmrTarget: 0,
+  gamesPerWeek: 15,
+  winRateTarget: 50,
+  focusTag: '',
+};
 
 export const state = {
   authReady: false,
@@ -42,7 +48,7 @@ export const state = {
     editingMatch: null,
     currentResult: 'W',
   },
-  goals: { ...DEFAULT_GOALS },
+  goals: { ...INITIAL_GOALS },
   profileBio: '',
   reportsWeekOffset: 0,
   groups: [],
