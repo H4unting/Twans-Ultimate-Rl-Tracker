@@ -83,10 +83,31 @@ export async function playSessionStartSound() {
 
 export function loadPrefs() {
   try {
-    return { lastMode: "2's", autoLog: true, autoLogSound: true, dockCollapsed: false, ...JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}') };
+    const raw = JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}');
+    return {
+      lastMode: "2's",
+      lastModes: {},
+      autoLog: true,
+      autoLogSound: true,
+      dockCollapsed: false,
+      ...raw,
+    };
   } catch {
-    return { lastMode: "2's", autoLog: true, autoLogSound: true, dockCollapsed: false };
+    return { lastMode: "2's", lastModes: {}, autoLog: true, autoLogSound: true, dockCollapsed: false };
   }
+}
+
+export function getLastModeForGame(gameId = state.activeGame) {
+  const prefs = loadPrefs();
+  return prefs.lastModes?.[gameId] ?? prefs.lastMode ?? (gameId === GAME_IDS.VALORANT ? 'Competitive' : "2's");
+}
+
+export function saveLastModeForGame(mode, gameId = state.activeGame) {
+  const prefs = loadPrefs();
+  savePrefs({
+    lastMode: mode,
+    lastModes: { ...(prefs.lastModes || {}), [gameId]: mode },
+  });
 }
 
 export function isDockCollapsed() {
@@ -222,8 +243,8 @@ export function getQuickLogPayload() {
       ...base,
       kills: getQuickStat('goals'),
       deaths: getQuickStat('assists'),
-      valAssists: parseInt(document.getElementById('quick-val-assists')?.value, 10) || 0,
-      acs: getQuickStat('saves'),
+      valAssists: getQuickStat('saves'),
+      acs: parseInt(document.getElementById('quick-val-assists')?.value, 10) || 0,
       goals: getQuickStat('goals'),
       assists: getQuickStat('assists'),
       saves: getQuickStat('saves'),
@@ -246,11 +267,12 @@ export function getQuickLogPayload() {
 }
 
 export function applyLiveStats(stats) {
+  const isVal = state.activeGame === GAME_IDS.VALORANT;
   setQuickStat('goals', stats.kills ?? stats.goals ?? 0);
   setQuickStat('assists', stats.deaths ?? stats.assists ?? 0);
-  setQuickStat('saves', stats.acs ?? stats.saves ?? 0);
+  setQuickStat('saves', isVal ? (stats.valAssists ?? stats.assists ?? 0) : (stats.acs ?? stats.saves ?? 0));
   const va = document.getElementById('quick-val-assists');
-  if (va) va.value = stats.valAssists ?? 0;
+  if (va) va.value = stats.acs ?? stats.valAssists ?? 0;
   if (stats.result) setQuickResult(stats.result);
   if (stats.mode) setQuickMode(stats.mode);
   if (stats.agent) {
@@ -303,6 +325,8 @@ export function resetQuickAfterLog() {
   setQuickStat('goals', 0);
   setQuickStat('assists', 0);
   setQuickStat('saves', 0);
+  const va = document.getElementById('quick-val-assists');
+  if (va) va.value = 0;
   quickTags = [];
   renderQuickTags();
   syncStartMMR();
@@ -315,7 +339,8 @@ function syncStartMMR() {
 }
 
 function getQuickMode() {
-  return document.querySelector('#quick-mode-pills .active')?.dataset.mode ?? prefs.lastMode ?? "2's";
+  return document.querySelector('#quick-mode-pills .active')?.dataset.mode
+    ?? getLastModeForGame(state.activeGame);
 }
 
 export function setQuickMode(mode) {
@@ -324,6 +349,7 @@ export function setQuickMode(mode) {
   });
   const fMode = document.getElementById('f-mode');
   if (fMode) fMode.value = mode;
+  saveLastModeForGame(mode);
 }
 
 function getQuickResult() {
@@ -337,7 +363,7 @@ export function setQuickResult(r) {
 }
 
 function applyPrefs() {
-  setQuickMode(prefs.lastMode ?? "2's");
+  setQuickMode(getLastModeForGame(state.activeGame));
   setAutoLogEnabled(isAutoLogEnabled());
   setAutoLogSoundEnabled(isAutoLogSoundEnabled());
   applyDockCollapsedState();
@@ -360,9 +386,9 @@ function renderQuickTags() {
   const el = document.getElementById('quick-tags');
   if (!el) return;
   const groups = getTagGroups(state.activeGame);
-  const hotTags = (groups.flatMap(g => g.tags)).slice(0, 6);
+  const hotTags = groups.flatMap(g => g.tags).slice(0, 8);
   el.innerHTML = hotTags.map(tag => {
-    const cat = groups.find(g => g.tags.includes(tag))?.cat ?? 'def';
+    const cat = groups.find(g => g.tags.includes(tag))?.cat ?? (state.activeGame === GAME_IDS.VALORANT ? 'aim' : 'def');
     const sel = quickTags.includes(tag) ? ' selected' : '';
     return `<button type="button" class="tag-chip ${cat}${sel}" data-tag="${tag}">${tag}</button>`;
   }).join('');
@@ -378,6 +404,14 @@ function renderQuickTags() {
       stateSyncTagsToForm();
     });
   });
+}
+
+/** Rebuild dock tags when switching RL ↔ VAL */
+export function refreshQuickTagsOnGameSwitch() {
+  quickTags = [];
+  state.ui.selectedTags = [];
+  renderQuickTags();
+  callbacks.setSelectedTags?.([]);
 }
 
 function stateSyncTagsToForm() {
@@ -405,7 +439,10 @@ function wireDock() {
 
   document.getElementById('auto-log-toggle')?.addEventListener('click', () => {
     setAutoLogEnabled(!isAutoLogEnabled());
-    showToast(isAutoLogEnabled() ? 'Auto-log ON — games save when a match ends' : 'Auto-log OFF — manual LOG');
+    const isVal = state.activeGame === GAME_IDS.VALORANT;
+    showToast(isAutoLogEnabled()
+      ? (isVal ? 'Auto-log ON — matches save when a round ends' : 'Auto-log ON — games save when a match ends')
+      : (isVal ? 'Auto-log OFF — manual LOG' : 'Auto-log OFF — manual LOG'));
     callbacks.onAutoLogToggle?.();
   });
 
@@ -418,17 +455,15 @@ function wireDock() {
     }
   });
 
-  document.querySelectorAll('#quick-mode-pills button').forEach(btn => {
-    btn.addEventListener('click', () => {
-      setQuickMode(btn.dataset.mode);
-      savePrefs({ lastMode: btn.dataset.mode });
-      syncStartMMR();
-    });
+  document.getElementById('quick-mode-pills')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-mode]');
+    if (!btn) return;
+    setQuickMode(btn.dataset.mode);
+    syncStartMMR();
   });
 
   document.getElementById('f-mode')?.addEventListener('change', e => {
     setQuickMode(e.target.value);
-    savePrefs({ lastMode: e.target.value });
     syncStartMMR();
   });
 

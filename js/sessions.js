@@ -1,31 +1,47 @@
 /** Session management — live grind panel, timer, session summaries */
 
-import { state, notify, getUserDisplay } from './state.js';
+import { state, notify, getUserDisplay, getActiveGames } from './state.js';
 import { getSessionStats, formatDuration } from './utils.js';
 import { getAuthUser } from './auth.js';
 import { rankBadgeHTML } from './ranks.js';
 import { showToast } from './ui.js';
 import { getLastMMR, lastGameNeedsMmrConfirm } from './matches.js';
 import { detectTilt } from './insights.js';
+import { GAME_IDS, getGameMeta, getDefaultMode } from './games.js';
+
+function sessionCopy() {
+  const isVal = state.activeGame === GAME_IDS.VALORANT;
+  const meta = getGameMeta(state.activeGame);
+  return {
+    isVal,
+    blockLabel: isVal ? 'Grind Block' : 'Session',
+    matchLabel: isVal ? 'matches' : 'games',
+    matchSingular: isVal ? 'match' : 'game',
+    rankLabel: meta.diffLabel,
+  };
+}
 
 function getActiveLogMode() {
+  const fromPill = document.querySelector('#quick-mode-pills .active')?.dataset.mode;
+  if (fromPill) return fromPill;
   const fromForm = document.getElementById('f-mode')?.value;
   if (fromForm) return fromForm;
   try {
-    return JSON.parse(localStorage.getItem('rl-grind-prefs') ?? '{}').lastMode ?? "2's";
+    const prefs = JSON.parse(localStorage.getItem('rl-grind-prefs') ?? '{}');
+    return prefs.lastModes?.[state.activeGame] ?? prefs.lastMode ?? getDefaultMode(state.activeGame);
   } catch {
-    return "2's";
+    return getDefaultMode(state.activeGame);
   }
 }
 
 const SESSION_STORE = 'rl-grind-session';
 
-export function getMaxSessionNum(games = state.games) {
+export function getMaxSessionNum(games = getActiveGames()) {
   if (!games?.length) return 0;
   return games.reduce((max, g) => Math.max(max, parseInt(g.session, 10) || 1), 0);
 }
 
-export function getNextSessionNum(games = state.games) {
+export function getNextSessionNum(games = getActiveGames()) {
   return getMaxSessionNum(games) + 1;
 }
 
@@ -38,26 +54,26 @@ export function getLoggingSessionNum() {
   if (fromDock) return fromDock;
   const fromForm = parseInt(document.getElementById('f-session')?.value, 10);
   if (fromForm) return fromForm;
-  return getNextSessionNum() || 1;
+  return getNextSessionNum(getActiveGames()) || 1;
 }
 
-function storageKey() {
+function storageKey(gameId = state.activeGame) {
   const id = getAuthUser()?.id;
-  return id ? `${SESSION_STORE}:${id}` : SESSION_STORE;
+  return id ? `${SESSION_STORE}:${gameId}:${id}` : `${SESSION_STORE}:${gameId}`;
 }
 
-function loadStoredSession() {
+function loadStoredSession(gameId = state.activeGame) {
   try {
-    return JSON.parse(localStorage.getItem(storageKey()) ?? 'null');
+    return JSON.parse(localStorage.getItem(storageKey(gameId)) ?? 'null');
   } catch {
     return null;
   }
 }
 
-function saveStoredSession(data) {
+function saveStoredSession(data, gameId = state.activeGame) {
   try {
-    const prev = loadStoredSession();
-    localStorage.setItem(storageKey(), JSON.stringify({
+    const prev = loadStoredSession(gameId);
+    localStorage.setItem(storageKey(gameId), JSON.stringify({
       ...prev,
       ...data,
       history: data.history ?? prev?.history ?? {},
@@ -95,11 +111,14 @@ function inferOpenSession(games, stored) {
 function activateSession(sessionNum, { startTime = Date.now(), startMMR = null, silent = false } = {}) {
   if (state.session.timerId) clearInterval(state.session.timerId);
 
+  const activeGames = getActiveGames();
+  const copy = sessionCopy();
+
   state.session = {
     ...state.session,
     active: true,
     startTime,
-    startMMR: startMMR ?? (state.games.length ? state.games[state.games.length - 1].endMMR : null),
+    startMMR: startMMR ?? (activeGames.length ? activeGames[activeGames.length - 1].endMMR : null),
     sessionNum,
     timerId: setInterval(tickSessionTimer, 1000),
   };
@@ -121,7 +140,7 @@ function activateSession(sessionNum, { startTime = Date.now(), startMMR = null, 
   updateLivePanel();
   if (!silent) {
     document.dispatchEvent(new CustomEvent('rl-session-start'));
-    showToast('Session started! 🚀');
+    showToast(copy.isVal ? 'Grind block started ◆' : 'Session started! 🚀');
   }
 }
 
@@ -161,7 +180,8 @@ export function resetSessionCounter(num = 1) {
   }
 
   const prev = loadStoredSession();
-  const maxLogged = getMaxSessionNum(state.games);
+  const maxLogged = getMaxSessionNum(getActiveGames());
+  const copy = sessionCopy();
 
   state.session.active = false;
   state.session.startTime = null;
@@ -182,7 +202,7 @@ export function resetSessionCounter(num = 1) {
   notify();
   updateSessionBar();
   updateLivePanel();
-  showToast(`Next session set to ${num}`);
+  showToast(`Next ${copy.blockLabel.toLowerCase()} set to ${num}`);
 }
 
 export function initSessionUI() {
@@ -208,17 +228,18 @@ export function startSession({ silent = false, sessionNum } = {}) {
   const num = sessionNum
     ?? parseInt(document.getElementById('dock-session-num')?.value, 10)
     ?? parseInt(document.getElementById('f-session')?.value, 10)
-    ?? getNextSessionNum()
+    ?? getNextSessionNum(getActiveGames())
     ?? 1;
   activateSession(num, { silent });
 }
 
 export function endSession(onComplete) {
+  const copy = sessionCopy();
   const sessionNum = state.session.sessionNum || getLoggingSessionNum();
-  const sg = state.games.filter(g => parseInt(g.session, 10) === sessionNum);
+  const sg = getActiveGames().filter(g => parseInt(g.session, 10) === sessionNum);
 
   if (!sg.length) {
-    showToast('No games in this session yet', 'error');
+    showToast(`No ${copy.matchLabel} in this ${copy.blockLabel.toLowerCase()} yet`, 'error');
     return;
   }
 
@@ -293,7 +314,7 @@ function tickSessionTimer() {
 
 function getLiveSessionStats() {
   const sessionNum = getLoggingSessionNum();
-  const sessionGames = state.games.filter(g => parseInt(g.session, 10) === sessionNum);
+  const sessionGames = getActiveGames().filter(g => parseInt(g.session, 10) === sessionNum);
   return { ...getSessionStats(sessionGames), sessionNum, sessionGames };
 }
 
@@ -306,9 +327,10 @@ function renderTiltNudge(sessionGames) {
     </div>`;
 }
 
-function renderMmrBadge() {
-  if (!lastGameNeedsMmrConfirm()) return '';
-  return '<span class="session-mmr-badge" title="Last game MMR not confirmed">MMR?</span>';
+function renderRankConfirmBadge() {
+  if (!lastGameNeedsMmrConfirm(getActiveGames())) return '';
+  const label = getGameMeta(state.activeGame).rankLabel;
+  return `<span class="session-mmr-badge" title="Last ${label} not confirmed">${label}?</span>`;
 }
 
 export function updateSessionBar() {
@@ -317,7 +339,11 @@ export function updateSessionBar() {
   const title = document.getElementById('session-bar-title');
   const stats = document.getElementById('session-live-stats');
   const startBtn = document.getElementById('session-start-btn');
+  const numLabel = document.querySelector('.session-num-label');
+  const copy = sessionCopy();
   if (!bar) return;
+
+  if (numLabel) numLabel.textContent = `${copy.blockLabel} #`;
 
   if (!state.session.active) {
     bar.classList.remove('active');
@@ -325,16 +351,16 @@ export function updateSessionBar() {
     document.querySelector('.quick-dock-inner')?.classList.remove('session-live');
     const next = getLoggingSessionNum();
     if (title) {
-      title.textContent = `Ready — Session ${next}`;
+      title.textContent = `Ready — ${copy.blockLabel} ${next}`;
       title.classList.remove('active');
     }
     document.getElementById('session-num-setter')?.classList.remove('hidden');
     const dockInput = document.getElementById('dock-session-num');
     if (dockInput && document.activeElement !== dockInput) dockInput.value = next;
-    if (stats) stats.innerHTML = '<span class="slive-item neutral">Tap ▶ Start when ready</span>';
+    if (stats) stats.innerHTML = `<span class="slive-item neutral">Tap ▶ Start when ready</span>`;
     if (startBtn) {
       startBtn.className = 'session-btn start';
-      startBtn.textContent = '▶ Start';
+      startBtn.textContent = copy.isVal ? '▶ Start Block' : '▶ Start';
       startBtn.onclick = () => startSession();
     }
     return;
@@ -348,17 +374,17 @@ export function updateSessionBar() {
   document.querySelector('.quick-dock-inner')?.classList.add('session-live');
   document.getElementById('session-num-setter')?.classList.add('hidden');
   title?.classList.add('active');
-  if (title) title.textContent = `Session ${live.sessionNum} — Live`;
+  if (title) title.textContent = `${copy.blockLabel} ${live.sessionNum} — Live`;
   if (stats) {
     const wlClass = live.wins > live.losses ? 'pos' : live.losses > live.wins ? 'neg' : 'neutral';
     stats.innerHTML = `
       ${renderTiltNudge(live.sessionGames)}
       <div class="session-live-metrics">
         <span class="slive-item time">⏱ <span class="slv" id="session-timer">${formatDuration(elapsed)}</span></span>
-        <span class="slive-item neutral">🎮 <span class="slv">${live.games} games</span></span>
+        <span class="slive-item neutral">${copy.isVal ? '◆' : '🎮'} <span class="slv">${live.games} ${copy.matchLabel}</span></span>
         <span class="slive-item ${wlClass}">W/L: <span class="slv">${live.wins}/${live.losses}</span></span>
-        <span class="slive-item ${live.mmrGain >= 0 ? 'pos' : 'neg'}">MMR: <span class="slv">${live.mmrGain >= 0 ? '+' : ''}${live.mmrGain}</span></span>
-        ${renderMmrBadge()}
+        <span class="slive-item ${live.mmrGain >= 0 ? 'pos' : 'neg'}">${copy.rankLabel}: <span class="slv">${live.mmrGain >= 0 ? '+' : ''}${live.mmrGain}</span></span>
+        ${renderRankConfirmBadge()}
       </div>`;
   }
   if (startBtn) {
@@ -381,26 +407,28 @@ export function updateLivePanel() {
   const display = getUserDisplay(getAuthUser());
   const streak = live.streak;
   const elapsed = Date.now() - (state.session.startTime || Date.now());
+  const copy = sessionCopy();
 
   panel.classList.add('visible');
   panel.innerHTML = `
     <div class="live-panel-pulse"></div>
     <div class="live-panel-body">
       <div class="live-panel-header">
-        <span class="live-panel-title">🔴 LIVE · Session ${live.sessionNum}</span>
+        <span class="live-panel-title">${copy.isVal ? '◆ LIVE' : '🔴 LIVE'} · ${copy.blockLabel} ${live.sessionNum}</span>
         <span class="live-panel-player" style="color:${display.color}">${display.name}</span>
       </div>
       <div class="live-panel-stats">
         <div class="live-stat"><span class="live-stat-val" id="live-panel-timer">${formatDuration(elapsed)}</span><span class="live-stat-lbl">Time</span></div>
         <div class="live-stat"><span class="live-stat-val">${live.wins}W ${live.losses}L</span><span class="live-stat-lbl">Record</span></div>
-        <div class="live-stat"><span class="live-stat-val ${live.mmrGain >= 0 ? 'pos' : 'neg'}">${live.mmrGain >= 0 ? '+' : ''}${live.mmrGain}</span><span class="live-stat-lbl">MMR</span></div>
+        <div class="live-stat"><span class="live-stat-val ${live.mmrGain >= 0 ? 'pos' : 'neg'}">${live.mmrGain >= 0 ? '+' : ''}${live.mmrGain}</span><span class="live-stat-lbl">${copy.rankLabel}</span></div>
         <div class="live-stat"><span class="live-stat-val">${streak.type === 'W' ? '🔥' : streak.type === 'L' ? '💀' : '—'} ${streak.count || 0}</span><span class="live-stat-lbl">Streak</span></div>
       </div>
     </div>
-    <button class="live-panel-end" onclick="window.__endSession()" title="End session">■</button>`;
+    <button class="live-panel-end" onclick="window.__endSession()" title="End ${copy.blockLabel.toLowerCase()}">■</button>`;
 }
 
 function showSessionModal(sessionNum, sg, elapsed) {
+  const copy = sessionCopy();
   const wins = sg.filter(g => g.result === 'W').length;
   const losses = sg.filter(g => g.result === 'L').length;
   const mmrGain = sg.reduce((s, g) => s + (g.mmrDiff || 0), 0);
@@ -408,7 +436,7 @@ function showSessionModal(sessionNum, sg, elapsed) {
   const tagCount = {};
   sg.forEach(g => (g.tags || []).forEach(t => { tagCount[t] = (tagCount[t] || 0) + 1; }));
   const topTag = Object.entries(tagCount).sort((a, b) => b[1] - a[1])[0];
-  const endMMR = sg[sg.length - 1].endMMR;
+  const endRank = sg[sg.length - 1].endMMR;
 
   let bestStreak = 0, cur = 0, lastR = '';
   sg.forEach(g => {
@@ -424,20 +452,20 @@ function showSessionModal(sessionNum, sg, elapsed) {
   }
 
   const display = getUserDisplay(getAuthUser());
-  document.getElementById('modal-title').textContent = `Session ${sessionNum} Complete`;
+  document.getElementById('modal-title').textContent = `${copy.blockLabel} ${sessionNum} Complete`;
   document.getElementById('modal-sub').textContent = `${display.name} · ${sg[0].date}${elapsed ? ` · ${formatDuration(elapsed)}` : ''}`;
   document.getElementById('modal-stats').innerHTML = `
-    <div class="modal-stat"><div class="val" style="color:#00e5ff">${sg.length}</div><div class="lbl">Games</div></div>
+    <div class="modal-stat"><div class="val" style="color:#00e5ff">${sg.length}</div><div class="lbl">${copy.isVal ? 'Matches' : 'Games'}</div></div>
     <div class="modal-stat"><div class="val" style="color:${wr >= 50 ? '#00c851' : '#ff4444'}">${wr}%</div><div class="lbl">Win Rate</div></div>
-    <div class="modal-stat"><div class="val" style="color:${mmrGain >= 0 ? '#00c851' : '#ff4444'}">${mmrGain >= 0 ? '+' : ''}${mmrGain}</div><div class="lbl">MMR Change</div></div>
-    <div class="modal-stat"><div class="val" style="color:#ffd700">${endMMR}</div><div class="lbl">End MMR</div></div>
+    <div class="modal-stat"><div class="val" style="color:${mmrGain >= 0 ? '#00c851' : '#ff4444'}">${mmrGain >= 0 ? '+' : ''}${mmrGain}</div><div class="lbl">${copy.rankLabel} Change</div></div>
+    <div class="modal-stat"><div class="val" style="color:#ffd700">${endRank}</div><div class="lbl">End ${copy.rankLabel}</div></div>
     <div class="modal-stat"><div class="val" style="color:#e65c00">${bestStreak}</div><div class="lbl">Best Win Streak</div></div>
     <div class="modal-stat"><div class="val" style="color:#a855f7">${elapsed ? formatDuration(elapsed) : '—'}</div><div class="lbl">Duration</div></div>
-    <div class="modal-stat" style="grid-column:1/-1">${rankBadgeHTML(endMMR, 22, sg[0].mode)}</div>`;
+    ${!copy.isVal ? `<div class="modal-stat" style="grid-column:1/-1">${rankBadgeHTML(endRank, 22, sg[0].mode)}</div>` : ''}`;
 
   document.getElementById('modal-games-row').innerHTML = sg.length
-    ? `<span class="modal-games-label">Session flow</span><div class="modal-games-pips">${sg.map(g =>
-        `<span class="modal-game-pip ${g.result === 'W' ? 'win' : 'loss'}" title="Match ${g.match}: ${g.result} · ${g.mmrDiff >= 0 ? '+' : ''}${g.mmrDiff}">${g.result}</span>`
+    ? `<span class="modal-games-label">${copy.isVal ? 'Block flow' : 'Session flow'}</span><div class="modal-games-pips">${sg.map(g =>
+        `<span class="modal-game-pip ${g.result === 'W' ? 'win' : 'loss'}" title="Match ${g.match}: ${g.result} · ${g.mmrDiff >= 0 ? '+' : ''}${g.mmrDiff} ${copy.rankLabel}">${g.result}</span>`
       ).join('')}</div>`
     : '';
 
@@ -446,19 +474,19 @@ function showSessionModal(sessionNum, sg, elapsed) {
     coachNotes.push(`<div class="modal-coach-warn">💀 ${lossStreak} losses in a row — take a short break or review your tags before queueing again.</div>`);
   }
   if (wr < 40 && sg.length >= 5) {
-    coachNotes.push(`<div class="modal-coach-tip">Win rate ${wr}% this session — check Match Logs for recurring mistake tags.</div>`);
+    coachNotes.push(`<div class="modal-coach-tip">Win rate ${wr}% this ${copy.blockLabel.toLowerCase()} — check Match History for recurring mistake tags.</div>`);
   }
   if (mmrGain < 0 && sg.length >= 3) {
-    coachNotes.push(`<div class="modal-coach-tip">Down ${Math.abs(mmrGain)} MMR — one focused block beats a tilt queue.</div>`);
+    coachNotes.push(`<div class="modal-coach-tip">Down ${Math.abs(mmrGain)} ${copy.rankLabel} — one focused block beats a tilt queue.</div>`);
   }
   if (bestStreak >= 3) {
-    coachNotes.push(`<div class="modal-coach-good">🔥 ${bestStreak}-game win streak — ride the momentum, don't force extra games.</div>`);
+    coachNotes.push(`<div class="modal-coach-good">🔥 ${bestStreak}-${copy.matchSingular} win streak — ride the momentum, don't force extra ${copy.matchLabel}.</div>`);
   }
   document.getElementById('modal-coach').innerHTML = coachNotes.join('');
 
   document.getElementById('modal-top-tag').innerHTML = topTag
-    ? `🏷️ Top mistake this session: <span>${topTag[0]}</span> <span style="color:#555">(${topTag[1]}x)</span>`
-    : `<span style="color:#555">No mistakes tagged this session 🎉</span>`;
+    ? `🏷️ Top leak this ${copy.blockLabel.toLowerCase()}: <span>${topTag[0]}</span> <span style="color:#555">(${topTag[1]}x)</span>`
+    : `<span style="color:#555">No mistakes tagged this ${copy.blockLabel.toLowerCase()} 🎉</span>`;
   document.getElementById('session-modal').classList.add('open');
 }
 

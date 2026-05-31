@@ -19,10 +19,13 @@ export function renderLogSetupNudge() {
     return;
   }
 
+  const isVal = state.activeGame === GAME_IDS.VALORANT;
   el.classList.remove('hidden');
   el.innerHTML = `
     <div class="log-setup-nudge-inner">
-      <span class="log-setup-nudge-text">Want auto-log from Rocket League?</span>
+      <span class="log-setup-nudge-text">${isVal
+        ? 'Want Valorant auto-log? Run the bridge and set Riot ID + API key.'
+        : 'Want auto-log from Rocket League?'}</span>
       <button type="button" class="btn-link" id="log-setup-nudge-link">Open setup guide →</button>
     </div>`;
   document.getElementById('log-setup-nudge-link')?.addEventListener('click', () => {
@@ -265,7 +268,14 @@ function wireSetupApplyGo() {
     const riotId = document.getElementById('setup-riot-id')?.value.trim() ?? '';
     const riotApiKey = document.getElementById('setup-riot-key')?.value.trim() ?? '';
     const riotRegion = document.getElementById('setup-riot-region')?.value ?? 'na';
-    if (!name && !riotId) {
+    const isVal = state.activeGame === GAME_IDS.VALORANT;
+    if (isVal) {
+      if (!riotId || !riotApiKey) {
+        showToast('Enter Riot ID and API key for Valorant auto-log', 'error');
+        (document.getElementById('setup-riot-id') ?? document.getElementById('setup-riot-key'))?.focus();
+        return;
+      }
+    } else if (!name && !riotId) {
       showToast('Enter your Rocket League name or Riot ID first', 'error');
       (input ?? document.getElementById('setup-riot-id'))?.focus();
       return;

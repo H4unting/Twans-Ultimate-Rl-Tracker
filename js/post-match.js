@@ -99,7 +99,7 @@ function renderCard(el, game, estimated) {
         ${isVal
           ? `<div class="pm-stat"><span class="pm-stat-val">${game.kills ?? game.goals ?? 0}</span><span class="pm-stat-lbl">Kills</span></div>
              <div class="pm-stat"><span class="pm-stat-val">${game.deaths ?? 0}</span><span class="pm-stat-lbl">Deaths</span></div>
-             <div class="pm-stat"><span class="pm-stat-val">${game.assists ?? 0}</span><span class="pm-stat-lbl">Assists</span></div>`
+             <div class="pm-stat"><span class="pm-stat-val">${game.valAssists ?? game.assists ?? 0}</span><span class="pm-stat-lbl">Assists</span></div>`
           : `<div class="pm-stat"><span class="pm-stat-val">${game.goals}</span><span class="pm-stat-lbl">Goals</span></div>
              <div class="pm-stat"><span class="pm-stat-val">${game.assists ?? 0}</span><span class="pm-stat-lbl">Assists</span></div>
              <div class="pm-stat"><span class="pm-stat-val">${game.saves}</span><span class="pm-stat-lbl">Saves</span></div>`}

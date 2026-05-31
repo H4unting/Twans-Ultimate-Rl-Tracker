@@ -4,6 +4,7 @@ import { groupSessionsForHistory, formatDuration } from './utils.js';
 import { exportSessionsCSV } from './export.js';
 import { getLoggingSessionNum, getSessionHistoryMap } from './sessions.js';
 import { state } from './state.js';
+import { GAME_IDS, getGameMeta } from './games.js';
 
 function sessionDurationLabel(sessionNum, activeNum, history) {
   if (activeNum === sessionNum && state.session.active && state.session.startTime) {
@@ -17,6 +18,11 @@ export function renderSessionsPage(games, displayName, { onViewSession, onExport
   const el = document.getElementById('sessions-content');
   if (!el) return;
 
+  const isVal = state.activeGame === GAME_IDS.VALORANT;
+  const meta = getGameMeta(state.activeGame);
+  const blockLabel = isVal ? 'Grind block' : 'Session';
+  const matchLabel = isVal ? 'matches' : 'games';
+
   const sessions = groupSessionsForHistory(games);
   const activeNum = state.session.active ? getLoggingSessionNum() : null;
   const history = getSessionHistoryMap();
@@ -24,9 +30,9 @@ export function renderSessionsPage(games, displayName, { onViewSession, onExport
   if (!sessions.length) {
     el.innerHTML = `
       <div class="sessions-empty">
-        <div class="sessions-empty-icon">📋</div>
-        <p>No sessions yet</p>
-        <span>Start a session from the dock and log games — they'll show up here.</span>
+        <div class="sessions-empty-icon">${isVal ? '◆' : '📋'}</div>
+        <p>No ${isVal ? 'grind blocks' : 'sessions'} yet</p>
+        <span>Start a ${blockLabel.toLowerCase()} from the dock and log ${matchLabel} — they'll show up here.</span>
       </div>`;
     return;
   }
@@ -41,7 +47,7 @@ export function renderSessionsPage(games, displayName, { onViewSession, onExport
       : '<span class="session-tag-none">—</span>';
     return `
       <tr class="session-row" data-session="${s.sessionNum}">
-        <td><strong>S${s.sessionNum}</strong> ${live}</td>
+        <td><strong>${isVal ? 'B' : 'S'}${s.sessionNum}</strong> ${live}</td>
         <td>${s.firstDate}${s.lastDate !== s.firstDate ? ` – ${s.lastDate}` : ''}</td>
         <td class="session-dur-col">${duration}</td>
         <td>${s.games}</td>
@@ -50,26 +56,26 @@ export function renderSessionsPage(games, displayName, { onViewSession, onExport
         <td class="${mmrClass}">${s.mmrGain >= 0 ? '+' : ''}${s.mmrGain}</td>
         <td>${s.endMMR || '—'}</td>
         <td>${topTag}</td>
-        <td><button type="button" class="btn-link session-view-btn" data-session="${s.sessionNum}">View games →</button></td>
+        <td><button type="button" class="btn-link session-view-btn" data-session="${s.sessionNum}">View ${isVal ? 'matches' : 'games'} →</button></td>
       </tr>`;
   }).join('');
 
   el.innerHTML = `
     <div class="sessions-toolbar">
-      <p class="page-desc">${sessions.length} session${sessions.length === 1 ? '' : 's'} · duration saved when you tap ■ End</p>
-      <button type="button" class="btn btn-secondary btn-sm" id="sessions-export-btn">Export sessions CSV</button>
+      <p class="page-desc">${sessions.length} ${isVal ? 'block' : 'session'}${sessions.length === 1 ? '' : 's'} · duration saved when you tap ■ End</p>
+      <button type="button" class="btn btn-secondary btn-sm" id="sessions-export-btn">Export ${isVal ? 'blocks' : 'sessions'} CSV</button>
     </div>
     <div class="table-wrap">
       <table class="log-table sessions-table">
         <thead>
           <tr>
-            <th>Session</th>
+            <th>${isVal ? 'Block' : 'Session'}</th>
             <th>Dates</th>
             <th>Duration</th>
-            <th>Games</th>
+            <th>${isVal ? 'Matches' : 'Games'}</th>
             <th>Record</th>
             <th>WR</th>
-            <th>MMR</th>
+            <th>${meta.diffLabel}</th>
             <th>End</th>
             <th>Top tag</th>
             <th></th>

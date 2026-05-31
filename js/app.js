@@ -8,7 +8,7 @@ import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, sendPassw
 import { loadUserData, saveSettings, claimLegacyData, createGroup, joinGroup, leaveGroup, loadUserGroups, saveGames, saveProfile } from './supabase.js';
 import { applyFilters, DEFAULT_FILTERS } from './filters.js';
 import { calcStats, estimateMMRDelta, repairPlaylistMMRChain } from './utils.js';
-import { addGame, updateGame, deleteGame, getLastMMR, patchLastGame, undoLastGame } from './matches.js';
+import { addGame, updateGame, deleteGame, getLastMMR, patchLastGame, undoLastGame, isMmrEstimated } from './matches.js';
 import { startSession, endSession, closeSessionModal, closeSessionModalAndContinue, initSessionUI, refreshSessionUI, restoreSessionFromStorage, getLoggingSessionNum } from './sessions.js';
 import {
   initQuickLog, showQuickDock, hideQuickDock, getQuickLogPayload,
@@ -21,7 +21,7 @@ import { initRlLive, stopRlLive, refreshLiveStatus,
 } from './rl-live.js';
 import { initValorantLive, stopValorantLive, refreshValorantStatus } from './valorant-live.js';
 import { initGameSwitcher, restoreActiveGameFromPrefs, applyGameShell, applyPageCopy, syncEditModal } from './game-ui.js';
-import { GAME_IDS, getTagGroups } from './games.js';
+import { GAME_IDS, getTagGroups, getGameMeta } from './games.js';
 import { VAL_DEFAULT_RR_SWING } from './valorant-config.js';
 import { renderSetupWizard, refreshSetupWizard, onBridgeStatusChange, renderLogSetupNudge } from './setup-wizard.js';
 import { mmrChart, wlChart } from './charts.js';
@@ -420,6 +420,7 @@ function renderAll() {
   refreshSessionUI();
   wireLogTableActions();
   applyPageCopy(state.activeGame);
+  refreshLogTagChips();
   updateNavUI(state.activePage || 'dashboard');
   mountDock();
 }
@@ -618,7 +619,8 @@ async function handleValorantAutoLog(match) {
   }
 
   document.getElementById('quick-endmmr').value = endRR;
-  document.getElementById('f-endrr') && (document.getElementById('f-endrr').value = endRR);
+  const fStart = document.getElementById('f-startmmr');
+  if (fStart) fStart.value = priorEnd !== '' ? startRR : '';
 
   state.ui.autoLogNote = [
     priorEnd === '' ? 'RR estimated' : '',
@@ -691,6 +693,9 @@ function recentGamesHaveMMR() {
 }
 
 async function submitGameLog(source = 'form') {
+  const meta = getGameMeta(state.activeGame);
+  const rankLabel = meta.rankLabel;
+
   if (source === 'quick' || source === 'auto') {
     syncFormFromQuick();
     if (!state.session.active) startSession();
@@ -701,7 +706,7 @@ async function submitGameLog(source = 'form') {
     : document.getElementById('f-endmmr')?.value;
 
   if (!endMMR) {
-    showToast('Enter end MMR', 'error');
+    showToast(`Enter end ${rankLabel}`, 'error');
     document.getElementById(source === 'quick' || source === 'auto' ? 'quick-endmmr' : 'f-endmmr')?.focus();
     return false;
   }
@@ -744,7 +749,7 @@ async function submitGameLog(source = 'form') {
     renderAll();
     if (game) {
       state.homeChartMode = game.mode;
-      showPostMatchCard(game, { estimated: (game.notes || '').includes('MMR estimated') });
+      showPostMatchCard(game, { estimated: isMmrEstimated(game) });
     }
     return true;
   } catch {
@@ -758,11 +763,16 @@ async function submitGameLog(source = 'form') {
   }
 }
 
-function wireLogForm() {
+function refreshLogTagChips() {
+  state.ui.selectedTags = [];
   renderTagChips('log-tags', state.ui.selectedTags, (tag, selected) => {
     if (selected) state.ui.selectedTags.push(tag);
     else state.ui.selectedTags = state.ui.selectedTags.filter(t => t !== tag);
-  });
+  }, state.activeGame);
+}
+
+function wireLogForm() {
+  refreshLogTagChips();
   document.getElementById('wl-win')?.addEventListener('click', () => setResult('W'));
   document.getElementById('wl-loss')?.addEventListener('click', () => setResult('L'));
   document.getElementById('add-btn')?.addEventListener('click', () => submitGameLog('form'));

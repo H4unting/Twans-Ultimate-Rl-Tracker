@@ -1,12 +1,14 @@
 /** Game switcher + dock UI for RL / Valorant */
 
-import { state, setActiveGame, subscribe } from './state.js';
+import { state, setActiveGame, subscribe, getActiveGames } from './state.js';
 import { GAMES, GAME_IDS, getGameMeta, getTagGroups, getPlaylists, getAgents, getMaps, getPageCopy } from './games.js';
 import { saveSettings } from './supabase.js';
-import { savePrefs, loadPrefs } from './quicklog.js';
+import { savePrefs, loadPrefs, refreshQuickTagsOnGameSwitch, getLastModeForGame } from './quicklog.js';
 import { refreshLiveStatus } from './rl-live.js';
 import { refreshValorantStatus } from './valorant-live.js';
 import { updateNavUI } from './nav.js';
+import { restoreSessionFromStorage, refreshSessionUI } from './sessions.js';
+import { renderLogSetupNudge } from './setup-wizard.js';
 
 let onGameChange = null;
 let switcherWired = false;
@@ -35,6 +37,10 @@ export function initGameSwitcher({ onChange, getSettingsPayload }) {
     applyGameShell(next);
     updateNavUI(document.body.dataset.page || 'dashboard', next);
     applyPageCopy(next);
+    restoreSessionFromStorage(getActiveGames());
+    refreshQuickTagsOnGameSwitch();
+    refreshSessionUI();
+    renderLogSetupNudge();
     if (next === GAME_IDS.VALORANT) refreshValorantStatus();
     else refreshLiveStatus();
     if (onGameChange) onGameChange(next);
@@ -95,6 +101,13 @@ export function applyGameShell(gameId = state.activeGame) {
     }
   }
 
+  const autoLogBtn = document.getElementById('auto-log-toggle');
+  if (autoLogBtn) {
+    autoLogBtn.title = gameId === GAME_IDS.VALORANT
+      ? 'Auto-save Valorant matches when a round ends'
+      : 'Auto-save games when a match ends';
+  }
+
   renderQuickModePills(gameId);
   toggleDockLayouts(gameId);
   toggleGamePageChrome(gameId);
@@ -125,8 +138,7 @@ function renderQuickModePills(gameId) {
   const wrap = document.getElementById('quick-mode-pills');
   if (!wrap) return;
   const playlists = getPlaylists(gameId).filter(p => p.mode);
-  const prefs = loadPrefs();
-  const activeMode = prefs.lastMode || getGameMeta(gameId).defaultMode;
+  const activeMode = getLastModeForGame(gameId);
   wrap.innerHTML = playlists.map(p => `
     <button type="button" data-mode="${p.mode}" class="${p.mode === activeMode ? 'active' : ''}">${p.label}</button>
   `).join('');
