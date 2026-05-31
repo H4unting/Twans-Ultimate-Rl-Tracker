@@ -132,7 +132,7 @@ export function renderSetupWizard(displayName = '') {
       </div>
       ${allReady ? `
       <div class="setup-callout setup-callout-success">
-        <strong>While you play:</strong> keep <code>${DESKTOP_APP.launcher}</code> running in the system tray (look for the tray icon).
+        <strong>While you play:</strong> keep <code>${DESKTOP_APP.launcher}</code> running (leave the window open).
       </div>
       <div class="setup-callout setup-callout-workflow">
         <strong>After each ${isVal ? 'match' : 'game'}:</strong> ${isVal
@@ -151,8 +151,9 @@ export function renderSetupWizard(displayName = '') {
           <span class="setup-step-num">2</span>
           <div class="setup-step-body">
             <strong>Run ${DESKTOP_APP.name}</strong>
-            <p>Double-click <code>${DESKTOP_APP.launcher}</code> in your tracker folder (small tray app — keep it running while you play):</p>
+            <p>Double-click <code>${DESKTOP_APP.launcher}</code> in your tracker folder — leave it running while you play:</p>
             <pre class="setup-code setup-code-highlight" id="setup-bridge-cmd">${DESKTOP_APP.launcher}</pre>
+            <p class="setup-hint">Optional: run <code>launcher\\build-bridge.bat</code> once to build <code>${DESKTOP_APP.exe}</code> (tray icon, no black window).</p>
             <span class="setup-status-pill${bridge ? ' ok' : ''}" id="setup-bridge-pill">${bridge ? `● ${DESKTOP_APP.name} is running — ready for Apply & Go` : `○ Waiting for ${DESKTOP_APP.launcher}…`}</span>
           </div>
         </li>
