@@ -140,7 +140,7 @@ export function getRankIconKey(rankName) {
   return `${tier.toLowerCase()}-${DIVISION_NUM[div] || 1}`;
 }
 
-/** Local copies on GitHub Pages — used if CDN is blocked */
+/** Self-hosted copies in repo (assets/ranks/) */
 const RANK_ICON_LOCAL = 'assets/ranks/';
 
 export function getRankIconSrc(rankName) {
@@ -154,7 +154,8 @@ export function rankIconHTML(rankOrName, size = 20) {
   const key = getRankIconKey(name);
   const src = getRankIconSrc(name);
   const fallback = `${RANK_ICON_LOCAL}${key}.png`;
-  return `<img class="rank-icon" src="${src}" alt="${name}" width="${size}" height="${size}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='${fallback}'">`;
+  // no-referrer required — Fandom CDN 404s when Referer is github.io
+  return `<img class="rank-icon" src="${src}" alt="${name}" width="${size}" height="${size}" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${fallback}'">`;
 }
 
 /** @deprecated Use rankIconHTML(rank) — kept so old call sites don't break */
