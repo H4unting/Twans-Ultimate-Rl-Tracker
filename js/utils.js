@@ -318,12 +318,21 @@ export function getMostCommonTag(games, options = {}) {
   return sorted[0] ?? null;
 }
 
+function mergedTagLookup(games) {
+  const ids = [...new Set((games ?? []).map(g => g.game ?? DEFAULT_GAME))];
+  if (!ids.length) ids.push(DEFAULT_GAME);
+  const merged = {};
+  ids.forEach(id => Object.assign(merged, getTagDefinitions(id)));
+  return merged;
+}
+
 export function getTagCategoryBreakdown(games) {
   const counts = countTags(games);
-  const breakdown = { def: 0, off: 0, men: 0 };
+  const defs = mergedTagLookup(games);
+  const breakdown = { def: 0, off: 0, men: 0, aim: 0, util: 0, team: 0 };
   Object.entries(counts).forEach(([tag, count]) => {
-    const cat = TAG_DEFINITIONS[tag]?.cat;
-    if (cat) breakdown[cat] += count;
+    const cat = defs[tag]?.cat;
+    if (cat) breakdown[cat] = (breakdown[cat] ?? 0) + count;
   });
   return { counts, breakdown, total: Object.values(counts).reduce((a, b) => a + b, 0) };
 }
@@ -381,14 +390,15 @@ export function getTrendDirection(games, windowSize = 5) {
 }
 
 export function getTagTrendBuckets(games, bucketSize = 5) {
+  const defs = mergedTagLookup(games);
   const buckets = [];
   for (let i = 0; i < games.length; i += bucketSize) {
     const chunk = games.slice(i, i + bucketSize);
     buckets.push({
       label: `#${i + 1}-${Math.min(i + bucketSize, games.length)}`,
-      def: chunk.reduce((s, g) => s + (g.tags || []).filter(t => TAG_DEFINITIONS[t]?.cat === 'def').length, 0),
-      off: chunk.reduce((s, g) => s + (g.tags || []).filter(t => TAG_DEFINITIONS[t]?.cat === 'off').length, 0),
-      men: chunk.reduce((s, g) => s + (g.tags || []).filter(t => TAG_DEFINITIONS[t]?.cat === 'men').length, 0),
+      def: chunk.reduce((s, g) => s + (g.tags || []).filter(t => defs[t]?.cat === 'def').length, 0),
+      off: chunk.reduce((s, g) => s + (g.tags || []).filter(t => defs[t]?.cat === 'off').length, 0),
+      men: chunk.reduce((s, g) => s + (g.tags || []).filter(t => defs[t]?.cat === 'men').length, 0),
     });
   }
   return buckets;
