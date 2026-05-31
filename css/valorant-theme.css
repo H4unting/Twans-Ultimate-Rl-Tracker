@@ -593,6 +593,7 @@ body[data-active-game="valorant"] .quick-dock-mode button.active,
 body[data-active-game="valorant"] .quick-mode-pills button.active {
   background: var(--val-red);
   border-color: var(--val-red);
+  color: #fff;
   border-radius: 0;
 }
 

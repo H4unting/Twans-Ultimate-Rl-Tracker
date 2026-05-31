@@ -90,6 +90,21 @@ function withTimeout(promise, ms, message = 'Timed out') {
 }
 
 let bootPromise = null;
+let bridgeServicesStarted = false;
+
+function ensureBridgeServices() {
+  startBridgeHeartbeat();
+  if (bridgeServicesStarted) return;
+  bridgeServicesStarted = true;
+  initRlLive(applyLiveStats, onBridgeStatusChange, handleAutoLog);
+  initValorantLive(applyLiveStats, onBridgeStatusChange, handleValorantAutoLog);
+}
+
+function stopBridgeServices() {
+  bridgeServicesStarted = false;
+  stopRlLive();
+  stopValorantLive();
+}
 
 async function bootApp() {
   showLoginScreen(false);
@@ -146,9 +161,7 @@ async function bootApp() {
       onChange: () => renderAll(),
       getSettingsPayload,
     });
-    startBridgeHeartbeat();
-    initRlLive(applyLiveStats, onBridgeStatusChange, handleAutoLog);
-    initValorantLive(applyLiveStats, onBridgeStatusChange, handleValorantAutoLog);
+    ensureBridgeServices();
 
     renderAll();
   } catch (e) {
@@ -158,6 +171,7 @@ async function bootApp() {
     if (getAuthUser()) {
       showLoginScreen(false);
       showQuickDock();
+      ensureBridgeServices();
       showToast(
         msg.includes('PGRST') || msg.includes('game')
           ? 'Database needs multi-game.sql — run it in Supabase SQL Editor'
@@ -184,9 +198,7 @@ function showLoggedOut() {
   showLoading(false);
   showLoginScreen(true);
   hideQuickDock();
-  stopBridgeHeartbeat();
-  stopRlLive();
-  stopValorantLive();
+  stopBridgeServices();
   wireLoginScreen();
   resetLoginForm();
 }
@@ -337,8 +349,7 @@ async function handleSignOut() {
   resetGroupsUI();
   hideQuickDock();
   stopBridgeHeartbeat();
-  stopRlLive();
-  stopValorantLive();
+  stopBridgeServices();
   showLoginScreen(true);
 }
 
@@ -997,6 +1008,7 @@ async function init() {
     document.addEventListener('rl-session-ui-refresh', () => {
       renderHomePage();
     });
+    ensureBridgeServices();
     onAuthChange(async (session) => {
       if (session) {
         if (!bootPromise) {

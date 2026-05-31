@@ -11,6 +11,7 @@ const ONLINE_GRACE_MS = 20000;
 let bridgeOnline = false;
 let failStreak = 0;
 let lastSuccessAt = 0;
+let bridgeProbeDone = false;
 let heartbeatId = null;
 let heartbeatPromise = null;
 let visibilityWired = false;
@@ -43,6 +44,10 @@ export function isBridgeUp() {
   return bridgeOnline;
 }
 
+export function isBridgeProbeDone() {
+  return bridgeProbeDone;
+}
+
 async function pingBridgeOnce() {
   const res = await fetch(`${BRIDGE}/status`, { signal: AbortSignal.timeout(PING_TIMEOUT_MS) });
   if (!res.ok) throw new Error('bridge offline');
@@ -64,6 +69,7 @@ async function heartbeatTick() {
         setBridgeOnline(false);
       }
     } finally {
+      bridgeProbeDone = true;
       heartbeatPromise = null;
     }
   })();

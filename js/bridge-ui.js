@@ -2,9 +2,9 @@
 
 import { state } from './state.js';
 import { GAME_IDS, getGameMeta } from './games.js';
-import { isBridgeUp } from './bridge-client.js';
+import { isBridgeUp, isBridgeProbeDone } from './bridge-client.js';
 import { isAutoLogEnabled, loadPrefs, syncAutoLogToggleUI } from './quicklog.js';
-import { setBridgeHintVisible, needsLocalTrackerForAutoLog, getLocalTrackerUrl } from './env.js';
+import { setBridgeHintVisible, needsLocalTrackerForAutoLog, getLocalTrackerUrl, isLocalTrackerHost } from './env.js';
 import { DESKTOP_APP } from './config.js';
 
 let cachedValStatus = null;
@@ -46,6 +46,14 @@ export function refreshBridgeStatusUI() {
   el.dataset.bridgeState = up ? 'online' : 'offline';
 
   if (!up) {
+    if (!bridgeProbeDone && isLocalTrackerHost()) {
+      el.textContent = 'Connecting…';
+      el.title = `Looking for ${DESKTOP_APP.name} on this PC…`;
+      el.dataset.bridgeState = 'connecting';
+      setBridgeHintVisible(false);
+      syncAutoLogToggleUI();
+      return;
+    }
     el.textContent = 'Auto-log off';
     if (needsLocalTrackerForAutoLog()) {
       el.title = `Auto-log only works on this PC — open ${getLocalTrackerUrl()} while ${DESKTOP_APP.launcher} is running`;
@@ -156,6 +164,10 @@ function updateDesktopAppBanner(isVal, appUp, valStatus) {
   }
 
   if (!appUp) {
+    if (!bridgeProbeDone && isLocalTrackerHost()) {
+      banner.classList.add('hidden');
+      return;
+    }
     banner.classList.remove('hidden');
     badge.textContent = 'Auto-log off';
     p.innerHTML = `Run <code>${DESKTOP_APP.launcher}</code> on this PC while playing. `
