@@ -166,6 +166,7 @@ async function prefillRiotFromBridge() {
   } catch {
     /* bridge not ready yet */
   }
+}
 
 function loadSetupPrefs() {
   try {
