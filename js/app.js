@@ -585,6 +585,8 @@ async function handleValorantAutoLog(match) {
     acs: match.acs,
     result: match.result,
     mode: match.mode,
+    agent: match.agent,
+    map: match.map,
   });
 
   const priorEnd = getLastMMR(logMode);
