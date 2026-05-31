@@ -5,7 +5,8 @@ import { normalizeGame } from './utils.js';
 import { saveGames } from './supabase.js';
 import { showToast } from './ui.js';
 import { getAuthUser } from './auth.js';
-import { getRankDiff } from './games.js';
+import { getRankDiff, GAME_IDS } from './games.js';
+import { getGameModule } from './games/registry.js';
 import { getActiveGameModule } from './games/router.js';
 
 function notifySessionUIRefresh() {
@@ -96,6 +97,26 @@ export async function deleteGame(matchNum) {
   games.forEach((g, i) => { g.match = i + 1; });
   await persistActiveGames(games);
   showToast(`${mod.META.matchSingularCap} deleted`);
+  return true;
+}
+
+/** Remove every logged match for one game (e.g. bad auto-log batch). Other games untouched. */
+export async function clearGameHistory(gameId = state.activeGame) {
+  if (!requireSignedIn()) return false;
+  const mod = getGameModule(gameId);
+  const active = state.games.filter(g => (g.game ?? GAME_IDS.ROCKET_LEAGUE) === gameId);
+  if (!active.length) {
+    showToast(`No ${mod.META.matchSingular}s to clear`, 'error');
+    return false;
+  }
+  const label = `${active.length} Val ${mod.META.matchSingular}${active.length === 1 ? '' : 'es'}`;
+  if (!confirm(`Delete all ${label}? This cannot be undone. Your other game data stays.`)) return false;
+
+  await saveGames([], gameId);
+  const rest = state.games.filter(g => (g.game ?? GAME_IDS.ROCKET_LEAGUE) !== gameId);
+  setGames(rest);
+  notifySessionUIRefresh();
+  showToast(`Cleared ${active.length} ${mod.META.matchSingular}${active.length === 1 ? '' : 'es'}`);
   return true;
 }
 

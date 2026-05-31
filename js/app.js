@@ -1028,6 +1028,9 @@ async function init() {
     document.addEventListener('rl-session-ui-refresh', () => {
       renderHomePage();
     });
+    document.addEventListener('tracker-data-changed', () => {
+      renderAll();
+    });
     ensureBridgeServices();
     onAuthChange(async (session) => {
       if (session) {

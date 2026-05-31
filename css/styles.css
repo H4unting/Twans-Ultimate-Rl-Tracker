@@ -1712,6 +1712,13 @@ body[data-active-game="valorant"] .setup-step[data-step="apply"] {
 .setup-game-panel-val { border-color: #ff465544; }
 body[data-active-game="valorant"] .setup-game-panel-val { box-shadow: 0 0 20px #ff465510; }
 body[data-active-game="rocket_league"] .setup-game-panel-rl { box-shadow: 0 0 20px #e65c0010; }
+
+.setup-danger-zone {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border, #333);
+}
+.setup-danger-zone .setup-hint { margin: 8px 0 12px; }
 .setup-wizard {
   background: linear-gradient(135deg, #111128ee, #0d1a28ee);
   border: 1px solid #00e5ff55; border-radius: var(--radius);

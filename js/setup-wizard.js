@@ -9,6 +9,8 @@ import { GAME_IDS } from './games.js';
 import { showToast } from './ui.js';
 import { refreshBridgeStatusUI } from './bridge-ui.js';
 import { DESKTOP_APP } from './config.js';
+import { clearGameHistory } from './matches.js';
+import { getBridgeUrl } from './bridge-client.js';
 
 const SETUP_KEY = 'rl-grind-setup';
 
@@ -82,6 +84,11 @@ function renderValPanel(riotIdValue, riotRegionValue, { compact = false } = {}) 
       ${renderValorantFields(riotIdValue, riotRegionValue)}
       <div class="setup-apply-block">
         ${renderApplySection(false)}
+      </div>
+      <div class="setup-danger-zone">
+        <strong>Wrong match count?</strong>
+        <p class="setup-hint">Removes every Valorant match from your account and resets auto-log baseline. Rocket League stats are not touched.</p>
+        <button type="button" class="btn btn-cancel" id="setup-clear-val-history">Clear all Val match history</button>
       </div>
     </div>`;
 }
@@ -371,6 +378,20 @@ function wireSetupWizard() {
 
   wireProfileNameDropdown();
   wireSetupApplyGo();
+
+  const clearBtn = document.getElementById('setup-clear-val-history');
+  if (clearBtn && !clearBtn.dataset.wired) {
+    clearBtn.dataset.wired = '1';
+    clearBtn.addEventListener('click', async () => {
+      const ok = await clearGameHistory(GAME_IDS.VALORANT);
+      if (!ok) return;
+      try {
+        await fetch(`${getBridgeUrl()}/valorant/reset-baseline`, { method: 'POST' });
+      } catch { /* bridge optional */ }
+      refreshValorantStatus();
+      document.dispatchEvent(new CustomEvent('tracker-data-changed'));
+    });
+  }
 }
 
 function wireSetupApplyGo() {

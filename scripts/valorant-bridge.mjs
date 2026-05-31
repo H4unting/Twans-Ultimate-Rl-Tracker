@@ -494,6 +494,15 @@ export function startValorantBridge(options = {}) {
 export function handleValorantRequest(req, res) {
   const url = req.url?.split('?')[0];
 
+  if (url === '/valorant/reset-baseline' && req.method === 'POST') {
+    resetValorantCache({ full: true });
+    lastMatch = null;
+    pollingArmed = Boolean(pollTimer);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true }));
+    return true;
+  }
+
   if (url === '/valorant/arm' && req.method === 'POST') {
     const out = armValorantPolling();
     res.writeHead(200, { 'Content-Type': 'application/json' });
