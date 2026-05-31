@@ -601,6 +601,8 @@ body.logged-out.has-quick-dock { padding-bottom: 0; }
 
 body.has-quick-dock .live-session-panel { display: none !important; }
 
+.quick-dock-body.hidden { display: none; }
+
 /* ── Quick Log Dock (mid-session fast path) ──────────────────────────────────── */
 .quick-dock {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;

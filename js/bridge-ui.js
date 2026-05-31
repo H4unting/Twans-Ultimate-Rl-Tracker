@@ -11,6 +11,18 @@ let cachedValStatus = null;
 let cachedRlInMatch = false;
 let clickWired = false;
 
+function formatRiotErrorForUser(message) {
+  const raw = String(message ?? '');
+  if (raw.includes('Unknown apikey') || raw.includes('401') || raw.toLowerCase().includes('api key')) {
+    return 'Your Riot API key expired or is wrong. Dev keys last 24 hours — get a new RGAPI key at developer.riotgames.com, paste it below, and click Apply & Go.';
+  }
+  if (raw.includes('403')) return 'Riot API access denied — check key permissions and region.';
+  if (raw.includes('404') || raw.toLowerCase().includes('not found')) {
+    return 'Riot account not found — double-check Riot ID (Name#TAG) and region.';
+  }
+  return raw;
+}
+
 export function setCachedValorantStatus(status) {
   cachedValStatus = status;
 }
@@ -34,11 +46,11 @@ export function refreshBridgeStatusUI() {
   if (!up) {
     el.textContent = 'Auto-log off';
     if (needsLocalTrackerForAutoLog()) {
-      el.title = `Auto-log only works on this PC — open ${getLocalTrackerUrl()} while ${DESKTOP_APP.exe} is running`;
+      el.title = `Auto-log only works on this PC — open ${getLocalTrackerUrl()} while ${DESKTOP_APP.launcher} is running`;
     } else {
       el.title = isVal
-        ? `Click for setup — run ${DESKTOP_APP.exe} on this PC and add Riot ID + API key`
-        : `Click for setup — run ${DESKTOP_APP.exe} on this PC and set your RL name`;
+        ? `Click for setup — run ${DESKTOP_APP.launcher} on this PC and add Riot ID + API key`
+        : `Click for setup — run ${DESKTOP_APP.launcher} on this PC and set your RL name`;
     }
     setBridgeHintVisible(!loggedOut);
     updateDesktopAppBanner(isVal, false);
@@ -70,7 +82,7 @@ function renderValorantPill(el, valStatus, meta) {
 
   if (valStatus.lastError) {
     el.textContent = '● Riot API error';
-    el.title = `${valStatus.lastError} — click to check Auto-Log Setup`;
+    el.title = formatRiotErrorForUser(valStatus.lastError);
     el.classList.add('bridge-error');
     el.dataset.bridgeState = 'error';
     return;
@@ -128,14 +140,14 @@ function updateDesktopAppBanner(isVal, appUp, valStatus) {
     badge.textContent = 'Use local tracker';
     p.innerHTML = `Auto-log can't connect from this bookmark. On your gaming PC, open `
       + `<a href="${getLocalTrackerUrl()}" class="btn-link">${getLocalTrackerUrl()}</a> `
-      + `with <code>${DESKTOP_APP.exe}</code> running (same stats — sign in once).`;
+      + `with <code>${DESKTOP_APP.launcher}</code> running (same stats — sign in once).`;
     return;
   }
 
   if (!appUp) {
     banner.classList.remove('hidden');
     badge.textContent = 'Auto-log off';
-    p.innerHTML = `Run <code>${DESKTOP_APP.exe}</code> on this PC while playing. `
+    p.innerHTML = `Run <code>${DESKTOP_APP.launcher}</code> on this PC while playing. `
       + '<button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>';
     return;
   }
@@ -150,8 +162,9 @@ function updateDesktopAppBanner(isVal, appUp, valStatus) {
 
   if (appUp && isVal && valStatus?.lastError) {
     banner.classList.remove('hidden');
-    badge.textContent = 'Riot API error';
-    p.textContent = valStatus.lastError;
+    badge.textContent = 'Riot API key';
+    p.innerHTML = `${formatRiotErrorForUser(valStatus.lastError)} `
+      + '<button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>';
     return;
   }
 

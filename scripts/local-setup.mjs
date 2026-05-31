@@ -119,8 +119,14 @@ export function getSetupStatus() {
     }
   } catch { /* ignore */ }
 
+  const key = String(config.riotApiKey || '').trim();
+  const { riotApiKey: _omit, ...safeConfig } = config;
   return {
-    config,
+    config: {
+      ...safeConfig,
+      riotApiKeySet: Boolean(key),
+      riotApiKeyHint: key ? `${key.slice(0, 12)}…${key.slice(-4)}` : null,
+    },
     paths: {
       trackerRoot: ROOT,
       grindConfig: CONFIG_FILE,

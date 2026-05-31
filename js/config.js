@@ -2,9 +2,12 @@
 
 export const APP_NAME = 'Twans Ultimate Tracker';
 
-/** Small PC app — run while playing so stats auto-fill (tray icon, no black window) */
+/** Small PC app — run while playing so stats auto-fill */
 export const DESKTOP_APP = {
   name: 'Twans Auto-Log',
+  /** Default launcher — double-click this (no build step) */
+  launcher: 'start-grind.bat',
+  /** Optional tray app — run launcher\\build-bridge.bat once if you want this instead */
   exe: 'Twans Auto-Log.exe',
   /** Older builds used this filename — still works if you have it */
   legacyExe: 'Twans-Tracker-Bridge.exe',

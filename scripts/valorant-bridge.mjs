@@ -44,6 +44,20 @@ let valorantRunning = false;
 let configured = false;
 let lastError = null;
 
+function formatRiotError(message) {
+  const raw = String(message ?? '');
+  if (raw.includes('Unknown apikey') || raw.includes('status_code":401') || raw.includes('401')) {
+    return 'Riot rejected your API key (expired or wrong). Dev keys last 24 hours — get a new RGAPI key at developer.riotgames.com, paste it in Auto-Log Setup, and click Apply & Go.';
+  }
+  if (raw.includes('403')) {
+    return 'Riot API access denied — check your key permissions and region.';
+  }
+  if (raw.includes('404') || raw.toLowerCase().includes('not found')) {
+    return 'Riot account not found — check Riot ID (Name#TAG) and region.';
+  }
+  return raw.length > 160 ? `${raw.slice(0, 160)}…` : raw;
+}
+
 function getBridgeConfig() {
   const cfg = loadGrindConfig();
   return {
@@ -198,7 +212,7 @@ async function pollLatestMatch() {
     lastError = null;
     console.log(`Valorant match — ${parsed.result} · ${parsed.mode} · K:${parsed.kills} D:${parsed.deaths} A:${parsed.valAssists} · ${parsed.agent || 'Agent'} · ${parsed.map || 'Map'}`);
   } catch (e) {
-    lastError = e.message;
+    lastError = formatRiotError(e.message);
   }
 }
 
@@ -248,4 +262,23 @@ export function resetValorantCache() {
   seeded = false;
   lastMatch = null;
   lastError = null;
+}
+
+/** Test saved Riot ID + API key against Riot (used right after Apply). */
+export async function validateRiotConfig() {
+  const cfg = getBridgeConfig();
+  if (!cfg.riotApiKey || !cfg.riotId) {
+    return { ok: false, error: 'Riot ID and API key required' };
+  }
+  puuidCache = null;
+  platformHostCache = null;
+  try {
+    await resolvePuuid();
+    lastError = null;
+    return { ok: true, riotId: cfg.riotId };
+  } catch (e) {
+    const msg = formatRiotError(e.message);
+    lastError = msg;
+    return { ok: false, error: msg };
+  }
 }

@@ -263,61 +263,98 @@
         <button type="button" class="auto-log-sound-toggle active" id="auto-log-sound-toggle" aria-pressed="true" title="Sound on auto-log">🔔</button>
         <button type="button" class="session-btn start" id="session-start-btn">▶ Start Session</button>
       </div>
-      <div class="quick-dock-body">
-      <div class="quick-dock-mode">
-        <span class="quick-mode-label">Mode</span>
-        <div class="quick-mode-pills" id="quick-mode-pills">
-          <button type="button" data-mode="1's">1's</button>
-          <button type="button" data-mode="2's" class="active">2's</button>
-          <button type="button" data-mode="3's">3's</button>
+      <div class="quick-dock-body quick-dock-rl" data-dock-game="rocket_league">
+        <div class="quick-dock-mode">
+          <span class="quick-mode-label">Mode</span>
+          <div class="quick-mode-pills" id="quick-mode-pills-rl"></div>
         </div>
+        <div class="quick-dock-main">
+          <div class="quick-wl">
+            <button type="button" class="quick-wl-btn win active" id="quick-wl-win" aria-label="Win">W</button>
+            <button type="button" class="quick-wl-btn loss" id="quick-wl-loss" aria-label="Loss">L</button>
+          </div>
+          <input type="number" id="quick-endmmr" class="quick-mmr-input" placeholder="End MMR" min="0" inputmode="numeric" aria-label="End rank">
+          <button type="button" class="quick-log-btn" id="quick-log-btn">LOG</button>
+        </div>
+        <div class="quick-dock-tags">
+          <span class="quick-tags-label">Tags <span class="quick-tags-optional">optional</span></span>
+          <div class="quick-tags" id="quick-tags-rl"></div>
+        </div>
+        <details class="quick-advanced-stats">
+          <summary>Advanced stats ▼</summary>
+          <div class="quick-stats-row">
+            <div class="quick-stat-bump">
+              <span class="qs-label">G</span>
+              <button type="button" class="qs-btn" data-stat="goals" data-delta="-1" aria-label="Fewer goals">−</button>
+              <span id="quick-goals-val" class="qs-val">0</span>
+              <button type="button" class="qs-btn" data-stat="goals" data-delta="1" aria-label="More goals">+</button>
+            </div>
+            <div class="quick-stat-bump">
+              <span class="qs-label">A</span>
+              <button type="button" class="qs-btn" data-stat="assists" data-delta="-1">−</button>
+              <span id="quick-assists-val" class="qs-val">0</span>
+              <button type="button" class="qs-btn" data-stat="assists" data-delta="1">+</button>
+            </div>
+            <div class="quick-stat-bump">
+              <span class="qs-label">S</span>
+              <button type="button" class="qs-btn" data-stat="saves" data-delta="-1">−</button>
+              <span id="quick-saves-val" class="qs-val">0</span>
+              <button type="button" class="qs-btn" data-stat="saves" data-delta="1">+</button>
+            </div>
+          </div>
+        </details>
       </div>
-      <div class="quick-dock-main">
-        <div class="quick-wl">
-          <button type="button" class="quick-wl-btn win active" id="quick-wl-win" aria-label="Win">W</button>
-          <button type="button" class="quick-wl-btn loss" id="quick-wl-loss" aria-label="Loss">L</button>
+
+      <div class="quick-dock-body quick-dock-val hidden" data-dock-game="valorant">
+        <div class="quick-dock-mode">
+          <span class="quick-mode-label">Queue</span>
+          <div class="quick-mode-pills" id="quick-mode-pills-val"></div>
         </div>
-        <div class="quick-val-meta hidden" data-game-ui="valorant">
+        <div class="quick-dock-main">
+          <div class="quick-wl">
+            <button type="button" class="quick-wl-btn win active" id="quick-wl-win-val" aria-label="Win">W</button>
+            <button type="button" class="quick-wl-btn loss" id="quick-wl-loss-val" aria-label="Loss">L</button>
+          </div>
           <select id="quick-agent" class="quick-val-select" aria-label="Agent">
             <option value="">Agent</option>
           </select>
           <select id="quick-map" class="quick-val-select" aria-label="Map">
             <option value="">Map</option>
           </select>
+          <input type="number" id="quick-endrr" class="quick-mmr-input" placeholder="End RR" min="0" inputmode="numeric" aria-label="End RR">
+          <button type="button" class="quick-log-btn" id="quick-log-btn-val">LOG</button>
         </div>
-        <input type="number" id="quick-endmmr" class="quick-mmr-input" placeholder="End MMR" min="0" inputmode="numeric" aria-label="End rank">
-        <button type="button" class="quick-log-btn" id="quick-log-btn">LOG</button>
-      </div>
-      <div class="quick-dock-tags">
-        <span class="quick-tags-label">Tags <span class="quick-tags-optional">optional</span></span>
-        <div class="quick-tags" id="quick-tags"></div>
-      </div>
-      <details class="quick-advanced-stats">
-        <summary>Advanced stats ▼</summary>
-        <div class="quick-stats-row">
-          <div class="quick-stat-bump">
-            <span class="qs-label">G</span>
-            <button type="button" class="qs-btn" data-stat="goals" data-delta="-1" aria-label="Fewer goals">−</button>
-            <span id="quick-goals-val" class="qs-val">0</span>
-            <button type="button" class="qs-btn" data-stat="goals" data-delta="1" aria-label="More goals">+</button>
-          </div>
-          <div class="quick-stat-bump">
-            <span class="qs-label">A</span>
-            <button type="button" class="qs-btn" data-stat="assists" data-delta="-1">−</button>
-            <span id="quick-assists-val" class="qs-val">0</span>
-            <button type="button" class="qs-btn" data-stat="assists" data-delta="1">+</button>
-          </div>
-          <div class="quick-stat-bump">
-            <span class="qs-label">S</span>
-            <button type="button" class="qs-btn" data-stat="saves" data-delta="-1">−</button>
-            <span id="quick-saves-val" class="qs-val">0</span>
-            <button type="button" class="qs-btn" data-stat="saves" data-delta="1">+</button>
-          </div>
+        <div class="quick-dock-tags">
+          <span class="quick-tags-label">Tags <span class="quick-tags-optional">optional</span></span>
+          <div class="quick-tags" id="quick-tags-val"></div>
         </div>
-      </details>
+        <details class="quick-advanced-stats">
+          <summary>Advanced stats ▼</summary>
+          <div class="quick-stats-row">
+            <div class="quick-stat-bump">
+              <span class="qs-label">K</span>
+              <button type="button" class="qs-btn" data-stat="goals" data-delta="-1">−</button>
+              <span id="quick-val-kills" class="qs-val">0</span>
+              <button type="button" class="qs-btn" data-stat="goals" data-delta="1">+</button>
+            </div>
+            <div class="quick-stat-bump">
+              <span class="qs-label">D</span>
+              <button type="button" class="qs-btn" data-stat="assists" data-delta="-1">−</button>
+              <span id="quick-val-deaths" class="qs-val">0</span>
+              <button type="button" class="qs-btn" data-stat="assists" data-delta="1">+</button>
+            </div>
+            <div class="quick-stat-bump">
+              <span class="qs-label">A</span>
+              <button type="button" class="qs-btn" data-stat="saves" data-delta="-1">−</button>
+              <span id="quick-val-assists-display" class="qs-val">0</span>
+              <button type="button" class="qs-btn" data-stat="saves" data-delta="1">+</button>
+            </div>
+          </div>
+        </details>
+      </div>
+
       <input type="hidden" id="quick-notes" value="">
       <input type="hidden" id="quick-val-assists" value="0">
-      </div>
     </div>
     <div class="quick-dock-hint">Match ends → auto-log saves · confirm MMR on the card · tap tags · undo if wrong</div>
   </div>
@@ -332,8 +369,6 @@
     <button type="button" class="mobile-nav-btn" data-section="squad"><span>👥</span>Squad</button>
   </nav>
 </div>
-
-<div id="live-session-panel" class="live-session-panel"></div>
 
 <div class="modal-overlay" id="session-modal">
   <div class="modal">
@@ -409,6 +444,6 @@
     }
   }, 12000);
 </script>
-<script type="module" src="js/app.js?v=20260531q"></script>
+<script type="module" src="js/app.js?v=20260531u"></script>
 </body>
 </html>

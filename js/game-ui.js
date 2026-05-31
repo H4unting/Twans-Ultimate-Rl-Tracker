@@ -1,9 +1,9 @@
-/** Game switcher + dock UI for RL / Valorant */
+/** Game switcher + per-game dock shell (RL / Valorant stay separate) */
 
 import { state, setActiveGame, subscribe, getActiveGames } from './state.js';
 import { GAMES, GAME_IDS, getGameMeta, getTagGroups, getPlaylists, getAgents, getMaps, getPageCopy } from './games.js';
 import { saveSettings } from './supabase.js';
-import { savePrefs, loadPrefs, refreshQuickTagsOnGameSwitch, getLastModeForGame, rerenderQuickTags } from './quicklog.js';
+import { savePrefs, loadPrefs, refreshQuickTagsOnGameSwitch } from './quicklog.js';
 import { refreshBridgeStatusUI } from './bridge-ui.js';
 import { DESKTOP_APP, LOCAL_TRACKER_URL } from './config.js';
 import { needsLocalTrackerForAutoLog } from './env.js';
@@ -11,6 +11,7 @@ import { refreshValorantStatus } from './valorant-live.js';
 import { updateNavUI } from './nav.js';
 import { restoreSessionFromStorage, refreshSessionUI } from './sessions.js';
 import { renderLogSetupNudge } from './setup-wizard.js';
+import { applyDockForGame } from './dock-ui.js';
 
 let onGameChange = null;
 let switcherWired = false;
@@ -65,6 +66,7 @@ function renderGameSwitcher() {
 
 export function applyGameShell(gameId = state.activeGame) {
   const meta = getGameMeta(gameId);
+
   document.body.dataset.activeGame = gameId;
   document.body.classList.toggle('theme-valorant', gameId === GAME_IDS.VALORANT);
   document.body.classList.toggle('theme-rocket-league', gameId === GAME_IDS.ROCKET_LEAGUE);
@@ -78,16 +80,6 @@ export function applyGameShell(gameId = state.activeGame) {
     logoBtn.innerHTML = gameId === GAME_IDS.VALORANT
       ? 'TWANS <span class="val-logo-accent">VAL</span> TRACKER'
       : 'Twans <span>Ultimate Tracker</span>';
-  }
-
-  const rankInput = document.getElementById('quick-endmmr');
-  if (rankInput) rankInput.placeholder = `End ${meta.rankLabel}`;
-
-  const hint = document.querySelector('.quick-dock-hint');
-  if (hint) {
-    hint.textContent = gameId === GAME_IDS.VALORANT
-      ? 'Match ends → auto-log saves · confirm RR on the card · tap tags · undo if wrong'
-      : 'Match ends → auto-log saves · confirm MMR on the card · tap tags · undo if wrong';
   }
 
   const bridgeStatus = document.getElementById('live-bridge-status');
@@ -104,11 +96,11 @@ export function applyGameShell(gameId = state.activeGame) {
       if (needsLocalTrackerForAutoLog()) {
         p.innerHTML = `Auto-log can't connect from this bookmark. On your gaming PC open `
           + `<a href="${LOCAL_TRACKER_URL}" class="btn-link">${LOCAL_TRACKER_URL}</a> `
-          + `with <code>${DESKTOP_APP.exe}</code> running.`;
+          + `with <code>${DESKTOP_APP.launcher}</code> running.`;
       } else {
         p.innerHTML = gameId === GAME_IDS.VALORANT
-          ? `Run <code>${DESKTOP_APP.exe}</code> on this PC while playing for Valorant auto-log. Set Riot ID in <button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>`
-          : `Run <code>${DESKTOP_APP.exe}</code> on this PC while playing for Rocket League auto-log. <button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>`;
+          ? `Run <code>${DESKTOP_APP.launcher}</code> on this PC while playing for Valorant auto-log. Set Riot ID in <button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>`
+          : `Run <code>${DESKTOP_APP.launcher}</code> on this PC while playing for Rocket League auto-log. <button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>`;
       }
     }
   }
@@ -120,42 +112,12 @@ export function applyGameShell(gameId = state.activeGame) {
       : 'Auto-save games when a match ends';
   }
 
-  renderQuickModePills(gameId);
-  toggleDockLayouts(gameId);
+  applyDockForGame(gameId);
   toggleGamePageChrome(gameId);
   syncEditModal(gameId);
   syncFullLogForm(gameId);
   applyPageCopy(gameId);
   refreshBridgeStatusUI();
-
-  const agentSel = document.getElementById('quick-agent');
-  const mapSel = document.getElementById('quick-map');
-  if (agentSel && agentSel.options.length <= 1) {
-    getAgents().forEach(a => {
-      const opt = document.createElement('option');
-      opt.value = a;
-      opt.textContent = a;
-      agentSel.appendChild(opt);
-    });
-  }
-  if (mapSel && mapSel.options.length <= 1) {
-    getMaps().forEach(m => {
-      const opt = document.createElement('option');
-      opt.value = m;
-      opt.textContent = m;
-      mapSel.appendChild(opt);
-    });
-  }
-}
-
-function renderQuickModePills(gameId) {
-  const wrap = document.getElementById('quick-mode-pills');
-  if (!wrap) return;
-  const playlists = getPlaylists(gameId).filter(p => p.mode);
-  const activeMode = getLastModeForGame(gameId);
-  wrap.innerHTML = playlists.map(p => `
-    <button type="button" data-mode="${p.mode}" class="${p.mode === activeMode ? 'active' : ''}">${p.label}</button>
-  `).join('');
 }
 
 function toggleGamePageChrome(gameId) {
@@ -223,7 +185,7 @@ export function syncFullLogForm(gameId = state.activeGame) {
   const fMode = document.getElementById('f-mode');
   if (fMode) {
     const playlists = getPlaylists(gameId).filter(p => p.mode);
-    const activeMode = getLastModeForGame(gameId);
+    const activeMode = loadPrefs().lastModes?.[gameId] ?? loadPrefs().lastMode;
     fMode.innerHTML = playlists.map(p => `<option value="${p.mode}">${p.label}</option>`).join('');
     fMode.value = playlists.some(p => p.mode === activeMode) ? activeMode : (playlists[0]?.mode ?? activeMode);
   }
@@ -259,21 +221,6 @@ export function syncFullLogForm(gameId = state.activeGame) {
       opt.textContent = m;
       mapSel.appendChild(opt);
     });
-  }
-}
-
-function toggleDockLayouts(gameId) {
-  const adv = document.querySelector('.quick-advanced-stats .qs-label');
-  if (gameId === GAME_IDS.VALORANT) {
-    const labels = document.querySelectorAll('.quick-advanced-stats .qs-label');
-    if (labels[0]) labels[0].textContent = 'K';
-    if (labels[1]) labels[1].textContent = 'D';
-    if (labels[2]) labels[2].textContent = 'A';
-  } else {
-    const labels = document.querySelectorAll('.quick-advanced-stats .qs-label');
-    if (labels[0]) labels[0].textContent = 'G';
-    if (labels[1]) labels[1].textContent = 'A';
-    if (labels[2]) labels[2].textContent = 'S';
   }
 }
 
@@ -313,8 +260,10 @@ export function applyPageCopy(gameId = state.activeGame) {
   }
 
   const isVal = gameId === GAME_IDS.VALORANT;
-  const startBtn = document.getElementById('session-start-btn');
-  if (startBtn) startBtn.textContent = isVal ? '▶ Start Block' : '▶ Start Session';
+  if (!state.session.active) {
+    const startBtn = document.getElementById('session-start-btn');
+    if (startBtn) startBtn.textContent = isVal ? '▶ Start Block' : '▶ Start Session';
+  }
   const nextBtn = document.querySelector('#session-modal .btn-primary');
   if (nextBtn) nextBtn.textContent = isVal ? 'Start Next Block' : 'Start Next Session';
 }

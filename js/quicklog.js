@@ -1,9 +1,34 @@
 /** Quick Log dock — fast mid-session logging with keyboard shortcuts */
 
 import { state } from './state.js';
-import { GAME_IDS, getTagGroups, getAgents, getMaps } from './games.js';
+import { GAME_IDS, getTagGroups } from './games.js';
 import { showToast } from './ui.js';
 import { getLoggingSessionNum } from './sessions.js';
+import { getDockTagsEl, getDockModePillsEl } from './dock-ui.js';
+
+function isValDock() {
+  return state.activeGame === GAME_IDS.VALORANT;
+}
+
+function statValueEl(stat) {
+  if (isValDock()) {
+    const map = { goals: 'quick-val-kills', assists: 'quick-val-deaths', saves: 'quick-val-assists-display' };
+    return document.getElementById(map[stat]);
+  }
+  return document.getElementById(`quick-${stat}-val`);
+}
+
+function endRankInput() {
+  return document.getElementById(isValDock() ? 'quick-endrr' : 'quick-endmmr');
+}
+
+function wlWinBtn() {
+  return document.getElementById(isValDock() ? 'quick-wl-win-val' : 'quick-wl-win');
+}
+
+function wlLossBtn() {
+  return document.getElementById(isValDock() ? 'quick-wl-loss-val' : 'quick-wl-loss');
+}
 
 const PREFS_KEY = 'rl-grind-prefs';
 
@@ -199,7 +224,7 @@ export function syncQuickFromForm() {
   setQuickMode(mode);
   setQuickResult(document.getElementById('wl-win')?.classList.contains('active') ? 'W' : 'L');
   const end = document.getElementById('f-endmmr')?.value;
-  const qEnd = document.getElementById('quick-endmmr');
+  const qEnd = endRankInput();
   if (qEnd && end) qEnd.value = end;
 }
 
@@ -212,7 +237,7 @@ export function syncFormFromQuick() {
   const result = getQuickResult();
   callbacks.setFormResult?.(result);
 
-  const end = document.getElementById('quick-endmmr')?.value;
+  const end = endRankInput()?.value;
   const fEnd = document.getElementById('f-endmmr');
   const fStart = document.getElementById('f-startmmr');
   if (fEnd && end) fEnd.value = end;
@@ -251,9 +276,9 @@ export function getQuickLogPayload() {
       agent: document.getElementById('quick-agent')?.value ?? '',
       map: document.getElementById('quick-map')?.value ?? '',
       startRR: document.getElementById('f-startmmr')?.value,
-      endRR: document.getElementById('quick-endmmr')?.value,
+      endRR: endRankInput()?.value,
       startMMR: document.getElementById('f-startmmr')?.value,
-      endMMR: document.getElementById('quick-endmmr')?.value,
+      endMMR: endRankInput()?.value,
     };
   }
   return {
@@ -262,7 +287,7 @@ export function getQuickLogPayload() {
     assists: getQuickStat('assists'),
     saves: getQuickStat('saves'),
     startMMR: document.getElementById('f-startmmr')?.value,
-    endMMR: document.getElementById('quick-endmmr')?.value,
+    endMMR: endRankInput()?.value,
   };
 }
 
@@ -302,12 +327,12 @@ export function applyLiveStats(stats) {
 }
 
 export function getQuickStat(stat) {
-  return parseInt(document.getElementById(`quick-${stat}-val`)?.textContent ?? '0', 10) || 0;
+  return parseInt(statValueEl(stat)?.textContent ?? '0', 10) || 0;
 }
 
 export function setQuickStat(stat, val) {
   const n = Math.max(0, parseInt(val, 10) || 0);
-  const el = document.getElementById(`quick-${stat}-val`);
+  const el = statValueEl(stat);
   if (el) el.textContent = n;
   const field = document.getElementById(`f-${stat}`);
   if (field) field.value = n;
@@ -318,7 +343,7 @@ function bumpStat(stat, delta) {
 }
 
 export function resetQuickAfterLog() {
-  const qEnd = document.getElementById('quick-endmmr');
+  const qEnd = endRankInput();
   const qNotes = document.getElementById('quick-notes');
   if (qEnd) { qEnd.value = ''; qEnd.focus(); }
   if (qNotes) qNotes.value = '';
@@ -339,12 +364,12 @@ function syncStartMMR() {
 }
 
 function getQuickMode() {
-  return document.querySelector('#quick-mode-pills .active')?.dataset.mode
+  return getDockModePillsEl()?.querySelector('.active')?.dataset.mode
     ?? getLastModeForGame(state.activeGame);
 }
 
 export function setQuickMode(mode) {
-  document.querySelectorAll('#quick-mode-pills button').forEach(b => {
+  getDockModePillsEl()?.querySelectorAll('button[data-mode]').forEach(b => {
     b.classList.toggle('active', b.dataset.mode === mode);
   });
   const fMode = document.getElementById('f-mode');
@@ -353,12 +378,12 @@ export function setQuickMode(mode) {
 }
 
 function getQuickResult() {
-  return document.getElementById('quick-wl-win')?.classList.contains('active') ? 'W' : 'L';
+  return wlWinBtn()?.classList.contains('active') ? 'W' : 'L';
 }
 
 export function setQuickResult(r) {
-  document.getElementById('quick-wl-win')?.classList.toggle('active', r === 'W');
-  document.getElementById('quick-wl-loss')?.classList.toggle('active', r === 'L');
+  wlWinBtn()?.classList.toggle('active', r === 'W');
+  wlLossBtn()?.classList.toggle('active', r === 'L');
   callbacks.setFormResult?.(r);
 }
 
@@ -383,7 +408,7 @@ export function flashAutoLogged() {
 }
 
 function renderQuickTags() {
-  const el = document.getElementById('quick-tags');
+  const el = getDockTagsEl();
   if (!el) return;
   const groups = getTagGroups(state.activeGame);
   const hotTags = groups.flatMap(g => g.tags).slice(0, 8);
@@ -436,8 +461,14 @@ function wireDock() {
 
   document.getElementById('quick-wl-win')?.addEventListener('click', () => setQuickResult('W'));
   document.getElementById('quick-wl-loss')?.addEventListener('click', () => setQuickResult('L'));
+  document.getElementById('quick-wl-win-val')?.addEventListener('click', () => setQuickResult('W'));
+  document.getElementById('quick-wl-loss-val')?.addEventListener('click', () => setQuickResult('L'));
 
   document.getElementById('quick-log-btn')?.addEventListener('click', () => {
+    unlockAutoLogAudio();
+    callbacks.submitQuick?.();
+  });
+  document.getElementById('quick-log-btn-val')?.addEventListener('click', () => {
     unlockAutoLogAudio();
     callbacks.submitQuick?.();
   });
@@ -460,11 +491,13 @@ function wireDock() {
     }
   });
 
-  document.getElementById('quick-mode-pills')?.addEventListener('click', (e) => {
-    const btn = e.target.closest('button[data-mode]');
-    if (!btn) return;
-    setQuickMode(btn.dataset.mode);
-    syncStartMMR();
+  document.querySelectorAll('.quick-mode-pills').forEach(pills => {
+    pills.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-mode]');
+      if (!btn) return;
+      setQuickMode(btn.dataset.mode);
+      syncStartMMR();
+    });
   });
 
   document.getElementById('f-mode')?.addEventListener('change', e => {
@@ -488,7 +521,7 @@ function wireKeyboard() {
     const tag = e.target?.tagName?.toLowerCase();
     const typing = tag === 'input' || tag === 'textarea' || tag === 'select';
 
-    if (typing && e.target?.id !== 'quick-endmmr') return;
+    if (typing && e.target?.id !== 'quick-endmmr' && e.target?.id !== 'quick-endrr') return;
 
     if (e.key === 'h' || e.key === 'H') {
       if (!typing) { e.preventDefault(); toggleDockCollapsed(); }
@@ -496,8 +529,8 @@ function wireKeyboard() {
       if (!typing) { e.preventDefault(); setQuickResult('W'); }
     } else if (e.key === 'l' || e.key === 'L') {
       if (!typing) { e.preventDefault(); setQuickResult('L'); }
-    } else if (e.key === 'Enter' && (e.target?.id === 'quick-endmmr' || !typing)) {
-      const end = document.getElementById('quick-endmmr')?.value;
+    } else if (e.key === 'Enter' && (e.target?.id === 'quick-endmmr' || e.target?.id === 'quick-endrr' || !typing)) {
+      const end = endRankInput()?.value;
       if (end) { e.preventDefault(); callbacks.submitQuick?.(); }
     }
   });

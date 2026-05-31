@@ -2,6 +2,7 @@
 
 import { loadPrefs, savePrefs } from './quicklog.js';
 import { isBridgeUp, getRlDisplayName, saveRlDisplayName, applyBridgeSetup, fetchBridgeSetupStatus } from './rl-live.js';
+import { refreshValorantStatus } from './valorant-live.js';
 import { getAuthUser } from './auth.js';
 import { getUserDisplay, state } from './state.js';
 import { GAME_IDS } from './games.js';
@@ -26,8 +27,8 @@ export function renderLogSetupNudge() {
   el.innerHTML = `
     <div class="log-setup-nudge-inner">
       <span class="log-setup-nudge-text">${isVal
-        ? `Want Valorant auto-log? Run ${DESKTOP_APP.exe} and set Riot ID + API key.`
-        : `Want auto-log from Rocket League? Run ${DESKTOP_APP.exe} on this PC.`}</span>
+        ? `Want Valorant auto-log? Run ${DESKTOP_APP.launcher} and set Riot ID + API key.`
+        : `Want auto-log from Rocket League? Run ${DESKTOP_APP.launcher} on this PC.`}</span>
       <button type="button" class="btn-link" id="log-setup-nudge-link">Auto-Log Setup →</button>
     </div>`;
   document.getElementById('log-setup-nudge-link')?.addEventListener('click', () => {
@@ -41,6 +42,7 @@ function renderValorantFields(riotIdValue, riotRegionValue) {
     <input type="text" id="setup-riot-id" class="setup-input" placeholder="PlayerName#NA1" value="${escapeAttr(riotIdValue)}" autocomplete="off">
     <label>Riot API key <span class="setup-hint">(<a href="https://developer.riotgames.com/" target="_blank" rel="noopener">developer.riotgames.com</a>)</span></label>
     <input type="password" id="setup-riot-key" class="setup-input" placeholder="RGAPI-..." autocomplete="off">
+    <p class="setup-hint setup-riot-key-note">Dev keys expire every <strong>24 hours</strong> — paste a fresh key from <a href="https://developer.riotgames.com/" target="_blank" rel="noopener">developer.riotgames.com</a> when you see a Riot API error.</p>
     <label>Region</label>
     <select id="setup-riot-region" class="setup-input">
       <option value="na"${riotRegionValue === 'na' ? ' selected' : ''}>NA</option>
@@ -87,7 +89,7 @@ export function renderSetupWizard(displayName = '') {
         <div class="setup-callout setup-callout-success">
           <strong>${DESKTOP_APP.name} is running.</strong>
           ${isVal
-    ? 'Enter Riot ID + API key below, then Apply &amp; Go — no Rocket League setup needed.'
+    ? 'Enter Riot ID + API key below, then Apply &amp; Go.'
     : 'Rocket League auto-log is ready. Expand setup for Valorant or RL name changes.'}
         </div>
         <button type="button" class="btn btn-secondary" id="setup-show-steps">Show all setup steps</button>
@@ -111,7 +113,7 @@ export function renderSetupWizard(displayName = '') {
         <span class="setup-banner-icon">👇</span>
         <div>
           <strong>One-time setup on your PC</strong>
-          <p>Enter your name, run <code>${DESKTOP_APP.exe}</code>, then click <strong>Apply &amp; Go</strong>.</p>
+          <p>Enter your name, run <code>${DESKTOP_APP.launcher}</code>, then click <strong>Apply &amp; Go</strong>.</p>
         </div>
       </div>`}
       <div class="setup-wizard-head">
@@ -123,14 +125,14 @@ export function renderSetupWizard(displayName = '') {
       ? `${DESKTOP_APP.name} is running. Set your Riot ID below and Apply — then play with auto-log ON.`
       : 'Play a match — G/A/S fill in automatically. You only pick W/L and type your End MMR.')
     : (isVal
-      ? `Enter Riot ID + API key, start ${DESKTOP_APP.exe}, then hit Apply & Go.`
-      : `Enter your RL name, start ${DESKTOP_APP.exe}, then hit Apply & Go — no manual file editing.`)}
+      ? `Enter Riot ID + API key, start ${DESKTOP_APP.launcher}, then hit Apply & Go.`
+      : `Enter your RL name, start ${DESKTOP_APP.launcher}, then hit Apply & Go — no manual file editing.`)}
           </p>
         ${allReady ? `<button type="button" class="setup-dismiss" id="setup-dismiss">Got it</button>` : ''}
       </div>
       ${allReady ? `
       <div class="setup-callout setup-callout-success">
-        <strong>While you play:</strong> keep <code>${DESKTOP_APP.exe}</code> running in the system tray (look for the tray icon).
+        <strong>While you play:</strong> keep <code>${DESKTOP_APP.launcher}</code> running in the system tray (look for the tray icon).
       </div>
       <div class="setup-callout setup-callout-workflow">
         <strong>After each ${isVal ? 'match' : 'game'}:</strong> ${isVal
@@ -149,9 +151,9 @@ export function renderSetupWizard(displayName = '') {
           <span class="setup-step-num">2</span>
           <div class="setup-step-body">
             <strong>Run ${DESKTOP_APP.name}</strong>
-            <p>Double-click <code>${DESKTOP_APP.exe}</code> in your tracker folder (small tray app — keep it running while you play):</p>
-            <pre class="setup-code setup-code-highlight" id="setup-bridge-cmd">${DESKTOP_APP.exe}</pre>
-            <span class="setup-status-pill${bridge ? ' ok' : ''}" id="setup-bridge-pill">${bridge ? `● ${DESKTOP_APP.name} is running — ready for Apply & Go` : `○ Waiting for ${DESKTOP_APP.exe}…`}</span>
+            <p>Double-click <code>${DESKTOP_APP.launcher}</code> in your tracker folder (small tray app — keep it running while you play):</p>
+            <pre class="setup-code setup-code-highlight" id="setup-bridge-cmd">${DESKTOP_APP.launcher}</pre>
+            <span class="setup-status-pill${bridge ? ' ok' : ''}" id="setup-bridge-pill">${bridge ? `● ${DESKTOP_APP.name} is running — ready for Apply & Go` : `○ Waiting for ${DESKTOP_APP.launcher}…`}</span>
           </div>
         </li>
         <li class="setup-step${allReady ? ' hidden' : ''}" data-step="apply">
@@ -291,7 +293,7 @@ function wireSetupApplyGo() {
     }
 
     if (!isBridgeUp()) {
-      showToast(`Run ${DESKTOP_APP.exe} first, then click Apply & Go`, 'error');
+      showToast(`Run ${DESKTOP_APP.launcher} first, then click Apply & Go`, 'error');
       return;
     }
 
@@ -312,13 +314,24 @@ function wireSetupApplyGo() {
         patchIni,
       });
       if (riotId) savePrefs({ riotId, riotRegion });
+      await refreshValorantStatus();
+      refreshBridgeStatusUI();
+
+      const riotFailed = isVal && result.riotValidation && !result.riotValidation.ok;
       if (resultEl) {
         resultEl.classList.remove('hidden');
         const lines = isVal
           ? [
             result.files?.grindConfig ? '✓ Saved Riot ID + API key in grind-config.json' : null,
             riotId ? `✓ Linked Riot account: ${riotId}` : null,
-            '↻ Play one match to sync — your next finished match can auto-log',
+            riotFailed
+              ? `✗ Riot rejected this key: ${result.riotValidation.error}`
+              : result.riotValidation?.ok
+                ? '✓ Riot API key verified — play one match to sync'
+                : '↻ Play one match to sync — your next finished match can auto-log',
+            riotFailed
+              ? '↻ On developer.riotgames.com click Regenerate API Key, paste the new RGAPI key above, Apply again'
+              : null,
             ...(result.warnings ?? []).map(w => `⚠ ${w}`),
           ]
           : [
@@ -329,19 +342,24 @@ function wireSetupApplyGo() {
             result.iniNeedsRlRestart ? '↻ Fully restart Rocket League once if it was already open' : null,
             ...(result.warnings ?? []).map(w => `⚠ ${w}`),
           ];
-        resultEl.innerHTML = `<div class="setup-callout setup-callout-success">${lines.filter(Boolean).map(l => `<div>${escapeHtml(l)}</div>`).join('')}</div>`;
+        resultEl.innerHTML = `<div class="setup-callout ${riotFailed ? 'setup-callout-important' : 'setup-callout-success'}">${lines.filter(Boolean).map(l => `<div>${escapeHtml(l)}</div>`).join('')}</div>`;
       }
-      document.querySelector('.setup-step[data-step="apply"]')?.classList.add('done');
+      document.querySelector('.setup-step[data-step="apply"]')?.classList.toggle('done', !riotFailed);
       if (name && !isVal) document.querySelector('.setup-step[data-step="name"]')?.classList.add('done');
-      document.querySelector('.setup-step[data-step="valorant"]')?.classList.toggle('done', Boolean(riotId));
-      saveSetupPrefs({ iniDone: true });
-      showToast(isVal ? 'Valorant auto-log linked on this PC!' : 'Settings applied on your PC!');
+      document.querySelector('.setup-step[data-step="valorant"]')?.classList.toggle('done', Boolean(riotId) && !riotFailed);
+      if (!riotFailed) saveSetupPrefs({ iniDone: true });
+      showToast(
+        riotFailed
+          ? result.riotValidation.error
+          : isVal ? 'Valorant auto-log linked on this PC!' : 'Settings applied on your PC!',
+        riotFailed ? 'error' : undefined,
+      );
     } catch (e) {
       if (resultEl) {
         resultEl.classList.remove('hidden');
         resultEl.innerHTML = `<div class="setup-callout setup-callout-important">${escapeHtml(e.message || 'Apply failed')}</div>`;
       }
-      showToast(e.message || `Apply failed — is ${DESKTOP_APP.exe} running?`, 'error');
+      showToast(e.message || `Apply failed — is ${DESKTOP_APP.launcher} running?`, 'error');
     } finally {
       btn.disabled = false;
       btn.textContent = 'Apply & Go';
@@ -435,7 +453,7 @@ export function refreshSetupWizard(displayName) {
 function updateBridgePill(bridge) {
   const pill = document.getElementById('setup-bridge-pill');
   if (pill) {
-    pill.textContent = bridge ? `● ${DESKTOP_APP.name} is running — you're good` : `○ Waiting for ${DESKTOP_APP.exe}…`;
+    pill.textContent = bridge ? `● ${DESKTOP_APP.name} is running — you're good` : `○ Waiting for ${DESKTOP_APP.launcher}…`;
     pill.classList.toggle('ok', bridge);
   }
   if (bridge) {

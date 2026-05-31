@@ -22,6 +22,7 @@ import { initRlLive, stopRlLive, refreshLiveStatus,
 import { initValorantLive, stopValorantLive, refreshValorantStatus } from './valorant-live.js';
 import { wireBridgeStatusClick } from './bridge-ui.js';
 import { initGameSwitcher, restoreActiveGameFromPrefs, applyGameShell, applyPageCopy, syncEditModal } from './game-ui.js';
+import { getDockModePillsEl } from './dock-ui.js';
 import { GAME_IDS, getTagGroups, getGameMeta } from './games.js';
 import { VAL_DEFAULT_RR_SWING } from './valorant-config.js';
 import { renderSetupWizard, refreshSetupWizard, onBridgeStatusChange, renderLogSetupNudge } from './setup-wizard.js';
@@ -406,6 +407,7 @@ function renderAll() {
   refreshSessionUI();
   wireLogTableActions();
   applyPageCopy(state.activeGame);
+  refreshSessionUI();
   refreshLogTagChips();
   rerenderQuickTags();
   updateNavUI(state.activePage || 'dashboard');
@@ -615,7 +617,6 @@ async function handleValorantAutoLog(match) {
     match.map ? match.map : '',
   ].filter(Boolean).join(' · ');
 
-  if (!state.session.active) startSession();
   const ok = await submitGameLog('auto');
   if (!ok) return false;
   flashAutoLogged();
@@ -623,13 +624,14 @@ async function handleValorantAutoLog(match) {
   return true;
 }
 
-function getQuickMode() {
-  return document.querySelector('#quick-mode-pills .active')?.dataset.mode ?? 'Competitive';
+function getQuickModeFromDock() {
+  return getDockModePillsEl()?.querySelector('.active')?.dataset.mode
+    ?? getLastModeForGame(state.activeGame);
 }
 
 async function handleAutoLog(match) {
   if (state.activeGame !== GAME_IDS.ROCKET_LEAGUE) return false;
-  const logMode = match.mode || document.querySelector('#quick-mode-pills .active')?.dataset.mode || "2's";
+  const logMode = match.mode || getQuickModeFromDock() || "2's";
   if (match.mode) setQuickMode(match.mode);
   if (match.result) setQuickResult(match.result);
   applyLiveStats(match);
@@ -665,8 +667,6 @@ async function handleAutoLog(match) {
     match.playlist ? (match.isRanked ? `Ranked · ${match.playlist}` : match.playlist) : '',
   ].filter(Boolean).join(' · ');
 
-  if (!state.session.active) startSession();
-
   const ok = await submitGameLog('auto');
   if (!ok) return false;
 
@@ -685,7 +685,6 @@ async function submitGameLog(source = 'form') {
 
   if (source === 'quick' || source === 'auto') {
     syncFormFromQuick();
-    if (!state.session.active) startSession();
   }
 
   const endMMR = source === 'quick' || source === 'auto'

@@ -8,6 +8,9 @@ import { showToast } from './ui.js';
 import { getLastMMR, lastGameNeedsMmrConfirm } from './matches.js';
 import { detectTilt } from './insights.js';
 import { GAME_IDS, getGameMeta, getDefaultMode } from './games.js';
+import { getDockModePillsEl } from './dock-ui.js';
+
+const STALE_SESSION_MS = 6 * 60 * 60 * 1000;
 
 function sessionCopy() {
   const isVal = state.activeGame === GAME_IDS.VALORANT;
@@ -22,7 +25,7 @@ function sessionCopy() {
 }
 
 function getActiveLogMode() {
-  const fromPill = document.querySelector('#quick-mode-pills .active')?.dataset.mode;
+  const fromPill = getDockModePillsEl()?.querySelector('.active')?.dataset.mode;
   if (fromPill) return fromPill;
   const fromForm = document.getElementById('f-mode')?.value;
   if (fromForm) return fromForm;
@@ -90,6 +93,13 @@ export function getSessionDurationMs(sessionNum) {
   return entry?.durationMs ?? null;
 }
 
+function clearSessionTimer() {
+  if (state.session.timerId) {
+    clearInterval(state.session.timerId);
+    state.session.timerId = null;
+  }
+}
+
 function syncSessionField(num) {
   const el = document.getElementById('f-session');
   if (el) el.value = num;
@@ -108,8 +118,13 @@ function inferOpenSession(games, stored) {
   return null;
 }
 
+/** Next session # if user has logged games in an "open" block without ending it */
+export function getSuggestedSessionNum(games = getActiveGames(), stored = loadStoredSession()) {
+  return inferOpenSession(games, stored) ?? stored?.nextSessionNum ?? getNextSessionNum(games) || 1;
+}
+
 function activateSession(sessionNum, { startTime = Date.now(), startMMR = null, silent = false } = {}) {
-  if (state.session.timerId) clearInterval(state.session.timerId);
+  clearSessionTimer();
 
   const activeGames = getActiveGames();
   const copy = sessionCopy();
@@ -137,7 +152,6 @@ function activateSession(sessionNum, { startTime = Date.now(), startMMR = null, 
 
   notify();
   updateSessionBar();
-  updateLivePanel();
   if (!silent) {
     document.dispatchEvent(new CustomEvent('rl-session-start'));
     showToast(copy.isVal ? 'Grind block started ◆' : 'Session started! 🚀');
@@ -145,39 +159,47 @@ function activateSession(sessionNum, { startTime = Date.now(), startMMR = null, 
 }
 
 /** Restore session after page load — call once games are in state */
-export function restoreSessionFromStorage(games = state.games) {
-  const stored = loadStoredSession();
+export function restoreSessionFromStorage(games = getActiveGames()) {
+  clearSessionTimer();
 
-  if (stored?.active && stored.sessionNum) {
-    activateSession(stored.sessionNum, {
-      startTime: stored.startTime || Date.now(),
-      startMMR: stored.startMMR ?? null,
-      silent: true,
+  let stored = loadStoredSession();
+  if (stored?.active && stored.startTime && (Date.now() - stored.startTime > STALE_SESSION_MS)) {
+    saveStoredSession({
+      active: false,
+      sessionNum: stored.sessionNum,
+      startTime: null,
+      startMMR: null,
+      nextSessionNum: stored.nextSessionNum ?? stored.sessionNum,
+      lastEndedSession: stored.lastEndedSession ?? 0,
     });
-    return;
+    stored = loadStoredSession();
+  }
+
+  // Never auto-go "Live" on page load — user must tap ▶ Start Session / Start Block
+  if (stored?.active) {
+    saveStoredSession({
+      active: false,
+      sessionNum: stored.sessionNum,
+      startTime: null,
+      startMMR: null,
+      nextSessionNum: stored.nextSessionNum ?? stored.sessionNum,
+      lastEndedSession: stored.lastEndedSession ?? 0,
+    });
+    stored = loadStoredSession();
   }
 
   const openNum = inferOpenSession(games, stored);
-  if (openNum) {
-    activateSession(openNum, { silent: true });
-    return;
-  }
-
-  const nextNum = stored?.nextSessionNum ?? getNextSessionNum(games);
+  const nextNum = openNum ?? stored?.nextSessionNum ?? getNextSessionNum(games) || 1;
   state.session.active = false;
   state.session.startTime = null;
   state.session.sessionNum = nextNum;
   syncSessionField(nextNum);
   updateSessionBar();
-  updateLivePanel();
 }
 
 /** Reset the session counter (e.g. back to 1 when testing) */
 export function resetSessionCounter(num = 1) {
-  if (state.session.timerId) {
-    clearInterval(state.session.timerId);
-    state.session.timerId = null;
-  }
+  clearSessionTimer();
 
   const prev = loadStoredSession();
   const maxLogged = getMaxSessionNum(getActiveGames());
@@ -201,8 +223,7 @@ export function resetSessionCounter(num = 1) {
 
   notify();
   updateSessionBar();
-  updateLivePanel();
-  showToast(`Next ${copy.blockLabel.toLowerCase()} set to ${num}`);
+  showToast(`Next ${copy.blockLabel.toLowerCase()} set to ${num}${state.session.active ? ' — live session ended' : ''}`);
 }
 
 export function initSessionUI() {
@@ -221,7 +242,6 @@ export function initSessionUI() {
     });
   }
   updateSessionBar();
-  updateLivePanel();
 }
 
 export function startSession({ silent = false, sessionNum } = {}) {
@@ -283,7 +303,6 @@ export function endSession(onComplete) {
 
   notify();
   updateSessionBar();
-  updateLivePanel();
   showSessionModal(sessionNum, sg, elapsed);
 
   if (onComplete) onComplete(nextSession);
@@ -372,7 +391,6 @@ export function updateSessionBar() {
   bar.classList.add('active');
   dot?.classList.add('active');
   document.querySelector('.quick-dock-inner')?.classList.add('session-live');
-  document.getElementById('session-num-setter')?.classList.add('hidden');
   title?.classList.add('active');
   if (title) title.textContent = `${copy.blockLabel} ${live.sessionNum} — Live`;
   if (stats) {
@@ -392,39 +410,6 @@ export function updateSessionBar() {
     startBtn.textContent = '■ End';
     startBtn.onclick = () => endSession();
   }
-}
-
-export function updateLivePanel() {
-  const panel = document.getElementById('live-session-panel');
-  if (!panel) return;
-
-  if (!state.session.active) {
-    panel.classList.remove('visible');
-    return;
-  }
-
-  const live = getLiveSessionStats();
-  const display = getUserDisplay(getAuthUser());
-  const streak = live.streak;
-  const elapsed = Date.now() - (state.session.startTime || Date.now());
-  const copy = sessionCopy();
-
-  panel.classList.add('visible');
-  panel.innerHTML = `
-    <div class="live-panel-pulse"></div>
-    <div class="live-panel-body">
-      <div class="live-panel-header">
-        <span class="live-panel-title">${copy.isVal ? '◆ LIVE' : '🔴 LIVE'} · ${copy.blockLabel} ${live.sessionNum}</span>
-        <span class="live-panel-player" style="color:${display.color}">${display.name}</span>
-      </div>
-      <div class="live-panel-stats">
-        <div class="live-stat"><span class="live-stat-val" id="live-panel-timer">${formatDuration(elapsed)}</span><span class="live-stat-lbl">Time</span></div>
-        <div class="live-stat"><span class="live-stat-val">${live.wins}W ${live.losses}L</span><span class="live-stat-lbl">Record</span></div>
-        <div class="live-stat"><span class="live-stat-val ${live.mmrGain >= 0 ? 'pos' : 'neg'}">${live.mmrGain >= 0 ? '+' : ''}${live.mmrGain}</span><span class="live-stat-lbl">${copy.rankLabel}</span></div>
-        <div class="live-stat"><span class="live-stat-val">${streak.type === 'W' ? '🔥' : streak.type === 'L' ? '💀' : '—'} ${streak.count || 0}</span><span class="live-stat-lbl">Streak</span></div>
-      </div>
-    </div>
-    <button class="live-panel-end" onclick="window.__endSession()" title="End ${copy.blockLabel.toLowerCase()}">■</button>`;
 }
 
 function showSessionModal(sessionNum, sg, elapsed) {
@@ -492,6 +477,5 @@ function showSessionModal(sessionNum, sg, elapsed) {
 
 export function refreshSessionUI() {
   updateSessionBar();
-  updateLivePanel();
   document.dispatchEvent(new CustomEvent('rl-session-ui-refresh'));
 }
