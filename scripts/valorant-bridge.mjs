@@ -1,12 +1,13 @@
 /**
- * Valorant auto-log via Riot API — polls when Valorant is running.
+ * Valorant auto-log via Riot API — polls when configured.
  * Requires riotId (Name#TAG), riotRegion, and riotApiKey in grind-config.json or env.
  */
 
 import { spawnSync } from 'child_process';
 import { loadGrindConfig } from './local-setup.mjs';
+import { resolveAgentName, resolveMapName } from './valorant-ids.mjs';
 
-const REGION_HOSTS = {
+const ACCOUNT_HOSTS = {
   na: 'https://americas.api.riotgames.com',
   latam: 'https://americas.api.riotgames.com',
   br: 'https://americas.api.riotgames.com',
@@ -15,10 +16,19 @@ const REGION_HOSTS = {
   kr: 'https://asia.api.riotgames.com',
 };
 
+const PLATFORM_HOSTS = {
+  na: 'https://na.api.riotgames.com',
+  latam: 'https://latam.api.riotgames.com',
+  br: 'https://br.api.riotgames.com',
+  eu: 'https://eu.api.riotgames.com',
+  ap: 'https://ap.api.riotgames.com',
+  kr: 'https://kr.api.riotgames.com',
+};
+
 const VAL_SHARD = {
   na: 'na',
-  latam: 'na',
-  br: 'na',
+  latam: 'latam',
+  br: 'br',
   eu: 'eu',
   ap: 'ap',
   kr: 'kr',
@@ -26,7 +36,9 @@ const VAL_SHARD = {
 
 let lastMatch = null;
 let lastSeenMatchId = null;
+let seeded = false;
 let puuidCache = null;
+let platformHostCache = null;
 let pollTimer = null;
 let valorantRunning = false;
 let configured = false;
@@ -51,10 +63,9 @@ function isValorantRunning() {
   return (r.stdout || '').includes('VALORANT-Win64-Shipping.exe');
 }
 
-async function riotFetch(path, region = 'na') {
+async function riotFetch(path, host) {
   const { riotApiKey } = getBridgeConfig();
   if (!riotApiKey) throw new Error('Riot API key not set');
-  const host = REGION_HOSTS[region] || REGION_HOSTS.na;
   const res = await fetch(`${host}${path}`, {
     headers: { 'X-Riot-Token': riotApiKey },
   });
@@ -65,14 +76,34 @@ async function riotFetch(path, region = 'na') {
   return res.json();
 }
 
+async function resolvePlatformHost(riotRegion) {
+  if (platformHostCache) return platformHostCache;
+  const shard = VAL_SHARD[riotRegion] || 'na';
+  platformHostCache = PLATFORM_HOSTS[shard] || PLATFORM_HOSTS.na;
+  try {
+    const puuid = await resolvePuuid();
+    const accountHost = ACCOUNT_HOSTS[riotRegion] || ACCOUNT_HOSTS.na;
+    const shardInfo = await riotFetch(
+      `/riot/account/v1/active-shards/by-game/val/by-puuid/${puuid}`,
+      accountHost,
+    );
+    const active = String(shardInfo.activeShard || shard).toLowerCase();
+    platformHostCache = PLATFORM_HOSTS[active] || platformHostCache;
+  } catch {
+    /* fall back to region shard */
+  }
+  return platformHostCache;
+}
+
 async function resolvePuuid() {
   if (puuidCache) return puuidCache;
   const { riotId, riotRegion } = getBridgeConfig();
   if (!riotId.includes('#')) throw new Error('Set Riot ID as Name#TAG in setup');
   const [gameName, tagLine] = riotId.split('#');
+  const accountHost = ACCOUNT_HOSTS[riotRegion] || ACCOUNT_HOSTS.na;
   const account = await riotFetch(
     `/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}`,
-    riotRegion,
+    accountHost,
   );
   puuidCache = account.puuid;
   return puuidCache;
@@ -84,7 +115,7 @@ function parseValorantMatch(data, puuid) {
   const team = player.teamId;
   const won = data.teams?.find(t => t.teamId === team)?.won ?? false;
   const stats = player.stats ?? {};
-  const map = data.matchInfo?.mapId?.split('/')?.pop() ?? '';
+  const map = resolveMapName(data.matchInfo?.mapId ?? '');
   const queue = data.matchInfo?.queueId ?? 'unknown';
   const modeMap = {
     competitive: 'Competitive',
@@ -92,8 +123,13 @@ function parseValorantMatch(data, puuid) {
     swiftplay: 'Swiftplay',
     spike rush: 'Spike Rush',
     deathmatch: 'Deathmatch',
+    escalation: 'Escalation',
+    replication: 'Replication',
+    snowball: 'Snowball Fight',
   };
   const mode = modeMap[queue] || queue;
+  const rounds = stats.roundsPlayed || 1;
+  const agent = resolveAgentName(player.characterId);
 
   return {
     result: won ? 'W' : 'L',
@@ -101,8 +137,8 @@ function parseValorantMatch(data, puuid) {
     kills: stats.kills ?? 0,
     deaths: stats.deaths ?? 0,
     valAssists: stats.assists ?? 0,
-    acs: Math.round(stats.score ?? 0),
-    agent: player.characterId?.split('/')?.pop() ?? '',
+    acs: Math.round((stats.score ?? 0) / rounds),
+    agent,
     map,
     matchId: data.matchInfo?.matchId,
     isRanked: queue === 'competitive',
@@ -111,37 +147,55 @@ function parseValorantMatch(data, puuid) {
   };
 }
 
+async function fetchLatestMatchId() {
+  const { riotRegion, riotApiKey } = getBridgeConfig();
+  const puuid = await resolvePuuid();
+  const platformHost = await resolvePlatformHost(riotRegion);
+  const listRes = await fetch(
+    `${platformHost}/val/match/v1/matchlists/by-puuid/${puuid}?size=1`,
+    { headers: { 'X-Riot-Token': riotApiKey } },
+  );
+  if (!listRes.ok) throw new Error(await listRes.text());
+  const list = await listRes.json();
+  return list.history?.[0]?.matchId ?? null;
+}
+
 async function pollLatestMatch() {
-  const { riotRegion } = getBridgeConfig();
-  configured = Boolean(getBridgeConfig().riotApiKey && getBridgeConfig().riotId);
+  const cfg = getBridgeConfig();
+  configured = Boolean(cfg.riotApiKey && cfg.riotId);
   valorantRunning = isValorantRunning();
-  if (!configured || !valorantRunning) return;
+  if (!configured) return;
 
   try {
-    const puuid = await resolvePuuid();
-    const shard = VAL_SHARD[riotRegion] || 'na';
-    const host = REGION_HOSTS[riotRegion] || REGION_HOSTS.na;
-    const listRes = await fetch(
-      `${host}/val/match/v1/matchlists/by-puuid/${puuid}?size=1`,
-      { headers: { 'X-Riot-Token': getBridgeConfig().riotApiKey } },
-    );
-    if (!listRes.ok) throw new Error(await listRes.text());
-    const list = await listRes.json();
-    const matchId = list.history?.[0]?.matchId;
-    if (!matchId || matchId === lastSeenMatchId) return;
+    const matchId = await fetchLatestMatchId();
+    if (!matchId) return;
 
+    if (!seeded) {
+      lastSeenMatchId = matchId;
+      seeded = true;
+      lastError = null;
+      console.log('Valorant bridge seeded — waiting for your next match');
+      return;
+    }
+
+    if (matchId === lastSeenMatchId) return;
+
+    const { riotRegion, riotApiKey } = cfg;
+    const platformHost = await resolvePlatformHost(riotRegion);
     const matchRes = await fetch(
-      `${host}/val/match/v1/matches/${matchId}`,
-      { headers: { 'X-Riot-Token': getBridgeConfig().riotApiKey } },
+      `${platformHost}/val/match/v1/matches/${matchId}`,
+      { headers: { 'X-Riot-Token': riotApiKey } },
     );
     if (!matchRes.ok) throw new Error(await matchRes.text());
+
+    const puuid = await resolvePuuid();
     const parsed = parseValorantMatch(await matchRes.json(), puuid);
     if (!parsed) return;
 
     lastSeenMatchId = matchId;
     lastMatch = parsed;
     lastError = null;
-    console.log(`Valorant match — ${parsed.result} · ${parsed.mode} · K:${parsed.kills} D:${parsed.deaths} A:${parsed.valAssists}`);
+    console.log(`Valorant match — ${parsed.result} · ${parsed.mode} · K:${parsed.kills} D:${parsed.deaths} A:${parsed.valAssists} · ${parsed.agent || 'Agent'} · ${parsed.map || 'Map'}`);
   } catch (e) {
     lastError = e.message;
   }
@@ -149,7 +203,7 @@ async function pollLatestMatch() {
 
 export function startValorantBridge() {
   if (pollTimer) return;
-  pollTimer = setInterval(pollLatestMatch, 15000);
+  pollTimer = setInterval(pollLatestMatch, 12000);
   pollLatestMatch();
 }
 
@@ -161,6 +215,7 @@ export function handleValorantRequest(req, res) {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
       configured: Boolean(cfg.riotApiKey && cfg.riotId),
+      seeded,
       valorantRunning,
       riotId: cfg.riotId || null,
       lastError,
@@ -187,5 +242,9 @@ export function handleValorantRequest(req, res) {
 
 export function resetValorantCache() {
   puuidCache = null;
+  platformHostCache = null;
   lastSeenMatchId = null;
+  seeded = false;
+  lastMatch = null;
+  lastError = null;
 }

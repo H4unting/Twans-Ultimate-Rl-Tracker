@@ -16,8 +16,7 @@ import {
   setQuickResult, setQuickMode,
 } from './quicklog.js';
 import { renderProfilePage } from './profile-ui.js';
-import {
-  initRlLive, stopRlLive, refreshLiveStatus,
+import { initRlLive, stopRlLive, refreshLiveStatus,
   saveRlDisplayName, getRlDisplayName,
 } from './rl-live.js';
 import { initValorantLive, stopValorantLive, refreshValorantStatus } from './valorant-live.js';
@@ -82,7 +81,7 @@ async function bootApp() {
   try {
     const {
       profile, games, goals, groups, bio, rlDisplayName,
-      primaryColor, secondaryColor, activeGame,
+      primaryColor, secondaryColor, activeGame, riotId, riotRegion,
     } = await loadUserData();
     setProfile({
       ...(profile ?? {}),
@@ -109,6 +108,10 @@ async function bootApp() {
       saveRlDisplayName(rlDisplayName);
       savePrefs({ rlDisplayName });
     }
+    const prefsPatch = {};
+    if (riotId && !loadPrefs().riotId) prefsPatch.riotId = riotId;
+    if (riotRegion && !loadPrefs().riotRegion) prefsPatch.riotRegion = riotRegion;
+    if (Object.keys(prefsPatch).length) savePrefs(prefsPatch);
     state.filters = { ...DEFAULT_FILTERS };
     state.matchLogFilters = { ...DEFAULT_FILTERS };
     state.activePage = 'dashboard';
@@ -454,11 +457,14 @@ function renderProfilePageContent() {
 }
 
 function getSettingsPayload(overrides = {}) {
+  const prefs = loadPrefs();
   return {
     goals: state.goals,
     bio: state.profileBio ?? '',
     activeGame: state.activeGame,
-    rlDisplayName: getRlDisplayName() || loadPrefs().rlDisplayName || '',
+    rlDisplayName: getRlDisplayName() || prefs.rlDisplayName || '',
+    riotId: prefs.riotId || '',
+    riotRegion: prefs.riotRegion || 'na',
     primaryColor: state.profile?.primary_color ?? '',
     secondaryColor: state.profile?.secondary_color ?? '',
     ...overrides,

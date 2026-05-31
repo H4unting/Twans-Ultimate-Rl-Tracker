@@ -4,6 +4,8 @@ import { state, setActiveGame, subscribe } from './state.js';
 import { GAMES, GAME_IDS, getGameMeta, getTagGroups, getPlaylists, getAgents, getMaps } from './games.js';
 import { saveSettings } from './supabase.js';
 import { savePrefs, loadPrefs } from './quicklog.js';
+import { refreshLiveStatus } from './rl-live.js';
+import { refreshValorantStatus } from './valorant-live.js';
 
 let onGameChange = null;
 let switcherWired = false;
@@ -30,6 +32,8 @@ export function initGameSwitcher({ onChange, getSettingsPayload }) {
     }
 
     applyGameShell(next);
+    if (next === GAME_IDS.VALORANT) refreshValorantStatus();
+    else refreshLiveStatus();
     if (onGameChange) onGameChange(next);
   });
 }

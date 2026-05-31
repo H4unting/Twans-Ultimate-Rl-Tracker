@@ -1,7 +1,7 @@
 /** In-app setup wizard for auto stats + quick log workflow */
 
 import { loadPrefs, savePrefs } from './quicklog.js';
-import { isBridgeUp, getRlDisplayName, saveRlDisplayName, applyBridgeSetup } from './rl-live.js';
+import { isBridgeUp, getRlDisplayName, saveRlDisplayName, applyBridgeSetup, fetchBridgeSetupStatus } from './rl-live.js';
 import { getAuthUser } from './auth.js';
 import { getUserDisplay } from './state.js';
 import { showToast } from './ui.js';
@@ -34,9 +34,12 @@ export function renderSetupWizard(displayName = '') {
   if (!el) return;
 
   const prefs = loadSetupPrefs();
+  const quickPrefs = loadPrefs();
   const profile = getProfileContext(displayName);
   const rlName = profile.rlName;
   const bridge = isBridgeUp();
+  const riotIdValue = quickPrefs.riotId ?? '';
+  const riotRegionValue = quickPrefs.riotRegion ?? 'na';
   const allReady = bridge;
 
   if (allReady && prefs.dismissedWhenReady) {
@@ -86,9 +89,9 @@ export function renderSetupWizard(displayName = '') {
           <span class="setup-step-num">2</span>
           <div class="setup-step-body">
             <strong>Start the bridge</strong>
-            <p>Double-click this file in your tracker folder (keep the black window open):</p>
-            <pre class="setup-code setup-code-highlight" id="setup-bridge-cmd">start-grind.bat</pre>
-            <span class="setup-status-pill${bridge ? ' ok' : ''}" id="setup-bridge-pill">${bridge ? '● Bridge connected — ready for Apply & Go' : '○ Waiting for start-grind.bat…'}</span>
+            <p>Double-click <code>Twans-Tracker-Bridge.exe</code> in your tracker folder (keep it running):</p>
+            <pre class="setup-code setup-code-highlight" id="setup-bridge-cmd">Twans-Tracker-Bridge.exe</pre>
+            <span class="setup-status-pill${bridge ? ' ok' : ''}" id="setup-bridge-pill">${bridge ? '● Bridge connected — ready for Apply & Go' : '○ Waiting for Twans-Tracker-Bridge.exe…'}</span>
           </div>
         </li>
         <li class="setup-step" data-step="apply">
@@ -110,18 +113,19 @@ export function renderSetupWizard(displayName = '') {
             <strong>Valorant auto-log (optional)</strong>
             <p>Add your Riot ID and API key — saved locally in <code>grind-config.json</code> when you Apply.</p>
             <label>Riot ID <span class="setup-hint">(Name#TAG)</span></label>
-            <input type="text" id="setup-riot-id" class="setup-input" placeholder="PlayerName#NA1" autocomplete="off">
+            <input type="text" id="setup-riot-id" class="setup-input" placeholder="PlayerName#NA1" value="${escapeAttr(riotIdValue)}" autocomplete="off">
             <label>Riot API key <span class="setup-hint">(<a href="https://developer.riotgames.com/" target="_blank" rel="noopener">developer.riotgames.com</a>)</span></label>
             <input type="password" id="setup-riot-key" class="setup-input" placeholder="RGAPI-..." autocomplete="off">
             <label>Region</label>
             <select id="setup-riot-region" class="setup-input">
-              <option value="na">NA</option>
-              <option value="eu">EU</option>
-              <option value="ap">AP</option>
-              <option value="kr">KR</option>
-              <option value="latam">LATAM</option>
-              <option value="br">BR</option>
+              <option value="na"${riotRegionValue === 'na' ? ' selected' : ''}>NA</option>
+              <option value="eu"${riotRegionValue === 'eu' ? ' selected' : ''}>EU</option>
+              <option value="ap"${riotRegionValue === 'ap' ? ' selected' : ''}>AP</option>
+              <option value="kr"${riotRegionValue === 'kr' ? ' selected' : ''}>KR</option>
+              <option value="latam"${riotRegionValue === 'latam' ? ' selected' : ''}>LATAM</option>
+              <option value="br"${riotRegionValue === 'br' ? ' selected' : ''}>BR</option>
             </select>
+            <span class="setup-status-pill${riotIdValue ? ' ok' : ''}" id="setup-valorant-pill">${riotIdValue ? '● Riot ID saved locally' : '○ Optional — add for Valorant auto-log'}</span>
           </div>
         </li>
       </ol>
@@ -136,7 +140,32 @@ export function renderSetupWizard(displayName = '') {
 
   wireSetupWizard();
   updateBridgePill(bridge);
+  if (bridge) prefillRiotFromBridge();
 }
+
+async function prefillRiotFromBridge() {
+  try {
+    const setup = await fetchBridgeSetupStatus();
+    const cfg = setup.config ?? {};
+    const riotInput = document.getElementById('setup-riot-id');
+    const regionSel = document.getElementById('setup-riot-region');
+    if (riotInput && !riotInput.value && cfg.riotId) {
+      riotInput.value = cfg.riotId;
+      savePrefs({ riotId: cfg.riotId });
+    }
+    if (regionSel && cfg.riotRegion) {
+      regionSel.value = cfg.riotRegion;
+      savePrefs({ riotRegion: cfg.riotRegion });
+    }
+    document.querySelector('.setup-step[data-step="valorant"]')?.classList.toggle('done', Boolean(riotInput?.value.trim()));
+    const pill = document.getElementById('setup-valorant-pill');
+    if (pill && riotInput?.value.trim()) {
+      pill.textContent = '● Riot ID saved locally';
+      pill.classList.add('ok');
+    }
+  } catch {
+    /* bridge not ready yet */
+  }
 
 function loadSetupPrefs() {
   try {
@@ -203,7 +232,7 @@ function wireSetupApplyGo() {
     }
 
     if (!isBridgeUp()) {
-      showToast('Run start-grind.bat first, then click Apply & Go', 'error');
+      showToast('Run Twans-Tracker-Bridge.exe first, then click Apply & Go', 'error');
       return;
     }
 
@@ -338,7 +367,7 @@ export function refreshSetupWizard(displayName) {
 function updateBridgePill(bridge) {
   const pill = document.getElementById('setup-bridge-pill');
   if (pill) {
-    pill.textContent = bridge ? '● Bridge connected — you\'re good' : '○ Waiting for start-grind.bat…';
+    pill.textContent = bridge ? '● Bridge connected — you\'re good' : '○ Waiting for Twans-Tracker-Bridge.exe…';
     pill.classList.toggle('ok', bridge);
   }
   if (bridge) {

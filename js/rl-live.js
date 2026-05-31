@@ -5,10 +5,10 @@ import { setBridgeHintVisible } from './env.js';
 import { loadPrefs, savePrefs, isAutoLogEnabled } from './quicklog.js';
 import { state } from './state.js';
 import { GAME_IDS } from './games.js';
+import { setBridgeOnline, isBridgeUp } from './bridge-client.js';
 
 const BRIDGE = 'http://127.0.0.1:49200';
 let pollId = null;
-let bridgeUp = false;
 let wasBridgeUp = false;
 let lastAppliedEnd = 0;
 let autoLogInFlight = false;
@@ -26,21 +26,45 @@ export function initRlLive(onMatchStats, onStatusChange, onAutoLog) {
 export function stopRlLive() {
   if (pollId) clearInterval(pollId);
   pollId = null;
+  setBridgeOnline(false);
   setLiveStatus(false);
   setBridgeHintVisible(false);
 }
 
-async function pollBridge() {
-  if (state.activeGame !== GAME_IDS.ROCKET_LEAGUE) {
-    setLiveStatus(false);
-    return;
-  }
+async function pingBridge() {
   try {
     const res = await fetch(`${BRIDGE}/status`, { signal: AbortSignal.timeout(1500) });
     if (!res.ok) throw new Error('offline');
-    const status = await res.json();
-    bridgeUp = true;
-    wasBridgeUp = true;
+    setBridgeOnline(true);
+    return await res.json();
+  } catch {
+    setBridgeOnline(false);
+    return null;
+  }
+}
+
+async function pollBridge() {
+  const status = await pingBridge();
+  const online = Boolean(status);
+
+  if (online !== wasBridgeUp) {
+    wasBridgeUp = online;
+    if (!online && state.activeGame === GAME_IDS.ROCKET_LEAGUE) {
+      showToast('Game bridge disconnected', 'error');
+    }
+    callbacks.onStatusChange?.();
+  }
+
+  if (state.activeGame !== GAME_IDS.ROCKET_LEAGUE) {
+    return;
+  }
+
+  if (!online) {
+    setLiveStatus(false);
+    return;
+  }
+
+  try {
     setLiveStatus(true, status.inMatch);
 
     const lastRes = await fetch(`${BRIDGE}/last-match`, { signal: AbortSignal.timeout(1500) });
@@ -74,9 +98,7 @@ async function pollBridge() {
     }
     callbacks.onStatusChange?.();
   } catch {
-    if (wasBridgeUp) showToast('Game bridge disconnected', 'error');
-    bridgeUp = false;
-    wasBridgeUp = false;
+    setBridgeOnline(false);
     setLiveStatus(false);
     callbacks.onStatusChange?.();
   }
@@ -91,7 +113,7 @@ function setLiveStatus(up, inMatch = false) {
 
   if (!up) {
     el.textContent = 'Auto stats off';
-    el.title = 'Run start-grind.bat on this PC while playing for auto-log from Rocket League';
+    el.title = 'Run Twans-Tracker-Bridge.exe on this PC while playing for auto-log from Rocket League';
   } else if (inMatch) {
     el.textContent = '● Live match';
     el.title = 'Reading stats from Rocket League';
@@ -105,12 +127,10 @@ function setLiveStatus(up, inMatch = false) {
 }
 
 export function refreshLiveStatus() {
-  setLiveStatus(bridgeUp);
+  setLiveStatus(isBridgeUp() && state.activeGame === GAME_IDS.ROCKET_LEAGUE);
 }
 
-export function isBridgeUp() {
-  return bridgeUp;
-}
+export { isBridgeUp };
 
 export function saveRlDisplayName(name) {
   savePrefs({ rlDisplayName: name?.trim() || '' });
@@ -157,9 +177,13 @@ export async function applyBridgeSetup({
     throw new Error(data.error || 'Could not apply settings');
   }
 
+  const prefsPatch = {};
   if (name) {
     saveRlDisplayName(name);
-    savePrefs({ rlDisplayName: name });
+    prefsPatch.rlDisplayName = name;
   }
+  if (riot) prefsPatch.riotId = riot;
+  if (riotRegion) prefsPatch.riotRegion = riotRegion;
+  if (Object.keys(prefsPatch).length) savePrefs(prefsPatch);
   return data;
 }

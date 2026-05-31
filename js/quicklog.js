@@ -255,11 +255,27 @@ export function applyLiveStats(stats) {
   if (stats.mode) setQuickMode(stats.mode);
   if (stats.agent) {
     const agentSel = document.getElementById('quick-agent');
-    if (agentSel) agentSel.value = stats.agent;
+    if (agentSel) {
+      if (stats.agent && ![...agentSel.options].some(o => o.value === stats.agent)) {
+        const opt = document.createElement('option');
+        opt.value = stats.agent;
+        opt.textContent = stats.agent;
+        agentSel.appendChild(opt);
+      }
+      agentSel.value = stats.agent;
+    }
   }
   if (stats.map) {
     const mapSel = document.getElementById('quick-map');
-    if (mapSel) mapSel.value = stats.map;
+    if (mapSel) {
+      if (stats.map && ![...mapSel.options].some(o => o.value === stats.map)) {
+        const opt = document.createElement('option');
+        opt.value = stats.map;
+        opt.textContent = stats.map;
+        mapSel.appendChild(opt);
+      }
+      mapSel.value = stats.map;
+    }
   }
 }
 

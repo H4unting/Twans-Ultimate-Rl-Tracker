@@ -8,7 +8,7 @@ import http from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { applyLocalSetup, getSetupStatus, loadGrindConfig } from './local-setup.mjs';
-import { handleValorantRequest, startValorantBridge } from './valorant-bridge.mjs';
+import { handleValorantRequest, resetValorantCache, startValorantBridge } from './valorant-bridge.mjs';
 
 const RL_PORT = 49123;
 const DEFAULT_HTTP_PORT = 49200;
@@ -285,6 +285,7 @@ export function startBridge(options = {}) {
           riotRegion: body.riotRegion,
           patchIni: body.patchIni !== false,
         });
+        resetValorantCache();
         setPlayerName(applied.rlDisplayName);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(applied));
