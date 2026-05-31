@@ -29,6 +29,10 @@ export function setCachedValorantStatus(status) {
   cachedValStatus = status;
 }
 
+export function getCachedValorantStatus() {
+  return cachedValStatus;
+}
+
 export function setCachedRlInMatch(inMatch) {
   cachedRlInMatch = Boolean(inMatch);
 }
@@ -78,6 +82,7 @@ export function refreshBridgeStatusUI() {
   }
   updateDesktopAppBanner(isVal, true, cachedValStatus);
   syncAutoLogToggleUI();
+  import('./sessions.js').then((m) => m.updateSessionBar?.()).catch(() => {});
 }
 
 function renderValorantPill(el, valStatus, meta) {
@@ -134,13 +139,13 @@ function renderValorantPill(el, valStatus, meta) {
 
   if (valStatus.valorantRunning && isAutoLogEnabled()) {
     el.textContent = '● Auto-log ON';
-    el.title = `${meta.label} running — finished matches save automatically`;
+    el.title = 'Valorant is open — auto-log saves when the match ends (not during agent select)';
   } else if (valStatus.valorantRunning) {
     el.textContent = '● Valorant live';
-    el.title = 'Match running — turn on auto-log or tap LOG after the round';
+    el.title = 'Valorant is running — turn on auto-log or tap LOG after the match';
   } else if (isAutoLogEnabled()) {
-    el.textContent = '● Ready to log';
-    el.title = 'Riot API connected — launch Valorant and your next match will auto-log';
+    el.textContent = '● Waiting for Val';
+    el.title = 'Bridge ready — open Valorant; auto-log saves after each finished match';
   } else {
     el.textContent = '● Connected';
     el.title = `${DESKTOP_APP.name} is running — enable auto-log in the dock or log manually`;

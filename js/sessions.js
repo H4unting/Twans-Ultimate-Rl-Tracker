@@ -9,6 +9,8 @@ import { getLastMMR, lastGameNeedsMmrConfirm } from './matches.js';
 import { detectTilt } from './insights.js';
 import { GAME_IDS, getGameMeta, getDefaultMode } from './games.js';
 import { getDockModePillsEl } from './dock-ui.js';
+import { isAutoLogEnabled } from './quicklog.js';
+import { getCachedValorantStatus } from './bridge-ui.js';
 
 const STALE_SESSION_MS = 6 * 60 * 60 * 1000;
 
@@ -376,7 +378,22 @@ export function updateSessionBar() {
     document.getElementById('session-num-setter')?.classList.remove('hidden');
     const dockInput = document.getElementById('dock-session-num');
     if (dockInput && document.activeElement !== dockInput) dockInput.value = next;
-    if (stats) stats.innerHTML = `<span class="slive-item neutral">Tap ▶ Start when ready</span>`;
+    if (stats) {
+      if (copy.isVal && isAutoLogEnabled()) {
+        const vs = getCachedValorantStatus();
+        if (vs?.valorantRunning) {
+          stats.innerHTML = '<span class="slive-item neutral">Auto-log ON — saves when the match ends (not in agent select)</span>';
+        } else if (vs?.configured && !vs?.seeded && vs?.source !== 'overwolf') {
+          stats.innerHTML = '<span class="slive-item neutral">Play one full match to finish setup, then auto-log works</span>';
+        } else if (vs?.configured) {
+          stats.innerHTML = '<span class="slive-item neutral">Open Valorant — bridge is ready</span>';
+        } else {
+          stats.innerHTML = '<span class="slive-item neutral">Finish Auto-Log Setup (Riot ID + Henrik key)</span>';
+        }
+      } else {
+        stats.innerHTML = '<span class="slive-item neutral">Tap ▶ Start when ready</span>';
+      }
+    }
     if (startBtn) {
       startBtn.className = 'session-btn start';
       startBtn.textContent = copy.isVal ? '▶ Start Block' : '▶ Start';

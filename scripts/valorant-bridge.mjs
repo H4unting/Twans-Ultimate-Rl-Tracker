@@ -148,12 +148,16 @@ function getBridgeConfig() {
 
 function isValorantRunning() {
   if (process.platform !== 'win32') return false;
-  const r = spawnSync(
-    'tasklist',
-    ['/FI', 'IMAGENAME eq VALORANT-Win64-Shipping.exe'],
-    { encoding: 'utf8', windowsHide: true },
-  );
-  return (r.stdout || '').includes('VALORANT-Win64-Shipping.exe');
+  const names = ['VALORANT-Win64-Shipping.exe', 'VALORANT.exe'];
+  for (const name of names) {
+    const r = spawnSync(
+      'tasklist',
+      ['/FI', `IMAGENAME eq ${name}`, '/NH'],
+      { encoding: 'utf8', windowsHide: true },
+    );
+    if ((r.stdout || '').toLowerCase().includes(name.toLowerCase())) return true;
+  }
+  return false;
 }
 
 function splitRiotId(riotId) {
@@ -308,6 +312,7 @@ export function handleValorantRequest(req, res) {
   }
 
   if (url === '/valorant/status') {
+    valorantRunning = isValorantRunning();
     const cfg = getBridgeConfig();
     const hasHenrik = Boolean(cfg.henrikApiKey)
       || (Boolean(cfg.legacyRiotKey) && !cfg.legacyRiotKey.startsWith('RGAPI-'));

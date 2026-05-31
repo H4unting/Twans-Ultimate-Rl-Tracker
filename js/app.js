@@ -648,6 +648,8 @@ async function handleValorantAutoLog(match) {
     match.map ? match.map : '',
   ].filter(Boolean).join(' · ');
 
+  if (!state.session.active) startSession();
+
   const ok = await submitGameLog('auto');
   if (!ok) return false;
   flashAutoLogged();
