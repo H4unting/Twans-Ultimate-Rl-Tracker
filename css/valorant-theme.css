@@ -649,7 +649,20 @@ body[data-active-game="valorant"] .auto-log-toggle.active {
   color: var(--val-red);
 }
 
-body[data-active-game="valorant"] .live-bridge-status.online {
+body[data-active-game="valorant"] .live-bridge-status.bridge-needs-setup {
+  border-color: #ff465566;
+  color: #ffb4b4;
+  background: #ff465518;
+}
+.profile-val-rank-card .profile-val-rr {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--profile-primary, #ff4655);
+  min-width: 3rem;
+  text-align: center;
+}
+
+body[data-active-game="valorant"] .live-bridge-status.connected {
   color: var(--green);
   border-color: #3dd68c55;
 }

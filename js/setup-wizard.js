@@ -6,6 +6,7 @@ import { getAuthUser } from './auth.js';
 import { getUserDisplay, state } from './state.js';
 import { GAME_IDS } from './games.js';
 import { showToast } from './ui.js';
+import { refreshBridgeStatusUI } from './bridge-ui.js';
 
 const SETUP_KEY = 'rl-grind-setup';
 
@@ -129,8 +130,10 @@ export function renderSetupWizard(displayName = '') {
         <strong>While you play:</strong> keep <code>Twans-Tracker-Bridge.exe</code> running in the system tray.
       </div>
       <div class="setup-callout setup-callout-workflow">
-        <strong>After each game:</strong> tap <span class="setup-log-chip">W</span> or <span class="setup-log-chip setup-log-chip-loss">L</span>
-        → check G/A/S → pick mode → tap tags if needed → enter <strong>End MMR</strong> → hit <span class="setup-log-chip">LOG</span>
+        <strong>After each ${isVal ? 'match' : 'game'}:</strong> ${isVal
+    ? 'K/D/A fill from the bridge → confirm <strong>End RR</strong> on the card → tap tags → <span class="setup-log-chip">LOG</span> (or turn on auto-log in the dock)'
+    : `tap <span class="setup-log-chip">W</span> or <span class="setup-log-chip setup-log-chip-loss">L</span>
+        → check G/A/S → pick mode → tap tags if needed → enter <strong>End MMR</strong> → hit <span class="setup-log-chip">LOG</span>`}
       </div>` : ''}
       <ol class="setup-steps">
         <li class="setup-step${allReady ? ' hidden' : ''}${rlName ? ' done' : ''}" data-step="name">
@@ -169,8 +172,9 @@ export function renderSetupWizard(displayName = '') {
       <div class="setup-footer">
         ${!allReady ? `
         <div class="setup-callout setup-callout-workflow">
-          <strong>After setup — between games:</strong>
-          W/L → mode (1's/2's/3's) → G/A/S → tags → End MMR → <span class="setup-log-chip">LOG</span>
+          <strong>After setup — between ${isVal ? 'matches' : 'games'}:</strong> ${isVal
+    ? 'W/L → queue → K/D/A → tags → End RR → <span class="setup-log-chip">LOG</span>'
+    : `W/L → mode (1's/2's/3's) → G/A/S → tags → End MMR → <span class="setup-log-chip">LOG</span>`}
         </div>` : ''}
       </div>
     </div>`;
@@ -435,6 +439,7 @@ let bridgeWasUpForSetup = false;
 export function onBridgeStatusChange() {
   const up = isBridgeUp();
   updateBridgePill(up);
+  refreshBridgeStatusUI();
   renderLogSetupNudge();
   if (up && !bridgeWasUpForSetup) {
     bridgeWasUpForSetup = true;

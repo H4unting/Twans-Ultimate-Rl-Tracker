@@ -114,8 +114,13 @@ export function exportAllPlayersCSV(data) {
   });
 }
 
-export function exportSessionsCSV(sessions, playerName) {
-  const headers = ['Session', 'First Date', 'Last Date', 'Duration', 'Games', 'Wins', 'Losses', 'Win Rate', 'MMR Change', 'End MMR', 'Top Tag'];
+export function exportSessionsCSV(sessions, playerName, gameId = GAME_IDS.ROCKET_LEAGUE) {
+  const isVal = gameId === GAME_IDS.VALORANT;
+  const meta = getGameMeta(gameId);
+  const headers = isVal
+    ? ['Grind Block', 'First Date', 'Last Date', 'Duration', 'Matches', 'Wins', 'Losses', 'Win Rate', `${meta.rankLabel} Change`, `End ${meta.rankLabel}`, 'Top Tag']
+    : ['Session', 'First Date', 'Last Date', 'Duration', 'Games', 'Wins', 'Losses', 'Win Rate', 'MMR Change', 'End MMR', 'Top Tag'];
+  const suffix = isVal ? 'valorant-grind-blocks' : 'sessions';
   const rows = sessions.map(s => [
     s.sessionNum, s.firstDate, s.lastDate,
     s.durationLabel ?? (s.durationMs ? `${Math.round(s.durationMs / 60000)}m` : ''),
@@ -123,5 +128,5 @@ export function exportSessionsCSV(sessions, playerName) {
     `${s.winRate}%`, s.mmrGain, s.endMMR || '', s.topTag ? s.topTag[0] : '',
   ].map(csvEscape).join(','));
   const csv = [headers.join(','), ...rows].join('\n');
-  downloadBlob(`${playerName}-sessions.csv`, csv, 'text/csv');
+  downloadBlob(`${playerName}-${suffix}.csv`, csv, 'text/csv');
 }

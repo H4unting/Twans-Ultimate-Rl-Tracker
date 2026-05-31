@@ -724,6 +724,11 @@ body.has-quick-dock .live-session-panel { display: none !important; }
 }
 .live-bridge-status.connected { border-color: #00c85166; color: #6ee7a0; background: #00c85118; }
 .live-bridge-status.in-match { animation: pulse-dot 1.5s infinite; }
+.live-bridge-status[data-bridge-state="offline"],
+.live-bridge-status[data-bridge-state="needs-setup"],
+.live-bridge-status[data-bridge-state="error"] { cursor: pointer; }
+.live-bridge-status.bridge-needs-setup { border-color: #f59e0b66; color: #fcd34d; background: #f59e0b18; }
+.live-bridge-status.bridge-error { border-color: #ef444466; color: #fca5a5; background: #ef444418; }
 
 .auto-log-toggle {
   flex-shrink: 0; padding: 5px 10px; border-radius: 999px; border: 1px solid #ffffff22;

@@ -5,6 +5,7 @@ import { GAME_IDS } from './games.js';
 import { showToast } from './ui.js';
 import { isAutoLogEnabled } from './quicklog.js';
 import { setBridgeOnline, isBridgeUp } from './bridge-client.js';
+import { setCachedValorantStatus, refreshBridgeStatusUI } from './bridge-ui.js';
 
 const BRIDGE = 'http://127.0.0.1:49200';
 let pollId = null;
@@ -21,50 +22,8 @@ async function fetchJson(path) {
 }
 
 function setValorantLiveStatus(online, valStatus = null) {
-  if (state.activeGame !== GAME_IDS.VALORANT) return;
-  const el = document.getElementById('live-bridge-status');
-  if (!el) return;
-
-  el.classList.toggle('connected', online);
-  el.classList.toggle('in-match', online && Boolean(valStatus?.valorantRunning));
-
-  if (!online) {
-    el.textContent = 'Auto stats off';
-    el.title = 'Run Twans-Tracker-Bridge.exe and set Riot ID in Setup';
-    return;
-  }
-
-  if (!valStatus?.configured) {
-    el.textContent = '● Bridge on';
-    el.title = 'Add Riot ID + API key in Setup → Apply & Go';
-    return;
-  }
-
-  if (valStatus.lastError) {
-    el.textContent = '● Riot API error';
-    el.title = valStatus.lastError;
-    return;
-  }
-
-  if (!valStatus.seeded) {
-    el.textContent = '● Syncing…';
-    el.title = 'Bridge is catching up — your next match will auto-log';
-    return;
-  }
-
-  if (valStatus.valorantRunning && isAutoLogEnabled()) {
-    el.textContent = '● Auto-log ON';
-    el.title = 'Valorant running — matches log when they end';
-  } else if (valStatus.valorantRunning) {
-    el.textContent = '● Valorant live';
-    el.title = 'Turn on auto-log in the dock to save matches automatically';
-  } else if (isAutoLogEnabled()) {
-    el.textContent = '● Ready';
-    el.title = 'Launch Valorant — next finished match will auto-log';
-  } else {
-    el.textContent = '● Stats ready';
-    el.title = 'Riot API connected — enable auto-log or tap LOG manually';
-  }
+  if (valStatus) setCachedValorantStatus(valStatus);
+  if (state.activeGame === GAME_IDS.VALORANT) refreshBridgeStatusUI();
 }
 
 async function poll() {
@@ -146,13 +105,16 @@ export function stopValorantLive() {
 }
 
 export async function refreshValorantStatus() {
-  if (state.activeGame !== GAME_IDS.VALORANT) return null;
   try {
     const status = await fetchJson('/valorant/status');
-    setValorantLiveStatus(true, status);
+    setBridgeOnline(true);
+    setCachedValorantStatus(status);
+    refreshBridgeStatusUI();
     return status;
   } catch {
-    setValorantLiveStatus(false);
+    setBridgeOnline(false);
+    setCachedValorantStatus(null);
+    refreshBridgeStatusUI();
     return null;
   }
 }

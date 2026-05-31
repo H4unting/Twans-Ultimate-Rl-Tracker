@@ -1,11 +1,13 @@
-/** Personal profile page — Steam-style header + RL stats showcase */
+/** Personal profile page — game-aware stats showcase */
 
 import { calcStats, getPlaylistMMRRows, groupBySession } from './utils.js';
 import { getRank, rankBadgeHTML } from './ranks.js';
 import { getRlDisplayName, saveRlDisplayName } from './rl-live.js';
-import { savePrefs } from './quicklog.js';
+import { savePrefs, loadPrefs } from './quicklog.js';
 import { showToast } from './ui.js';
 import { formatApiError } from './supabase.js';
+import { GAME_IDS, getGameMeta } from './games.js';
+import { state } from './state.js';
 
 function escapeHtml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -43,36 +45,60 @@ function resolveProfileColors(profile, display) {
   return { primary, secondary };
 }
 
-export function renderProfilePage({ games, profile, display, authUser, bio = '', onSave }) {
+export function renderProfilePage({
+  games, profile, display, authUser, bio = '', onSave, gameId = state.activeGame,
+}) {
   const el = document.getElementById('profile-content');
   if (!el) return;
 
+  const isVal = gameId === GAME_IDS.VALORANT;
+  const meta = getGameMeta(gameId);
   const stats = calcStats(games);
-  const rows = getPlaylistMMRRows(games);
+  const rows = getPlaylistMMRRows(games, gameId);
   const sessions = groupBySession(games).length;
   const level = trackerLevel(stats.totalGames);
   const rlName = getRlDisplayName() || '';
+  const riotId = loadPrefs().riotId ?? '';
   const { primary, secondary } = resolveProfileColors(profile, display);
   const urlTag = profileUrlTag(profile?.profile_number);
   const avatar = display.avatar
     ? `<img class="profile-avatar" src="${escapeAttr(display.avatar)}" alt="">`
     : `<span class="profile-avatar profile-avatar-fallback" style="background:${escapeAttr(primary)}">${escapeHtml(display.name.charAt(0).toUpperCase())}</span>`;
 
+  const identityTag = isVal
+    ? (riotId
+      ? `<span class="profile-rl-tag">Val · ${escapeHtml(riotId)}</span>`
+      : `<span class="profile-rl-tag profile-rl-missing">Riot ID not set</span>`)
+    : (rlName
+      ? `<span class="profile-rl-tag">RL · ${escapeHtml(rlName)}</span>`
+      : `<span class="profile-rl-tag profile-rl-missing">RL name not set</span>`);
+
   const ranksHTML = rows.length
     ? rows.map(r => {
-      const rank = getRank(r.mmr, r.mode);
       const wkCls = r.weekGain >= 0 ? 'up' : 'down';
+      if (isVal) {
+        return `
+        <div class="profile-rank-card profile-val-rank-card">
+          <div class="profile-val-rr">${r.mmr}</div>
+          <div class="profile-rank-meta">
+            <span class="profile-rank-mode">${escapeHtml(r.mode)}</span>
+            <span class="profile-rank-name">${meta.rankLabel}</span>
+            <span class="profile-rank-mmr">${r.mmr} ${meta.rankLabel} <span class="profile-rank-week ${wkCls}">${r.weekGain >= 0 ? '+' : ''}${r.weekGain} wk</span></span>
+          </div>
+        </div>`;
+      }
+      const rank = getRank(r.mmr, r.mode);
       return `
         <div class="profile-rank-card">
           ${rankBadgeHTML(r.mmr, 36, r.mode)}
           <div class="profile-rank-meta">
-            <span class="profile-rank-mode">${r.mode}</span>
+            <span class="profile-rank-mode">${escapeHtml(r.mode)}</span>
             <span class="profile-rank-name">${rank.name}</span>
             <span class="profile-rank-mmr">${r.mmr} MMR <span class="profile-rank-week ${wkCls}">${r.weekGain >= 0 ? '+' : ''}${r.weekGain} wk</span></span>
           </div>
         </div>`;
     }).join('')
-    : `<p class="profile-empty">Log ranked games to show your playlist ranks here.</p>`;
+    : `<p class="profile-empty">Log ranked ${isVal ? 'matches' : 'games'} to show your ${isVal ? 'queue' : 'playlist'} ranks here.</p>`;
 
   el.innerHTML = `
     <div class="profile-page" style="--profile-primary:${escapeAttr(primary)};--profile-secondary:${escapeAttr(secondary)}">
@@ -85,9 +111,7 @@ export function renderProfilePage({ games, profile, display, authUser, bio = '',
               <h1 class="profile-display-name">${escapeHtml(display.name)}</h1>
               <div class="profile-subline">
                 ${urlTag ? `<span class="profile-url-tag">${escapeHtml(urlTag)}</span><span class="profile-dot">·</span>` : ''}
-                ${rlName
-    ? `<span class="profile-rl-tag">RL · ${escapeHtml(rlName)}</span>`
-    : `<span class="profile-rl-tag profile-rl-missing">RL name not set</span>`}
+                ${identityTag}
                 <span class="profile-dot">·</span>
                 <span>${formatMemberSince(profile?.created_at)}</span>
               </div>
@@ -99,7 +123,7 @@ export function renderProfilePage({ games, profile, display, authUser, bio = '',
               <span class="profile-level-label">Level</span>
               <span class="profile-level-badge">${level}</span>
             </div>
-            <p class="profile-level-hint">${stats.totalGames} games logged</p>
+            <p class="profile-level-hint">${stats.totalGames} ${isVal ? 'matches' : 'games'} logged</p>
           </div>
         </div>
       </div>
@@ -107,7 +131,7 @@ export function renderProfilePage({ games, profile, display, authUser, bio = '',
       <div class="profile-stats-bar">
         <div class="profile-stat">
           <strong>${stats.totalGames}</strong>
-          <span>Games</span>
+          <span>${isVal ? 'Matches' : 'Games'}</span>
         </div>
         <div class="profile-stat">
           <strong>${stats.winRate}%</strong>
@@ -115,11 +139,11 @@ export function renderProfilePage({ games, profile, display, authUser, bio = '',
         </div>
         <div class="profile-stat">
           <strong class="${stats.totalMMRGain >= 0 ? 'pos' : 'neg'}">${stats.totalMMRGain >= 0 ? '+' : ''}${stats.totalMMRGain}</strong>
-          <span>Net MMR</span>
+          <span>Net ${meta.rankLabel}</span>
         </div>
         <div class="profile-stat">
           <strong>${sessions}</strong>
-          <span>Sessions</span>
+          <span>${isVal ? 'Grind blocks' : 'Sessions'}</span>
         </div>
         <div class="profile-stat">
           <strong>${stats.streak.count || 0}${stats.streak.type ? stats.streak.type : ''}</strong>
@@ -127,7 +151,7 @@ export function renderProfilePage({ games, profile, display, authUser, bio = '',
         </div>
       </div>
 
-      <p class="section-title">Playlist ranks</p>
+      <p class="section-title">${isVal ? 'Queue ranks' : 'Playlist ranks'}</p>
       <div class="profile-ranks-grid">${ranksHTML}</div>
 
       <details class="profile-edit-panel" id="profile-edit-panel">
@@ -139,10 +163,15 @@ export function renderProfilePage({ games, profile, display, authUser, bio = '',
               <input type="text" id="profile-display-input" value="${escapeAttr(display.name)}" maxlength="32">
               <span class="form-hint">Shown on your dashboard and in squads.</span>
             </div>
-            <div class="form-group">
+            <div class="form-group${isVal ? ' hidden' : ''}">
               <label for="profile-rl-input">Rocket League display name</label>
               <input type="text" id="profile-rl-input" value="${escapeAttr(rlName)}" maxlength="32" spellcheck="false">
               <span class="form-hint">Must match in-game exactly — used for auto-stats.</span>
+            </div>
+            <div class="form-group${isVal ? '' : ' hidden'}">
+              <label for="profile-riot-input">Riot ID</label>
+              <input type="text" id="profile-riot-input" value="${escapeAttr(riotId)}" maxlength="48" spellcheck="false" placeholder="Name#TAG">
+              <span class="form-hint">Used for Valorant bridge auto-log — set in Bridge Setup too.</span>
             </div>
             <div class="form-group form-span-2 profile-colors-group">
               <label>Profile colors</label>
@@ -177,10 +206,10 @@ export function renderProfilePage({ games, profile, display, authUser, bio = '',
       </details>
     </div>`;
 
-  wireProfilePage({ onSave, primary, secondary });
+  wireProfilePage({ onSave, primary, secondary, isVal });
 }
 
-function wireProfilePage({ onSave, primary, secondary }) {
+function wireProfilePage({ onSave, primary, secondary, isVal }) {
   const primaryInput = document.getElementById('profile-primary-input');
   const secondaryInput = document.getElementById('profile-secondary-input');
   const banner = document.getElementById('profile-banner-preview');
@@ -211,6 +240,7 @@ function wireProfilePage({ onSave, primary, secondary }) {
   document.getElementById('profile-save-btn')?.addEventListener('click', async () => {
     const displayName = document.getElementById('profile-display-input')?.value.trim() ?? '';
     const rlName = document.getElementById('profile-rl-input')?.value.trim() ?? '';
+    const riotId = document.getElementById('profile-riot-input')?.value.trim() ?? '';
     const primaryColor = primaryInput?.value ?? primary;
     const secondaryColor = secondaryInput?.value ?? secondary;
     const bio = document.getElementById('profile-bio-input')?.value.trim() ?? '';
@@ -221,7 +251,7 @@ function wireProfilePage({ onSave, primary, secondary }) {
     }
 
     saveRlDisplayName(rlName);
-    savePrefs({ rlDisplayName: rlName });
+    savePrefs({ rlDisplayName: rlName, ...(riotId ? { riotId } : {}) });
 
     try {
       const result = await onSave({ displayName, rlName, primaryColor, secondaryColor, bio });

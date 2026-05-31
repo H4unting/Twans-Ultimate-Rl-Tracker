@@ -20,6 +20,7 @@ import { initRlLive, stopRlLive, refreshLiveStatus,
   saveRlDisplayName, getRlDisplayName,
 } from './rl-live.js';
 import { initValorantLive, stopValorantLive, refreshValorantStatus } from './valorant-live.js';
+import { wireBridgeStatusClick } from './bridge-ui.js';
 import { initGameSwitcher, restoreActiveGameFromPrefs, applyGameShell, applyPageCopy, syncEditModal } from './game-ui.js';
 import { GAME_IDS, getTagGroups, getGameMeta } from './games.js';
 import { VAL_DEFAULT_RR_SWING } from './valorant-config.js';
@@ -477,6 +478,7 @@ function renderProfilePageContent() {
     display: getDisplay(),
     authUser: getAuthUser(),
     bio: state.profileBio ?? '',
+    gameId: state.activeGame,
     onSave: handleProfileSave,
   });
 }
@@ -930,7 +932,7 @@ async function init() {
 
   wireNavigation();
   document.getElementById('logo-home-btn')?.addEventListener('click', () => navigate('dashboard', 'home'));
-  document.getElementById('bridge-hint-setup-link')?.addEventListener('click', () => navigate('setup', 'home'));
+  wireBridgeStatusClick(() => navigate('setup', 'home'));
   wireKeyboardShortcuts();
   document.getElementById('dash-view-all-logs')?.addEventListener('click', () => {
     navigate('log', 'home');

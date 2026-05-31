@@ -1,11 +1,11 @@
 /** Connect to local RL stats bridge for automatic G/A/S + auto-log from the game */
 
 import { showToast } from './ui.js';
-import { setBridgeHintVisible } from './env.js';
-import { loadPrefs, savePrefs, isAutoLogEnabled } from './quicklog.js';
+import { loadPrefs, savePrefs } from './quicklog.js';
 import { state } from './state.js';
 import { GAME_IDS } from './games.js';
 import { setBridgeOnline, isBridgeUp } from './bridge-client.js';
+import { setCachedRlInMatch, refreshBridgeStatusUI } from './bridge-ui.js';
 
 const BRIDGE = 'http://127.0.0.1:49200';
 let pollId = null;
@@ -27,8 +27,8 @@ export function stopRlLive() {
   if (pollId) clearInterval(pollId);
   pollId = null;
   setBridgeOnline(false);
-  setLiveStatus(false);
-  setBridgeHintVisible(false);
+  setCachedRlInMatch(false);
+  refreshBridgeStatusUI();
 }
 
 async function pingBridge() {
@@ -60,12 +60,14 @@ async function pollBridge() {
   }
 
   if (!online) {
-    setLiveStatus(false);
+    setCachedRlInMatch(false);
+    refreshBridgeStatusUI();
     return;
   }
 
   try {
-    setLiveStatus(true, status.inMatch);
+    setCachedRlInMatch(status.inMatch);
+    refreshBridgeStatusUI();
 
     const lastRes = await fetch(`${BRIDGE}/last-match`, { signal: AbortSignal.timeout(1500) });
     const last = await lastRes.json();
@@ -100,36 +102,19 @@ async function pollBridge() {
     if (wasBridgeUp) {
       wasBridgeUp = false;
       setBridgeOnline(false);
-      setLiveStatus(false);
+      setCachedRlInMatch(false);
+      refreshBridgeStatusUI();
       callbacks.onStatusChange?.();
     }
   }
 }
 
-function setLiveStatus(up, inMatch = false) {
-  const el = document.getElementById('live-bridge-status');
-  if (!el) return;
-  el.classList.toggle('connected', up);
-  el.classList.toggle('in-match', up && inMatch);
-  setBridgeHintVisible(!up && !document.body.classList.contains('logged-out'));
-
-  if (!up) {
-    el.textContent = 'Auto stats off';
-    el.title = 'Run Twans-Tracker-Bridge.exe on this PC while playing for auto-log from Rocket League';
-  } else if (inMatch) {
-    el.textContent = '● Live match';
-    el.title = 'Reading stats from Rocket League';
-  } else if (isAutoLogEnabled()) {
-    el.textContent = '● Auto-log ON';
-    el.title = 'Games log automatically when a match ends';
-  } else {
-    el.textContent = '● Stats only';
-    el.title = 'Stats fill in — you tap LOG';
-  }
+function setLiveStatus(_up, _inMatch = false) {
+  refreshBridgeStatusUI();
 }
 
 export function refreshLiveStatus() {
-  setLiveStatus(isBridgeUp() && state.activeGame === GAME_IDS.ROCKET_LEAGUE);
+  refreshBridgeStatusUI();
 }
 
 export { isBridgeUp };

@@ -92,7 +92,7 @@ export function renderSessionsPage(games, displayName, { onViewSession, onExport
       durationLabel: sessionDurationLabel(s.sessionNum, activeNum, history),
     }));
     if (onExport) onExport(enriched);
-    else exportSessionsCSV(enriched, displayName);
+    else exportSessionsCSV(enriched, displayName, state.activeGame);
   });
 
   el.querySelectorAll('.session-view-btn').forEach(btn => {

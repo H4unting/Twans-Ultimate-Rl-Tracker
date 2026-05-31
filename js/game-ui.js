@@ -4,7 +4,7 @@ import { state, setActiveGame, subscribe, getActiveGames } from './state.js';
 import { GAMES, GAME_IDS, getGameMeta, getTagGroups, getPlaylists, getAgents, getMaps, getPageCopy } from './games.js';
 import { saveSettings } from './supabase.js';
 import { savePrefs, loadPrefs, refreshQuickTagsOnGameSwitch, getLastModeForGame } from './quicklog.js';
-import { refreshLiveStatus } from './rl-live.js';
+import { refreshBridgeStatusUI } from './bridge-ui.js';
 import { refreshValorantStatus } from './valorant-live.js';
 import { updateNavUI } from './nav.js';
 import { restoreSessionFromStorage, refreshSessionUI } from './sessions.js';
@@ -42,7 +42,7 @@ export function initGameSwitcher({ onChange, getSettingsPayload }) {
     refreshSessionUI();
     renderLogSetupNudge();
     if (next === GAME_IDS.VALORANT) refreshValorantStatus();
-    else refreshLiveStatus();
+    else refreshBridgeStatusUI();
     if (onGameChange) onGameChange(next);
   });
 }
@@ -113,6 +113,7 @@ export function applyGameShell(gameId = state.activeGame) {
   toggleGamePageChrome(gameId);
   syncEditModal(gameId);
   applyPageCopy(gameId);
+  refreshBridgeStatusUI();
 
   const agentSel = document.getElementById('quick-agent');
   const mapSel = document.getElementById('quick-map');
