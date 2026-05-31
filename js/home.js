@@ -8,6 +8,7 @@ import { getRank, rankBadgeHTML } from './ranks.js';
 import { getTagLossCorrelations, ACTION_FOCUS_TIPS } from './insights.js';
 import { TAG_CATS } from './config.js';
 import { state } from './state.js';
+import { getGameMeta } from './games.js';
 import { getLoggingSessionNum } from './sessions.js';
 
 function ensureHomeChartMode(games) {
@@ -26,9 +27,10 @@ export function renderHomeSummary(games, goals) {
   const el = document.getElementById('home-summary');
   if (!el) return;
 
+  const meta = getGameMeta(state.activeGame);
   const rows = getPlaylistMMRRows(games);
   if (!rows.length) {
-    el.innerHTML = `<p class="home-summary-empty">Log a ranked game to see your MMR by playlist.</p>`;
+    el.innerHTML = `<p class="home-summary-empty">Log a ${meta.label} game to see your ${meta.rankLabel} by queue.</p>`;
     return;
   }
 
@@ -63,7 +65,7 @@ export function renderHomeSummary(games, goals) {
           ${rankBadgeHTML(r.mmr, 22, r.mode)}
           <span class="home-mmr-mode">${r.mode}</span>
           <span class="home-mmr-rank">${rank.name}</span>
-          <span class="home-mmr-val">${r.mmr} MMR</span>
+          <span class="home-mmr-val">${r.mmr} ${meta.rankLabel}</span>
           <span class="home-mmr-week ${wkCls}">${wk} wk</span>
         </button>`;
       }).join('')}

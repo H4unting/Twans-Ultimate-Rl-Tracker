@@ -3,7 +3,8 @@
 import { loadPrefs, savePrefs } from './quicklog.js';
 import { isBridgeUp, getRlDisplayName, saveRlDisplayName, applyBridgeSetup, fetchBridgeSetupStatus } from './rl-live.js';
 import { getAuthUser } from './auth.js';
-import { getUserDisplay } from './state.js';
+import { getUserDisplay, state } from './state.js';
+import { GAME_IDS } from './games.js';
 import { showToast } from './ui.js';
 
 const SETUP_KEY = 'rl-grind-setup';
@@ -29,6 +30,35 @@ export function renderLogSetupNudge() {
   });
 }
 
+function renderValorantFields(riotIdValue, riotRegionValue) {
+  return `
+    <label>Riot ID <span class="setup-hint">(Name#TAG)</span></label>
+    <input type="text" id="setup-riot-id" class="setup-input" placeholder="PlayerName#NA1" value="${escapeAttr(riotIdValue)}" autocomplete="off">
+    <label>Riot API key <span class="setup-hint">(<a href="https://developer.riotgames.com/" target="_blank" rel="noopener">developer.riotgames.com</a>)</span></label>
+    <input type="password" id="setup-riot-key" class="setup-input" placeholder="RGAPI-..." autocomplete="off">
+    <label>Region</label>
+    <select id="setup-riot-region" class="setup-input">
+      <option value="na"${riotRegionValue === 'na' ? ' selected' : ''}>NA</option>
+      <option value="eu"${riotRegionValue === 'eu' ? ' selected' : ''}>EU</option>
+      <option value="ap"${riotRegionValue === 'ap' ? ' selected' : ''}>AP</option>
+      <option value="kr"${riotRegionValue === 'kr' ? ' selected' : ''}>KR</option>
+      <option value="latam"${riotRegionValue === 'latam' ? ' selected' : ''}>LATAM</option>
+      <option value="br"${riotRegionValue === 'br' ? ' selected' : ''}>BR</option>
+    </select>
+    <span class="setup-status-pill${riotIdValue ? ' ok' : ''}" id="setup-valorant-pill">${riotIdValue ? '● Riot ID saved locally' : '○ Add for Valorant auto-log'}</span>`;
+}
+
+function renderApplySection(showPatchIni = true) {
+  return `
+    ${showPatchIni ? `
+    <label class="setup-apply-check">
+      <input type="checkbox" id="setup-patch-ini" checked>
+      Enable <code>DefaultStatsAPI.ini</code> for me (Port 49123, PacketSendRate 10)
+    </label>` : ''}
+    <button type="button" class="btn btn-primary setup-apply-btn" id="setup-apply-go">Apply &amp; Go</button>
+    <div id="setup-apply-result" class="setup-apply-result hidden" aria-live="polite"></div>`;
+}
+
 export function renderSetupWizard(displayName = '') {
   const el = document.getElementById('setup-wizard');
   if (!el) return;
@@ -41,14 +71,34 @@ export function renderSetupWizard(displayName = '') {
   const riotIdValue = quickPrefs.riotId ?? '';
   const riotRegionValue = quickPrefs.riotRegion ?? 'na';
   const allReady = bridge;
+  const isVal = state.activeGame === GAME_IDS.VALORANT;
+  const compact = allReady && prefs.dismissedWhenReady;
 
-  if (allReady && prefs.dismissedWhenReady) {
-    el.innerHTML = '';
-    el.classList.add('hidden');
+  el.classList.remove('hidden');
+
+  if (compact) {
+    el.innerHTML = `
+      <div class="setup-wizard setup-ready">
+        <div class="setup-callout setup-callout-success">
+          <strong>Bridge connected.</strong>
+          ${isVal
+    ? 'Add your Riot ID and API key below, then click Apply &amp; Go.'
+    : 'Rocket League auto-log is ready. Expand setup for Valorant or RL name changes.'}
+        </div>
+        <button type="button" class="btn btn-secondary" id="setup-show-steps">Show all setup steps</button>
+        <div class="setup-step-body setup-valorant-compact">
+          <strong>Valorant auto-log</strong>
+          <p>Saved locally in <code>grind-config.json</code> on this PC.</p>
+          ${renderValorantFields(riotIdValue, riotRegionValue)}
+          ${renderApplySection(false)}
+        </div>
+      </div>`;
+    wireSetupWizard();
+    wireSetupApplyGo();
+    if (bridge) prefillRiotFromBridge();
     return;
   }
 
-  el.classList.remove('hidden');
   el.innerHTML = `
     <div class="setup-wizard${allReady ? ' setup-ready' : ''}">
       ${allReady ? '' : `
@@ -56,7 +106,7 @@ export function renderSetupWizard(displayName = '') {
         <span class="setup-banner-icon">👇</span>
         <div>
           <strong>One-time setup on your PC</strong>
-          <p>Enter your name, run <code>start-grind.bat</code>, then click <strong>Apply &amp; Go</strong> — we update your files for you.</p>
+          <p>Enter your name, run <code>Twans-Tracker-Bridge.exe</code>, then click <strong>Apply &amp; Go</strong>.</p>
         </div>
       </div>`}
       <div class="setup-wizard-head">
@@ -64,28 +114,29 @@ export function renderSetupWizard(displayName = '') {
           <span class="setup-kicker">${allReady ? 'All set' : 'One-time setup'}</span>
           <h3>${allReady ? 'You\'re ready to grind' : 'Auto stats setup'}</h3>
           <p class="setup-desc">${allReady
-    ? 'Play a match — G/A/S fill in automatically. You only pick W/L and type your End MMR.'
+    ? (isVal
+      ? 'Bridge is connected. Set your Riot ID below and Apply — then play with auto-log ON.'
+      : 'Play a match — G/A/S fill in automatically. You only pick W/L and type your End MMR.')
     : 'Enter your RL name, start the bridge, then hit Apply & Go — no manual file editing.'}</p>
         </div>
         ${allReady ? `<button type="button" class="setup-dismiss" id="setup-dismiss">Got it</button>` : ''}
       </div>
       ${allReady ? `
       <div class="setup-callout setup-callout-success">
-        <strong>While you play:</strong> keep the black <code>start-grind.bat</code> window open.
-        Close it only when you\'re done for the day.
+        <strong>While you play:</strong> keep <code>Twans-Tracker-Bridge.exe</code> running in the system tray.
       </div>
       <div class="setup-callout setup-callout-workflow">
         <strong>After each game:</strong> tap <span class="setup-log-chip">W</span> or <span class="setup-log-chip setup-log-chip-loss">L</span>
         → check G/A/S → pick mode → tap tags if needed → enter <strong>End MMR</strong> → hit <span class="setup-log-chip">LOG</span>
       </div>` : ''}
-      <ol class="setup-steps${allReady ? ' setup-steps-collapsed hidden' : ''}">
-        <li class="setup-step${rlName ? ' done' : ''}" data-step="name">
+      <ol class="setup-steps">
+        <li class="setup-step${allReady ? ' hidden' : ''}${rlName ? ' done' : ''}" data-step="name">
           <span class="setup-step-num">1</span>
           <div class="setup-step-body">
             ${renderProfileNameStep(profile)}
           </div>
         </li>
-        <li class="setup-step${bridge ? ' done' : ''}" data-step="bridge">
+        <li class="setup-step${allReady ? ' hidden' : ''}${bridge ? ' done' : ''}" data-step="bridge">
           <span class="setup-step-num">2</span>
           <div class="setup-step-body">
             <strong>Start the bridge</strong>
@@ -94,38 +145,21 @@ export function renderSetupWizard(displayName = '') {
             <span class="setup-status-pill${bridge ? ' ok' : ''}" id="setup-bridge-pill">${bridge ? '● Bridge connected — ready for Apply & Go' : '○ Waiting for Twans-Tracker-Bridge.exe…'}</span>
           </div>
         </li>
-        <li class="setup-step" data-step="apply">
+        <li class="setup-step${allReady ? ' hidden' : ''}" data-step="apply">
           <span class="setup-step-num">3</span>
           <div class="setup-step-body">
             <strong>Apply &amp; Go</strong>
             <p>We write your name into <code>start-grind.bat</code> and set up the Rocket League Stats API file on this PC.</p>
-            <label class="setup-apply-check">
-              <input type="checkbox" id="setup-patch-ini" checked>
-              Enable <code>DefaultStatsAPI.ini</code> for me (Port 49123, PacketSendRate 10)
-            </label>
-            <button type="button" class="btn btn-primary setup-apply-btn" id="setup-apply-go">Apply &amp; Go</button>
-            <div id="setup-apply-result" class="setup-apply-result hidden" aria-live="polite"></div>
+            ${renderApplySection(true)}
           </div>
         </li>
-        <li class="setup-step" data-step="valorant">
+        <li class="setup-step${riotIdValue ? ' done' : ''}" data-step="valorant">
           <span class="setup-step-num">4</span>
           <div class="setup-step-body">
-            <strong>Valorant auto-log (optional)</strong>
+            <strong>Valorant auto-log${allReady ? '' : ' (optional)'}</strong>
             <p>Add your Riot ID and API key — saved locally in <code>grind-config.json</code> when you Apply.</p>
-            <label>Riot ID <span class="setup-hint">(Name#TAG)</span></label>
-            <input type="text" id="setup-riot-id" class="setup-input" placeholder="PlayerName#NA1" value="${escapeAttr(riotIdValue)}" autocomplete="off">
-            <label>Riot API key <span class="setup-hint">(<a href="https://developer.riotgames.com/" target="_blank" rel="noopener">developer.riotgames.com</a>)</span></label>
-            <input type="password" id="setup-riot-key" class="setup-input" placeholder="RGAPI-..." autocomplete="off">
-            <label>Region</label>
-            <select id="setup-riot-region" class="setup-input">
-              <option value="na"${riotRegionValue === 'na' ? ' selected' : ''}>NA</option>
-              <option value="eu"${riotRegionValue === 'eu' ? ' selected' : ''}>EU</option>
-              <option value="ap"${riotRegionValue === 'ap' ? ' selected' : ''}>AP</option>
-              <option value="kr"${riotRegionValue === 'kr' ? ' selected' : ''}>KR</option>
-              <option value="latam"${riotRegionValue === 'latam' ? ' selected' : ''}>LATAM</option>
-              <option value="br"${riotRegionValue === 'br' ? ' selected' : ''}>BR</option>
-            </select>
-            <span class="setup-status-pill${riotIdValue ? ' ok' : ''}" id="setup-valorant-pill">${riotIdValue ? '● Riot ID saved locally' : '○ Optional — add for Valorant auto-log'}</span>
+            ${renderValorantFields(riotIdValue, riotRegionValue)}
+            ${allReady ? renderApplySection(false) : ''}
           </div>
         </li>
       </ol>
@@ -192,7 +226,12 @@ function escapeHtml(s) {
 function wireSetupWizard() {
   document.getElementById('setup-dismiss')?.addEventListener('click', () => {
     saveSetupPrefs({ dismissedWhenReady: true });
-    document.getElementById('setup-wizard')?.classList.add('hidden');
+    renderSetupWizard(displayNameFromAuth());
+  });
+
+  document.getElementById('setup-show-steps')?.addEventListener('click', () => {
+    saveSetupPrefs({ dismissedWhenReady: false });
+    renderSetupWizard(displayNameFromAuth());
   });
 
   document.querySelectorAll('.setup-mark').forEach(btn => {
@@ -222,13 +261,13 @@ function wireSetupApplyGo() {
 
   btn.addEventListener('click', async () => {
     const input = document.getElementById('setup-rl-name');
-    const name = input?.value.trim() ?? '';
+    const name = input?.value.trim() ?? loadPrefs().rlDisplayName?.trim() ?? '';
     const riotId = document.getElementById('setup-riot-id')?.value.trim() ?? '';
     const riotApiKey = document.getElementById('setup-riot-key')?.value.trim() ?? '';
     const riotRegion = document.getElementById('setup-riot-region')?.value ?? 'na';
     if (!name && !riotId) {
       showToast('Enter your Rocket League name or Riot ID first', 'error');
-      input?.focus();
+      (input ?? document.getElementById('setup-riot-id'))?.focus();
       return;
     }
 
@@ -237,7 +276,7 @@ function wireSetupApplyGo() {
       return;
     }
 
-    saveRlNameFromInput(input);
+    if (input) saveRlNameFromInput(input);
     btn.disabled = true;
     btn.textContent = 'Applying…';
 
@@ -258,7 +297,7 @@ function wireSetupApplyGo() {
           result.files?.startGrindBat ? '✓ Updated start-grind.bat' : null,
           result.files?.statsApiIni ? '✓ Updated Rocket League Stats API file' : null,
           result.files?.grindConfig ? '✓ Saved local config' : null,
-          `✓ Watching player: ${name}`,
+          `✓ Watching player: ${name || riotId}`,
           result.iniNeedsRlRestart ? '↻ Fully restart Rocket League once if it was already open' : null,
           ...(result.warnings ?? []).map(w => `⚠ ${w}`),
         ].filter(Boolean);
@@ -274,7 +313,7 @@ function wireSetupApplyGo() {
         resultEl.classList.remove('hidden');
         resultEl.innerHTML = `<div class="setup-callout setup-callout-important">${escapeHtml(e.message || 'Apply failed')}</div>`;
       }
-      showToast(e.message || 'Apply failed — is start-grind.bat running?', 'error');
+      showToast(e.message || 'Apply failed — is Twans-Tracker-Bridge.exe running?', 'error');
     } finally {
       btn.disabled = false;
       btn.textContent = 'Apply & Go';

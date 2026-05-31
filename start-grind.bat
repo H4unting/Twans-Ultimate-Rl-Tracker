@@ -4,7 +4,7 @@ cd /d "%~dp0"
 
 REM === Your RL name is set from the tracker setup page (Apply & Go) ===
 REM Leave blank here unless you want a fallback before first setup
-set RLNAME=
+set RLNAME=twan
 
 REM === Your tracker bookmark (GitHub Pages) — one URL for everything ===
 REM Use http://localhost:8080 instead if you want the local copy from this folder

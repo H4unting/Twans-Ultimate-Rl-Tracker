@@ -3,3 +3,4 @@ bridge.log
 Twans-Tracker-Bridge.exe
 launcher/node_modules/
 launcher/dist/
+*.log
