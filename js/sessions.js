@@ -120,7 +120,7 @@ function inferOpenSession(games, stored) {
 
 /** Next session # if user has logged games in an "open" block without ending it */
 export function getSuggestedSessionNum(games = getActiveGames(), stored = loadStoredSession()) {
-  return inferOpenSession(games, stored) ?? stored?.nextSessionNum ?? getNextSessionNum(games) || 1;
+  return inferOpenSession(games, stored) ?? stored?.nextSessionNum ?? (getNextSessionNum(games) || 1);
 }
 
 function activateSession(sessionNum, { startTime = Date.now(), startMMR = null, silent = false } = {}) {
@@ -189,7 +189,7 @@ export function restoreSessionFromStorage(games = getActiveGames()) {
   }
 
   const openNum = inferOpenSession(games, stored);
-  const nextNum = openNum ?? stored?.nextSessionNum ?? getNextSessionNum(games) || 1;
+  const nextNum = openNum ?? stored?.nextSessionNum ?? (getNextSessionNum(games) || 1);
   state.session.active = false;
   state.session.startTime = null;
   state.session.sessionNum = nextNum;
