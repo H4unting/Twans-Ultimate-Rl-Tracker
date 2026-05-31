@@ -86,11 +86,11 @@ export function renderFocusPage(games, goals, display) {
       </div>
       <div class="focus-progress-stat">
         <span class="focus-progress-val">${sincePrimary}</span>
-        <span class="focus-progress-lbl">Games since last "${primary.tag}"</span>
+        <span class="focus-progress-lbl">${isVal ? 'Matches' : 'Games'} since last "${primary.tag}"</span>
       </div>
       <div class="focus-progress-stat">
         <span class="focus-progress-val">${streak} 🔥</span>
-        <span class="focus-progress-lbl">Clean-game streak</span>
+        <span class="focus-progress-lbl">Clean-${isVal ? 'match' : 'game'} streak</span>
       </div>
     </div>` : `
     <div class="empty-state">Log at least 3 ${isVal ? 'matches' : 'games'} and tag losses — your ${isVal ? 'mission brief' : 'auto focus'} will appear here.</div>`;

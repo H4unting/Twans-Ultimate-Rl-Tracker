@@ -734,6 +734,7 @@ body[data-active-game="valorant"] .val-squad-rr {
   margin-left: 4px;
 }
 
+body[data-active-game="valorant"] .val-focus-rr {
   font-family: var(--val-font-display, inherit);
   font-size: 1.4rem;
   font-weight: 700;
