@@ -46,6 +46,10 @@ import {
   getActiveQuickFilter, getQuickFilterSessionNum, resetQuickFilter,
 } from './match-logs-ui.js';
 import { bindModalA11y } from './core/modal-a11y.js';
+import {
+  showToast, setSyncUI, renderStats, renderLog, renderPlaylistTabs, renderFilterBar,
+  showPage, renderTagChips, showLoading, showLoginScreen, renderAuthBar,
+} from './ui.js';
 
 window.__endSession = () => endSession();
 window.__refreshHome = () => renderHomePage();
