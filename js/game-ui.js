@@ -3,7 +3,7 @@
 import { state, setActiveGame, subscribe, getActiveGames } from './state.js';
 import { GAMES, GAME_IDS, getGameMeta, getTagGroups, getPlaylists, getAgents, getMaps, getPageCopy } from './games.js';
 import { saveSettings } from './supabase.js';
-import { savePrefs, loadPrefs, refreshQuickTagsOnGameSwitch, getLastModeForGame } from './quicklog.js';
+import { savePrefs, loadPrefs, refreshQuickTagsOnGameSwitch, getLastModeForGame, rerenderQuickTags } from './quicklog.js';
 import { refreshBridgeStatusUI } from './bridge-ui.js';
 import { refreshValorantStatus } from './valorant-live.js';
 import { updateNavUI } from './nav.js';
@@ -224,6 +224,7 @@ export function restoreActiveGameFromPrefs(settingsActiveGame) {
   setActiveGame(GAMES[game] ? game : GAME_IDS.ROCKET_LEAGUE);
   applyGameShell(state.activeGame);
   applyPageCopy(state.activeGame);
+  refreshQuickTagsOnGameSwitch();
 }
 
 /** Update static page headings for the active game */

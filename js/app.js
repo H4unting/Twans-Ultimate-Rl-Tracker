@@ -13,7 +13,7 @@ import { startSession, endSession, closeSessionModal, closeSessionModalAndContin
 import {
   initQuickLog, showQuickDock, hideQuickDock, getQuickLogPayload,
   resetQuickAfterLog, loadPrefs, savePrefs, syncFormFromQuick, applyLiveStats, flashAutoLogged,
-  setQuickResult, setQuickMode,
+  setQuickResult, setQuickMode, rerenderQuickTags,
 } from './quicklog.js';
 import { renderProfilePage } from './profile-ui.js';
 import { initRlLive, stopRlLive, refreshLiveStatus,
@@ -27,6 +27,7 @@ import { VAL_DEFAULT_RR_SWING } from './valorant-config.js';
 import { renderSetupWizard, refreshSetupWizard, onBridgeStatusChange, renderLogSetupNudge } from './setup-wizard.js';
 import { mmrChart, wlChart } from './charts.js';
 import { renderAnalytics } from './analytics.js';
+import { renderReportsPage } from './reports-ui.js';
 import { normalizeGoalsStorage, getActiveGoals } from './goals.js';
 import { renderFocusPage } from './focus.js';
 import { initPostMatch, showPostMatchCard } from './post-match.js';
@@ -422,6 +423,7 @@ function renderAll() {
   wireLogTableActions();
   applyPageCopy(state.activeGame);
   refreshLogTagChips();
+  rerenderQuickTags();
   updateNavUI(state.activePage || 'dashboard');
   mountDock();
 }

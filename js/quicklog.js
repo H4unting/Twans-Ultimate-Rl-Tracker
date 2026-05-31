@@ -414,6 +414,11 @@ export function refreshQuickTagsOnGameSwitch() {
   callbacks.setSelectedTags?.([]);
 }
 
+/** Re-render dock tags for active game without clearing selection */
+export function rerenderQuickTags() {
+  renderQuickTags();
+}
+
 function stateSyncTagsToForm() {
   callbacks.setSelectedTags?.(quickTags);
   document.querySelectorAll('#log-tags .tag-chip').forEach(chip => {
