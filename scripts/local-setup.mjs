@@ -13,8 +13,47 @@ function resolveTrackerRoot() {
 }
 
 const ROOT = resolveTrackerRoot();
-const CONFIG_FILE = path.join(ROOT, 'grind-config.json');
-const VAL_BRIDGE_STATE_FILE = path.join(ROOT, '.valorant-bridge-state.json');
+const CONFIG_DIR = path.join(ROOT, 'config');
+
+const LEGACY_FILES = [
+  ['grind-config.json', 'grind-config.json'],
+  ['bridge-launcher.json', 'bridge-launcher.json'],
+  ['.valorant-bridge-state.json', '.valorant-bridge-state.json'],
+  ['bridge.log', 'bridge.log'],
+];
+
+function ensureConfigDir() {
+  fs.mkdirSync(CONFIG_DIR, { recursive: true });
+}
+
+function migrateLegacyConfigFiles() {
+  ensureConfigDir();
+  for (const [legacyName, targetName] of LEGACY_FILES) {
+    const legacy = path.join(ROOT, legacyName);
+    const target = path.join(CONFIG_DIR, targetName);
+    if (!fs.existsSync(legacy) || fs.existsSync(target)) continue;
+    try {
+      fs.renameSync(legacy, target);
+    } catch {
+      try { fs.copyFileSync(legacy, target); } catch { /* ignore */ }
+    }
+  }
+}
+
+migrateLegacyConfigFiles();
+
+const CONFIG_FILE = path.join(CONFIG_DIR, 'grind-config.json');
+const VAL_BRIDGE_STATE_FILE = path.join(CONFIG_DIR, '.valorant-bridge-state.json');
+const BRIDGE_LAUNCHER_FILE = path.join(CONFIG_DIR, 'bridge-launcher.json');
+const BRIDGE_LOG_FILE = path.join(CONFIG_DIR, 'bridge.log');
+
+export function getConfigDir() {
+  return CONFIG_DIR;
+}
+
+export function getBridgeLogPath() {
+  return BRIDGE_LOG_FILE;
+}
 
 export function loadValorantBridgeState() {
   try {
@@ -25,6 +64,7 @@ export function loadValorantBridgeState() {
 }
 
 export function saveValorantBridgeState(partial) {
+  ensureConfigDir();
   const next = {
     ...loadValorantBridgeState(),
     ...partial,
@@ -56,6 +96,7 @@ export function loadGrindConfig() {
 }
 
 export function saveGrindConfig(partial) {
+  ensureConfigDir();
   const next = { ...loadGrindConfig(), ...partial, updatedAt: new Date().toISOString() };
   fs.writeFileSync(CONFIG_FILE, `${JSON.stringify(next, null, 2)}\n`, 'utf8');
   return next;
@@ -157,9 +198,11 @@ export function getSetupStatus() {
     },
     paths: {
       trackerRoot: ROOT,
+      configDir: CONFIG_DIR,
       grindConfig: CONFIG_FILE,
       grindConfigExists: fs.existsSync(CONFIG_FILE),
       startGrindBat: path.join(ROOT, 'start-grind.bat'),
+      startValGrindBat: path.join(ROOT, 'start-val-grind.bat'),
       statsApiIni: iniPath,
       statsApiIniExists: fs.existsSync(iniPath),
       statsApiIniConfigured: iniOk,
@@ -208,3 +251,5 @@ export function applyLocalSetup({ rlDisplayName, riotId, riotApiKey, henrikApiKe
 
   return result;
 }
+
+export { BRIDGE_LAUNCHER_FILE, CONFIG_FILE, CONFIG_DIR };

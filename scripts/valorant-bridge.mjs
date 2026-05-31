@@ -1,7 +1,7 @@
 /**
  * Valorant auto-log via HenrikDev API (match history).
  * Riot dev keys (RGAPI-…) cannot access Val match endpoints (403) — Henrik is required for personal auto-log.
- * Requires riotId (Name#TAG), riotRegion, and henrikApiKey in grind-config.json.
+ * Requires riotId (Name#TAG), riotRegion, and henrikApiKey in config/grind-config.json.
  */
 
 import { loadGrindConfig, loadValorantBridgeState, saveValorantBridgeState, clearValorantBridgeState } from './local-setup.mjs';

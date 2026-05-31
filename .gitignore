@@ -1,8 +1,13 @@
+config/grind-config.json
+config/.valorant-bridge-state.json
+config/bridge.log
 grind-config.json
 .valorant-bridge-state.json
 node_modules/
 bridge.log
 Twans-Tracker-Bridge.exe
-launcher/node_modules/
-launcher/dist/
+Twans-Tracker-Bridge-new.exe
+Twans Auto-Log.exe
+tools/launcher/node_modules/
+tools/launcher/dist/
 *.log

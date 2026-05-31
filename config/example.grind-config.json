@@ -1,0 +1,7 @@
+{
+  "rlDisplayName": "your-rl-name",
+  "riotId": "Name#TAG",
+  "riotRegion": "na",
+  "henrikApiKey": "HDEV-your-key-from-api.henrikdev.xyz/dashboard",
+  "trackerUrl": "http://localhost:8080"
+}
