@@ -23,7 +23,8 @@ import { initRlLive, stopRlLive, refreshLiveStatus,
   saveRlDisplayName, getRlDisplayName,
 } from './rl-live.js';
 import { initValorantLive, stopValorantLive, refreshValorantStatus } from './valorant-live.js';
-import { wireBridgeStatusClick } from './bridge-ui.js';
+import { startBridgeHeartbeat, stopBridgeHeartbeat, subscribeBridgeOnline } from './bridge-client.js';
+import { wireBridgeStatusClick, refreshBridgeStatusUI } from './bridge-ui.js';
 import { initGameSwitcher, restoreActiveGameFromPrefs, applyGameShell, applyPageCopy, syncEditModal } from './game-ui.js';
 import { getDockModePillsEl } from './dock-ui.js';
 import { GAME_IDS, getTagGroups, getGameMeta } from './games.js';
@@ -145,6 +146,7 @@ async function bootApp() {
       onChange: () => renderAll(),
       getSettingsPayload,
     });
+    startBridgeHeartbeat();
     initRlLive(applyLiveStats, onBridgeStatusChange, handleAutoLog);
     initValorantLive(applyLiveStats, onBridgeStatusChange, handleValorantAutoLog);
 
@@ -182,6 +184,7 @@ function showLoggedOut() {
   showLoading(false);
   showLoginScreen(true);
   hideQuickDock();
+  stopBridgeHeartbeat();
   stopRlLive();
   stopValorantLive();
   wireLoginScreen();
@@ -333,6 +336,7 @@ async function handleSignOut() {
   state.groups = [];
   resetGroupsUI();
   hideQuickDock();
+  stopBridgeHeartbeat();
   stopRlLive();
   stopValorantLive();
   showLoginScreen(true);
@@ -946,6 +950,7 @@ async function init() {
     wireNavigation();
     document.getElementById('logo-home-btn')?.addEventListener('click', () => navigate('dashboard', 'home'));
     wireBridgeStatusClick(() => navigate('setup', 'home'));
+    subscribeBridgeOnline(() => refreshBridgeStatusUI());
     wireKeyboardShortcuts();
     document.getElementById('dash-view-all-logs')?.addEventListener('click', () => {
       navigate('log', 'home');

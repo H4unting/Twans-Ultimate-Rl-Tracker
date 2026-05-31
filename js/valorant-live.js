@@ -1,13 +1,13 @@
-/** Valorant live bridge client — polls local bridge for Riot API auto-log */
+/** Valorant live bridge client — polls local bridge for Henrik API auto-log */
 
 import { state } from './state.js';
 import { GAME_IDS } from './games.js';
 import { showToast } from './ui.js';
 import { isAutoLogEnabled } from './quicklog.js';
-import { setBridgeOnline, isBridgeUp } from './bridge-client.js';
+import { isBridgeUp, getBridgeUrl } from './bridge-client.js';
 import { setCachedValorantStatus, refreshBridgeStatusUI } from './bridge-ui.js';
 
-const BRIDGE = 'http://127.0.0.1:49200';
+const BRIDGE = getBridgeUrl();
 let pollId = null;
 let wasBridgeUp = false;
 let autoLogInFlight = false;
@@ -15,35 +15,37 @@ let onStats = null;
 let onStatus = null;
 let onAutoLog = null;
 
-async function fetchJson(path) {
-  const res = await fetch(`${BRIDGE}${path}`, { signal: AbortSignal.timeout(2000) });
+async function fetchJson(path, timeoutMs = 4000) {
+  const res = await fetch(`${BRIDGE}${path}`, { signal: AbortSignal.timeout(timeoutMs) });
   if (!res.ok) throw new Error('Auto-log app error');
   return res.json();
 }
 
-function setValorantLiveStatus(online, valStatus = null) {
+function setValorantLiveStatus(valStatus = null) {
   if (valStatus) setCachedValorantStatus(valStatus);
   refreshBridgeStatusUI();
 }
 
 async function poll() {
+  const online = isBridgeUp();
+
+  if (online !== wasBridgeUp) {
+    wasBridgeUp = online;
+    onStatus?.(online);
+  }
+
+  if (!online) {
+    setValorantLiveStatus(null);
+    return;
+  }
+
   let valStatus = null;
   try {
-    await fetchJson('/status');
-    setBridgeOnline(true);
     valStatus = await fetchJson('/valorant/status');
-    if (wasBridgeUp !== true) {
-      onStatus?.(true, valStatus);
-      wasBridgeUp = true;
-    }
-    setValorantLiveStatus(true, valStatus);
+    setValorantLiveStatus(valStatus);
   } catch {
-    setBridgeOnline(false);
-    if (wasBridgeUp) {
-      wasBridgeUp = false;
-      onStatus?.(false);
-    }
-    setValorantLiveStatus(false);
+    /* val status failed — bridge may still be up */
+    refreshBridgeStatusUI();
     return;
   }
 
@@ -86,7 +88,7 @@ async function poll() {
       autoLogInFlight = false;
     }
   } catch {
-    /* match fetch failed — status pill already updated */
+    /* match fetch failed */
   }
 }
 
@@ -105,15 +107,17 @@ export function stopValorantLive() {
 }
 
 export async function refreshValorantStatus() {
+  if (!isBridgeUp()) {
+    setCachedValorantStatus(null);
+    refreshBridgeStatusUI();
+    return null;
+  }
   try {
     const status = await fetchJson('/valorant/status');
-    setBridgeOnline(true);
     setCachedValorantStatus(status);
     refreshBridgeStatusUI();
     return status;
   } catch {
-    setBridgeOnline(false);
-    setCachedValorantStatus(null);
     refreshBridgeStatusUI();
     return null;
   }
