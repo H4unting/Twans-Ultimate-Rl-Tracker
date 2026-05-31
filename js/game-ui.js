@@ -29,6 +29,8 @@ export function initGameSwitcher({ onChange, getSettingsPayload }) {
 
     setActiveGame(next);
     savePrefs({ activeGame: next });
+    state.playlist = 'all';
+    state.filters = { ...state.filters, playlist: 'all' };
 
     if (getSettingsPayload) {
       await saveSettings(getSettingsPayload({ activeGame: next }));
@@ -112,6 +114,7 @@ export function applyGameShell(gameId = state.activeGame) {
   toggleDockLayouts(gameId);
   toggleGamePageChrome(gameId);
   syncEditModal(gameId);
+  syncFullLogForm(gameId);
   applyPageCopy(gameId);
   refreshBridgeStatusUI();
 
@@ -203,6 +206,52 @@ export function syncEditModal(gameId = state.activeGame) {
   }
 }
 
+export function syncFullLogForm(gameId = state.activeGame) {
+  const meta = getGameMeta(gameId);
+  const isVal = gameId === GAME_IDS.VALORANT;
+
+  const fMode = document.getElementById('f-mode');
+  if (fMode) {
+    const playlists = getPlaylists(gameId).filter(p => p.mode);
+    const activeMode = getLastModeForGame(gameId);
+    fMode.innerHTML = playlists.map(p => `<option value="${p.mode}">${p.label}</option>`).join('');
+    fMode.value = playlists.some(p => p.mode === activeMode) ? activeMode : (playlists[0]?.mode ?? activeMode);
+  }
+
+  const labelMap = isVal
+    ? [['f-goals', 'Kills'], ['f-assists', 'Deaths'], ['f-saves', 'Assists'], ['f-startmmr', `Start ${meta.rankLabel}`], ['f-endmmr', `End ${meta.rankLabel}`], ['f-session', 'Block #']]
+    : [['f-goals', 'Goals'], ['f-assists', 'Assists'], ['f-saves', 'Saves'], ['f-startmmr', 'Starting MMR'], ['f-endmmr', 'Ending MMR'], ['f-session', 'Session #']];
+  labelMap.forEach(([id, text]) => {
+    const input = document.getElementById(id);
+    const label = input?.closest('.form-group')?.querySelector('label');
+    if (label) label.textContent = text;
+  });
+
+  const addBtn = document.getElementById('add-btn');
+  if (addBtn) addBtn.textContent = isVal ? '+ Log Match' : '+ Log Game';
+
+  const agentSel = document.getElementById('f-agent');
+  const mapSel = document.getElementById('f-map');
+  if (agentSel && agentSel.options.length <= 1) {
+    agentSel.innerHTML = '<option value="">—</option>';
+    getAgents().forEach(a => {
+      const opt = document.createElement('option');
+      opt.value = a;
+      opt.textContent = a;
+      agentSel.appendChild(opt);
+    });
+  }
+  if (mapSel && mapSel.options.length <= 1) {
+    mapSel.innerHTML = '<option value="">—</option>';
+    getMaps().forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m;
+      opt.textContent = m;
+      mapSel.appendChild(opt);
+    });
+  }
+}
+
 function toggleDockLayouts(gameId) {
   const adv = document.querySelector('.quick-advanced-stats .qs-label');
   if (gameId === GAME_IDS.VALORANT) {
@@ -244,10 +293,20 @@ export function applyPageCopy(gameId = state.activeGame) {
   if (gameId === GAME_IDS.VALORANT) {
     if (analyticsSections[0]) analyticsSections[0].textContent = 'Intel Cards';
     if (analyticsSections[1]) analyticsSections[1].textContent = 'Coach Brief';
+    const tagTrend = document.querySelector('#page-analytics .section-title-sm');
+    if (tagTrend) tagTrend.textContent = 'Tag Trends (per 5 matches)';
   } else {
     if (analyticsSections[0]) analyticsSections[0].textContent = 'Insights';
     if (analyticsSections[1]) analyticsSections[1].textContent = 'Trends';
+    const tagTrend = document.querySelector('#page-analytics .section-title-sm');
+    if (tagTrend) tagTrend.textContent = 'Tag Trends (per 5 games)';
   }
+
+  const isVal = gameId === GAME_IDS.VALORANT;
+  const startBtn = document.getElementById('session-start-btn');
+  if (startBtn) startBtn.textContent = isVal ? '▶ Start Block' : '▶ Start Session';
+  const nextBtn = document.querySelector('#session-modal .btn-primary');
+  if (nextBtn) nextBtn.textContent = isVal ? 'Start Next Block' : 'Start Next Session';
 }
 
 export { getTagGroups, getPlaylists };

@@ -1,6 +1,6 @@
 /** Personal focus dashboard — auto-generated coaching focus */
 
-import { calcStats, getPrimaryMode, getCurrentMMRForMode } from './utils.js';
+import { calcStats, getPrimaryMode, getCurrentMMRForMode, getGamesInWeek } from './utils.js';
 import { buildWeeklyReport } from './reports.js';
 import { getGoalProgress } from './goals.js';
 import { getPerformanceInsights, getTagLossCorrelations } from './insights.js';
@@ -105,7 +105,7 @@ export function renderFocusPage(games, goals, display) {
         return `
         <div class="coach-focus-stat">
           <span class="coach-focus-count">${focusCount}</span>
-          <span class="coach-focus-of">of ${weekGames.length} games tagged this week</span>
+          <span class="coach-focus-of">of ${weekGames.length} ${isVal ? 'matches' : 'games'} tagged this week</span>
           <div class="goal-progress-track" style="margin-top:10px">
             <div class="goal-progress-fill${focusPct <= 20 ? ' met' : ''}" style="width:${Math.min(100, focusPct)}%"></div>
           </div>
@@ -131,13 +131,13 @@ export function renderFocusPage(games, goals, display) {
       <div class="coach-player-header">
         <div>
           <h2 style="color:${display.color}">${isVal ? 'Mission Brief' : 'Focus Mode'}</h2>
-          <div class="coach-sub">${stats.totalGames} ${isVal ? 'matches' : 'games'} · ${state.session.active ? `Session ${sessionNum} · ${sessionGames.length} logged` : week.label}</div>
+          <div class="coach-sub">${stats.totalGames} ${isVal ? 'matches' : 'games'} · ${state.session.active ? `${isVal ? 'Block' : 'Session'} ${sessionNum} · ${sessionGames.length} logged` : week.label}</div>
         </div>
         ${!isVal && modeRR ? rankBadgeHTML(modeRR, 24, mode) : isVal && modeRR ? `<span class="val-focus-rr">${modeRR} RR</span>` : ''}
       </div>
       <div class="coach-section"><h3>${isVal ? 'Primary Target' : 'Auto Focus'}</h3>${autoFocusHTML}</div>
       ${customFocusHTML}
-      <div class="coach-section"><h3>Actions</h3><div class="action-item-grid">${actionHTML || '<div class="empty">Log games for insights</div>'}</div></div>
+      <div class="coach-section"><h3>Actions</h3><div class="action-item-grid">${actionHTML || `<div class="empty">Log ${isVal ? 'matches' : 'games'} for insights</div>`}</div></div>
       <div class="coach-section coach-section-compact"><h3>Goals</h3>${goalsHTML}</div>
     </div>`;
 }

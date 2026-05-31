@@ -207,7 +207,7 @@ export function syncFormFromQuick() {
   const mode = getQuickMode();
   const fMode = document.getElementById('f-mode');
   if (fMode) fMode.value = mode;
-  savePrefs({ lastMode: mode });
+  saveLastModeForGame(mode);
 
   const result = getQuickResult();
   callbacks.setFormResult?.(result);

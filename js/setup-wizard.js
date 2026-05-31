@@ -121,7 +121,9 @@ export function renderSetupWizard(displayName = '') {
     ? (isVal
       ? 'Bridge is connected. Set your Riot ID below and Apply — then play with auto-log ON.'
       : 'Play a match — G/A/S fill in automatically. You only pick W/L and type your End MMR.')
-    : 'Enter your RL name, start the bridge, then hit Apply & Go — no manual file editing.'}</p>
+    : (isVal
+      ? 'Enter Riot ID + API key, start the bridge, then hit Apply & Go.'
+      : 'Enter your RL name, start the bridge, then hit Apply & Go — no manual file editing.')}</p>
         </div>
         ${allReady ? `<button type="button" class="setup-dismiss" id="setup-dismiss">Got it</button>` : ''}
       </div>
@@ -136,7 +138,7 @@ export function renderSetupWizard(displayName = '') {
         → check G/A/S → pick mode → tap tags if needed → enter <strong>End MMR</strong> → hit <span class="setup-log-chip">LOG</span>`}
       </div>` : ''}
       <ol class="setup-steps">
-        <li class="setup-step${allReady ? ' hidden' : ''}${rlName ? ' done' : ''}" data-step="name">
+        <li class="setup-step${allReady || isVal ? ' hidden' : ''}${rlName ? ' done' : ''}" data-step="name">
           <span class="setup-step-num">1</span>
           <div class="setup-step-body">
             ${renderProfileNameStep(profile)}

@@ -26,7 +26,7 @@ export function exportGamesCSV(games, playerName, gameId = GAME_IDS.ROCKET_LEAGU
     ? ['Match', 'Date', 'Block', 'Mode', 'Result', 'K', 'D', 'A', 'Agent', 'Map', `Start ${meta.rankLabel}`, `End ${meta.rankLabel}`, `${meta.diffLabel} Diff`, 'Tags', 'Notes']
     : ['Match', 'Date', 'Session', 'Mode', 'Result', 'Goals', 'Assists', 'Saves', 'Start MMR', 'End MMR', 'MMR Diff', 'Tags', 'Notes'];
   const rows = games.map(g => (isVal
-    ? [g.match, g.date, g.session, g.mode, g.result, g.kills ?? g.goals, g.deaths, g.assists, g.agent ?? '', g.map ?? '', g.startMMR, g.endMMR, g.mmrDiff, (g.tags || []).join('; '), g.notes || '']
+    ? [g.match, g.date, g.session, g.mode, g.result, g.kills ?? g.goals, g.deaths, g.valAssists ?? g.assists, g.agent ?? '', g.map ?? '', g.startMMR, g.endMMR, g.mmrDiff, (g.tags || []).join('; '), g.notes || '']
     : [g.match, g.date, g.session, g.mode, g.result, g.goals, g.assists, g.saves, g.startMMR, g.endMMR, g.mmrDiff, (g.tags || []).join('; '), g.notes || '']
   ).map(csvEscape).join(','));
   const csv = [headers.join(','), ...rows].join('\n');

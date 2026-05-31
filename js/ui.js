@@ -118,7 +118,7 @@ export function renderLog(tableId, games, limit, editable = false, gameId = stat
         <td style="color:#777;white-space:nowrap">${g.date}</td>
         <td style="color:#777">${g.mode}${g.agent ? `<br><span style="font-size:11px;color:#888">${g.agent}</span>` : ''}</td>
         <td><span class="badge ${g.result}">${g.result === 'W' ? 'WIN' : 'LOSS'}</span></td>
-        <td>${g.kills ?? g.goals ?? 0}</td><td>${g.deaths ?? 0}</td><td>${g.assists ?? 0}</td>
+        <td>${g.kills ?? g.goals ?? 0}</td><td>${g.deaths ?? 0}</td><td>${g.valAssists ?? g.assists ?? 0}</td>
         <td>${g.startMMR}</td>
         <td>${g.endMMR}</td>
         <td class="${(g.mmrDiff || 0) >= 0 ? 'pos' : 'neg'}">${(g.mmrDiff || 0) >= 0 ? '+' : ''}${g.mmrDiff || 0}</td>
@@ -237,8 +237,9 @@ export function renderPlaylistTabs(containerId, activePlaylist, onSelect, gameId
 export function renderFilterBar(containerId, games, filters, onChange, gameId = state.activeGame) {
   const el = document.getElementById(containerId);
   if (!el) return;
-  const sessions = getUniqueSessions(games);
+  const sessions = getUniqueSessions(games, gameId);
   const allTags = Object.keys(getTagDefinitions(gameId));
+  const blockLabel = gameId === GAME_IDS.VALORANT ? 'Block' : 'Session';
 
   el.innerHTML = `
     <div class="filter-bar">
@@ -252,7 +253,7 @@ export function renderFilterBar(containerId, games, filters, onChange, gameId = 
           <input type="date" id="filter-date-to" value="${filters.dateTo}">
         </div>
         <div class="filter-group">
-          <label>Session</label>
+          <label>${blockLabel}</label>
           <select id="filter-session">
             <option value="">All</option>
             ${sessions.map(s => `<option value="${s.session}"${filters.session == s.session ? ' selected' : ''}>${s.label}</option>`).join('')}

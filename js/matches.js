@@ -72,7 +72,7 @@ export async function addGame(formData, selectedTags, onSuccess) {
   games.push(game);
   await persistActiveGames(games);
   const diff = getRankDiff(game, state.activeGame);
-  showToast(`Game logged! ${diff >= 0 ? '+' : ''}${diff} ${rankLabel()}`);
+  showToast(`${isVal ? 'Match' : 'Game'} logged! ${diff >= 0 ? '+' : ''}${diff} ${rankLabel()}`);
   refreshSessionUI();
   if (onSuccess) onSuccess(game);
   return game;
@@ -125,7 +125,7 @@ export async function updateGame(matchNum, formData, selectedTags) {
   });
 
   await persistActiveGames(games);
-  showToast('Game updated!');
+  showToast(`${state.activeGame === GAME_IDS.VALORANT ? 'Match' : 'Game'} updated!`);
   return games[idx];
 }
 
@@ -165,7 +165,7 @@ export async function undoLastGame(skipConfirm = false) {
   games.forEach((g, i) => { g.match = i + 1; });
   await persistActiveGames(games);
   refreshSessionUI();
-  showToast('Last game removed');
+  showToast(`Last ${state.activeGame === GAME_IDS.VALORANT ? 'match' : 'game'} removed`);
   return true;
 }
 
@@ -175,7 +175,7 @@ export async function deleteGame(matchNum) {
   const games = getActiveGames().filter(g => g.match !== matchNum);
   games.forEach((g, i) => { g.match = i + 1; });
   await persistActiveGames(games);
-  showToast('Game deleted');
+  showToast(`${state.activeGame === GAME_IDS.VALORANT ? 'Match' : 'Game'} deleted`);
   return true;
 }
 

@@ -146,6 +146,10 @@
         <div class="form-group"><label>Goals</label><input type="number" id="f-goals" min="0" value="0"></div>
         <div class="form-group"><label>Assists</label><input type="number" id="f-assists" min="0" value="0"></div>
         <div class="form-group"><label>Saves</label><input type="number" id="f-saves" min="0" value="0"></div>
+        <div class="form-group hidden" data-game-ui="valorant"><label>Agent</label>
+          <select id="f-agent"><option value="">—</option></select></div>
+        <div class="form-group hidden" data-game-ui="valorant"><label>Map</label>
+          <select id="f-map"><option value="">—</option></select></div>
         <div class="form-group"><label>Starting MMR</label><input type="number" id="f-startmmr" min="0"></div>
         <div class="form-group"><label>Ending MMR</label><input type="number" id="f-endmmr" min="0"></div>
       </div>
@@ -255,7 +259,7 @@
             <button type="button" class="session-num-btn" id="session-num-apply">Set</button>
           </div>
         </div>
-        <span class="live-bridge-status" id="live-bridge-status" title="Automatic stats from Rocket League">Auto stats off</span>
+        <span class="live-bridge-status" id="live-bridge-status" title="Automatic stats from your game">Auto stats off</span>
         <button type="button" class="auto-log-toggle active" id="auto-log-toggle" aria-pressed="true" title="Auto-save games when a match ends">Auto-log</button>
         <button type="button" class="auto-log-sound-toggle active" id="auto-log-sound-toggle" aria-pressed="true" title="Sound on auto-log">🔔</button>
         <button type="button" class="session-btn start" id="session-start-btn">▶ Start Session</button>
@@ -406,6 +410,6 @@
     }
   }, 12000);
 </script>
-<script type="module" src="js/app.js?v=20260531m"></script>
+<script type="module" src="js/app.js?v=20260531n"></script>
 </body>
 </html>

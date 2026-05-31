@@ -13,7 +13,7 @@ import { startSession, endSession, closeSessionModal, closeSessionModalAndContin
 import {
   initQuickLog, showQuickDock, hideQuickDock, getQuickLogPayload,
   resetQuickAfterLog, loadPrefs, savePrefs, syncFormFromQuick, applyLiveStats, flashAutoLogged,
-  setQuickResult, setQuickMode, rerenderQuickTags,
+  setQuickResult, setQuickMode, rerenderQuickTags, getLastModeForGame,
 } from './quicklog.js';
 import { renderProfilePage } from './profile-ui.js';
 import { initRlLive, stopRlLive, refreshLiveStatus,
@@ -57,15 +57,15 @@ window.goToDashboardFromSession = () => {
 };
 
 function getDashboardGames() {
-  return applyFilters(getActiveGames(), { ...DEFAULT_FILTERS, playlist: state.playlist ?? 'all' });
+  return applyFilters(getActiveGames(), { ...DEFAULT_FILTERS, playlist: state.playlist ?? 'all' }, state.activeGame);
 }
 
 function getMatchLogsGames() {
-  return applyFilters(getActiveGames(), { ...state.matchLogFilters, playlist: 'all' });
+  return applyFilters(getActiveGames(), { ...state.matchLogFilters, playlist: 'all' }, state.activeGame);
 }
 
 function getAnalyticsGames() {
-  return applyFilters(getActiveGames(), { ...state.filters, playlist: state.playlist ?? 'all' });
+  return applyFilters(getActiveGames(), { ...state.filters, playlist: state.playlist ?? 'all' }, state.activeGame);
 }
 
 function getFilteredGames() {
@@ -330,6 +330,7 @@ async function handleSignOut() {
   resetGroupsUI();
   hideQuickDock();
   stopRlLive();
+  stopValorantLive();
   showLoginScreen(true);
 }
 
@@ -381,8 +382,9 @@ function renderAnalyticsPage() {
   const filtered = getAnalyticsGames();
   const stats = calcStats(filtered);
   const display = getDisplay();
+  const isVal = state.activeGame === GAME_IDS.VALORANT;
   renderStats('analytics-stats', stats, state.playlist, state.activeGame);
-  mmrChart('dashMMR', filtered, display.color);
+  mmrChart('dashMMR', filtered, isVal ? '#ff4655' : display.color, isVal ? 'RR' : 'MMR');
   wlChart('dashWL', stats);
   renderAnalytics(filtered);
 }
@@ -403,7 +405,7 @@ function renderAll() {
 
   renderMatchLogs();
 
-  const logMode = document.getElementById('f-mode')?.value || loadPrefs().lastMode || "2's";
+  const logMode = getLastModeForGame(state.activeGame);
   const lastMMR = getLastMMR(logMode);
   const fStart = document.getElementById('f-startmmr');
   if (fStart) fStart.value = lastMMR !== '' ? lastMMR : '';
@@ -411,7 +413,7 @@ function renderAll() {
   renderFilterBar('analytics-filters', games, state.filters, filters => {
     state.filters = { ...state.filters, ...filters };
     renderAnalyticsPage();
-  });
+  }, state.activeGame);
   renderAnalyticsPage();
 
   renderReportsPageContent();
@@ -438,7 +440,7 @@ function renderMatchLogs() {
   renderFilterBar('matchlogs-filters', getActiveGames(), state.matchLogFilters, filters => {
     state.matchLogFilters = { ...state.matchLogFilters, ...filters };
     renderMatchLogs();
-  });
+  }, state.activeGame);
   let games = getMatchLogsGames();
   const qf = getActiveQuickFilter();
   if (qf !== 'all') {
@@ -576,9 +578,9 @@ function wireKeyboardShortcuts() {
 }
 
 function applyLogPrefs() {
-  const prefs = loadPrefs();
+  const mode = getLastModeForGame(state.activeGame);
   const fMode = document.getElementById('f-mode');
-  if (fMode && prefs.lastMode) fMode.value = prefs.lastMode;
+  if (fMode) fMode.value = mode;
 }
 
 function estimateMMRDeltaForMode(result, mode) {
@@ -721,7 +723,26 @@ async function submitGameLog(source = 'form') {
   if (btn) { btn.disabled = true; btn.dataset.label = btn.textContent; btn.textContent = '…'; }
 
   try {
-    const payload = source === 'quick' || source === 'auto' ? getQuickLogPayload() : {
+    const isVal = state.activeGame === GAME_IDS.VALORANT;
+    const payload = source === 'quick' || source === 'auto' ? getQuickLogPayload() : isVal ? {
+      date: document.getElementById('f-date').value,
+      session: getLoggingSessionNum(),
+      mode: document.getElementById('f-mode').value,
+      result: state.ui.currentResult,
+      kills: document.getElementById('f-goals').value,
+      deaths: document.getElementById('f-assists').value,
+      valAssists: document.getElementById('f-saves').value,
+      goals: document.getElementById('f-goals').value,
+      assists: document.getElementById('f-assists').value,
+      saves: document.getElementById('f-saves').value,
+      agent: document.getElementById('f-agent')?.value ?? '',
+      map: document.getElementById('f-map')?.value ?? '',
+      startRR: document.getElementById('f-startmmr').value,
+      endRR: document.getElementById('f-endmmr').value,
+      startMMR: document.getElementById('f-startmmr').value,
+      endMMR: document.getElementById('f-endmmr').value,
+      notes: document.getElementById('f-notes').value,
+    } : {
       date: document.getElementById('f-date').value,
       session: getLoggingSessionNum(),
       mode: document.getElementById('f-mode').value,
@@ -761,7 +782,7 @@ async function submitGameLog(source = 'form') {
   } finally {
     if (btn) {
       btn.disabled = false;
-      btn.textContent = btn.dataset.label || (source === 'quick' || source === 'auto' ? 'LOG' : '+ Log Game');
+      btn.textContent = btn.dataset.label || (source === 'quick' || source === 'auto' ? 'LOG' : (state.activeGame === GAME_IDS.VALORANT ? '+ Log Match' : '+ Log Game'));
     }
   }
 }
@@ -816,7 +837,7 @@ function openEditModal(matchNum) {
   if (isVal) {
     document.getElementById('e-kills').value = game.kills ?? game.goals ?? 0;
     document.getElementById('e-deaths').value = game.deaths ?? 0;
-    document.getElementById('e-val-assists').value = game.assists ?? 0;
+    document.getElementById('e-val-assists').value = game.valAssists ?? game.assists ?? 0;
     document.getElementById('e-agent').value = game.agent ?? '';
     document.getElementById('e-map').value = game.map ?? '';
   } else {
@@ -940,7 +961,7 @@ async function init() {
     navigate('log', 'home');
   });
   document.getElementById('matchlogs-export-btn')?.addEventListener('click', () => {
-    exportGamesCSV(getMatchLogsGames(), getDisplay().name);
+    exportGamesCSV(getMatchLogsGames(), getDisplay().name, state.activeGame);
     showToast('CSV downloaded');
   });
   wireLogForm();
@@ -951,7 +972,10 @@ async function init() {
     getLastMMR: (mode) => getLastMMR(mode),
     setFormResult: setResult,
     setSelectedTags: tags => { state.ui.selectedTags = tags; },
-    onAutoLogToggle: refreshLiveStatus,
+    onAutoLogToggle: () => {
+      if (state.activeGame === GAME_IDS.VALORANT) refreshValorantStatus();
+      else refreshLiveStatus();
+    },
   });
   initPostMatch({
       onConfirmMMR: async (mmr) => {
