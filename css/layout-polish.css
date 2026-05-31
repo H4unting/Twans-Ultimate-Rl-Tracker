@@ -12,76 +12,6 @@
   --control-height: 40px;
 }
 
-/* ── Top bar: structured rows ───────────────────────────────────────────── */
-.top-bar {
-  display: grid;
-  grid-template-columns: auto auto 1fr auto auto;
-  grid-template-rows: auto auto auto;
-  align-items: center;
-  column-gap: var(--space-lg);
-  row-gap: var(--space-sm);
-  padding: var(--space-md) var(--header-pad-x) 0;
-}
-
-.logo-home-btn {
-  grid-column: 1;
-  grid-row: 1;
-  align-self: center;
-  white-space: nowrap;
-}
-
-.game-switcher {
-  grid-column: 2;
-  grid-row: 1;
-  align-self: center;
-}
-
-.top-bar-meta {
-  grid-column: 4;
-  grid-row: 1;
-  justify-self: end;
-  align-self: center;
-}
-
-.user-bar {
-  grid-column: 5;
-  grid-row: 1;
-  margin-left: 0;
-  margin-right: 0;
-  justify-self: end;
-  align-self: center;
-}
-
-.primary-nav,
-.tabs.primary-nav {
-  grid-column: 1 / -1;
-  grid-row: 2;
-  margin-left: 0;
-  margin-top: var(--space-xs);
-  padding-top: var(--space-md);
-  border-top: 1px solid #ffffff0a;
-  width: 100%;
-  flex-wrap: wrap;
-  gap: var(--space-sm);
-}
-
-.sub-nav {
-  grid-column: 1 / -1;
-  grid-row: 3;
-  padding: var(--space-sm) 0 var(--space-md);
-  margin-top: 0;
-  width: 100%;
-  align-items: center;
-}
-
-.section-tab,
-.sub-nav-pill {
-  min-height: 36px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
 /* ── Page rhythm ────────────────────────────────────────────────────────── */
 .page {
   padding: var(--space-xl) var(--header-pad-x);
@@ -254,7 +184,6 @@ body[data-active-game="valorant"] .val-chart-box {
 }
 
 .btn,
-.tab,
 .pl-tab,
 .quick-filter-btn {
   min-height: 36px;
@@ -351,10 +280,6 @@ body[data-active-game="valorant"] .val-chart-box {
   gap: var(--space-xl);
 }
 
-.group-sidebar {
-  top: calc(var(--space-2xl) + 120px);
-}
-
 .group-hero {
   align-items: center;
   gap: var(--space-xl);
@@ -445,65 +370,6 @@ body.has-quick-dock.quick-dock-collapsed .mobile-nav {
   :root {
     --header-pad-x: 16px;
   }
-
-  .top-bar {
-    grid-template-columns: 1fr auto;
-    grid-template-rows: auto auto auto auto auto;
-    padding-top: var(--space-md);
-  }
-
-  .logo-home-btn {
-    grid-column: 1;
-    grid-row: 1;
-    font-size: 15px;
-    max-width: calc(100vw - 140px);
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .user-bar {
-    grid-column: 2;
-    grid-row: 1;
-  }
-
-  .game-switcher {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    width: fit-content;
-  }
-
-  .top-bar-meta {
-    grid-column: 1 / -1;
-    grid-row: 3;
-    justify-self: start;
-    flex-wrap: wrap;
-  }
-
-  .primary-nav {
-    grid-row: 4;
-    padding-top: var(--space-sm);
-  }
-
-  .sub-nav {
-    grid-row: 5;
-    overflow-x: auto;
-    flex-wrap: nowrap;
-    padding-bottom: var(--space-md);
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-  }
-
-  .sub-nav::-webkit-scrollbar {
-    display: none;
-  }
-
-  .sub-nav-pill {
-    flex-shrink: 0;
-  }
-
-  .group-sidebar {
-    top: auto;
-  }
 }
 
 @media (max-width: 768px) {
@@ -562,25 +428,3 @@ body.has-quick-dock.quick-dock-collapsed .mobile-nav {
   }
 }
 
-@media (max-width: 480px) {
-  .logo-home-btn {
-    font-size: 14px;
-  }
-
-  .game-switch-btn {
-    padding: 5px 8px;
-    font-size: 10px;
-  }
-
-  .sync-label {
-    max-width: 72px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .top-profile-btn {
-    padding: 5px 8px;
-    font-size: 11px;
-  }
-}

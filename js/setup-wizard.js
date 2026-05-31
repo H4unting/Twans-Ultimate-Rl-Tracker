@@ -51,10 +51,14 @@ function renderRlPanel(profile, { compact = false } = {}) {
 function renderValPanel(riotIdValue, riotRegionValue, { compact = false } = {}) {
   return `
     <div class="setup-game-panel setup-game-panel-val" data-setup-game="valorant">
-      <strong>Valorant auto-log</strong>
-      <p>Saved locally in <code>grind-config.json</code> on this PC.</p>
+      <div class="setup-panel-head">
+        <strong>Valorant auto-log</strong>
+        <p class="setup-panel-desc">Saved locally in <code>grind-config.json</code> on this PC.</p>
+      </div>
       ${renderValorantFields(riotIdValue, riotRegionValue)}
-      ${renderApplySection(false)}
+      <div class="setup-apply-block">
+        ${renderApplySection(false)}
+      </div>
     </div>`;
 }
 
@@ -103,7 +107,9 @@ function renderValSteps(riotIdValue, riotRegionValue, bridge, allReady) {
           <strong>Riot account + API key</strong>
           <p>Saves to <code>grind-config.json</code> for Valorant auto-log only.</p>
           ${renderValorantFields(riotIdValue, riotRegionValue)}
-          ${renderApplySection(false)}
+          <div class="setup-apply-block">
+            ${renderApplySection(false)}
+          </div>
         </div>
       </li>
     </ol>`;
@@ -111,21 +117,31 @@ function renderValSteps(riotIdValue, riotRegionValue, bridge, allReady) {
 
 function renderValorantFields(riotIdValue, riotRegionValue) {
   return `
-    <label>Riot ID <span class="setup-hint">(Name#TAG)</span></label>
-    <input type="text" id="setup-riot-id" class="setup-input" placeholder="PlayerName#NA1" value="${escapeAttr(riotIdValue)}" autocomplete="off">
-    <label>Riot API key <span class="setup-hint">(<a href="https://developer.riotgames.com/" target="_blank" rel="noopener">developer.riotgames.com</a>)</span></label>
-    <input type="password" id="setup-riot-key" class="setup-input" placeholder="RGAPI-..." autocomplete="off">
-    <p class="setup-hint setup-riot-key-note">Dev keys expire every <strong>24 hours</strong> — paste a fresh key from <a href="https://developer.riotgames.com/" target="_blank" rel="noopener">developer.riotgames.com</a> when you see a Riot API error.</p>
-    <label>Region</label>
-    <select id="setup-riot-region" class="setup-input">
-      <option value="na"${riotRegionValue === 'na' ? ' selected' : ''}>NA</option>
-      <option value="eu"${riotRegionValue === 'eu' ? ' selected' : ''}>EU</option>
-      <option value="ap"${riotRegionValue === 'ap' ? ' selected' : ''}>AP</option>
-      <option value="kr"${riotRegionValue === 'kr' ? ' selected' : ''}>KR</option>
-      <option value="latam"${riotRegionValue === 'latam' ? ' selected' : ''}>LATAM</option>
-      <option value="br"${riotRegionValue === 'br' ? ' selected' : ''}>BR</option>
-    </select>
-    <span class="setup-status-pill${riotIdValue ? ' ok' : ''}" id="setup-valorant-pill">${riotIdValue ? '● Riot ID saved locally' : '○ Add for Valorant auto-log'}</span>`;
+    <div class="setup-val-fields">
+      <div class="setup-field">
+        <label for="setup-riot-id">Riot ID <span class="setup-hint">(Name#TAG)</span></label>
+        <input type="text" id="setup-riot-id" class="setup-input" placeholder="PlayerName#NA1" value="${escapeAttr(riotIdValue)}" autocomplete="off">
+      </div>
+      <div class="setup-field">
+        <label for="setup-riot-key">Riot API key <span class="setup-hint">(<a href="https://developer.riotgames.com/" target="_blank" rel="noopener">developer.riotgames.com</a>)</span></label>
+        <input type="password" id="setup-riot-key" class="setup-input" placeholder="RGAPI-..." autocomplete="off">
+        <p class="setup-hint setup-riot-key-note">Dev keys expire every <strong>24 hours</strong> — paste a fresh key from <a href="https://developer.riotgames.com/" target="_blank" rel="noopener">developer.riotgames.com</a> when you see a Riot API error.</p>
+      </div>
+      <div class="setup-field-row">
+        <div class="setup-field setup-field-region">
+          <label for="setup-riot-region">Region</label>
+          <select id="setup-riot-region" class="setup-input">
+            <option value="na"${riotRegionValue === 'na' ? ' selected' : ''}>NA</option>
+            <option value="eu"${riotRegionValue === 'eu' ? ' selected' : ''}>EU</option>
+            <option value="ap"${riotRegionValue === 'ap' ? ' selected' : ''}>AP</option>
+            <option value="kr"${riotRegionValue === 'kr' ? ' selected' : ''}>KR</option>
+            <option value="latam"${riotRegionValue === 'latam' ? ' selected' : ''}>LATAM</option>
+            <option value="br"${riotRegionValue === 'br' ? ' selected' : ''}>BR</option>
+          </select>
+        </div>
+        <span class="setup-status-pill${riotIdValue ? ' ok' : ''}" id="setup-valorant-pill">${riotIdValue ? '● Riot ID saved locally' : '○ Add for Valorant auto-log'}</span>
+      </div>
+    </div>`;
 }
 
 function renderApplySection(showPatchIni = true) {

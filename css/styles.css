@@ -1793,6 +1793,80 @@ body[data-active-game="rocket_league"] .setup-game-panel-rl { box-shadow: 0 0 20
 }
 .setup-input:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px #00e5ff22; }
 
+.setup-panel-head { margin-bottom: 2px; }
+.setup-panel-head strong {
+  display: block;
+  font-size: 16px;
+  margin-bottom: 6px;
+  color: var(--text);
+}
+.setup-panel-desc {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0;
+}
+.setup-panel-desc code {
+  font-size: 12px;
+  color: #5eead4;
+}
+.setup-val-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 14px;
+  max-width: 480px;
+}
+.setup-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.setup-field label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.45px;
+  color: var(--dim);
+  line-height: 1.4;
+}
+.setup-hint {
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.setup-hint a { color: #5eead4; font-weight: 600; }
+.setup-field .setup-input {
+  width: 100%;
+  max-width: none;
+}
+.setup-field-region { flex: 0 0 auto; }
+.setup-field-region .setup-input { max-width: 160px; }
+.setup-riot-key-note {
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--dim);
+}
+.setup-field-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+}
+.setup-field-row .setup-status-pill { margin-top: 0; }
+.setup-apply-block {
+  margin-top: 18px;
+  max-width: 480px;
+}
+.setup-apply-block .setup-apply-btn {
+  max-width: none;
+  width: 100%;
+}
+
 .setup-name-intro {
   font-size: 14px;
   color: #b8c4d4;
