@@ -195,7 +195,7 @@ function updateDesktopAppBanner(isVal, appUp, valStatus) {
     badge.textContent = 'Auto-log off';
     p.innerHTML = isLocalTrackerHost()
       ? `Bridge not connected — keep <code>${DESKTOP_APP.launcher}</code> open, then `
-        + `<a href="${getBridgeUrl()}/status" class="btn-link" target="_blank" rel="noopener">test bridge</a> `
+        + `<a href="${window.location.origin}/api/bridge/status" class="btn-link" target="_blank" rel="noopener">test bridge</a> `
         + 'or hard refresh (Ctrl+F5). '
         + '<button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>'
       : `Run <code>${DESKTOP_APP.launcher}</code> on this PC while playing. `

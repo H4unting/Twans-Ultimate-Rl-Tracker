@@ -1,6 +1,7 @@
 /** Shared local bridge online state (RL + Valorant) — one heartbeat, debounced */
 
 const BRIDGE_PORT = 49200;
+const TRACKER_PORT = 8080;
 const HEARTBEAT_MS = 2500;
 const PING_TIMEOUT_MS = 4000;
 /** Consecutive failed pings before going offline (after grace expires) */
@@ -26,6 +27,10 @@ export function subscribeBridgeOnline(fn) {
 
 export function getBridgeUrl() {
   const h = window.location.hostname;
+  const p = window.location.port;
+  if ((h === 'localhost' || h === '127.0.0.1') && (p === '8080' || p === String(TRACKER_PORT))) {
+    return `${window.location.origin}/api/bridge`;
+  }
   if (h === 'localhost' || h === '127.0.0.1') {
     return `http://${h}:${BRIDGE_PORT}`;
   }

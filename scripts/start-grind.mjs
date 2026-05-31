@@ -27,7 +27,7 @@ import { loadGrindConfig } from './local-setup.mjs';
 
 
 const TRACKER_PORT = 8080;
-
+const BRIDGE_PORT = 49200;
 const LOCAL_TRACKER_URL = `http://localhost:${TRACKER_PORT}`;
 
 
@@ -118,11 +118,50 @@ function isLocalTrackerUrl(url) {
 
 
 
+function readRequestBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on('data', (c) => chunks.push(c));
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
+}
+
+async function proxyToBridge(req, res, bridgePath) {
+  try {
+    const url = `http://127.0.0.1:${BRIDGE_PORT}${bridgePath}`;
+    const init = { method: req.method };
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      init.body = await readRequestBody(req);
+      if (req.headers['content-type']) {
+        init.headers = { 'Content-Type': req.headers['content-type'] };
+      }
+    }
+    const upstream = await fetch(url, init);
+    const body = Buffer.from(await upstream.arrayBuffer());
+    res.writeHead(upstream.status, {
+      'Content-Type': upstream.headers.get('content-type') || 'application/json',
+      'Cache-Control': 'no-store',
+    });
+    res.end(body);
+  } catch {
+    res.writeHead(502, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'bridge unavailable' }));
+  }
+}
+
 function createTrackerServer() {
 
   return http.createServer((req, res) => {
 
     let urlPath = (req.url || '/').split('?')[0];
+    const query = (req.url || '').includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+
+    if (urlPath.startsWith('/api/bridge')) {
+      const bridgePath = urlPath.slice('/api/bridge'.length) || '/status';
+      proxyToBridge(req, res, `${bridgePath}${query}`);
+      return;
+    }
 
     if (urlPath === '/') urlPath = '/index.html';
 
