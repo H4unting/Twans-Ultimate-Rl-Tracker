@@ -373,10 +373,6 @@ function updateBridgePill(bridge) {
   }
   if (bridge) {
     document.querySelector('.setup-step[data-step="bridge"]')?.classList.add('done');
-    const wizard = document.querySelector('.setup-wizard');
-    if (wizard && !wizard.classList.contains('setup-ready')) {
-      renderSetupWizard(displayNameFromAuth());
-    }
   }
 }
 
@@ -385,8 +381,15 @@ function displayNameFromAuth() {
   return u?.user_metadata?.full_name || u?.user_metadata?.name || u?.email?.split('@')[0] || '';
 }
 
+let bridgeWasUpForSetup = false;
+
 export function onBridgeStatusChange() {
-  updateBridgePill(isBridgeUp());
+  const up = isBridgeUp();
+  updateBridgePill(up);
   renderLogSetupNudge();
-  if (isBridgeUp()) renderSetupWizard(displayNameFromAuth());
+  if (up && !bridgeWasUpForSetup) {
+    bridgeWasUpForSetup = true;
+    refreshSetupWizard(displayNameFromAuth());
+  }
+  if (!up) bridgeWasUpForSetup = false;
 }

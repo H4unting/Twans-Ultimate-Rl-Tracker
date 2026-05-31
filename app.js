@@ -1,22 +1,29 @@
 /**
- * RL Grind Tracker — auth-first personal dashboard
+ * Twans Ultimate Tracker — auth-first personal dashboard
  */
 
 import { applyAppMode } from './env.js';
-import { state, subscribe, setGames, setSyncStatus, setGoals, setProfile, getUserDisplay } from './state.js';
-import { initAuth, signInWithGoogle, signOut, onAuthChange, getAuthUser } from './auth.js';
-import { loadUserData, saveSettings, claimLegacyData, createGroup, joinGroup, leaveGroup, loadUserGroups, saveGames } from './supabase.js';
+import { state, subscribe, setGames, setSyncStatus, setGoals, setProfile, getUserDisplay, getActiveGames } from './state.js';
+import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, sendPasswordReset, signOut, onAuthChange, getAuthUser } from './auth.js';
+import { loadUserData, saveSettings, claimLegacyData, createGroup, joinGroup, leaveGroup, loadUserGroups, saveGames, saveProfile } from './supabase.js';
 import { applyFilters, DEFAULT_FILTERS } from './filters.js';
 import { calcStats, estimateMMRDelta, repairPlaylistMMRChain } from './utils.js';
 import { addGame, updateGame, deleteGame, getLastMMR, patchLastGame, undoLastGame } from './matches.js';
 import { startSession, endSession, closeSessionModal, closeSessionModalAndContinue, initSessionUI, refreshSessionUI, restoreSessionFromStorage, getLoggingSessionNum } from './sessions.js';
 import {
   initQuickLog, showQuickDock, hideQuickDock, getQuickLogPayload,
-  resetQuickAfterLog, loadPrefs, syncFormFromQuick, applyLiveStats, flashAutoLogged,
+  resetQuickAfterLog, loadPrefs, savePrefs, syncFormFromQuick, applyLiveStats, flashAutoLogged,
   setQuickResult, setQuickMode,
 } from './quicklog.js';
-import { initRlLive, stopRlLive, refreshLiveStatus } from './rl-live.js';
-import { renderSetupWizard, refreshSetupWizard, onBridgeStatusChange } from './setup-wizard.js';
+import { renderProfilePage } from './profile-ui.js';
+import { initRlLive, stopRlLive, refreshLiveStatus,
+  saveRlDisplayName, getRlDisplayName,
+} from './rl-live.js';
+import { initValorantLive, stopValorantLive, refreshValorantStatus } from './valorant-live.js';
+import { initGameSwitcher, restoreActiveGameFromPrefs, applyGameShell } from './game-ui.js';
+import { GAME_IDS } from './games.js';
+import { VAL_DEFAULT_RR_SWING } from './valorant-config.js';
+import { renderSetupWizard, refreshSetupWizard, onBridgeStatusChange, renderLogSetupNudge } from './setup-wizard.js';
 import { mmrChart, wlChart } from './charts.js';
 import { renderAnalytics } from './analytics.js';
 import { renderReportsPage } from './reports-ui.js';
@@ -48,15 +55,15 @@ window.goToDashboardFromSession = () => {
 };
 
 function getDashboardGames() {
-  return applyFilters(state.games, { ...DEFAULT_FILTERS, playlist: state.playlist ?? 'all' });
+  return applyFilters(getActiveGames(), { ...DEFAULT_FILTERS, playlist: state.playlist ?? 'all' });
 }
 
 function getMatchLogsGames() {
-  return applyFilters(state.games, { ...state.matchLogFilters, playlist: 'all' });
+  return applyFilters(getActiveGames(), { ...state.matchLogFilters, playlist: 'all' });
 }
 
 function getAnalyticsGames() {
-  return applyFilters(state.games, { ...state.filters, playlist: state.playlist ?? 'all' });
+  return applyFilters(getActiveGames(), { ...state.filters, playlist: state.playlist ?? 'all' });
 }
 
 function getFilteredGames() {
@@ -67,40 +74,101 @@ function getDisplay() {
   return getUserDisplay(getAuthUser());
 }
 
+function withTimeout(promise, ms, message = 'Timed out') {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(message)), ms);
+    }),
+  ]);
+}
+
+let bootPromise = null;
+
 async function bootApp() {
   showLoginScreen(false);
   showLoading(true);
 
   try {
-    const { profile, games, goals, groups } = await loadUserData();
-    setProfile(profile);
-    const { games: repaired, changed } = repairPlaylistMMRChain(games);
-    if (changed) await saveGames(repaired);
-    setGames(repaired);
+    const {
+      profile, games, goals, groups, bio, rlDisplayName,
+      primaryColor, secondaryColor, activeGame, riotId, riotRegion,
+    } = await withTimeout(loadUserData(), 30000, 'Loading timed out — check your connection');
+    setProfile({
+      ...(profile ?? {}),
+      primary_color: profile?.primary_color || primaryColor || profile?.accent_color || '#e65c00',
+      secondary_color: profile?.secondary_color || secondaryColor || '#4a2060',
+    });
+    const { games: repaired, changed } = repairPlaylistMMRChain(
+      games.filter(g => (g.game ?? GAME_IDS.ROCKET_LEAGUE) === GAME_IDS.ROCKET_LEAGUE),
+    );
+    let allGames = games;
+    if (changed) {
+      allGames = [
+        ...games.filter(g => (g.game ?? GAME_IDS.ROCKET_LEAGUE) !== GAME_IDS.ROCKET_LEAGUE),
+        ...repaired,
+      ];
+      await saveGames(allGames);
+    }
+    setGames(allGames);
     setGoals(goals);
+    state.profileBio = bio ?? '';
     state.groups = groups;
+    restoreActiveGameFromPrefs(activeGame);
+    if (rlDisplayName && !loadPrefs().rlDisplayName) {
+      saveRlDisplayName(rlDisplayName);
+      savePrefs({ rlDisplayName });
+    }
+    const prefsPatch = {};
+    if (riotId && !loadPrefs().riotId) prefsPatch.riotId = riotId;
+    if (riotRegion && !loadPrefs().riotRegion) prefsPatch.riotRegion = riotRegion;
+    if (Object.keys(prefsPatch).length) savePrefs(prefsPatch);
     state.filters = { ...DEFAULT_FILTERS };
     state.matchLogFilters = { ...DEFAULT_FILTERS };
     state.activePage = 'dashboard';
 
-    renderAuthBar(getDisplay(), handleSignOut);
+    renderAuthBar(getDisplay(), handleSignOut, () => navigate('profile', 'home'));
     applyAppMode();
     applyLogPrefs();
 
     showQuickDock();
-    restoreSessionFromStorage(games);
+    restoreSessionFromStorage(getActiveGames());
     renderSetupWizard(getDisplay().name);
+    renderLogSetupNudge();
+    initGameSwitcher({
+      onChange: () => renderAll(),
+      getSettingsPayload,
+    });
     initRlLive(applyLiveStats, onBridgeStatusChange, handleAutoLog);
+    initValorantLive(applyLiveStats, onBridgeStatusChange, handleValorantAutoLog);
 
     renderAll();
-    showLoading(false);
   } catch (e) {
     console.error(e);
     setSyncStatus('error');
-    showLoading(false);
-    showLoginScreen(false);
     const msg = e?.message ?? 'Could not load your data';
-    showToast(msg.includes('infinite recursion') ? 'Database policy error — run groups-schema-fix.sql in Supabase' : msg, 'error');
+    if (getAuthUser()) {
+      showLoginScreen(false);
+      showQuickDock();
+      showToast(
+        msg.includes('PGRST') || msg.includes('game')
+          ? 'Database needs multi-game.sql — run it in Supabase SQL Editor'
+          : msg.includes('infinite recursion')
+            ? 'Database policy error — run groups-schema-fix.sql in Supabase'
+            : msg.includes('Timed out') || msg.includes('timeout')
+              ? 'Loading timed out — refresh the page or check your connection'
+              : msg,
+        'error',
+      );
+    } else {
+      showLoginScreen(true);
+      showToast(
+        msg.includes('infinite recursion') ? 'Database policy error — run groups-schema-fix.sql in Supabase' : msg,
+        'error',
+      );
+    }
+  } finally {
+    showLoading(false);
   }
 }
 
@@ -109,21 +177,130 @@ function showLoggedOut() {
   showLoginScreen(true);
   hideQuickDock();
   stopRlLive();
+  stopValorantLive();
+  wireLoginScreen();
+  resetLoginForm();
+}
+
+let loginMode = 'signin';
+
+function resetLoginForm() {
+  loginMode = 'signin';
+  updateLoginModeUI();
+  const form = document.getElementById('email-login-form');
+  form?.reset();
+  setLoginBusy(false);
+  document.getElementById('google-signin-btn')?.removeAttribute('disabled');
+}
+
+function updateLoginModeUI() {
+  const btn = document.getElementById('email-auth-btn');
+  const toggle = document.getElementById('login-mode-toggle');
+  const password = document.getElementById('login-password');
+  if (btn) btn.textContent = loginMode === 'signup' ? 'Create account' : 'Sign in with email';
+  if (toggle) {
+    toggle.textContent = loginMode === 'signup'
+      ? 'Already have an account? Sign in'
+      : 'Need an account? Create one';
+  }
+  if (password) {
+    password.autocomplete = loginMode === 'signup' ? 'new-password' : 'current-password';
+    password.placeholder = loginMode === 'signup' ? 'Choose a password (6+ chars)' : 'Your password';
+  }
+}
+
+function setLoginBusy(busy) {
+  document.getElementById('email-auth-btn')?.toggleAttribute('disabled', busy);
+  document.getElementById('google-signin-btn')?.toggleAttribute('disabled', busy);
+  document.getElementById('login-email')?.toggleAttribute('disabled', busy);
+  document.getElementById('login-password')?.toggleAttribute('disabled', busy);
+}
+
+function wireLoginScreen() {
   wireGoogleSignIn();
-  const btn = document.getElementById('google-signin-btn');
-  if (btn) btn.disabled = false;
+  wireEmailLogin();
 }
 
 async function handleGoogleSignIn() {
-  const btn = document.getElementById('google-signin-btn');
-  if (btn) btn.disabled = true;
+  setLoginBusy(true);
   try {
     await signInWithGoogle();
   } catch (e) {
     console.error(e);
     showToast(e?.message || 'Sign in failed', 'error');
-    if (btn) btn.disabled = false;
+    setLoginBusy(false);
   }
+}
+
+async function handleEmailAuthSubmit(e) {
+  e.preventDefault();
+  const email = document.getElementById('login-email')?.value.trim() ?? '';
+  const password = document.getElementById('login-password')?.value ?? '';
+
+  if (!email || password.length < 6) {
+    showToast('Enter a valid email and password (6+ characters)', 'error');
+    return;
+  }
+
+  setLoginBusy(true);
+  try {
+    if (loginMode === 'signup') {
+      const { session } = await signUpWithEmail(email, password);
+      if (session) {
+        showToast('Account created — welcome!');
+      } else {
+        showToast('Check your email to confirm your account, then sign in.');
+        loginMode = 'signin';
+        updateLoginModeUI();
+      }
+    } else {
+      await signInWithEmail(email, password);
+      showToast('Signed in!');
+    }
+  } catch (err) {
+    console.error(err);
+    const msg = err?.message || 'Email sign-in failed';
+    showToast(
+      msg.includes('Invalid login credentials') ? 'Wrong email or password' : msg,
+      'error',
+    );
+  } finally {
+    setLoginBusy(false);
+  }
+}
+
+async function handlePasswordReset() {
+  const email = document.getElementById('login-email')?.value.trim() ?? '';
+  if (!email) {
+    showToast('Enter your email above first', 'error');
+    document.getElementById('login-email')?.focus();
+    return;
+  }
+  setLoginBusy(true);
+  try {
+    await sendPasswordReset(email);
+    showToast('Password reset email sent — check your inbox');
+  } catch (err) {
+    console.error(err);
+    showToast(err?.message || 'Could not send reset email', 'error');
+  } finally {
+    setLoginBusy(false);
+  }
+}
+
+function wireEmailLogin() {
+  const form = document.getElementById('email-login-form');
+  if (!form || form.dataset.wired) return;
+  form.dataset.wired = '1';
+  form.addEventListener('submit', handleEmailAuthSubmit);
+
+  document.getElementById('login-mode-toggle')?.addEventListener('click', () => {
+    loginMode = loginMode === 'signin' ? 'signup' : 'signin';
+    updateLoginModeUI();
+  });
+
+  document.getElementById('login-forgot-btn')?.addEventListener('click', handlePasswordReset);
+  updateLoginModeUI();
 }
 
 function getGroupsCtx() {
@@ -146,6 +323,7 @@ async function handleSignOut() {
   await signOut();
   state.games = [];
   state.profile = null;
+  state.profileBio = '';
   state.groups = [];
   resetGroupsUI();
   hideQuickDock();
@@ -170,12 +348,12 @@ async function handleLegacyClaim(legacyId) {
 }
 
 function renderHomePage() {
-  renderHome(state.games, state.goals);
-  const modeGames = getHomeChartGames(state.games);
+  renderHome(getActiveGames(), state.goals);
+  const modeGames = getHomeChartGames(getActiveGames());
   const label = document.getElementById('home-charts-label');
   if (label) {
     label.textContent = modeGames.length
-      ? `${getHomeChartModeLabel(state.games)} — tap a row above to switch`
+      ? `${getHomeChartModeLabel(getActiveGames())} — tap a row above to switch`
       : '';
   }
   if (modeGames.length >= 1) {
@@ -197,7 +375,7 @@ function renderAnalyticsPage() {
 }
 
 function renderAll() {
-  const games = state.games;
+  const games = getActiveGames();
   const display = getDisplay();
 
   renderLegacyImportBanner(state.profile, handleLegacyClaim);
@@ -239,8 +417,9 @@ function renderDashboard() {
 }
 
 function renderMatchLogs() {
+  renderLogSetupNudge();
   renderQuickFilters('matchlogs-quick-filters', () => renderMatchLogs());
-  renderFilterBar('matchlogs-filters', state.games, state.matchLogFilters, filters => {
+  renderFilterBar('matchlogs-filters', getActiveGames(), state.matchLogFilters, filters => {
     state.matchLogFilters = { ...state.matchLogFilters, ...filters };
     renderMatchLogs();
   });
@@ -254,7 +433,7 @@ function renderMatchLogs() {
 }
 
 function renderSessionsPageContent() {
-  renderSessionsPage(state.games, getDisplay().name, {
+  renderSessionsPage(getActiveGames(), getDisplay().name, {
     onViewSession: sessionNum => {
       state.matchLogFilters = { ...state.matchLogFilters, session: String(sessionNum) };
       navigate('log', 'home');
@@ -264,19 +443,78 @@ function renderSessionsPageContent() {
 
 function renderReportsPageContent() {
   renderReportsPage(
-    state.games,
+    getActiveGames(),
     state.goals,
     getDisplay().name,
     state.reportsWeekOffset,
     offset => { state.reportsWeekOffset = offset; renderReportsPageContent(); },
     async nextGoals => {
       setGoals(nextGoals);
-      await saveSettings({ goals: nextGoals });
+      await saveSettings(getSettingsPayload({ goals: nextGoals }));
       renderHomePage();
-      renderFocusPage(state.games, state.goals, getDisplay());
+      renderFocusPage(getActiveGames(), state.goals, getDisplay());
       showToast('Goals saved!');
     },
   );
+}
+
+function renderProfilePageContent() {
+  renderProfilePage({
+    games: getActiveGames(),
+    profile: state.profile,
+    display: getDisplay(),
+    authUser: getAuthUser(),
+    bio: state.profileBio ?? '',
+    onSave: handleProfileSave,
+  });
+}
+
+function getSettingsPayload(overrides = {}) {
+  const prefs = loadPrefs();
+  return {
+    goals: state.goals,
+    bio: state.profileBio ?? '',
+    activeGame: state.activeGame,
+    rlDisplayName: getRlDisplayName() || prefs.rlDisplayName || '',
+    riotId: prefs.riotId || '',
+    riotRegion: prefs.riotRegion || 'na',
+    primaryColor: state.profile?.primary_color ?? '',
+    secondaryColor: state.profile?.secondary_color ?? '',
+    ...overrides,
+  };
+}
+
+async function handleProfileSave({ displayName, rlName, primaryColor, secondaryColor, bio }) {
+  state.profileBio = bio;
+  await saveSettings(getSettingsPayload({
+    bio,
+    rlDisplayName: rlName,
+    primaryColor,
+    secondaryColor,
+  }));
+
+  const { extended } = await saveProfile({
+    display_name: displayName,
+    primary_color: primaryColor,
+    secondary_color: secondaryColor,
+    accent_color: primaryColor,
+  });
+
+  setProfile({
+    ...state.profile,
+    display_name: displayName,
+    primary_color: primaryColor,
+    secondary_color: secondaryColor,
+    accent_color: primaryColor,
+  });
+
+  saveRlDisplayName(rlName);
+  savePrefs({ rlDisplayName: rlName });
+
+  renderAuthBar(getDisplay(), handleSignOut, () => navigate('profile', 'home'));
+  renderProfilePageContent();
+
+  return { extended };
 }
 
 function navigate(pageId, section) {
@@ -286,12 +524,13 @@ function navigate(pageId, section) {
   mountDock();
   if (pageId === 'dashboard') renderDashboard();
   if (pageId === 'log') renderMatchLogs();
+  if (pageId === 'setup') refreshSetupWizard(getDisplay().name);
+  if (pageId === 'profile') renderProfilePageContent();
   if (pageId === 'analytics') renderAnalyticsPage();
   if (pageId === 'reports') renderReportsPageContent();
-  if (pageId === 'focus') renderFocusPage(state.games, state.goals, getDisplay());
+  if (pageId === 'focus') renderFocusPage(getActiveGames(), state.goals, getDisplay());
   if (pageId === 'group') renderGroupsPage(getGroupsCtx());
   if (pageId === 'sessions') renderSessionsPageContent();
-  if (pageId === 'log') refreshSetupWizard(getDisplay().name);
 }
 
 function wireNavigation() {
@@ -327,10 +566,66 @@ function applyLogPrefs() {
 }
 
 function estimateMMRDeltaForMode(result, mode) {
-  return estimateMMRDelta(state.games, result, mode);
+  return estimateMMRDelta(getActiveGames(), result, mode);
+}
+
+async function handleValorantAutoLog(match) {
+  if (state.activeGame !== GAME_IDS.VALORANT) return false;
+
+  const logMode = match.mode || getQuickMode() || 'Competitive';
+  if (match.mode) setQuickMode(match.mode);
+  if (match.result) setQuickResult(match.result);
+  applyLiveStats({
+    goals: match.kills,
+    assists: match.deaths,
+    saves: match.acs,
+    kills: match.kills,
+    deaths: match.deaths,
+    valAssists: match.valAssists,
+    acs: match.acs,
+    result: match.result,
+    mode: match.mode,
+  });
+
+  const priorEnd = getLastMMR(logMode);
+  const delta = priorEnd !== ''
+    ? (match.result === 'W' ? VAL_DEFAULT_RR_SWING.W : VAL_DEFAULT_RR_SWING.L)
+    : (match.result === 'W' ? VAL_DEFAULT_RR_SWING.W : VAL_DEFAULT_RR_SWING.L);
+  let startRR;
+  let endRR;
+
+  if (priorEnd !== '') {
+    startRR = parseInt(priorEnd, 10);
+    endRR = Math.max(0, startRR + delta);
+  } else {
+    startRR = 0;
+    endRR = delta;
+    showToast(`First ${logMode} log — confirm your real RR after the match`, 'error');
+  }
+
+  document.getElementById('quick-endmmr').value = endRR;
+  document.getElementById('f-endrr') && (document.getElementById('f-endrr').value = endRR);
+
+  state.ui.autoLogNote = [
+    priorEnd === '' ? 'RR estimated' : '',
+    match.agent ? match.agent : '',
+    match.map ? match.map : '',
+  ].filter(Boolean).join(' · ');
+
+  if (!state.session.active) startSession();
+  const ok = await submitGameLog('auto');
+  if (!ok) return false;
+  flashAutoLogged();
+  refreshValorantStatus();
+  return true;
+}
+
+function getQuickMode() {
+  return document.querySelector('#quick-mode-pills .active')?.dataset.mode ?? 'Competitive';
 }
 
 async function handleAutoLog(match) {
+  if (state.activeGame !== GAME_IDS.ROCKET_LEAGUE) return false;
   const logMode = match.mode || document.querySelector('#quick-mode-pills .active')?.dataset.mode || "2's";
   if (match.mode) setQuickMode(match.mode);
   if (match.result) setQuickResult(match.result);
@@ -378,7 +673,7 @@ async function handleAutoLog(match) {
 }
 
 function recentGamesHaveMMR() {
-  return state.games.slice(-3).some(g => g.endMMR);
+  return getActiveGames().slice(-3).some(g => g.endMMR);
 }
 
 async function submitGameLog(source = 'form') {
@@ -480,7 +775,7 @@ function setEditResult(r) {
 }
 
 function openEditModal(matchNum) {
-  const game = state.games.find(g => g.match === matchNum);
+  const game = getActiveGames().find(g => g.match === matchNum);
   if (!game) return;
   state.ui.editingMatch = matchNum;
   state.ui.editTags = [...(game.tags || [])];
@@ -569,7 +864,7 @@ function wireGoogleSignIn() {
 
 async function init() {
   applyAppMode();
-  wireGoogleSignIn();
+  wireLoginScreen();
   showLoggedOut();
 
   const dateEl = document.getElementById('f-date');
@@ -580,6 +875,7 @@ async function init() {
 
   wireNavigation();
   document.getElementById('logo-home-btn')?.addEventListener('click', () => navigate('dashboard', 'home'));
+  document.getElementById('bridge-hint-setup-link')?.addEventListener('click', () => navigate('setup', 'home'));
   wireKeyboardShortcuts();
   document.getElementById('dash-view-all-logs')?.addEventListener('click', () => {
     navigate('log', 'home');
@@ -621,17 +917,29 @@ async function init() {
     renderHomePage();
   });
   onAuthChange(async (session) => {
-    if (session) await bootApp();
-    else showLoggedOut();
+    if (session) {
+      if (!bootPromise) {
+        bootPromise = bootApp().finally(() => { bootPromise = null; });
+      }
+      try {
+        await bootPromise;
+      } catch (e) {
+        console.error(e);
+        showToast(e?.message || 'Could not load after sign-in — try refreshing', 'error');
+      }
+    } else {
+      bootPromise = null;
+      showLoggedOut();
+    }
   });
 
   try {
-    await initAuth();
+    await withTimeout(initAuth(), 15000, 'Sign-in check timed out — refresh and try again');
     if (!getAuthUser()) showLoggedOut();
   } catch (e) {
     console.error(e);
     showLoggedOut();
-    showToast('Auth setup error — try signing in again', 'error');
+    showToast(e.message || 'Auth setup error — try signing in again', 'error');
   }
 }
 
