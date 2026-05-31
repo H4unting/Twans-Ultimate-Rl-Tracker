@@ -29,9 +29,16 @@ export function formatApiError(e, fallback = 'Something went wrong') {
   const raw = e?.message ?? String(e);
   try {
     const parsed = JSON.parse(raw);
+    if (parsed?.message === 'invalid API key') {
+      return 'Database connection failed — app config may be outdated. Hard-refresh (Ctrl+F5) or use localhost:8080.';
+    }
     if (parsed?.message) return parsed.message;
+    if (parsed?.hint) return `${parsed.message || 'Error'}: ${parsed.hint}`;
   } catch {
     /* plain text */
+  }
+  if (raw.includes('invalid API key')) {
+    return 'Database connection failed — hard-refresh (Ctrl+F5) or use localhost:8080.';
   }
   return raw || fallback;
 }
