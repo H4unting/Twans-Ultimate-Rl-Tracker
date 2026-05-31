@@ -1,6 +1,6 @@
 /** Central app state — auth-first, single-user by default */
 
-import { getActiveGoals, normalizeGoalsStorage } from './goals.js';
+import { getActiveGoals, normalizeGoalsStorage, DEFAULT_GOALS } from './goals.js';
 import { DEFAULT_GAME, GAME_IDS, filterGamesByTitle } from './games.js';
 
 export const state = {

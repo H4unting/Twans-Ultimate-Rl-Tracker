@@ -391,6 +391,21 @@
 
 <div class="toast" id="toast"></div>
 
-<script type="module" src="js/app.js?v=20260531i"></script>
+<script>
+  /* If a JS module fails to load, don’t leave the page stuck on “Loading…” forever */
+  window.addEventListener('unhandledrejection', () => {
+    if (typeof window.__navigate !== 'undefined') return;
+    document.body.classList.remove('is-loading');
+    document.getElementById('login-screen')?.classList.remove('hidden');
+  });
+  setTimeout(() => {
+    if (typeof window.__navigate !== 'undefined') return;
+    if (document.body.classList.contains('is-loading')) {
+      document.body.classList.remove('is-loading');
+      document.getElementById('login-screen')?.classList.remove('hidden');
+    }
+  }, 12000);
+</script>
+<script type="module" src="js/app.js?v=20260531j"></script>
 </body>
 </html>
