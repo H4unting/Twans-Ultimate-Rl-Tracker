@@ -131,8 +131,8 @@ function renderValorantPill(el, valStatus, meta) {
   }
 
   if (valStatus.pollingArmed === false) {
-    el.textContent = '● Paused';
-    el.title = 'Bridge running — open this tracker tab once to arm auto-log (safe for Val load-in)';
+    el.textContent = '● Waiting…';
+    el.title = 'Open http://localhost:8080 to arm auto-log (or wait ~45s — it auto-arms)';
     el.dataset.bridgeState = 'syncing';
     return;
   }
@@ -229,8 +229,9 @@ function updateDesktopAppBanner(isVal, appUp, valStatus) {
   if (appUp && isVal && valStatus?.configured && valStatus?.pollingArmed === false) {
     banner.classList.remove('hidden');
     badge.textContent = 'Safe mode';
-    p.innerHTML = `${DESKTOP_APP.name} is running with <strong>no external network</strong> until you keep this tab open. `
-      + 'That avoids VAN errors during Val load-in. Switch to Val after you see the pill change to Auto-log ON.';
+    p.innerHTML = `${DESKTOP_APP.name} is waiting — open `
+      + `<a href="${getLocalTrackerUrl()}" class="btn-link">${getLocalTrackerUrl()}</a> `
+      + 'to arm auto-log, or wait ~45 seconds (it auto-arms). Auto-log runs <strong>after</strong> a match ends, not when Val opens.';
     return;
   }
 

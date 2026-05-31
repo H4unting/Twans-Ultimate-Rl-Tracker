@@ -315,9 +315,14 @@ if (!quiet) {
 
 
 
-if (!skipBrowser) {
-
+if (valOnly && skipBrowser) {
+  setTimeout(() => {
+    console.log('');
+    console.log('  >>> Opening tracker in your browser — keep that tab open for auto-log <<<');
+    console.log('');
+    openBrowser(LOCAL_TRACKER_URL);
+  }, 15000);
+} else if (!skipBrowser) {
   openBrowser(LOCAL_TRACKER_URL);
-
 }
 

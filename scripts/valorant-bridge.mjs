@@ -9,6 +9,7 @@ import { loadGrindConfig, loadValorantBridgeState, saveValorantBridgeState, clea
 const HENRIK_BASE = 'https://api.henrikdev.xyz';
 const HENRIK_POLL_MS = 20000;
 const HENRIK_DEFER_MS = 45000;
+const AUTO_ARM_MS = 45000;
 
 const MODE_MAP = {
   competitive: 'Competitive',
@@ -350,8 +351,17 @@ export function startValorantBridge(options = {}) {
 
   const manualArm = options.manualArm !== false;
   if (manualArm) {
-    console.log('Valorant polling paused — no external network until you open the tracker');
-    console.log('  (prevents load-in / VAN connection issues while Val is starting)');
+    console.log('');
+    console.log('  STEP 2 REQUIRED: open http://localhost:8080 in your browser');
+    console.log('  That arms auto-log. Launching Val alone does nothing yet.');
+    console.log(`  (If you skip the browser, auto-log arms automatically in ${Math.round(AUTO_ARM_MS / 1000)}s)`);
+    console.log('');
+    deferTimer = setTimeout(() => {
+      if (!pollingArmed && !pollTimer) {
+        console.log('Auto-arming match polling — finished games will auto-log after this');
+        armValorantPolling();
+      }
+    }, AUTO_ARM_MS);
     return;
   }
 
