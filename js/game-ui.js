@@ -6,6 +6,7 @@ import { saveSettings } from './supabase.js';
 import { savePrefs, loadPrefs, refreshQuickTagsOnGameSwitch } from './quicklog.js';
 import { refreshBridgeStatusUI } from './bridge-ui.js';
 import { DESKTOP_APP, LOCAL_TRACKER_URL } from './config.js';
+import { isBridgeUp } from './bridge-client.js';
 import { needsLocalTrackerForAutoLog } from './env.js';
 import { refreshValorantStatus } from './valorant-live.js';
 import { updateNavUI } from './nav.js';
@@ -91,7 +92,7 @@ export function applyGameShell(gameId = state.activeGame) {
   }
 
   const banner = document.getElementById('bridge-hint-banner');
-  if (banner) {
+  if (banner && !isBridgeUp()) {
     const badge = banner.querySelector('.bridge-hint-badge');
     if (badge) badge.textContent = needsLocalTrackerForAutoLog() ? 'Use local tracker' : 'Auto-log off';
     const p = banner.querySelector('p');

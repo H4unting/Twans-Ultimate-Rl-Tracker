@@ -950,7 +950,10 @@ async function init() {
     wireNavigation();
     document.getElementById('logo-home-btn')?.addEventListener('click', () => navigate('dashboard', 'home'));
     wireBridgeStatusClick(() => navigate('setup', 'home'));
-    subscribeBridgeOnline(() => refreshBridgeStatusUI());
+    subscribeBridgeOnline((online) => {
+      refreshBridgeStatusUI();
+      if (online && state.activeGame === GAME_IDS.VALORANT) refreshValorantStatus();
+    });
     wireKeyboardShortcuts();
     document.getElementById('dash-view-all-logs')?.addEventListener('click', () => {
       navigate('log', 'home');

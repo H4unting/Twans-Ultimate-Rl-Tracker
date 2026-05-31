@@ -193,7 +193,12 @@ export function isAutoLogEnabled() {
 
 export function setAutoLogEnabled(on) {
   savePrefs({ autoLog: !!on });
-  document.getElementById('auto-log-toggle')?.classList.toggle('active', !!on);
+  syncAutoLogToggleUI();
+}
+
+export function syncAutoLogToggleUI() {
+  const on = isAutoLogEnabled();
+  document.getElementById('auto-log-toggle')?.classList.toggle('active', on);
   document.getElementById('auto-log-toggle')?.setAttribute('aria-pressed', on ? 'true' : 'false');
 }
 

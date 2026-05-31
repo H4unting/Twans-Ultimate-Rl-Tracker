@@ -3,7 +3,7 @@
 import { state } from './state.js';
 import { GAME_IDS, getGameMeta } from './games.js';
 import { isBridgeUp } from './bridge-client.js';
-import { isAutoLogEnabled, loadPrefs } from './quicklog.js';
+import { isAutoLogEnabled, loadPrefs, syncAutoLogToggleUI } from './quicklog.js';
 import { setBridgeHintVisible, needsLocalTrackerForAutoLog, getLocalTrackerUrl } from './env.js';
 import { DESKTOP_APP } from './config.js';
 
@@ -56,6 +56,7 @@ export function refreshBridgeStatusUI() {
     }
     setBridgeHintVisible(!loggedOut);
     updateDesktopAppBanner(isVal, false);
+    syncAutoLogToggleUI();
     return;
   }
 
@@ -68,12 +69,20 @@ export function refreshBridgeStatusUI() {
     renderRocketLeaguePill(el, cachedRlInMatch, meta);
   }
   updateDesktopAppBanner(isVal, true, cachedValStatus);
+  syncAutoLogToggleUI();
 }
 
 function renderValorantPill(el, valStatus, meta) {
   el.classList.toggle('in-match', Boolean(valStatus?.valorantRunning));
 
-  if (!valStatus?.configured) {
+  if (!valStatus) {
+    el.textContent = '● Connecting…';
+    el.title = `${DESKTOP_APP.name} — checking Valorant link`;
+    el.dataset.bridgeState = 'syncing';
+    return;
+  }
+
+  if (!valStatus.configured) {
     const prefs = loadPrefs();
     el.textContent = prefs.riotId ? '● Needs Apply' : '● Setup Riot ID';
     el.title = 'Riot ID + Henrik API key missing — click to open Auto-Log Setup → Apply & Go';
