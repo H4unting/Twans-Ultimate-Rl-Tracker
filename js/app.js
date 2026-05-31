@@ -74,6 +74,17 @@ function getDisplay() {
   return getUserDisplay(getAuthUser());
 }
 
+function withTimeout(promise, ms, message = 'Timed out') {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(message)), ms);
+    }),
+  ]);
+}
+
+let bootPromise = null;
+
 async function bootApp() {
   showLoginScreen(false);
   showLoading(true);
@@ -82,7 +93,7 @@ async function bootApp() {
     const {
       profile, games, goals, groups, bio, rlDisplayName,
       primaryColor, secondaryColor, activeGame, riotId, riotRegion,
-    } = await loadUserData();
+    } = await withTimeout(loadUserData(), 30000, 'Loading timed out — check your connection');
     setProfile({
       ...(profile ?? {}),
       primary_color: profile?.primary_color || primaryColor || profile?.accent_color || '#e65c00',
@@ -132,11 +143,9 @@ async function bootApp() {
     initValorantLive(applyLiveStats, onBridgeStatusChange, handleValorantAutoLog);
 
     renderAll();
-    showLoading(false);
   } catch (e) {
     console.error(e);
     setSyncStatus('error');
-    showLoading(false);
     const msg = e?.message ?? 'Could not load your data';
     if (getAuthUser()) {
       showLoginScreen(false);
@@ -146,7 +155,9 @@ async function bootApp() {
           ? 'Database needs multi-game.sql — run it in Supabase SQL Editor'
           : msg.includes('infinite recursion')
             ? 'Database policy error — run groups-schema-fix.sql in Supabase'
-            : msg,
+            : msg.includes('Timed out') || msg.includes('timeout')
+              ? 'Loading timed out — refresh the page or check your connection'
+              : msg,
         'error',
       );
     } else {
@@ -156,6 +167,8 @@ async function bootApp() {
         'error',
       );
     }
+  } finally {
+    showLoading(false);
   }
 }
 
@@ -905,25 +918,28 @@ async function init() {
   });
   onAuthChange(async (session) => {
     if (session) {
+      if (!bootPromise) {
+        bootPromise = bootApp().finally(() => { bootPromise = null; });
+      }
       try {
-        await bootApp();
+        await bootPromise;
       } catch (e) {
         console.error(e);
-        showLoading(false);
         showToast(e?.message || 'Could not load after sign-in — try refreshing', 'error');
       }
     } else {
+      bootPromise = null;
       showLoggedOut();
     }
   });
 
   try {
-    await initAuth();
+    await withTimeout(initAuth(), 15000, 'Sign-in check timed out — refresh and try again');
     if (!getAuthUser()) showLoggedOut();
   } catch (e) {
     console.error(e);
     showLoggedOut();
-    showToast('Auth setup error — try signing in again', 'error');
+    showToast(e.message || 'Auth setup error — try signing in again', 'error');
   }
 }
 

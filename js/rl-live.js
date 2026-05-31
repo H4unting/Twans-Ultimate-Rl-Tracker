@@ -96,11 +96,13 @@ async function pollBridge() {
         await fetch(`${BRIDGE}/last-match/consume`, { method: 'POST' });
       }
     }
-    callbacks.onStatusChange?.();
   } catch {
-    setBridgeOnline(false);
-    setLiveStatus(false);
-    callbacks.onStatusChange?.();
+    if (wasBridgeUp) {
+      wasBridgeUp = false;
+      setBridgeOnline(false);
+      setLiveStatus(false);
+      callbacks.onStatusChange?.();
+    }
   }
 }
 

@@ -46,6 +46,7 @@ async function sbFetch(path, method = 'GET', body = null, extra = {}) {
       'Content-Type': 'application/json',
       ...extra,
     },
+    signal: AbortSignal.timeout(25000),
   };
   if (body) opts.body = JSON.stringify(body);
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, opts);
