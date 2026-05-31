@@ -355,7 +355,7 @@ function renderHomePage() {
   if (valLabel) valLabel.textContent = isVal ? chartCaption : '';
 
   if (modeGames.length >= 1) {
-    const stats = calcStats(modeGames);
+    const stats = calcStats(modeGames, state.activeGame);
     if (isVal) {
       mmrChart('valHomeRR', modeGames.slice(-20), chartColor, 'RR');
       wlChart('valHomeWL', stats);
@@ -368,7 +368,7 @@ function renderHomePage() {
 
 function renderAnalyticsPage() {
   const filtered = getAnalyticsGames();
-  const stats = calcStats(filtered);
+  const stats = calcStats(filtered, state.activeGame);
   const display = getDisplay();
   const isVal = state.activeGame === GAME_IDS.VALORANT;
   renderStats('analytics-stats', stats, state.playlist, state.activeGame);

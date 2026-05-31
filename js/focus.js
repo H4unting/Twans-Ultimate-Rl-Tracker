@@ -39,7 +39,7 @@ export function renderFocusPage(games, goals, display) {
   const gameId = state.activeGame;
   const isVal = gameId === GAME_IDS.VALORANT;
   const tips = getActionFocusTips(gameId);
-  const stats = calcStats(games);
+  const stats = calcStats(games, gameId);
   const mode = getPrimaryMode(games, gameId);
   const modeRR = getCurrentMMRForMode(games, mode);
   const week = buildWeeklyReport(games, 0);

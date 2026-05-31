@@ -1,14 +1,12 @@
 /** Personal profile page — game-aware stats showcase */
 
 import { calcStats, getPlaylistMMRRows, groupBySession } from './utils.js';
-import { getRank, rankBadgeHTML } from './ranks.js';
 import { getRlDisplayName, saveRlDisplayName } from './rl-live.js';
 import { savePrefs, loadPrefs } from './quicklog.js';
 import { showToast } from './ui.js';
 import { formatApiError } from './supabase.js';
-import { GAME_IDS, getGameMeta } from './games.js';
+import { GAME_IDS, getGameMeta, getGameModule, filterGamesByTitle } from './games.js';
 import { state } from './state.js';
-import { DESKTOP_APP } from './config.js';
 
 function escapeHtml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -54,12 +52,14 @@ export function renderProfilePage({
 
   const isVal = gameId === GAME_IDS.VALORANT;
   const meta = getGameMeta(gameId);
-  const stats = calcStats(games);
-  const rows = getPlaylistMMRRows(games, gameId);
-  const sessions = groupBySession(games).length;
+  const gameGames = filterGamesByTitle(games, gameId);
+  const stats = calcStats(gameGames, gameId);
+  const rows = getPlaylistMMRRows(gameGames, gameId);
+  const sessions = groupBySession(gameGames, gameId).length;
   const level = trackerLevel(stats.totalGames);
   const rlName = getRlDisplayName() || '';
   const riotId = loadPrefs().riotId ?? '';
+  const rankMod = getGameModule(gameId);
   const { primary, secondary } = resolveProfileColors(profile, display);
   const urlTag = profileUrlTag(profile?.profile_number);
   const avatar = display.avatar
@@ -88,10 +88,10 @@ export function renderProfilePage({
           </div>
         </div>`;
       }
-      const rank = getRank(r.mmr, r.mode);
+      const rank = rankMod.getRank(r.mmr, r.mode);
       return `
         <div class="profile-rank-card">
-          ${rankBadgeHTML(r.mmr, 36, r.mode)}
+          ${rankMod.rankIconHTML(rank, 40)}
           <div class="profile-rank-meta">
             <span class="profile-rank-mode">${escapeHtml(r.mode)}</span>
             <span class="profile-rank-name">${rank.name}</span>
@@ -102,7 +102,7 @@ export function renderProfilePage({
     : `<p class="profile-empty">Log ranked ${isVal ? 'matches' : 'games'} to show your ${isVal ? 'queue' : 'playlist'} ranks here.</p>`;
 
   el.innerHTML = `
-    <div class="profile-page" style="--profile-primary:${escapeAttr(primary)};--profile-secondary:${escapeAttr(secondary)}">
+    <div class="profile-page" data-profile-game="${escapeAttr(gameId)}" style="--profile-primary:${escapeAttr(primary)};--profile-secondary:${escapeAttr(secondary)}">
       <div class="profile-hero">
         <div class="profile-banner" id="profile-banner-preview" style="background:${bannerGradient(primary, secondary)}"></div>
         <div class="profile-hero-inner">

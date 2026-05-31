@@ -7,8 +7,8 @@ function activeMod(gameId) {
   return getGameModule(gameId ?? state.activeGame ?? DEFAULT_GAME);
 }
 
-export function getRank(value, mode) {
-  return activeMod().getRank(value, mode);
+export function getRank(value, mode, gameId) {
+  return activeMod(gameId).getRank(value, mode);
 }
 
 export function getRankForPlaylist(value, playlist) {
@@ -23,16 +23,16 @@ export function getRankIconSrc(name) {
   return activeMod().getRankIconSrc?.(name) ?? '';
 }
 
-export function rankIconHTML(rankOrName, size = 20) {
-  return activeMod().rankIconHTML(rankOrName, size);
+export function rankIconHTML(rankOrName, size = 20, gameId) {
+  return activeMod(gameId).rankIconHTML(rankOrName, size);
 }
 
 export function rankSVG(tier, size = 20) {
   return activeMod().rankSVG?.(tier, size) ?? '';
 }
 
-export function rankBadgeHTML(value, size = 18, mode) {
-  return activeMod().rankBadgeHTML(value, size, mode);
+export function rankBadgeHTML(value, size = 18, mode, gameId) {
+  return activeMod(gameId).rankBadgeHTML(value, size, mode);
 }
 
 /** Rocket League tables — import explicitly when you need RL-only data */

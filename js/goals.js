@@ -47,7 +47,7 @@ export function getGoalProgress(games, goals, gameId = state.activeGame) {
   const meta = getGameMeta(gameId);
   const isVal = gameId === GAME_IDS.VALORANT;
   const weekGames = getGamesInWeek(games, 0);
-  const weekStats = calcStats(weekGames);
+  const weekStats = calcStats(weekGames, gameId);
   const mode = getPrimaryMode(games, gameId);
   const currentRank = getCurrentMMRForMode(games, mode) || 0;
   const items = [];

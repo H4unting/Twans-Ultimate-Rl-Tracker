@@ -139,7 +139,7 @@ async function loadMemberDetail(groupId, member, myRole) {
     ui.gamesCache[key] = await loadMemberGames(key);
   }
   const games = filterSquadGames(ui.gamesCache[key]);
-  const stats = calcStats(games);
+  const stats = calcStats(games, state.activeGame);
   const copy = squadCopy();
   return `
     <div class="group-member-detail">

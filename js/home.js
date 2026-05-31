@@ -92,7 +92,7 @@ function renderValorantHomeSummary(games, goals) {
 
   const meta = getGameMeta(state.activeGame);
   const rows = getPlaylistMMRRows(games, state.activeGame);
-  const stats = calcStats(games);
+  const stats = calcStats(games, state.activeGame);
 
   if (!rows.length) {
     dash.innerHTML = `<p class="home-summary-empty">Log a ${meta.label} match to see your ${meta.rankLabel} by queue.</p>`;
