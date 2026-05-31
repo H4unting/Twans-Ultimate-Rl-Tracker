@@ -86,7 +86,7 @@ export function renderSetupWizard(displayName = '') {
         <div class="setup-callout setup-callout-success">
           <strong>Bridge connected.</strong>
           ${isVal
-    ? 'Add your Riot ID and API key below, then click Apply &amp; Go.'
+    ? 'Enter Riot ID + API key below, then Apply &amp; Go — no Rocket League setup needed.'
     : 'Rocket League auto-log is ready. Expand setup for Valorant or RL name changes.'}
         </div>
         <button type="button" class="btn btn-secondary" id="setup-show-steps">Show all setup steps</button>
@@ -155,8 +155,10 @@ export function renderSetupWizard(displayName = '') {
           <span class="setup-step-num">3</span>
           <div class="setup-step-body">
             <strong>Apply &amp; Go</strong>
-            <p>We write your name into <code>start-grind.bat</code> and set up the Rocket League Stats API file on this PC.</p>
-            ${renderApplySection(true)}
+            <p>${isVal
+    ? 'Saves your Riot ID and API key to <code>grind-config.json</code> on this PC — used for Valorant auto-log only.'
+    : 'We write your name into <code>start-grind.bat</code> and set up the Rocket League Stats API file on this PC.'}</p>
+            ${isVal ? renderApplySection(false) : renderApplySection(true)}
           </div>
         </li>
         <li class="setup-step${riotIdValue ? ' done' : ''}" data-step="valorant">
@@ -295,33 +297,42 @@ function wireSetupApplyGo() {
     btn.textContent = 'Applying…';
 
     const resultEl = document.getElementById('setup-apply-result');
-    const patchIni = document.getElementById('setup-patch-ini')?.checked !== false;
+    const patchIniEl = document.getElementById('setup-patch-ini');
+    const patchIni = isVal ? false : (patchIniEl?.checked !== false);
 
     try {
       const result = await applyBridgeSetup({
-        rlDisplayName: name,
+        rlDisplayName: isVal ? '' : name,
         riotId,
         riotApiKey,
         riotRegion,
         patchIni,
       });
+      if (riotId) savePrefs({ riotId, riotRegion });
       if (resultEl) {
         resultEl.classList.remove('hidden');
-        const lines = [
-          result.files?.startGrindBat ? '✓ Updated start-grind.bat' : null,
-          result.files?.statsApiIni ? '✓ Updated Rocket League Stats API file' : null,
-          result.files?.grindConfig ? '✓ Saved local config' : null,
-          `✓ Watching player: ${name || riotId}`,
-          result.iniNeedsRlRestart ? '↻ Fully restart Rocket League once if it was already open' : null,
-          ...(result.warnings ?? []).map(w => `⚠ ${w}`),
-        ].filter(Boolean);
-        resultEl.innerHTML = `<div class="setup-callout setup-callout-success">${lines.map(l => `<div>${escapeHtml(l)}</div>`).join('')}</div>`;
+        const lines = isVal
+          ? [
+            result.files?.grindConfig ? '✓ Saved Riot ID + API key in grind-config.json' : null,
+            riotId ? `✓ Linked Riot account: ${riotId}` : null,
+            '↻ Play one match to seed the bridge — your next finished match can auto-log',
+            ...(result.warnings ?? []).map(w => `⚠ ${w}`),
+          ]
+          : [
+            result.files?.startGrindBat ? '✓ Updated start-grind.bat' : null,
+            result.files?.statsApiIni ? '✓ Updated Rocket League Stats API file' : null,
+            result.files?.grindConfig ? '✓ Saved local config' : null,
+            `✓ Watching player: ${name || riotId}`,
+            result.iniNeedsRlRestart ? '↻ Fully restart Rocket League once if it was already open' : null,
+            ...(result.warnings ?? []).map(w => `⚠ ${w}`),
+          ];
+        resultEl.innerHTML = `<div class="setup-callout setup-callout-success">${lines.filter(Boolean).map(l => `<div>${escapeHtml(l)}</div>`).join('')}</div>`;
       }
       document.querySelector('.setup-step[data-step="apply"]')?.classList.add('done');
-      if (name) document.querySelector('.setup-step[data-step="name"]')?.classList.add('done');
+      if (name && !isVal) document.querySelector('.setup-step[data-step="name"]')?.classList.add('done');
       document.querySelector('.setup-step[data-step="valorant"]')?.classList.toggle('done', Boolean(riotId));
       saveSetupPrefs({ iniDone: true });
-      showToast('Settings applied on your PC!');
+      showToast(isVal ? 'Valorant bridge linked on this PC!' : 'Settings applied on your PC!');
     } catch (e) {
       if (resultEl) {
         resultEl.classList.remove('hidden');
