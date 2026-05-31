@@ -385,8 +385,8 @@ export function updateSessionBar() {
           stats.innerHTML = '<span class="slive-item neutral">Bridge disconnected — keep start-grind.bat open, then Ctrl+F5</span>';
         } else {
         const vs = getCachedValorantStatus();
-        if (vs?.valorantRunning) {
-          stats.innerHTML = '<span class="slive-item neutral">Auto-log ON — saves when the match ends (not in agent select)</span>';
+        if (vs?.configured && vs?.seeded) {
+          stats.innerHTML = '<span class="slive-item neutral">Auto-log ON — saves when the match ends</span>';
         } else if (vs?.configured && !vs?.seeded && vs?.source !== 'overwolf') {
           stats.innerHTML = '<span class="slive-item neutral">Play one full match to finish setup, then auto-log works</span>';
         } else if (vs?.configured) {

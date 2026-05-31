@@ -4,7 +4,6 @@
  * Requires riotId (Name#TAG), riotRegion, and henrikApiKey in grind-config.json.
  */
 
-import { spawnSync } from 'child_process';
 import { loadGrindConfig } from './local-setup.mjs';
 
 const HENRIK_BASE = 'https://api.henrikdev.xyz';
@@ -32,9 +31,15 @@ let lastOverwolfPing = 0;
 let overwolfActive = false;
 
 const OVERWOLF_TTL_MS = 45000;
-const VAL_PROC_CACHE_MS = 5000;
-const VAL_PROC_STICKY_MS = 3 * 60 * 1000;
-let valProcessCache = { checkedAt: 0, running: false, lastSeenAt: 0 };
+
+/** Ready to auto-log next finished match (no tasklist — scanning Val during load-in caused freezes). */
+function isValorantReady() {
+  if (isOverwolfConnected()) return true;
+  const cfg = getBridgeConfig();
+  const hasHenrik = Boolean(cfg.henrikApiKey)
+    || (Boolean(cfg.legacyRiotKey) && !cfg.legacyRiotKey.startsWith('RGAPI-'));
+  return Boolean(hasHenrik && cfg.riotId && seeded);
+}
 
 function isOverwolfConnected() {
   return overwolfActive && (Date.now() - lastOverwolfPing) < OVERWOLF_TTL_MS;
@@ -150,32 +155,7 @@ function getBridgeConfig() {
 }
 
 function isValorantRunning() {
-  if (process.platform !== 'win32') return false;
-  const now = Date.now();
-  if (now - valProcessCache.checkedAt < VAL_PROC_CACHE_MS) {
-    return valProcessCache.running
-      || (valProcessCache.lastSeenAt && (now - valProcessCache.lastSeenAt) < VAL_PROC_STICKY_MS);
-  }
-
-  const names = ['VALORANT-Win64-Shipping.exe', 'VALORANT.exe'];
-  let running = false;
-  for (const name of names) {
-    const r = spawnSync(
-      'tasklist',
-      ['/FI', `IMAGENAME eq ${name}`, '/NH'],
-      { encoding: 'utf8', windowsHide: true, timeout: 8000 },
-    );
-    if ((r.stdout || '').toLowerCase().includes(name.toLowerCase())) {
-      running = true;
-      break;
-    }
-  }
-
-  valProcessCache.checkedAt = now;
-  valProcessCache.running = running;
-  if (running) valProcessCache.lastSeenAt = now;
-  return running
-    || (valProcessCache.lastSeenAt && (now - valProcessCache.lastSeenAt) < VAL_PROC_STICKY_MS);
+  return isValorantReady();
 }
 
 function splitRiotId(riotId) {
@@ -257,14 +237,14 @@ async function fetchLatestHenrikMatch() {
 
 async function pollLatestMatch() {
   if (isOverwolfConnected()) {
-    valorantRunning = isValorantRunning();
+    valorantRunning = true;
     return;
   }
 
   const cfg = getBridgeConfig();
   configured = Boolean(cfg.henrikApiKey && cfg.riotId)
     || (Boolean(cfg.legacyRiotKey) && !cfg.legacyRiotKey.startsWith('RGAPI-') && cfg.riotId);
-  valorantRunning = isValorantRunning();
+  valorantRunning = isValorantReady();
   if (!configured && cfg.legacyRiotKey.startsWith('RGAPI-') && cfg.riotId) {
     lastError = formatHenrikError('RGAPI-key-blocked');
     return;
@@ -309,7 +289,7 @@ export function handleValorantRequest(req, res) {
 
   if (url === '/valorant/overwolf/ping' && req.method === 'POST') {
     markOverwolfPing();
-    valorantRunning = isValorantRunning();
+    valorantRunning = true;
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ok: true }));
     return true;
@@ -330,7 +310,7 @@ export function handleValorantRequest(req, res) {
   }
 
   if (url === '/valorant/status') {
-    valorantRunning = isValorantRunning();
+    valorantRunning = isValorantReady();
     const cfg = getBridgeConfig();
     const hasHenrik = Boolean(cfg.henrikApiKey)
       || (Boolean(cfg.legacyRiotKey) && !cfg.legacyRiotKey.startsWith('RGAPI-'));

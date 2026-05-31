@@ -112,7 +112,7 @@ export function initValorantLive(applyStats, statusCb, autoLogCb) {
   onStatus = statusCb;
   onAutoLog = autoLogCb;
   stopValorantLive();
-  pollId = setInterval(poll, 4000);
+  pollId = setInterval(poll, 8000);
   poll();
 }
 
