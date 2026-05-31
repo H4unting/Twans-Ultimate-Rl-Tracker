@@ -1,6 +1,6 @@
 /** Supabase persistence — auth-scoped user data */
 
-import { SUPABASE_URL, SUPABASE_KEY, LEGACY_PLAYERS } from './config.js';
+import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
 import {
   normalizePlayerGames, normalizeGame, parseDisplayDate, formatDisplayDate,
 } from './utils.js';
@@ -289,22 +289,6 @@ export async function saveProfile(updates) {
     await sbFetch(`profiles?id=eq.${user.id}`, 'PATCH', legacy);
     return { ok: true, extended: false };
   }
-}
-
-/** One-time import from legacy Tracker JSON blob */
-export async function claimLegacyData(legacyId) {
-  const user = getAuthUser();
-  if (!user) throw new Error('Not signed in');
-  const legacy = LEGACY_PLAYERS.find(p => p.id === legacyId);
-  if (!legacy) throw new Error('Unknown legacy profile');
-
-  const rows = await sbFetch(`Tracker?Player=eq.${legacyId}&select=games`);
-  const games = normalizePlayerGames(rows?.[0]?.games ?? []);
-  if (!games.length) throw new Error(`No legacy data found for ${legacy.name}`);
-
-  await saveGames(games);
-  await sbFetch(`profiles?id=eq.${user.id}`, 'PATCH', { legacy_claimed: legacyId });
-  return games;
 }
 
 export async function loadUserGroups() {

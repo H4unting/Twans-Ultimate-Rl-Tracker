@@ -177,31 +177,6 @@ export function renderWelcomeHeader(display, stats) {
     <p class="welcome-sub">${stats.totalGames ? `${stats.totalGames} games tracked · ${stats.winRate}% win rate` : 'Log your first game to start tracking'}</p>`;
 }
 
-export function renderLegacyImportBanner(profile, onClaim) {
-  const el = document.getElementById('legacy-import');
-  if (!el) return;
-  if (profile?.legacy_claimed) {
-    el.innerHTML = '';
-    el.classList.add('hidden');
-    return;
-  }
-  el.classList.remove('hidden');
-  el.innerHTML = `
-    <div class="legacy-banner">
-      <div>
-        <strong>Import your old stats?</strong>
-        <p>If you used this tracker before sign-in, link your previous profile once.</p>
-      </div>
-      <div class="legacy-btns">
-        <button class="btn btn-cancel btn-sm" type="button" data-legacy="anthony">I'm Anthony</button>
-        <button class="btn btn-cancel btn-sm" type="button" data-legacy="trystan">I'm Trystan</button>
-      </div>
-    </div>`;
-  el.querySelectorAll('[data-legacy]').forEach(btn => {
-    btn.addEventListener('click', () => onClaim(btn.dataset.legacy));
-  });
-}
-
 export function renderGoalProgress(containerId, games, goals) {
   const el = document.getElementById(containerId);
   if (!el) return;

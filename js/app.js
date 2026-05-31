@@ -5,7 +5,7 @@
 import { applyAppMode } from './env.js';
 import { state, subscribe, setGames, setSyncStatus, setGoals, setProfile, getUserDisplay, getActiveGames } from './state.js';
 import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, sendPasswordReset, signOut, onAuthChange, getAuthUser } from './auth.js';
-import { loadUserData, saveSettings, claimLegacyData, createGroup, joinGroup, leaveGroup, loadUserGroups, saveGames, saveProfile } from './supabase.js';
+import { loadUserData, saveSettings, createGroup, joinGroup, leaveGroup, loadUserGroups, saveGames, saveProfile } from './supabase.js';
 import { applyFilters, DEFAULT_FILTERS } from './filters.js';
 import { calcStats, estimateMMRDelta, repairPlaylistMMRChain } from './utils.js';
 import { addGame, updateGame, deleteGame, getLastMMR, patchLastGame, undoLastGame, isMmrEstimated } from './matches.js';
@@ -43,7 +43,6 @@ import {
 import {
   showToast, setSyncUI, renderStats, renderLog, renderPlaylistTabs, renderFilterBar,
   showPage, renderTagChips, showLoading, showLoginScreen, renderAuthBar,
-  renderLegacyImportBanner,
 } from './ui.js';
 
 window.__endSession = () => endSession();
@@ -334,22 +333,6 @@ async function handleSignOut() {
   showLoginScreen(true);
 }
 
-async function handleLegacyClaim(legacyId) {
-  try {
-    showLoading(true);
-    const games = await claimLegacyData(legacyId);
-    setGames(games);
-    const profile = { ...state.profile, legacy_claimed: legacyId };
-    setProfile(profile);
-    renderAll();
-    showLoading(false);
-    showToast('Stats imported!');
-  } catch (e) {
-    showLoading(false);
-    showToast(e.message || 'Import failed', 'error');
-  }
-}
-
 function renderHomePage() {
   renderHome(getActiveGames(), getActiveGoals());
   const games = getActiveGames();
@@ -393,7 +376,6 @@ function renderAll() {
   const games = getActiveGames();
   const display = getDisplay();
 
-  renderLegacyImportBanner(state.profile, handleLegacyClaim);
   renderHomePage();
 
   renderPlaylistTabs('pl-tabs', state.playlist, (pl, btn) => {

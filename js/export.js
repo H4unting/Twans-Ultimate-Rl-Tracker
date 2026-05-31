@@ -1,6 +1,6 @@
 /** CSV and print export for reports */
 
-import { getPlayerMeta, APP_NAME } from './config.js';
+import { APP_NAME } from './config.js';
 import { getGameMeta, GAME_IDS } from './games.js';
 
 function downloadBlob(filename, content, mime) {
@@ -106,12 +106,6 @@ export function printWeeklyReport(report, playerName, coachLines = [], gameId = 
   win.focus();
   win.print();
   return true;
-}
-
-export function exportAllPlayersCSV(data) {
-  Object.entries(data).forEach(([id, games]) => {
-    if (games?.length) exportGamesCSV(games, getPlayerMeta(id).name);
-  });
 }
 
 export function exportSessionsCSV(sessions, playerName, gameId = GAME_IDS.ROCKET_LEAGUE) {
