@@ -1,16 +1,20 @@
 /** Game switcher + dock UI for RL / Valorant */
 
 import { state, setActiveGame, subscribe } from './state.js';
-import { GAMES, GAME_IDS, getGameMeta, getTagGroups, getPlaylists } from './games.js';
+import { GAMES, GAME_IDS, getGameMeta, getTagGroups, getPlaylists, getAgents, getMaps } from './games.js';
 import { saveSettings } from './supabase.js';
 import { savePrefs, loadPrefs } from './quicklog.js';
 
 let onGameChange = null;
+let switcherWired = false;
 
 export function initGameSwitcher({ onChange, getSettingsPayload }) {
   onGameChange = onChange;
   renderGameSwitcher();
   subscribe(() => renderGameSwitcher());
+
+  if (switcherWired) return;
+  switcherWired = true;
 
   document.getElementById('game-switcher')?.addEventListener('click', async (e) => {
     const btn = e.target.closest('[data-game]');

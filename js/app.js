@@ -134,12 +134,25 @@ async function bootApp() {
     console.error(e);
     setSyncStatus('error');
     showLoading(false);
-    showLoginScreen(true);
     const msg = e?.message ?? 'Could not load your data';
-    showToast(
-      msg.includes('infinite recursion') ? 'Database policy error — run groups-schema-fix.sql in Supabase' : msg,
-      'error',
-    );
+    if (getAuthUser()) {
+      showLoginScreen(false);
+      showQuickDock();
+      showToast(
+        msg.includes('PGRST') || msg.includes('game')
+          ? 'Database needs multi-game.sql — run it in Supabase SQL Editor'
+          : msg.includes('infinite recursion')
+            ? 'Database policy error — run groups-schema-fix.sql in Supabase'
+            : msg,
+        'error',
+      );
+    } else {
+      showLoginScreen(true);
+      showToast(
+        msg.includes('infinite recursion') ? 'Database policy error — run groups-schema-fix.sql in Supabase' : msg,
+        'error',
+      );
+    }
   }
 }
 
@@ -148,6 +161,7 @@ function showLoggedOut() {
   showLoginScreen(true);
   hideQuickDock();
   stopRlLive();
+  stopValorantLive();
   wireLoginScreen();
   resetLoginForm();
 }
