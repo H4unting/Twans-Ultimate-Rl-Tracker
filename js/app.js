@@ -3,12 +3,12 @@
  */
 
 import { applyAppMode } from './env.js';
-import { state, subscribe, setGames, setSyncStatus, setGoals, setProfile, getUserDisplay, getActiveGames } from './state.js';
+import { state, subscribe, setGames, setSyncStatus, setGoals, setProfile, getUserDisplay, getActiveGames, resetAppState } from './state.js';
 import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, sendPasswordReset, signOut, onAuthChange, getAuthUser, hasPendingAuthHash, clearAuthHashFromUrl } from './auth.js';
 import { loadUserData, saveSettings, createGroup, joinGroup, leaveGroup, loadUserGroups, saveGames, saveProfile, uploadProfileAvatar } from './supabase.js';
 import { applyFilters, DEFAULT_FILTERS } from './filters.js';
 import { calcStats, estimateMMRDelta } from './utils.js';
-import { RL } from './games/registry.js';
+import { RL, VAL } from './games/registry.js';
 import { routeActiveGame, getActiveGameModule } from './games/router.js';
 import { addGame, updateGame, deleteGame, getLastMMR, patchLastGame, undoLastGame, isMmrEstimated, purgeGhostValorantMatches, countGhostValorantMatches, clearGameHistory } from './matches.js';
 import { startSession, endSession, closeSessionModal, closeSessionModalAndContinue, initSessionUI, refreshSessionUI, restoreSessionFromStorage, getLoggingSessionNum } from './sessions.js';
@@ -30,7 +30,7 @@ import { getDockModePillsEl } from './dock-ui.js';
 import { GAME_IDS, getTagGroups, getGameMeta } from './games.js';
 import { VAL_DEFAULT_RR_SWING } from './valorant-config.js';
 import { renderSetupWizard, refreshSetupWizard, onBridgeStatusChange, renderLogSetupNudge } from './setup-wizard.js';
-import { mmrChart, wlChart } from './charts.js';
+import { mmrChart, wlChart, destroyAllCharts } from './charts.js';
 import { renderAnalytics } from './analytics.js';
 import { renderReportsPage } from './reports-ui.js';
 import { normalizeGoalsStorage, getActiveGoals } from './goals.js';
@@ -43,12 +43,9 @@ import { wireNavigation as wireSectionNav, updateNavUI, mountDock } from './nav.
 import { renderHome, getHomeChartGames, getHomeChartModeLabel } from './home.js';
 import {
   renderQuickFilters, applyQuickFilter,
-  getActiveQuickFilter, getQuickFilterSessionNum,
+  getActiveQuickFilter, getQuickFilterSessionNum, resetQuickFilter,
 } from './match-logs-ui.js';
-import {
-  showToast, setSyncUI, renderStats, renderLog, renderPlaylistTabs, renderFilterBar,
-  showPage, renderTagChips, showLoading, showLoginScreen, renderAuthBar,
-} from './ui.js';
+import { bindModalA11y } from './core/modal-a11y.js';
 
 window.__endSession = () => endSession();
 window.__refreshHome = () => renderHomePage();
@@ -70,10 +67,6 @@ function getMatchLogsGames() {
 
 function getAnalyticsGames() {
   return applyFilters(getActiveGames(), { ...state.filters, playlist: state.playlist ?? 'all' }, state.activeGame);
-}
-
-function getFilteredGames() {
-  return getDashboardGames();
 }
 
 function getDisplay() {
@@ -123,13 +116,22 @@ async function bootApp() {
     const { games: repaired, changed } = RL.repairPlaylistMMRChain(
       games.filter(g => (g.game ?? GAME_IDS.ROCKET_LEAGUE) === GAME_IDS.ROCKET_LEAGUE),
     );
+    const valSlice = games.filter(g => (g.game ?? GAME_IDS.ROCKET_LEAGUE) === GAME_IDS.VALORANT);
+    const { games: valRepaired, changed: valChanged } = VAL.repairRankChain(valSlice);
     let allGames = games;
     if (changed) {
       allGames = [
         ...games.filter(g => (g.game ?? GAME_IDS.ROCKET_LEAGUE) !== GAME_IDS.ROCKET_LEAGUE),
         ...repaired,
       ];
-      await saveGames(allGames);
+      await saveGames(repaired, GAME_IDS.ROCKET_LEAGUE);
+    }
+    if (valChanged) {
+      allGames = [
+        ...allGames.filter(g => (g.game ?? GAME_IDS.ROCKET_LEAGUE) !== GAME_IDS.VALORANT),
+        ...valRepaired,
+      ];
+      await saveGames(valRepaired, GAME_IDS.VALORANT);
     }
     setGames(allGames);
     const ghostRemoved = await purgeGhostValorantMatches({ silent: true });
@@ -357,10 +359,7 @@ async function refreshGroupsPage() {
 
 async function handleSignOut() {
   await signOut();
-  state.games = [];
-  state.profile = null;
-  state.profileBio = '';
-  state.groups = [];
+  resetAppState();
   resetGroupsUI();
   hideQuickDock();
   stopBridgeHeartbeat();
@@ -386,13 +385,16 @@ function renderHomePage() {
 
   if (modeGames.length >= 1) {
     const stats = calcStats(modeGames, state.activeGame);
+    const rankField = getGameMeta(state.activeGame).rankField;
     if (isVal) {
-      mmrChart('valHomeRR', modeGames.slice(-20), chartColor, 'RR');
+      mmrChart('valHomeRR', modeGames.slice(-20), chartColor, 'RR', rankField);
       wlChart('valHomeWL', stats);
     } else {
-      mmrChart('homeMMR', modeGames.slice(-20), chartColor);
+      mmrChart('homeMMR', modeGames.slice(-20), chartColor, 'MMR', rankField);
       wlChart('homeWL', stats);
     }
+  } else {
+    destroyAllCharts();
   }
 }
 
@@ -407,11 +409,21 @@ function renderAnalyticsPage() {
   renderAnalytics(filtered);
 }
 
-function renderAll() {
+function renderAll(scope = 'full') {
   const games = getActiveGames();
   const display = getDisplay();
 
   renderHomePage();
+
+  if (scope === 'core') {
+    renderMatchLogs();
+    refreshSessionUI();
+    wireLogTableActions();
+    rerenderQuickTags();
+    updateNavUI(state.activePage || 'dashboard');
+    mountDock();
+    return;
+  }
 
   renderPlaylistTabs('pl-tabs', state.playlist, (pl, btn) => {
     state.playlist = pl;
@@ -442,7 +454,6 @@ function renderAll() {
   refreshSessionUI();
   wireLogTableActions();
   applyPageCopy(state.activeGame);
-  refreshSessionUI();
   refreshLogTagChips();
   rerenderQuickTags();
   updateNavUI(state.activePage || 'dashboard');
@@ -995,7 +1006,7 @@ async function handleSaveEdit() {
       notes: document.getElementById('e-notes').value,
     }, state.ui.editTags);
     closeEditModal();
-    renderAll();
+    renderAll('core');
   } catch {
     showToast('Save failed', 'error');
   }
@@ -1010,7 +1021,7 @@ function wireLogTableActions() {
   document.querySelectorAll('.action-btn.del').forEach(btn => {
     btn.onclick = async () => {
       const ok = await deleteGame(parseInt(btn.dataset.match, 10));
-      if (ok) renderAll();
+      if (ok) renderAll('core');
     };
   });
 }
@@ -1059,6 +1070,8 @@ async function init() {
     });
     wireLogForm();
     wireEditModal();
+    bindModalA11y('edit-modal', { onClose: closeEditModal, initialFocusId: 'e-date' });
+    bindModalA11y('session-modal', { onClose: closeSessionModal });
     initSessionUI();
     initQuickLog({
       submitQuick: () => submitGameLog('quick'),
@@ -1073,17 +1086,17 @@ async function init() {
     initPostMatch({
       onConfirmMMR: async (mmr) => {
         const game = await patchLastGame({ endMMR: mmr });
-        if (game) { renderAll(); return true; }
+        if (game) { renderAll('core'); return true; }
         return false;
       },
       onTags: async (tags) => {
         await patchLastGame({ tags });
-        renderAll();
+        renderAll('core');
         return true;
       },
       onUndo: async () => {
         const ok = await undoLastGame(true);
-        if (ok) renderAll();
+        if (ok) renderAll('core');
         return ok;
       },
       onOpen: () => refreshSessionUI(),

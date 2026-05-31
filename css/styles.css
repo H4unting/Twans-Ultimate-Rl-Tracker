@@ -2145,7 +2145,22 @@ body[data-active-game="rocket_league"] .setup-game-panel-rl { box-shadow: 0 0 20
   font-weight: 600;
   line-height: 1.2;
 }
-.profile-edit-trigger:hover span { text-decoration: underline; }
+.btn:focus-visible,
+.tab:focus-visible,
+.game-switch-btn:focus-visible,
+.quick-filter-btn:focus-visible,
+.action-btn:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--teal, #00e5ff);
+  outline-offset: 2px;
+}
+
+.profile-edit-trigger:hover span,
+.profile-edit-trigger:focus-visible span {
+  text-decoration: underline;
+}
 .profile-edit-trigger::after {
   content: '▾';
   font-size: 9px;
