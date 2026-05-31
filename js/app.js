@@ -529,8 +529,11 @@ async function handleProfileSave({
   }));
 
   let nextAvatarUrl = state.profile?.avatar_url ?? null;
+  let avatarInline = false;
   if (avatarFile) {
-    nextAvatarUrl = await uploadProfileAvatar(avatarFile);
+    const uploaded = await uploadProfileAvatar(avatarFile);
+    nextAvatarUrl = uploaded.url;
+    avatarInline = uploaded.inline;
   } else if (avatarUrl !== undefined) {
     nextAvatarUrl = avatarUrl || null;
   }
@@ -558,7 +561,7 @@ async function handleProfileSave({
   renderAuthBar(getDisplay(), handleSignOut, () => navigate('profile', 'home'));
   renderProfilePageContent();
 
-  return { extended };
+  return { extended, avatarInline };
 }
 
 function navigate(pageId, section) {

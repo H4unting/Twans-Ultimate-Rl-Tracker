@@ -2112,9 +2112,38 @@ body[data-active-game="rocket_league"] .setup-game-panel-rl { box-shadow: 0 0 20
   background: #0d111799;
   border: 1px solid #ffffff18;
   border-radius: var(--radius);
-  padding: 16px 18px;
+  padding: 0 18px 16px;
   backdrop-filter: blur(8px);
 }
+.profile-edit-island summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 12px;
+  padding: 14px 0;
+  user-select: none;
+}
+.profile-edit-island summary::-webkit-details-marker { display: none; }
+.profile-edit-island summary::before {
+  content: '▸';
+  color: var(--teal);
+  font-size: 12px;
+  transition: transform 0.15s ease;
+  margin-right: 2px;
+}
+.profile-edit-island[open] summary::before {
+  transform: rotate(90deg);
+}
+.profile-edit-island-title {
+  color: var(--teal);
+  font-size: 14px;
+  font-weight: 700;
+}
+.profile-edit-island-sub { font-size: 12px; color: var(--muted); }
+.profile-edit-island .profile-edit-form { padding-top: 4px; }
+.profile-edit-island:not([open]) .profile-edit-form { display: none; }
 .profile-edit-island-head {
   display: flex;
   flex-wrap: wrap;
@@ -2123,7 +2152,6 @@ body[data-active-game="rocket_league"] .setup-game-panel-rl { box-shadow: 0 0 20
   margin-bottom: 14px;
 }
 .profile-edit-island-head strong { color: var(--teal); font-size: 14px; }
-.profile-edit-island-sub { font-size: 12px; color: var(--muted); }
 .profile-meta {
   padding-top: 4px;
   border-top: 1px solid #ffffff12;

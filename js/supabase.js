@@ -296,6 +296,52 @@ function buildProfilePatch(updates, extended) {
   return payload;
 }
 
+const AVATAR_INLINE_MAX_CHARS = 180000;
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ''));
+    reader.onerror = () => reject(new Error('Could not read image'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function compressImageForInlineAvatar(file) {
+  if (typeof createImageBitmap !== 'function') {
+    return readFileAsDataUrl(file);
+  }
+
+  const bitmap = await createImageBitmap(file);
+  const maxDim = 256;
+  let { width, height } = bitmap;
+  const scale = Math.min(1, maxDim / Math.max(width, height, 1));
+  width = Math.max(1, Math.round(width * scale));
+  height = Math.max(1, Math.round(height * scale));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  canvas.getContext('2d')?.drawImage(bitmap, 0, 0, width, height);
+  bitmap.close?.();
+
+  let quality = 0.88;
+  let dataUrl = canvas.toDataURL('image/jpeg', quality);
+  while (dataUrl.length > AVATAR_INLINE_MAX_CHARS && quality > 0.45) {
+    quality -= 0.08;
+    dataUrl = canvas.toDataURL('image/jpeg', quality);
+  }
+  if (dataUrl.length > AVATAR_INLINE_MAX_CHARS) {
+    throw new Error('Image too large — use a smaller photo or run docs/supabase/avatar-storage.sql');
+  }
+  return dataUrl;
+}
+
+function isAvatarStorageMissingError(errText) {
+  return /bucket|not found|404|does not exist|RLS|policy|Unauthorized|InvalidJWT/i.test(errText || '');
+}
+
+/** Upload to Supabase Storage, or embed a compressed data URL if the bucket is not set up. */
 export async function uploadProfileAvatar(file) {
   const user = getAuthUser();
   if (!user) throw new Error('Not signed in');
@@ -322,13 +368,16 @@ export async function uploadProfileAvatar(file) {
 
   if (!res.ok) {
     const err = await res.text();
-    if (/bucket/i.test(err)) {
-      throw new Error('Photo storage not set up — run docs/supabase/avatar-storage.sql in Supabase');
+    if (isAvatarStorageMissingError(err)) {
+      return { url: await compressImageForInlineAvatar(file), inline: true };
     }
     throw new Error(err || 'Upload failed');
   }
 
-  return `${SUPABASE_URL}/storage/v1/object/public/avatars/${objectPath}?t=${Date.now()}`;
+  return {
+    url: `${SUPABASE_URL}/storage/v1/object/public/avatars/${objectPath}?t=${Date.now()}`,
+    inline: false,
+  };
 }
 
 export async function saveProfile(updates) {
@@ -398,10 +447,26 @@ export async function loadMemberGames(userId) {
   return normalizePlayerGames((rows ?? []).map(matchRowToGame));
 }
 
+const FOUNDER_EMAIL = 'anthonyinf354332@gmail.com';
+
+/** Assign UID 1 to the app creator (requires claim-founder-uid.sql in Supabase). */
+async function ensureFounderUid(profile) {
+  const user = getAuthUser();
+  if (!user?.email || user.email.toLowerCase() !== FOUNDER_EMAIL) return profile;
+  if (Number(profile?.profile_number) === 1) return profile;
+  try {
+    await sbFetch('rpc/claim_founder_uid', 'POST', {});
+    return await loadProfile();
+  } catch {
+    return profile;
+  }
+}
+
 export async function loadUserData() {
   setSyncStatus('connecting');
   try {
-    const profile = await loadProfile();
+    let profile = await loadProfile();
+    profile = await ensureFounderUid(profile);
     const games = await loadGames();
     const settings = await loadSettings();
     const groups = await loadUserGroups();

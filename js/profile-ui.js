@@ -124,11 +124,11 @@ export function renderProfilePage({
             </div>
           </div>
 
-          <div class="profile-edit-island" id="profile-edit-island">
-            <div class="profile-edit-island-head">
-              <strong>Edit profile</strong>
+          <details class="profile-edit-island" id="profile-edit-island">
+            <summary class="profile-edit-island-summary">
+              <span class="profile-edit-island-title">Edit profile</span>
               <span class="profile-edit-island-sub">Display name, photo, colors, bio</span>
-            </div>
+            </summary>
             <div class="profile-edit-form">
               <div class="profile-edit-grid">
                 <div class="form-group">
@@ -176,7 +176,7 @@ export function renderProfilePage({
                 <button type="button" class="btn btn-primary" id="profile-save-btn">Save profile</button>
               </div>
             </div>
-          </div>
+          </details>
 
           <div class="profile-meta">
             <div class="profile-subline">
@@ -254,6 +254,7 @@ function wireProfilePage({ onSave, primary, secondary, isVal, display }) {
     const file = avatarFileInput.files?.[0];
     pendingAvatarFile = file || null;
     if (!file) return;
+    document.getElementById('profile-edit-island')?.setAttribute('open', '');
     const reader = new FileReader();
     reader.onload = () => {
       const img = document.getElementById('profile-avatar-img');
@@ -313,11 +314,13 @@ function wireProfilePage({ onSave, primary, secondary, isVal, display }) {
         avatarUrl: pendingAvatarFile ? undefined : avatarUrl,
       });
       pendingAvatarFile = null;
-      showToast(
-        result?.extended === false
+      const msg = result?.avatarInline
+        ? 'Profile saved — photo stored on your profile (optional: run avatar-storage.sql for cloud uploads)'
+        : result?.extended === false
           ? 'Profile saved — run profile-customization.sql in Supabase for UIDs'
-          : 'Profile saved',
-      );
+          : 'Profile saved';
+      showToast(msg);
+      document.getElementById('profile-edit-island')?.removeAttribute('open');
       const bioEl = document.getElementById('profile-bio-display');
       if (bioEl) {
         bioEl.textContent = bio;
