@@ -34,22 +34,15 @@ export function buildGameFromForm(formData, games, selectedTags) {
 
 export function buildGameUpdate(formData, games, idx, selectedTags) {
   const d = formData.date ? new Date(formData.date + 'T12:00:00') : new Date();
+  const startMMR = parseInt(formData.startMMR, 10) || 0;
   const endMMR = parseInt(formData.endMMR, 10) || 0;
-  const draft = {
-    ...games[idx],
-    mode: formData.mode,
-    result: formData.result,
-    endMMR,
-    startMMR: parseInt(formData.startMMR, 10) || 0,
-  };
-  const startMMR = resolveStart(games.filter((_, i) => i !== idx), draft);
 
   return normalizeGame({
     ...games[idx],
     date: formatDisplayDate(d),
     session: parseInt(formData.session, 10) || 1,
-    mode: draft.mode,
-    result: draft.result,
+    mode: formData.mode,
+    result: formData.result,
     goals: parseInt(formData.goals, 10) || 0,
     assists: parseInt(formData.assists, 10) || 0,
     saves: parseInt(formData.saves, 10) || 0,

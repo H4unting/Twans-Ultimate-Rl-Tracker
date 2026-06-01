@@ -18,6 +18,8 @@ const MODE_MAP = {
   unrated: 'Unrated',
   swiftplay: 'Swiftplay',
   spikeRush: 'Spike Rush',
+  'spike rush': 'Spike Rush',
+  spikerush: 'Spike Rush',
   deathmatch: 'Deathmatch',
   ggteam: 'Escalation',
   escalation: 'Escalation',

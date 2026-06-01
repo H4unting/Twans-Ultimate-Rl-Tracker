@@ -8,13 +8,25 @@ import http from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { applyLocalSetup, getSetupStatus, loadGrindConfig } from './local-setup.mjs';
-import {
-  handleValorantRequest, resetValorantCache, startValorantBridge, validateRiotConfig,
-  armValorantPolling,
-} from './valorant-bridge.mjs';
 
 const RL_PORT = 49123;
 const DEFAULT_HTTP_PORT = 49200;
+
+let valorantBridge = null;
+let valorantBridgeError = null;
+
+async function loadValorantBridge() {
+  if (valorantBridge) return valorantBridge;
+  if (valorantBridgeError) return null;
+  try {
+    valorantBridge = await import('./valorant-bridge.mjs');
+    return valorantBridge;
+  } catch (err) {
+    valorantBridgeError = err;
+    console.warn(`Valorant auto-log unavailable (${err.message}). Rocket League bridge still works.`);
+    return null;
+  }
+}
 
 function unwrapData(raw) {
   let data = raw.data ?? raw.Data ?? raw;
@@ -301,11 +313,12 @@ export function startBridge(options = {}) {
           riotRegion: body.riotRegion,
           patchIni: body.patchIni !== false,
         });
-        resetValorantCache({ full: true });
+        const valBridge = await loadValorantBridge();
+        valBridge?.resetValorantCache({ full: true });
         setPlayerName(applied.rlDisplayName);
-        if (body.riotId) {
-          applied.riotValidation = await validateRiotConfig();
-          if (applied.riotValidation?.ok) armValorantPolling();
+        if (body.riotId && valBridge) {
+          applied.riotValidation = await valBridge.validateRiotConfig();
+          if (applied.riotValidation?.ok) valBridge.armValorantPolling();
         }
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(applied));
@@ -332,7 +345,8 @@ export function startBridge(options = {}) {
         return;
       }
 
-      if (handleValorantRequest(req, res)) return;
+      const valBridge = await loadValorantBridge();
+      if (valBridge?.handleValorantRequest(req, res)) return;
 
       res.writeHead(404);
       res.end('Not found');
@@ -357,8 +371,8 @@ export function startBridge(options = {}) {
       } else {
         console.log('Valorant-only mode — Rocket League TCP bridge skipped');
       }
-      startValorantBridge({
-        manualArm: manualValPoll,
+      loadValorantBridge().then((valBridge) => {
+        valBridge?.startValorantBridge({ manualArm: manualValPoll });
       });
       resolve(server);
     });

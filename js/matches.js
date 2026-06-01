@@ -54,7 +54,7 @@ export async function addGame(formData, selectedTags, onSuccess) {
 }
 
 export async function updateGame(matchNum, formData, selectedTags) {
-  if (!requireSignedIn()) return;
+  if (!requireSignedIn()) return null;
   const mod = getActiveGameModule();
   const games = JSON.parse(JSON.stringify(getActiveGames()));
   const idx = games.findIndex(g => g.match === matchNum);

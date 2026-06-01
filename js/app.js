@@ -46,6 +46,7 @@ import {
   getActiveQuickFilter, getQuickFilterSessionNum, resetQuickFilter,
 } from './match-logs-ui.js';
 import { bindModalA11y } from './core/modal-a11y.js';
+import { parseDisplayDate } from './core/dates.js';
 import {
   showToast, setSyncUI, renderStats, renderLog, renderPlaylistTabs, renderFilterBar,
   showPage, renderTagChips, showLoading, showLoginScreen, renderAuthBar,
@@ -984,6 +985,14 @@ function setEditResult(r) {
   document.getElementById('e-wl-loss').className = 'edit-wl-btn loss' + (r === 'L' ? ' active' : '');
 }
 
+function gameDateToInputValue(dateStr) {
+  if (!dateStr) return new Date().toISOString().slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+  const d = parseDisplayDate(dateStr);
+  if (!d || Number.isNaN(d.getTime())) return new Date().toISOString().slice(0, 10);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function openEditModal(matchNum) {
   const game = getActiveGames().find(g => g.match === matchNum);
   if (!game) return;
@@ -992,8 +1001,7 @@ function openEditModal(matchNum) {
   state.ui.editingMatch = matchNum;
   state.ui.editTags = [...(game.tags || [])];
   document.getElementById('edit-modal-sub').textContent = `Match #${matchNum}`;
-  const [mm, dd, yy] = game.date.split('/');
-  document.getElementById('e-date').value = `20${yy}-${mm}-${dd}`;
+  document.getElementById('e-date').value = gameDateToInputValue(game.date);
   document.getElementById('e-session').value = game.session;
   document.getElementById('e-mode').value = game.mode;
   if (isVal) {
@@ -1057,7 +1065,7 @@ async function handleSaveEdit() {
   try {
     const startRank = document.getElementById('e-startmmr').value;
     const endRank = document.getElementById('e-endmmr').value;
-    await updateGame(matchNum, {
+    const updated = await updateGame(matchNum, {
       date: document.getElementById('e-date').value,
       session: document.getElementById('e-session').value,
       mode: document.getElementById('e-mode').value,
@@ -1076,10 +1084,12 @@ async function handleSaveEdit() {
       endRR: endRank,
       notes: document.getElementById('e-notes').value,
     }, state.ui.editTags);
+    if (!updated) return;
     closeEditModal();
     renderAll('core');
-  } catch {
-    showToast('Save failed', 'error');
+  } catch (err) {
+    console.error('Save edit failed:', err);
+    showToast(err?.message || 'Save failed', 'error');
   }
   btn.disabled = false;
   btn.textContent = 'Save Changes';
