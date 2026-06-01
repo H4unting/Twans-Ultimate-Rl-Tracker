@@ -69,6 +69,11 @@ async function sbFetch(path, method = 'GET', body = null, extra = {}) {
   return text ? JSON.parse(text) : null;
 }
 
+/** Valorant fields are stored in normalized columns + matches.stats JSONB:
+ *  - K/D/A/ACS → goals/assists/saves columns (legacy RL shape) AND stats.kills/deaths/valAssists/acs
+ *  - RR → start_mmr/end_mmr columns AND stats.startRR/endRR/rrDiff
+ *  - agent, map → stats only
+ *  See gameToMatchRow() for the write path. */
 function matchRowToGame(row) {
   const raw = row.played_at ?? '';
   const iso = typeof raw === 'string' ? raw.slice(0, 10) : raw;

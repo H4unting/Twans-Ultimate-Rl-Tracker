@@ -5,16 +5,15 @@
 import { applyAppMode } from './env.js';
 import { state, subscribe, setGames, setSyncStatus, setGoals, setProfile, getUserDisplay, getActiveGames, resetAppState } from './state.js';
 import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, sendPasswordReset, signOut, onAuthChange, getAuthUser, hasPendingAuthHash, clearAuthHashFromUrl } from './auth.js';
-import { loadUserData, saveSettings, createGroup, joinGroup, leaveGroup, loadUserGroups, saveGames, saveProfile, uploadProfileAvatar } from './supabase.js';
+import { saveSettings, createGroup, joinGroup, leaveGroup, loadUserGroups, saveProfile, uploadProfileAvatar } from './supabase.js';
 import { applyFilters, DEFAULT_FILTERS } from './filters.js';
-import { calcStats, estimateMMRDelta } from './utils.js';
-import { RL, VAL } from './games/registry.js';
-import { routeActiveGame, getActiveGameModule } from './games/router.js';
+import { calcStats } from './utils.js';
+import { getActiveGameModule } from './games/router.js';
 import { addGame, updateGame, deleteGame, getLastMMR, patchLastGame, undoLastGame, isMmrEstimated, purgeGhostValorantMatches, countGhostValorantMatches, clearGameHistory, collapseDuplicateValorantMatchesInState, countDuplicateValorantMatches } from './matches.js';
 import { startSession, endSession, closeSessionModal, closeSessionModalAndContinue, initSessionUI, refreshSessionUI, restoreSessionFromStorage, getLoggingSessionNum } from './sessions.js';
 import {
   initQuickLog, showQuickDock, hideQuickDock, getQuickLogPayload,
-  resetQuickAfterLog, loadPrefs, savePrefs, syncFormFromQuick, applyLiveStats, flashAutoLogged,
+  resetQuickAfterLog, loadPrefs, savePrefs, syncFormFromQuick, applyLiveStats,
   setQuickResult, setQuickMode, rerenderQuickTags, getLastModeForGame, getQuickMode,
   getQuickEndRankInput, getQuickStat,
 } from './quicklog.js';
@@ -26,14 +25,13 @@ import { initValorantLive, stopValorantLive, refreshValorantStatus } from './val
 import { startBridgeHeartbeat, stopBridgeHeartbeat, subscribeBridgeOnline, getBridgeUrl } from './bridge-client.js';
 import { wireBridgeStatusClick, refreshBridgeStatusUI } from './bridge-ui.js';
 import { initGameSwitcher, restoreActiveGameFromPrefs, applyGameShell, applyPageCopy, syncEditModal } from './game-ui.js';
-import { getDockModePillsEl } from './dock-ui.js';
-import { GAME_IDS, getTagGroups, getGameMeta } from './games.js';
-import { VAL_DEFAULT_RR_SWING } from './valorant-config.js';
 import { renderSetupWizard, refreshSetupWizard, onBridgeStatusChange, renderLogSetupNudge } from './setup-wizard.js';
+import { rankBaselinesForSettings } from './rank-baselines.js';
 import {
-  applyRankBaselinesFromSettings, inferRankBaselinesFromGames, rankBaselinesForSettings,
-} from './rank-baselines.js';
-import { openRankSetupModal, showRankSetupIfNeeded } from './rank-setup-ui.js';
+  wireBootContext, bootApp, getBootPromise, setBootPromise, isInitialBootDone, resetBootState,
+} from './boot.js';
+import { wireAutoLogHandlers, handleAutoLog, handleValorantAutoLog } from './auto-log-handlers.js';
+import { GAME_IDS, getTagGroups, getGameMeta } from './games.js';
 import { mmrChart, wlChart, destroyAllCharts } from './charts.js';
 import { renderAnalytics } from './analytics.js';
 import { renderReportsPage } from './reports-ui.js';
@@ -66,6 +64,15 @@ window.goToDashboardFromSession = () => {
   navigate('dashboard');
 };
 
+function withTimeout(promise, ms, message = 'Timed out') {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(message)), ms);
+    }),
+  ]);
+}
+
 function getDashboardGames() {
   return applyFilters(getActiveGames(), { ...DEFAULT_FILTERS, playlist: state.playlist ?? 'all' }, state.activeGame);
 }
@@ -82,18 +89,7 @@ function getDisplay() {
   return getUserDisplay(getAuthUser());
 }
 
-function withTimeout(promise, ms, message = 'Timed out') {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => {
-      setTimeout(() => reject(new Error(message)), ms);
-    }),
-  ]);
-}
-
-let bootPromise = null;
 let bridgeServicesStarted = false;
-let initialBootDone = false;
 
 function ensureBridgeServices() {
   startBridgeHeartbeat();
@@ -107,134 +103,6 @@ function stopBridgeServices() {
   bridgeServicesStarted = false;
   stopRlLive();
   stopValorantLive();
-}
-
-async function bootApp() {
-  if (initialBootDone) return;
-  showLoginScreen(false);
-  showLoading(true);
-
-  try {
-    const {
-      profile, games, goals, groups, bio, rlDisplayName,
-      primaryColor, secondaryColor, activeGame, riotId, riotRegion,
-      rankBaselines, rankBaselinesComplete,
-    } = await withTimeout(loadUserData(), 30000, 'Loading timed out — check your connection');
-    setProfile({
-      ...(profile ?? {}),
-      primary_color: profile?.primary_color || primaryColor || profile?.accent_color || '#e65c00',
-      secondary_color: profile?.secondary_color || secondaryColor || '#4a2060',
-    });
-    const { games: repaired, changed } = RL.repairPlaylistMMRChain(
-      games.filter(g => (g.game ?? GAME_IDS.ROCKET_LEAGUE) === GAME_IDS.ROCKET_LEAGUE),
-    );
-    const valSlice = games.filter(g => (g.game ?? GAME_IDS.ROCKET_LEAGUE) === GAME_IDS.VALORANT);
-    const { games: valRepaired, changed: valChanged } = VAL.repairRankChain(valSlice);
-    let allGames = games;
-    if (changed) {
-      allGames = [
-        ...games.filter(g => (g.game ?? GAME_IDS.ROCKET_LEAGUE) !== GAME_IDS.ROCKET_LEAGUE),
-        ...repaired,
-      ];
-      await saveGames(repaired, GAME_IDS.ROCKET_LEAGUE);
-    }
-    if (valChanged) {
-      allGames = [
-        ...allGames.filter(g => (g.game ?? GAME_IDS.ROCKET_LEAGUE) !== GAME_IDS.VALORANT),
-        ...valRepaired,
-      ];
-      await saveGames(valRepaired, GAME_IDS.VALORANT);
-    }
-    setGames(allGames);
-
-    applyRankBaselinesFromSettings({ rankBaselines, rankBaselinesComplete });
-    if (allGames.length > 0 && !rankBaselinesComplete) {
-      const inferred = inferRankBaselinesFromGames(allGames);
-      applyRankBaselinesFromSettings({ rankBaselines: inferred, rankBaselinesComplete: true });
-      await saveSettings(getSettingsPayload(rankBaselinesForSettings()));
-    }
-
-    const ghostRemoved = await purgeGhostValorantMatches({ silent: true });
-    if (ghostRemoved > 0) {
-      showToast(`Removed ${ghostRemoved} invalid auto-log ${ghostRemoved === 1 ? 'match' : 'matches'}`);
-    }
-    const dupesRemoved = await collapseDuplicateValorantMatchesInState({ silent: true });
-    if (dupesRemoved > 0) {
-      showToast(`Removed ${dupesRemoved} duplicate ${dupesRemoved === 1 ? 'match' : 'matches'}`);
-    }
-    setGoals(normalizeGoalsStorage(goals));
-    state.profileBio = bio ?? '';
-    state.groups = groups;
-    restoreActiveGameFromPrefs(activeGame);
-    routeActiveGame(state.activeGame);
-    if (rlDisplayName && !loadPrefs().rlDisplayName) {
-      saveRlDisplayName(rlDisplayName);
-      savePrefs({ rlDisplayName });
-    }
-    const prefsPatch = {};
-    if (riotId && !loadPrefs().riotId) prefsPatch.riotId = riotId;
-    if (riotRegion && !loadPrefs().riotRegion) prefsPatch.riotRegion = riotRegion;
-    if (Object.keys(prefsPatch).length) savePrefs(prefsPatch);
-    state.filters = { ...DEFAULT_FILTERS };
-    state.matchLogFilters = { ...DEFAULT_FILTERS };
-    state.activePage = 'dashboard';
-
-    renderAuthBar(getDisplay(), handleSignOut, () => navigate('profile', 'home'));
-    applyAppMode();
-    applyLogPrefs();
-
-    showQuickDock();
-    restoreSessionFromStorage(getActiveGames());
-    renderSetupWizard(getDisplay().name);
-    renderLogSetupNudge();
-    initGameSwitcher({
-      onChange: () => renderAll(),
-      getSettingsPayload,
-    });
-    ensureBridgeServices();
-
-    renderAll();
-
-    window.__saveRankBaselines = async () => {
-      await saveSettings(getSettingsPayload(rankBaselinesForSettings()));
-    };
-
-    showRankSetupIfNeeded({
-      games: allGames,
-      onComplete: () => {
-        renderAll('core');
-        refreshSetupWizard(getDisplay().name);
-      },
-    });
-  } catch (e) {
-    console.error(e);
-    setSyncStatus('error');
-    const msg = e?.message ?? 'Could not load your data';
-    if (getAuthUser()) {
-      showLoginScreen(false);
-      showQuickDock();
-      ensureBridgeServices();
-      showToast(
-        msg.includes('PGRST') || msg.includes('game')
-          ? 'Database needs multi-game.sql — run it in Supabase SQL Editor'
-          : msg.includes('infinite recursion')
-            ? 'Database policy error — run groups-schema-fix.sql in Supabase'
-            : msg.includes('Timed out') || msg.includes('timeout')
-              ? 'Loading timed out — refresh the page or check your connection'
-              : msg,
-        'error',
-      );
-    } else {
-      showLoginScreen(true);
-      showToast(
-        msg.includes('infinite recursion') ? 'Database policy error — run groups-schema-fix.sql in Supabase' : msg,
-        'error',
-      );
-    }
-  } finally {
-    showLoading(false);
-    initialBootDone = true;
-  }
 }
 
 function showLoggedOut() {
@@ -401,8 +269,7 @@ async function handleSignOut() {
   hideQuickDock();
   stopBridgeHeartbeat();
   stopBridgeServices();
-  initialBootDone = false;
-  bootPromise = null;
+  resetBootState();
   showLoginScreen(true);
 }
 
@@ -724,146 +591,6 @@ function applyLogPrefs() {
   if (fMode) fMode.value = mode;
 }
 
-function estimateMMRDeltaForMode(result, mode) {
-  return estimateMMRDelta(getActiveGames(), result, mode);
-}
-
-async function handleValorantAutoLog(match) {
-  if (state.activeGame !== GAME_IDS.VALORANT) return false;
-
-  if (match.matchId && getActiveGames().some(g =>
-    (g.game ?? GAME_IDS.ROCKET_LEAGUE) === GAME_IDS.VALORANT
-    && (g.notes ?? '').includes(`id:${match.matchId}`))) {
-    try {
-      await fetch(`${getBridgeUrl()}/valorant/last-match/consume`, { method: 'POST' });
-    } catch { /* optional */ }
-    return true;
-  }
-
-  const activity = Number(match.kills ?? 0) + Number(match.deaths ?? 0) + Number(match.valAssists ?? 0);
-  if (activity === 0) {
-    try {
-      await fetch(`${getBridgeUrl()}/valorant/last-match/consume`, { method: 'POST' });
-    } catch { /* optional */ }
-    showToast('Match stats not ready yet — wait ~30s after the scoreboard or log manually', 'error');
-    return false;
-  }
-
-  const logMode = match.mode || getQuickMode() || 'Competitive';
-  if (match.mode) setQuickMode(match.mode);
-  if (match.result) setQuickResult(match.result);
-  applyLiveStats({
-    goals: match.kills,
-    assists: match.deaths,
-    saves: match.acs,
-    kills: match.kills,
-    deaths: match.deaths,
-    valAssists: match.valAssists,
-    acs: match.acs,
-    result: match.result,
-    mode: match.mode,
-    agent: match.agent,
-    map: match.map,
-  });
-
-  const priorEnd = getLastMMR(logMode);
-  let startRR;
-  let endRR;
-
-  if (match.endRR != null && match.rrChange != null) {
-    endRR = parseInt(match.endRR, 10);
-    startRR = Math.max(0, endRR - parseInt(match.rrChange, 10));
-  } else if (match.rrChange != null && priorEnd !== '') {
-    startRR = parseInt(priorEnd, 10);
-    endRR = Math.max(0, Math.min(100, startRR + parseInt(match.rrChange, 10)));
-  } else {
-    const delta = match.result === 'W' ? VAL_DEFAULT_RR_SWING.W : VAL_DEFAULT_RR_SWING.L;
-    if (priorEnd !== '') {
-      startRR = parseInt(priorEnd, 10);
-      endRR = Math.max(0, Math.min(100, startRR + delta));
-    } else {
-      startRR = 0;
-      endRR = Math.abs(delta);
-      showToast(`First ${logMode} log — confirm your real RR after the match`, 'error');
-    }
-  }
-
-  document.getElementById('quick-endrr').value = endRR;
-  const fStart = document.getElementById('f-startmmr');
-  if (fStart) fStart.value = priorEnd !== '' ? startRR : '';
-
-  state.ui.autoLogNote = [
-    match.matchId ? `id:${match.matchId}` : '',
-    priorEnd === '' ? 'RR estimated' : '',
-    match.agent ? match.agent : '',
-    match.map ? match.map : '',
-  ].filter(Boolean).join(' · ');
-
-  if (!state.session.active) startSession();
-
-  const ok = await submitGameLog('auto');
-  if (!ok) return false;
-  flashAutoLogged();
-  refreshValorantStatus();
-  return true;
-}
-
-function getQuickModeFromDock() {
-  return getDockModePillsEl()?.querySelector('.active')?.dataset.mode
-    ?? getLastModeForGame(state.activeGame);
-}
-
-async function handleAutoLog(match) {
-  if (state.activeGame !== GAME_IDS.ROCKET_LEAGUE) return false;
-  const logMode = match.mode || getQuickModeFromDock() || "2's";
-  if (match.mode) setQuickMode(match.mode);
-  if (match.result) setQuickResult(match.result);
-  applyLiveStats(match);
-
-  const priorEnd = getLastMMR(logMode);
-  const delta = estimateMMRDeltaForMode(match.result, logMode);
-  let startMMR;
-  let endMMR;
-
-  if (priorEnd !== '') {
-    startMMR = parseInt(priorEnd, 10);
-    endMMR = Math.max(0, startMMR + delta);
-  } else {
-    // No logged history in this playlist — placeholder until MMR is confirmed
-    startMMR = 0;
-    endMMR = delta;
-    showToast(`First ${logMode} log — confirm your real MMR after the match`, 'error');
-  }
-
-  if (Number.isNaN(startMMR) || Number.isNaN(endMMR)) {
-    showToast('Confirm MMR from the ranked screen after this match', 'error');
-    getQuickEndRankInput()?.focus();
-    return false;
-  }
-
-  const fStart = document.getElementById('f-startmmr');
-  const qEnd = getQuickEndRankInput();
-  if (fStart) fStart.value = priorEnd !== '' ? startMMR : '';
-  if (qEnd) qEnd.value = endMMR;
-
-  state.ui.autoLogNote = [
-    !recentGamesHaveMMR() ? 'MMR estimated' : '',
-    match.playlist ? (match.isRanked ? `Ranked · ${match.playlist}` : match.playlist) : '',
-  ].filter(Boolean).join(' · ');
-
-  const ok = await submitGameLog('auto');
-  if (!ok) return false;
-
-  flashAutoLogged();
-  refreshLiveStatus();
-  return true;
-}
-
-function recentGamesHaveMMR() {
-  const mod = getActiveGameModule();
-  return getActiveGames().slice(-3).some(g => mod.getRankValue(g));
-}
-
 async function submitGameLog(source = 'form') {
   const meta = getGameMeta(state.activeGame);
   const rankLabel = meta.rankLabel;
@@ -1160,6 +887,17 @@ async function init() {
     subscribe(() => setSyncUI(state.syncStatus));
     setSyncUI(state.syncStatus);
 
+    wireBootContext({
+      getDisplay,
+      handleSignOut,
+      navigate,
+      applyLogPrefs,
+      getSettingsPayload,
+      ensureBridgeServices,
+      renderAll,
+    });
+    wireAutoLogHandlers({ submitGameLog });
+
     wireNavigation();
     document.getElementById('logo-home-btn')?.addEventListener('click', () => navigate('dashboard', 'home'));
     wireBridgeStatusClick(() => navigate('setup', 'home'));
@@ -1218,20 +956,20 @@ async function init() {
     ensureBridgeServices();
     onAuthChange(async (session) => {
       if (session) {
-        if (!initialBootDone && !bootPromise) {
-          bootPromise = bootApp().finally(() => { bootPromise = null; });
+        if (!isInitialBootDone() && !getBootPromise()) {
+          setBootPromise(bootApp().finally(() => { setBootPromise(null); }));
         }
-        if (bootPromise) {
+        const promise = getBootPromise();
+        if (promise) {
           try {
-            await bootPromise;
+            await promise;
           } catch (e) {
             console.error(e);
             showToast(e?.message || 'Could not load after sign-in — try refreshing', 'error');
           }
         }
       } else if (!hasPendingAuthHash()) {
-        bootPromise = null;
-        initialBootDone = false;
+        resetBootState();
         showLoggedOut();
       }
     });
@@ -1240,11 +978,11 @@ async function init() {
     window.__appReady = true;
 
     if (getAuthUser()) {
-      if (!bootPromise) {
-        bootPromise = bootApp().finally(() => { bootPromise = null; });
+      if (!getBootPromise()) {
+        setBootPromise(bootApp().finally(() => { setBootPromise(null); }));
       }
       try {
-        await bootPromise;
+        await getBootPromise();
       } catch (e) {
         console.error(e);
         showToast(e?.message || 'Could not load your data — try refreshing', 'error');

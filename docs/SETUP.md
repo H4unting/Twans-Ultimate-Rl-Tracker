@@ -37,15 +37,17 @@ The in-app setup wizard also saves your name — **restart `start-grind.bat`** a
    - Enable **Email** (confirm email on or off — if on, users must click the link before first sign-in)
 3. Under **Authentication** → **URL Configuration**, add your site to **Redirect URLs**, e.g.  
    `https://h4unting.github.io/Twans-Ultimate-Rl-Tracker/`
-4. Run the SQL files from **`docs/supabase/`**:
-   - `schema.sql` — games & profile
-   - `auth-schema.sql` — auth policies
-   - `multi-game.sql` — Rocket League + Valorant on one account
-   - `groups-schema.sql` — squads (optional)
-   - `profile-customization.sql` — profile colors + UID signup numbers
-   - `assign-uid-1-twan.sql` — optional: set twan to UID 1
-   - `avatar-storage.sql` — profile photo uploads
-   - `groups-schema-fix.sql` — only if you see an "infinite recursion" policy error
+4. In Supabase → **SQL Editor**, run **`docs/supabase/v1-full-setup.sql`** once.  
+   It is idempotent (safe to re-run). It replaces the older individual files in `docs/supabase/`.
+
+### Two ways to use the tracker
+
+| Type | What you need | Updates |
+|------|----------------|---------|
+| **Website only** | Bookmark the GitHub Pages URL, sign in | Hard refresh (`Ctrl+Shift+R`) after each deploy — no download |
+| **Auto-log (gaming PC)** | Full repo folder + **Twans Auto-Log** or `start-grind.bat` | Re-download the ZIP or `git pull` when bridge/scripts change; website users only need refresh |
+
+First sign-in may prompt for your current rank (MMR for Rocket League queues, RR for Valorant Competitive). That baseline is stored in your account so stats display correctly from day one.
 
 ## 6. Daily use
 
@@ -114,7 +116,7 @@ Once signed in, you get the **same app** on GitHub Pages and localhost:
 | Port already in use | Close old terminal windows / restart the bat file |
 | Can't save games | Sign in with Google first |
 | Session resets | Update to latest code — sessions persist in localStorage |
-| Policy / recursion error | Run `groups-schema-fix.sql` in Supabase |
+| Policy / recursion error | Re-run `docs/supabase/v1-full-setup.sql` in Supabase |
 | Valorant auto-log error | Riot dev keys (`RGAPI-…`) **cannot** read Val match history. Get a **free Henrik key** at [api.henrikdev.xyz/dashboard](https://api.henrikdev.xyz/dashboard), paste in Auto-Log Setup, **Apply & Go**, restart **Twans Auto-Log** |
 
 ## Quick test
