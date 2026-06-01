@@ -52,6 +52,11 @@ export const state = {
   profileBio: '',
   reportsWeekOffset: 0,
   groups: [],
+  rankBaselines: {
+    [GAME_IDS.ROCKET_LEAGUE]: {},
+    [GAME_IDS.VALORANT]: {},
+  },
+  rankBaselinesComplete: false,
 };
 
 const listeners = new Set();
@@ -117,6 +122,11 @@ export function resetAppState() {
   state.playlist = 'all';
   state.activePage = 'dashboard';
   state.session = { active: false, startTime: null, startMMR: null, sessionNum: 1, timerId: null };
+  state.rankBaselines = {
+    [GAME_IDS.ROCKET_LEAGUE]: {},
+    [GAME_IDS.VALORANT]: {},
+  };
+  state.rankBaselinesComplete = false;
   notify();
 }
 

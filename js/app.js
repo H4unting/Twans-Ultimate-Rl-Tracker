@@ -30,6 +30,10 @@ import { getDockModePillsEl } from './dock-ui.js';
 import { GAME_IDS, getTagGroups, getGameMeta } from './games.js';
 import { VAL_DEFAULT_RR_SWING } from './valorant-config.js';
 import { renderSetupWizard, refreshSetupWizard, onBridgeStatusChange, renderLogSetupNudge } from './setup-wizard.js';
+import {
+  applyRankBaselinesFromSettings, inferRankBaselinesFromGames, rankBaselinesForSettings,
+} from './rank-baselines.js';
+import { openRankSetupModal, showRankSetupIfNeeded } from './rank-setup-ui.js';
 import { mmrChart, wlChart, destroyAllCharts } from './charts.js';
 import { renderAnalytics } from './analytics.js';
 import { renderReportsPage } from './reports-ui.js';
@@ -114,6 +118,7 @@ async function bootApp() {
     const {
       profile, games, goals, groups, bio, rlDisplayName,
       primaryColor, secondaryColor, activeGame, riotId, riotRegion,
+      rankBaselines, rankBaselinesComplete,
     } = await withTimeout(loadUserData(), 30000, 'Loading timed out — check your connection');
     setProfile({
       ...(profile ?? {}),
@@ -141,6 +146,14 @@ async function bootApp() {
       await saveGames(valRepaired, GAME_IDS.VALORANT);
     }
     setGames(allGames);
+
+    applyRankBaselinesFromSettings({ rankBaselines, rankBaselinesComplete });
+    if (allGames.length > 0 && !rankBaselinesComplete) {
+      const inferred = inferRankBaselinesFromGames(allGames);
+      applyRankBaselinesFromSettings({ rankBaselines: inferred, rankBaselinesComplete: true });
+      await saveSettings(getSettingsPayload(rankBaselinesForSettings()));
+    }
+
     const ghostRemoved = await purgeGhostValorantMatches({ silent: true });
     if (ghostRemoved > 0) {
       showToast(`Removed ${ghostRemoved} invalid auto-log ${ghostRemoved === 1 ? 'match' : 'matches'}`);
@@ -181,6 +194,17 @@ async function bootApp() {
     ensureBridgeServices();
 
     renderAll();
+
+    window.__saveRankBaselines = async () => {
+      await saveSettings(getSettingsPayload(rankBaselinesForSettings()));
+    };
+
+    showRankSetupIfNeeded({
+      onComplete: () => {
+        renderAll('core');
+        refreshSetupWizard(getDisplay().name);
+      },
+    });
   } catch (e) {
     console.error(e);
     setSyncStatus('error');
@@ -599,6 +623,7 @@ function getSettingsPayload(overrides = {}) {
     riotRegion: prefs.riotRegion || 'na',
     primaryColor: state.profile?.primary_color ?? '',
     secondaryColor: state.profile?.secondary_color ?? '',
+    ...rankBaselinesForSettings(),
     ...overrides,
   };
 }

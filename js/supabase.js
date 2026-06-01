@@ -294,6 +294,8 @@ export async function loadSettings() {
       activeGame: DEFAULT_GAME,
       primaryColor: '',
       secondaryColor: '',
+      rankBaselines: {},
+      rankBaselinesComplete: false,
     };
   }
   try {
@@ -308,6 +310,8 @@ export async function loadSettings() {
       activeGame: data.activeGame ?? DEFAULT_GAME,
       primaryColor: data.primaryColor ?? '',
       secondaryColor: data.secondaryColor ?? '',
+      rankBaselines: data.rankBaselines ?? {},
+      rankBaselinesComplete: Boolean(data.rankBaselinesComplete),
     };
   } catch {
     /* table may not exist yet */
@@ -321,6 +325,8 @@ export async function loadSettings() {
     activeGame: DEFAULT_GAME,
     primaryColor: '',
     secondaryColor: '',
+    rankBaselines: {},
+    rankBaselinesComplete: false,
   };
 }
 
@@ -533,7 +539,13 @@ export async function loadUserData() {
     const settings = await loadSettings();
     const groups = await loadUserGroups();
     setSyncStatus('live');
-    return { profile, games, goals: settings.goals, groups, bio: settings.bio, rlDisplayName: settings.rlDisplayName, primaryColor: settings.primaryColor, secondaryColor: settings.secondaryColor, activeGame: settings.activeGame, riotId: settings.riotId, riotRegion: settings.riotRegion };
+    return {
+      profile, games, goals: settings.goals, groups, bio: settings.bio,
+      rlDisplayName: settings.rlDisplayName, primaryColor: settings.primaryColor,
+      secondaryColor: settings.secondaryColor, activeGame: settings.activeGame,
+      riotId: settings.riotId, riotRegion: settings.riotRegion,
+      rankBaselines: settings.rankBaselines, rankBaselinesComplete: settings.rankBaselinesComplete,
+    };
   } catch (e) {
     setSyncStatus('error');
     throw e;

@@ -6,7 +6,7 @@
 <title>Twans Ultimate Tracker</title>
 <link rel="stylesheet" href="css/styles.css?v=20260531b5">
 <link rel="stylesheet" href="css/valorant-theme.css?v=20260531b5">
-<link rel="stylesheet" href="css/layout-polish.css?v=20260531b5">
+<link rel="stylesheet" href="css/layout-polish.css?v=20260531c">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" defer></script>
 <script>
 (function () {
@@ -402,6 +402,18 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="rank-setup-modal" role="dialog" aria-modal="true" aria-labelledby="rank-setup-title">
+  <div class="modal modal-rank-setup">
+    <h2 id="rank-setup-title">Set your current ranks</h2>
+    <div class="sub">One-time setup — used when you log your first games</div>
+    <div id="rank-setup-body" class="rank-setup-body"></div>
+    <div class="modal-btn-row">
+      <button type="button" class="btn btn-cancel" id="rank-setup-skip">Skip for now</button>
+      <button type="button" class="btn btn-primary" id="rank-setup-save">Save &amp; continue</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="edit-modal" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
   <div class="modal">
     <h2 id="edit-modal-title">Edit Game</h2>
@@ -474,6 +486,6 @@
     }
   }, 30000);
 </script>
-<script type="module" src="js/app.js?v=20260531b6"></script>
+<script type="module" src="js/app.js?v=20260531c"></script>
 </body>
 </html>

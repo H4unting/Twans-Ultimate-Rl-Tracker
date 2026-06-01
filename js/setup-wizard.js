@@ -11,6 +11,7 @@ import { refreshBridgeStatusUI } from './bridge-ui.js';
 import { DESKTOP_APP } from './config.js';
 import { clearGameHistory } from './matches.js';
 import { getBridgeUrl } from './bridge-client.js';
+import { openRankSetupModal } from './rank-setup-ui.js';
 
 const SETUP_KEY = 'rl-grind-setup';
 
@@ -38,6 +39,15 @@ export function renderLogSetupNudge() {
   });
 }
 
+function renderRankBaselinesPanel() {
+  return `
+    <div class="setup-rank-baselines">
+      <strong>Starting ranks (MMR / RR)</strong>
+      <p class="setup-hint">Your current rank for each playlist — used before your first logged game in that mode.</p>
+      <button type="button" class="btn btn-secondary" id="setup-edit-rank-baselines">Update starting ranks</button>
+    </div>`;
+}
+
 function renderRlPanel(profile, { compact = false } = {}) {
   return `
     <div class="setup-game-panel setup-game-panel-rl" data-setup-game="rocket_league">
@@ -47,6 +57,7 @@ function renderRlPanel(profile, { compact = false } = {}) {
     : 'Your Rocket League display name is sent to the local auto-log app when a match ends.'}</p>
       ${renderProfileNameStep(profile)}
       ${renderApplySection(true)}
+      ${renderRankBaselinesPanel()}
     </div>`;
 }
 
@@ -90,6 +101,7 @@ function renderValPanel(riotIdValue, riotRegionValue, { compact = false } = {}) 
         <p class="setup-hint">Removes every Valorant match from your account and resets auto-log baseline. Rocket League stats are not touched.</p>
         <button type="button" class="btn btn-cancel" id="setup-clear-val-history">Clear all Val match history</button>
       </div>
+      ${renderRankBaselinesPanel()}
     </div>`;
 }
 
@@ -276,6 +288,7 @@ export function renderSetupWizard(displayName = '') {
     ? 'W/L → queue → K/D/A → tags → End RR → <span class="setup-log-chip">LOG</span>'
     : `W/L → mode → G/A/S → tags → End MMR → <span class="setup-log-chip">LOG</span>`}
         </div>` : ''}
+        ${renderRankBaselinesPanel()}
       </div>
     </div>`;
 
@@ -378,6 +391,7 @@ function wireSetupWizard() {
 
   wireProfileNameDropdown();
   wireSetupApplyGo();
+  wireRankBaselinesButton();
 
   const clearBtn = document.getElementById('setup-clear-val-history');
   if (clearBtn && !clearBtn.dataset.wired) {
@@ -392,6 +406,19 @@ function wireSetupWizard() {
       document.dispatchEvent(new CustomEvent('tracker-data-changed'));
     });
   }
+}
+
+function wireRankBaselinesButton() {
+  const btn = document.getElementById('setup-edit-rank-baselines');
+  if (!btn || btn.dataset.wired) return;
+  btn.dataset.wired = '1';
+  btn.addEventListener('click', () => {
+    openRankSetupModal({
+      onComplete: () => {
+        document.dispatchEvent(new CustomEvent('tracker-data-changed'));
+      },
+    });
+  });
 }
 
 function wireSetupApplyGo() {

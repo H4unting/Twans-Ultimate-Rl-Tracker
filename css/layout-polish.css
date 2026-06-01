@@ -312,6 +312,79 @@ body[data-active-game="valorant"] .val-chart-box {
   overflow-y: auto;
 }
 
+.modal-rank-setup {
+  width: min(560px, calc(100vw - 32px));
+}
+
+.rank-setup-body {
+  margin: var(--space-md) 0 var(--space-lg);
+}
+
+.rank-setup-intro {
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: var(--space-lg);
+}
+
+.rank-setup-game {
+  margin-bottom: var(--space-lg);
+  padding: var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.rank-setup-game-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.rank-setup-game-emoji {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.rank-setup-game-head h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+.rank-setup-game-desc {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.rank-setup-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-sm);
+}
+
+.rank-setup-field label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.rank-setup-hint {
+  margin-top: var(--space-sm);
+}
+
+.setup-rank-baselines {
+  margin-top: var(--space-lg);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border);
+}
+
+.setup-rank-baselines .btn {
+  margin-top: var(--space-sm);
+}
+
 .toast {
   bottom: calc(var(--space-xl) + env(safe-area-inset-bottom, 0px));
   right: var(--space-xl);

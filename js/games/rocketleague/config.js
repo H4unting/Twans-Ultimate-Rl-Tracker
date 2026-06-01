@@ -1,5 +1,7 @@
 /** Rocket League — playlists, tags, coaching tips */
 
+import { getStoredRankBaseline } from '../../rank-baseline-store.js';
+
 export const GAME_ID = 'rocket_league';
 
 export const PLAYLISTS = [
@@ -10,6 +12,9 @@ export const PLAYLISTS = [
 ];
 
 export const MODES = ["1's", "2's", "3's"];
+
+/** Playlists that use MMR — shown in first-sign-in rank setup */
+export const RANK_SETUP_MODES = MODES;
 
 export const TAG_DEFINITIONS = {
   'Slow Rotations': { cat: 'def', id: 'slow_rotations' },
@@ -96,7 +101,7 @@ export function getPriorEndRank(games, mode, beforeMatch = Infinity) {
     if (g.match >= beforeMatch) continue;
     if (g.mode === mode && g.endMMR != null && g.endMMR !== '') return g.endMMR;
   }
-  return null;
+  return getStoredRankBaseline(GAME_ID, mode);
 }
 
 export function isRankEstimated(game) {
