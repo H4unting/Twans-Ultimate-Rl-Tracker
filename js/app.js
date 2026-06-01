@@ -867,9 +867,12 @@ function wireGoogleSignIn() {
   btn.addEventListener('click', handleGoogleSignIn);
 }
 
+import { maybeEnableQaFromUrl } from './qa/qa-gate.js';
+
 async function init() {
   window.__appBootstrapped = true;
   try {
+    maybeEnableQaFromUrl();
     applyAppMode();
     wireLoginScreen();
     if (hasPendingAuthHash()) {

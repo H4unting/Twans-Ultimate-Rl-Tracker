@@ -170,6 +170,13 @@ export async function bootApp() {
         refreshSetupWizard(ctx.getDisplay().name);
       },
     });
+
+    import('./qa/qa-panel.js').then(({ initQaToolsIfEnabled }) => {
+      initQaToolsIfEnabled({
+        renderAll: ctx.renderAll,
+        getSettingsPayload: ctx.getSettingsPayload,
+      });
+    }).catch(() => { /* dev-only */ });
   } catch (e) {
     console.error(e);
     setSyncStatus('error');

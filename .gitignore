@@ -1,4 +1,5 @@
 config/grind-config.json
+config/qa.local.js
 config/.valorant-bridge-state.json
 config/bridge.log
 grind-config.json
