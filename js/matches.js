@@ -43,7 +43,13 @@ export async function addGame(formData, selectedTags, onSuccess) {
   const diff = getRankDiff(game, state.activeGame);
   showToast(`${mod.META.matchSingularCap} logged! ${diff >= 0 ? '+' : ''}${diff} ${mod.META.diffLabel}`);
   notifySessionUIRefresh();
-  if (onSuccess) onSuccess(game);
+  if (onSuccess) {
+    try {
+      onSuccess(game);
+    } catch (e) {
+      console.error('Post-log UI callback failed:', e);
+    }
+  }
   return game;
 }
 
@@ -126,19 +132,55 @@ export async function clearGameHistory(gameId = state.activeGame) {
   return true;
 }
 
-/** Bad Val auto-log rows: 0/0/0 with no agent, often missing RR. */
+/** Bad Val rows: 0/0/0 stats — empty manual or premature auto-log. */
 export function isGhostValorantMatch(game) {
   if ((game?.game ?? GAME_IDS.ROCKET_LEAGUE) !== GAME_IDS.VALORANT) return false;
   const k = Number(game.kills ?? game.goals ?? 0);
   const d = Number(game.deaths ?? game.assists ?? 0);
   const a = Number(game.valAssists ?? game.saves ?? 0);
-  if (k + d + a > 0) return false;
-  if (game.agent) return false;
-  return true;
+  return k + d + a === 0;
 }
 
 export function countGhostValorantMatches(games = state.games) {
   return games.filter(isGhostValorantMatch).length;
+}
+
+/** Collapse identical Val rows (auto-log retry spam). Returns cleaned val slice. */
+export function collapseDuplicateValorantMatches(valGames) {
+  const seen = new Set();
+  const kept = [];
+  for (const g of valGames) {
+    const sig = [
+      g.date, g.mode, g.result,
+      g.kills ?? g.goals ?? 0,
+      g.deaths ?? g.assists ?? 0,
+      g.valAssists ?? g.saves ?? 0,
+      g.agent ?? '', g.map ?? '', g.notes ?? '',
+    ].join('|');
+    if (seen.has(sig)) continue;
+    seen.add(sig);
+    kept.push(g);
+  }
+  kept.forEach((g, i) => { g.match = i + 1; });
+  return kept;
+}
+
+export async function collapseDuplicateValorantMatchesInState({ silent = false } = {}) {
+  if (!requireSignedIn()) return 0;
+  const gameId = GAME_IDS.VALORANT;
+  const valGames = state.games.filter(g => (g.game ?? GAME_IDS.ROCKET_LEAGUE) === gameId);
+  const collapsed = collapseDuplicateValorantMatches(valGames);
+  const removed = valGames.length - collapsed.length;
+  if (removed <= 0) return 0;
+
+  await saveGames(collapsed, gameId);
+  const rest = state.games.filter(g => (g.game ?? GAME_IDS.ROCKET_LEAGUE) !== gameId);
+  setGames([...rest, ...collapsed]);
+  notifySessionUIRefresh();
+  if (!silent) {
+    showToast(`Removed ${removed} duplicate ${removed === 1 ? 'match' : 'matches'}`);
+  }
+  return removed;
 }
 
 /** Drop invalid Val rows (0/0/0 auto-log junk). Returns how many were removed. */

@@ -175,6 +175,8 @@ function findPlayerInMatch(match, riotId) {
   const tagL = tag.toLowerCase();
   const pools = [
     match?.players?.all_players,
+    match?.players?.red,
+    match?.players?.blue,
     match?.players,
   ].filter(Array.isArray);
   for (const pool of pools) {
@@ -189,10 +191,24 @@ function findPlayerInMatch(match, riotId) {
   return null;
 }
 
+function readPlayerStats(player) {
+  if (!player) return { kills: 0, deaths: 0, assists: 0, score: 0, rounds: 1, character: '', team: '' };
+  const stats = player.stats ?? player;
+  return {
+    kills: Number(stats.kills ?? player.kills ?? 0) || 0,
+    deaths: Number(stats.deaths ?? player.deaths ?? 0) || 0,
+    assists: Number(stats.assists ?? player.assists ?? 0) || 0,
+    score: Number(stats.score ?? player.score ?? 0) || 0,
+    rounds: Number(stats.rounds_played ?? stats.roundsPlayed ?? player.rounds_played ?? 1) || 1,
+    character: player.character ?? stats.character ?? stats.agent ?? player.agent ?? '',
+    team: String(player.team ?? stats.team ?? '').toLowerCase(),
+  };
+}
+
 function isLoggableHenrikMatch(parsed) {
   if (!parsed?.matchId) return false;
   const activity = parsed.kills + parsed.deaths + parsed.valAssists;
-  if (activity === 0 && !parsed.agent) return false;
+  if (activity === 0) return false;
   if (baselineGameStart && parsed.gameStart && parsed.gameStart <= baselineGameStart) return false;
   return true;
 }
@@ -324,26 +340,24 @@ function parseHenrikMatch(match, riotId) {
   const player = findPlayerInMatch(match, riotId);
   if (!player) return null;
 
-  const stats = player.stats ?? player;
+  const ps = readPlayerStats(player);
   const teams = match.teams ?? {};
-  const team = String(player.team ?? stats.team ?? '').toLowerCase();
+  const team = ps.team;
   const won = team === 'red'
     ? Boolean(teams.red?.has_won ?? teams.Red?.has_won)
     : team === 'blue'
       ? Boolean(teams.blue?.has_won ?? teams.Blue?.has_won)
       : false;
   const queue = meta.queue ?? meta.mode ?? 'unknown';
-  const rounds = stats.rounds_played || stats.roundsPlayed || 1;
-  const agent = player.character ?? stats.character ?? stats.agent ?? '';
 
   return {
     result: won ? 'W' : 'L',
     mode: MODE_MAP[queue] || meta.mode || queue,
-    kills: stats.kills ?? 0,
-    deaths: stats.deaths ?? 0,
-    valAssists: stats.assists ?? 0,
-    acs: Math.round((stats.score ?? 0) / Math.max(rounds, 1)),
-    agent,
+    kills: ps.kills,
+    deaths: ps.deaths,
+    valAssists: ps.assists,
+    acs: Math.round(ps.score / Math.max(ps.rounds, 1)),
+    agent: ps.character,
     map: meta.map ?? '',
     matchId: getMatchId(match),
     gameStart: parseGameStart(meta),
@@ -419,34 +433,41 @@ async function pollLatestMatch() {
       return;
     }
 
-    if (matchId === lastSeenMatchId) return;
+    const parsed = parseHenrikMatch(latest, cfg.riotId);
+    if (!parsed) return;
 
-    const alreadySeen = seenMatchIds.has(String(matchId));
+    const activity = parsed.kills + parsed.deaths + parsed.valAssists;
+    if (activity === 0) {
+      // Henrik often lists the match before stats are filled — retry on next poll
+      return;
+    }
+
+    if (!isLoggableHenrikMatch(parsed)) {
+      if (matchId !== lastSeenMatchId) {
+        rememberMatchId(matchId);
+        lastSeenMatchId = matchId;
+        persistState();
+      }
+      return;
+    }
+
+    if (matchId === lastSeenMatchId && lastMatch && !lastMatch.consumed && lastMatch.matchId === matchId) {
+      return;
+    }
+
+    if (matchId === lastSeenMatchId && lastMatch?.consumed) {
+      return;
+    }
+
+    let ready = parsed;
+    ready = await attachRankData(ready, matchId);
+    lastMatch = ready;
     rememberMatchId(matchId);
     lastSeenMatchId = matchId;
-
-    if (alreadySeen) {
-      persistState();
-      return;
-    }
-
-    let parsed = parseHenrikMatch(latest, cfg.riotId);
-    if (!parsed || !isLoggableHenrikMatch(parsed)) {
-      persistState();
-      return;
-    }
-
-    if (lastMatch && !lastMatch.consumed && lastMatch.matchId === matchId) {
-      persistState();
-      return;
-    }
-
-    parsed = await attachRankData(parsed, matchId);
-    lastMatch = parsed;
-    baselineGameStart = Math.max(baselineGameStart, parsed.gameStart || 0);
+    baselineGameStart = Math.max(baselineGameStart, ready.gameStart || 0);
     lastError = null;
     persistState();
-    console.log(`Valorant match — ${parsed.result} · ${parsed.mode} · K:${parsed.kills} D:${parsed.deaths} A:${parsed.valAssists} · ${parsed.agent || 'Agent'} · ${parsed.map || 'Map'}`);
+    console.log(`Valorant match — ${ready.result} · ${ready.mode} · K:${ready.kills} D:${ready.deaths} A:${ready.valAssists} · ${ready.agent || 'Agent'} · ${ready.map || 'Map'}`);
   } catch (e) {
     lastError = formatHenrikError(e.message, e.status);
   }

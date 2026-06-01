@@ -10,13 +10,13 @@ import { applyFilters, DEFAULT_FILTERS } from './filters.js';
 import { calcStats, estimateMMRDelta } from './utils.js';
 import { RL, VAL } from './games/registry.js';
 import { routeActiveGame, getActiveGameModule } from './games/router.js';
-import { addGame, updateGame, deleteGame, getLastMMR, patchLastGame, undoLastGame, isMmrEstimated, purgeGhostValorantMatches, countGhostValorantMatches, clearGameHistory } from './matches.js';
+import { addGame, updateGame, deleteGame, getLastMMR, patchLastGame, undoLastGame, isMmrEstimated, purgeGhostValorantMatches, countGhostValorantMatches, clearGameHistory, collapseDuplicateValorantMatchesInState } from './matches.js';
 import { startSession, endSession, closeSessionModal, closeSessionModalAndContinue, initSessionUI, refreshSessionUI, restoreSessionFromStorage, getLoggingSessionNum } from './sessions.js';
 import {
   initQuickLog, showQuickDock, hideQuickDock, getQuickLogPayload,
   resetQuickAfterLog, loadPrefs, savePrefs, syncFormFromQuick, applyLiveStats, flashAutoLogged,
   setQuickResult, setQuickMode, rerenderQuickTags, getLastModeForGame, getQuickMode,
-  getQuickEndRankInput,
+  getQuickEndRankInput, getQuickStat,
 } from './quicklog.js';
 import { renderProfilePage } from './profile-ui.js';
 import { initRlLive, stopRlLive, refreshLiveStatus,
@@ -143,6 +143,10 @@ async function bootApp() {
     const ghostRemoved = await purgeGhostValorantMatches({ silent: true });
     if (ghostRemoved > 0) {
       showToast(`Removed ${ghostRemoved} invalid auto-log ${ghostRemoved === 1 ? 'match' : 'matches'}`);
+    }
+    const dupesRemoved = await collapseDuplicateValorantMatchesInState({ silent: true });
+    if (dupesRemoved > 0) {
+      showToast(`Removed ${dupesRemoved} duplicate ${dupesRemoved === 1 ? 'match' : 'matches'}`);
     }
     setGoals(normalizeGoalsStorage(goals));
     state.profileBio = bio ?? '';
@@ -680,11 +684,21 @@ function estimateMMRDeltaForMode(result, mode) {
 async function handleValorantAutoLog(match) {
   if (state.activeGame !== GAME_IDS.VALORANT) return false;
 
-  const activity = Number(match.kills ?? 0) + Number(match.deaths ?? 0) + Number(match.valAssists ?? 0);
-  if (activity === 0 && !match.agent) {
+  if (match.matchId && getActiveGames().some(g =>
+    (g.game ?? GAME_IDS.ROCKET_LEAGUE) === GAME_IDS.VALORANT
+    && (g.notes ?? '').includes(`id:${match.matchId}`))) {
     try {
       await fetch(`${getBridgeUrl()}/valorant/last-match/consume`, { method: 'POST' });
     } catch { /* optional */ }
+    return true;
+  }
+
+  const activity = Number(match.kills ?? 0) + Number(match.deaths ?? 0) + Number(match.valAssists ?? 0);
+  if (activity === 0) {
+    try {
+      await fetch(`${getBridgeUrl()}/valorant/last-match/consume`, { method: 'POST' });
+    } catch { /* optional */ }
+    showToast('Match stats not ready yet — wait ~30s after the scoreboard or log manually', 'error');
     return false;
   }
 
@@ -732,6 +746,7 @@ async function handleValorantAutoLog(match) {
   if (fStart) fStart.value = priorEnd !== '' ? startRR : '';
 
   state.ui.autoLogNote = [
+    match.matchId ? `id:${match.matchId}` : '',
     priorEnd === '' ? 'RR estimated' : '',
     match.agent ? match.agent : '',
     match.map ? match.map : '',
@@ -817,9 +832,30 @@ async function submitGameLog(source = 'form') {
     : document.getElementById(isVal ? 'f-endrr' : 'f-endmmr')?.value
       ?? document.getElementById('f-endmmr')?.value;
 
-  if (!endMMR) {
+  if (!endMMR && !isVal) {
     showToast(`Enter end ${rankLabel}`, 'error');
     (source === 'quick' || source === 'auto' ? endInput : document.getElementById(isVal ? 'f-endrr' : 'f-endmmr'))?.focus();
+    return false;
+  }
+
+  if (isVal) {
+    syncFormFromQuick();
+    const k = getQuickStat('goals');
+    const d = getQuickStat('assists');
+    const a = getQuickStat('saves');
+    if (k + d + a === 0) {
+      showToast('No stats to log — open Advanced stats or wait for auto-log after the match', 'error');
+      document.querySelector('.quick-advanced-stats')?.setAttribute('open', '');
+      return false;
+    }
+    if (!endMMR && getQuickMode() === 'Competitive') {
+      showToast('Enter end RR for Competitive', 'error');
+      endInput?.focus();
+      return false;
+    }
+  } else if (!endMMR) {
+    showToast(`Enter end ${rankLabel}`, 'error');
+    (source === 'quick' || source === 'auto' ? endInput : document.getElementById('f-endmmr'))?.focus();
     return false;
   }
 
@@ -861,14 +897,14 @@ async function submitGameLog(source = 'form') {
       notes: document.getElementById('f-notes').value,
     };
 
-    const game = await addGame({
+    const saved = await addGame({
       ...payload,
       notes: [payload.notes, state.ui.autoLogNote].filter(Boolean).join(' · ') || payload.notes,
-    }, state.ui.selectedTags, () => {
+    }, state.ui.selectedTags, (logged) => {
       document.getElementById('f-goals').value = 0;
       document.getElementById('f-assists').value = 0;
       document.getElementById('f-saves').value = 0;
-      document.getElementById('f-startmmr').value = getLastMMR(game.mode);
+      document.getElementById('f-startmmr').value = getLastMMR(logged.mode);
       document.getElementById('f-endmmr').value = '';
       document.getElementById('f-notes').value = '';
       document.querySelectorAll('#log-tags .tag-chip.selected').forEach(c => c.classList.remove('selected'));
@@ -877,9 +913,9 @@ async function submitGameLog(source = 'form') {
       resetQuickAfterLog();
     });
     renderAll();
-    if (game) {
-      state.homeChartMode = game.mode;
-      showPostMatchCard(game, { estimated: isMmrEstimated(game) });
+    if (saved) {
+      state.homeChartMode = saved.mode;
+      showPostMatchCard(saved, { estimated: isMmrEstimated(saved) });
     }
     return true;
   } catch (e) {
