@@ -1,4 +1,5 @@
-import { getPriorEndRank, META } from './config.js';
+import { getPriorEndRank, META, GAME_ID } from './config.js';
+import { getStoredRankBaseline } from '../../rank-baseline-store.js';
 
 export function estimateRankDelta(games, result, mode) {
   const recent = games.filter(g =>
@@ -13,6 +14,9 @@ export function estimateRankDelta(games, result, mode) {
 export function resolveGameStartRank(games, game) {
   const priorEnd = getPriorEndRank(games, game.mode, game.match);
   if (priorEnd != null) return priorEnd;
+
+  const baseline = getStoredRankBaseline(GAME_ID, game.mode);
+  if (baseline != null) return baseline;
 
   const endMMR = parseInt(game.endMMR, 10);
   if (!endMMR) return parseInt(game.startMMR, 10) || 0;

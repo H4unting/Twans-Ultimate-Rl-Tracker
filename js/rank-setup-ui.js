@@ -1,11 +1,14 @@
 /** First-sign-in modal — set current MMR/RR per playlist */
 
-import { state } from './state.js';
 import { GAME_IDS, GAMES, getGameMeta } from './games.js';
 import { showToast } from './ui.js';
 import { bindModalA11y } from './core/modal-a11y.js';
 import {
-  getRankSetupModes, setRankBaselines, rankBaselinesForSettings,
+  getRankSetupModes,
+  setRankBaselines,
+  rankBaselinesForSettings,
+  getRankBaselinesForUI,
+  needsRankSetup,
 } from './rank-baselines.js';
 
 let onCompleteCallback = null;
@@ -19,7 +22,7 @@ function renderModeFields(gameId) {
   const meta = getGameMeta(gameId);
   const game = GAMES[gameId];
   const modes = getRankSetupModes(gameId);
-  const stored = state.rankBaselines?.[gameId] ?? {};
+  const stored = getRankBaselinesForUI()?.[gameId] ?? {};
 
   return `
     <section class="rank-setup-game" data-rank-game="${gameId}">
@@ -89,7 +92,7 @@ function countFilledBaselines(baselines) {
 }
 
 async function handleRankSetupSave({ skip = false } = {}) {
-  const baselines = skip ? (state.rankBaselines ?? {}) : readBaselinesFromForm();
+  const baselines = skip ? getRankBaselinesForUI() : readBaselinesFromForm();
   if (!skip && countFilledBaselines(baselines) === 0) {
     showToast('Enter at least one MMR or RR — or click Skip for now', 'error');
     return;
@@ -150,12 +153,10 @@ export function closeRankSetupModal() {
   onCompleteCallback = null;
 }
 
-export function showRankSetupIfNeeded({ onComplete } = {}) {
-  if (!state.rankBaselinesComplete && state.games.length === 0) {
-    openRankSetupModal({ onComplete });
-    return true;
-  }
-  return false;
+export function showRankSetupIfNeeded({ onComplete, games = [] } = {}) {
+  if (!needsRankSetup(games)) return false;
+  openRankSetupModal({ onComplete });
+  return true;
 }
 
 export { rankBaselinesForSettings };

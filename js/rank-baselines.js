@@ -1,23 +1,30 @@
 /** Rank baseline helpers — modes, inference, first-sign-in detection */
 
-import { state } from './state.js';
-import { GAME_IDS } from './games/registry.js';
-import { GAME_ID as RL_ID, RANK_SETUP_MODES as RL_MODES } from './games/rocketleague/config.js';
-import { GAME_ID as VAL_ID, RANK_SETUP_MODES as VAL_MODES } from './games/valorant/config.js';
 import {
-  applyRankBaselinesFromSettings, setRankBaselines, rankBaselinesForSettings,
+  RL_GAME_ID, VAL_GAME_ID, RL_RANK_SETUP_MODES, VAL_RANK_SETUP_MODES,
+} from './game-rank-modes.js';
+import {
+  applyRankBaselinesFromSettings,
+  setRankBaselines,
+  rankBaselinesForSettings,
+  getRankBaselinesSnapshot,
+  isRankBaselinesComplete,
 } from './rank-baseline-store.js';
 
-export { applyRankBaselinesFromSettings, setRankBaselines, rankBaselinesForSettings };
-export { getStoredRankBaseline } from './rank-baseline-store.js';
+export {
+  applyRankBaselinesFromSettings,
+  setRankBaselines,
+  rankBaselinesForSettings,
+  getStoredRankBaseline,
+} from './rank-baseline-store.js';
 
 export function getRankSetupModes(gameId) {
-  if (gameId === GAME_IDS.VALORANT) return VAL_MODES;
-  return RL_MODES;
+  if (gameId === VAL_GAME_ID) return VAL_RANK_SETUP_MODES;
+  return RL_RANK_SETUP_MODES;
 }
 
 export function getRankSetupGameIds() {
-  return [RL_ID, VAL_ID];
+  return [RL_GAME_ID, VAL_GAME_ID];
 }
 
 function priorEndFromGamesOnly(games, mode, endField) {
@@ -31,27 +38,31 @@ function priorEndFromGamesOnly(games, mode, endField) {
 }
 
 /** Build baseline map from existing match history (for returning users). */
-export function inferRankBaselinesFromGames(games = state.games) {
-  const rlGames = games.filter(g => (g.game ?? GAME_IDS.ROCKET_LEAGUE) === RL_ID);
-  const valGames = games.filter(g => (g.game ?? GAME_IDS.ROCKET_LEAGUE) === VAL_ID);
+export function inferRankBaselinesFromGames(games = []) {
+  const rlGames = games.filter(g => (g.game ?? RL_GAME_ID) === RL_GAME_ID);
+  const valGames = games.filter(g => (g.game ?? RL_GAME_ID) === VAL_GAME_ID);
   const out = {
-    [RL_ID]: {},
-    [VAL_ID]: {},
+    [RL_GAME_ID]: {},
+    [VAL_GAME_ID]: {},
   };
 
-  for (const mode of RL_MODES) {
+  for (const mode of RL_RANK_SETUP_MODES) {
     const end = priorEndFromGamesOnly(rlGames, mode, 'endMMR');
-    if (end != null) out[RL_ID][mode] = end;
+    if (end != null) out[RL_GAME_ID][mode] = end;
   }
-  for (const mode of VAL_MODES) {
+  for (const mode of VAL_RANK_SETUP_MODES) {
     const end = priorEndFromGamesOnly(valGames, mode, 'endRR');
-    if (end != null) out[VAL_ID][mode] = end;
+    if (end != null) out[VAL_GAME_ID][mode] = end;
   }
 
   return out;
 }
 
-export function needsRankSetup(games = state.games) {
-  if (state.rankBaselinesComplete) return false;
+export function needsRankSetup(games = []) {
+  if (isRankBaselinesComplete()) return false;
   return games.length === 0;
+}
+
+export function getRankBaselinesForUI() {
+  return getRankBaselinesSnapshot();
 }

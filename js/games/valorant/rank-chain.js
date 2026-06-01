@@ -1,4 +1,5 @@
-import { DEFAULT_RR_SWING, getPriorEndRank } from './config.js';
+import { DEFAULT_RR_SWING, getPriorEndRank, GAME_ID } from './config.js';
+import { getStoredRankBaseline } from '../../rank-baseline-store.js';
 
 export function estimateRankDelta(games, result, mode) {
   const recent = games.filter(g =>
@@ -15,6 +16,9 @@ export { estimateRankDelta as estimateMMRDelta };
 export function resolveGameStartRank(games, game) {
   const priorEnd = getPriorEndRank(games, game.mode, game.match);
   if (priorEnd != null) return priorEnd;
+
+  const baseline = getStoredRankBaseline(GAME_ID, game.mode);
+  if (baseline != null) return baseline;
 
   const endRR = parseInt(game.endRR, 10);
   if (!endRR) return parseInt(game.startRR, 10) || 0;

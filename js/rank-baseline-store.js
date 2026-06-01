@@ -1,36 +1,53 @@
-/** Read/write rank baselines on app state — no game module imports (avoids circular deps) */
-
-import { state } from './state.js';
+/** Rank baseline storage — standalone (no state/registry imports) */
 
 const RL = 'rocket_league';
 const VAL = 'valorant';
 
+const baselines = {
+  [RL]: {},
+  [VAL]: {},
+};
+
+let complete = false;
+
+function normalizeGameKey(gameId) {
+  if (gameId === VAL || gameId === 'valorant') return VAL;
+  return RL;
+}
+
 export function getStoredRankBaseline(gameId, mode) {
-  const raw = state.rankBaselines?.[gameId]?.[mode];
+  const raw = baselines[normalizeGameKey(gameId)]?.[mode];
   if (raw == null || raw === '') return null;
   const n = parseInt(raw, 10);
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
-export function applyRankBaselinesFromSettings({ rankBaselines, rankBaselinesComplete } = {}) {
-  state.rankBaselines = {
-    [RL]: { ...(rankBaselines?.[RL] ?? rankBaselines?.rocket_league ?? {}) },
-    [VAL]: { ...(rankBaselines?.[VAL] ?? rankBaselines?.valorant ?? {}) },
+export function getRankBaselinesSnapshot() {
+  return {
+    [RL]: { ...baselines[RL] },
+    [VAL]: { ...baselines[VAL] },
   };
-  state.rankBaselinesComplete = Boolean(rankBaselinesComplete);
 }
 
-export function setRankBaselines(baselines, complete = true) {
-  state.rankBaselines = {
-    [RL]: { ...(baselines?.[RL] ?? baselines?.rocket_league ?? {}) },
-    [VAL]: { ...(baselines?.[VAL] ?? baselines?.valorant ?? {}) },
-  };
-  state.rankBaselinesComplete = complete;
+export function isRankBaselinesComplete() {
+  return complete;
+}
+
+export function applyRankBaselinesFromSettings({ rankBaselines, rankBaselinesComplete } = {}) {
+  baselines[RL] = { ...(rankBaselines?.[RL] ?? rankBaselines?.rocket_league ?? {}) };
+  baselines[VAL] = { ...(rankBaselines?.[VAL] ?? rankBaselines?.valorant ?? {}) };
+  complete = Boolean(rankBaselinesComplete);
+}
+
+export function setRankBaselines(next, markComplete = true) {
+  baselines[RL] = { ...(next?.[RL] ?? next?.rocket_league ?? {}) };
+  baselines[VAL] = { ...(next?.[VAL] ?? next?.valorant ?? {}) };
+  complete = markComplete;
 }
 
 export function rankBaselinesForSettings() {
   return {
-    rankBaselines: state.rankBaselines ?? { [RL]: {}, [VAL]: {} },
-    rankBaselinesComplete: Boolean(state.rankBaselinesComplete),
+    rankBaselines: getRankBaselinesSnapshot(),
+    rankBaselinesComplete: complete,
   };
 }

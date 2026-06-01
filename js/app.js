@@ -200,6 +200,7 @@ async function bootApp() {
     };
 
     showRankSetupIfNeeded({
+      games: allGames,
       onComplete: () => {
         renderAll('core');
         refreshSetupWizard(getDisplay().name);

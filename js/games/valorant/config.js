@@ -1,11 +1,11 @@
 /** Valorant — queues, agents, maps, tags, coaching tips */
 
-import { getStoredRankBaseline } from '../../rank-baseline-store.js';
+import { VAL_RANK_SETUP_MODES } from '../../game-rank-modes.js';
 
 export const GAME_ID = 'valorant';
 
 /** Queues that use RR — shown in first-sign-in rank setup */
-export const RANK_SETUP_MODES = ['Competitive', 'Swiftplay'];
+export const RANK_SETUP_MODES = VAL_RANK_SETUP_MODES;
 
 export const PLAYLISTS = [
   { id: 'all', label: 'All Queues', mode: null },
@@ -110,7 +110,7 @@ export function getPriorEndRank(games, mode, beforeMatch = Infinity) {
     if (g.match >= beforeMatch) continue;
     if (g.mode === mode && g.endRR != null && g.endRR !== '') return g.endRR;
   }
-  return getStoredRankBaseline(GAME_ID, mode);
+  return null;
 }
 
 export function isRankEstimated(game) {

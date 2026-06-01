@@ -8,6 +8,7 @@ import { getAuthUser } from './auth.js';
 import { getRankDiff, GAME_IDS } from './games.js';
 import { getGameModule } from './games/registry.js';
 import { getActiveGameModule } from './games/router.js';
+import { getStoredRankBaseline } from './rank-baseline-store.js';
 
 function notifySessionUIRefresh() {
   void import('./sessions.js').then(m => m.refreshSessionUI());
@@ -236,7 +237,9 @@ export function getLastMMR(mode) {
   if (!mode) return '';
   const mod = getActiveGameModule();
   const end = mod.getPriorEndRank(getActiveGames(), mode);
-  return end != null ? end : '';
+  if (end != null) return end;
+  const baseline = getStoredRankBaseline(state.activeGame, mode);
+  return baseline != null ? baseline : '';
 }
 
 export function isMmrEstimated(game) {
