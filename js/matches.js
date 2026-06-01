@@ -145,24 +145,48 @@ export function countGhostValorantMatches(games = state.games) {
   return games.filter(isGhostValorantMatch).length;
 }
 
-/** Collapse identical Val rows (auto-log retry spam). Returns cleaned val slice. */
+function valDuplicateSignature(g) {
+  return [
+    g.date,
+    g.session,
+    g.mode,
+    g.result,
+    g.kills ?? g.goals ?? 0,
+    g.deaths ?? g.assists ?? 0,
+    g.valAssists ?? g.saves ?? 0,
+    g.agent ?? '',
+    g.map ?? '',
+    g.startRR ?? g.startMMR ?? 0,
+    g.endRR ?? g.endMMR ?? 0,
+  ].join('|');
+}
+
+/** Collapse identical Val rows (auto-log retry spam). Keeps the best row per signature. */
 export function collapseDuplicateValorantMatches(valGames) {
-  const seen = new Set();
-  const kept = [];
+  const best = new Map();
   for (const g of valGames) {
-    const sig = [
-      g.date, g.mode, g.result,
-      g.kills ?? g.goals ?? 0,
-      g.deaths ?? g.assists ?? 0,
-      g.valAssists ?? g.saves ?? 0,
-      g.agent ?? '', g.map ?? '', g.notes ?? '',
-    ].join('|');
-    if (seen.has(sig)) continue;
-    seen.add(sig);
-    kept.push(g);
+    const sig = valDuplicateSignature(g);
+    const prev = best.get(sig);
+    if (!prev) {
+      best.set(sig, g);
+      continue;
+    }
+    const prevHasId = (prev.notes ?? '').includes('id:');
+    const curHasId = (g.notes ?? '').includes('id:');
+    if (curHasId && !prevHasId) {
+      best.set(sig, g);
+    } else if ((g.match ?? 0) > (prev.match ?? 0)) {
+      best.set(sig, g);
+    }
   }
+  const kept = [...best.values()].sort((a, b) => (a.match ?? 0) - (b.match ?? 0));
   kept.forEach((g, i) => { g.match = i + 1; });
   return kept;
+}
+
+export function countDuplicateValorantMatches(games = state.games) {
+  const valGames = games.filter(g => (g.game ?? GAME_IDS.ROCKET_LEAGUE) === GAME_IDS.VALORANT);
+  return Math.max(0, valGames.length - collapseDuplicateValorantMatches(valGames).length);
 }
 
 export async function collapseDuplicateValorantMatchesInState({ silent = false } = {}) {

@@ -10,7 +10,7 @@ import { applyFilters, DEFAULT_FILTERS } from './filters.js';
 import { calcStats, estimateMMRDelta } from './utils.js';
 import { RL, VAL } from './games/registry.js';
 import { routeActiveGame, getActiveGameModule } from './games/router.js';
-import { addGame, updateGame, deleteGame, getLastMMR, patchLastGame, undoLastGame, isMmrEstimated, purgeGhostValorantMatches, countGhostValorantMatches, clearGameHistory, collapseDuplicateValorantMatchesInState } from './matches.js';
+import { addGame, updateGame, deleteGame, getLastMMR, patchLastGame, undoLastGame, isMmrEstimated, purgeGhostValorantMatches, countGhostValorantMatches, clearGameHistory, collapseDuplicateValorantMatchesInState, countDuplicateValorantMatches } from './matches.js';
 import { startSession, endSession, closeSessionModal, closeSessionModalAndContinue, initSessionUI, refreshSessionUI, restoreSessionFromStorage, getLoggingSessionNum } from './sessions.js';
 import {
   initQuickLog, showQuickDock, hideQuickDock, getQuickLogPayload,
@@ -492,12 +492,32 @@ function renderMatchLogs() {
   renderLog('log-history-table', games, null, true, state.activeGame);
   wireLogTableActions();
   wireMatchLogMaintenanceButtons();
+
+  if (state.activeGame === GAME_IDS.VALORANT && countDuplicateValorantMatches() > 0) {
+    void collapseDuplicateValorantMatchesInState().then(removed => {
+      if (removed > 0) renderMatchLogs();
+    });
+  }
 }
 
 function wireMatchLogMaintenanceButtons() {
   const isVal = state.activeGame === GAME_IDS.VALORANT;
   const ghostCount = isVal ? countGhostValorantMatches() : 0;
+  const dupeCount = isVal ? countDuplicateValorantMatches() : 0;
   const valCount = isVal ? getActiveGames().length : 0;
+
+  const dedupeBtn = document.getElementById('matchlogs-dedupe-btn');
+  if (dedupeBtn) {
+    dedupeBtn.classList.toggle('hidden', !isVal || dupeCount === 0);
+    dedupeBtn.textContent = `Remove duplicates (${dupeCount})`;
+    if (!dedupeBtn.dataset.wired) {
+      dedupeBtn.dataset.wired = '1';
+      dedupeBtn.addEventListener('click', async () => {
+        const removed = await collapseDuplicateValorantMatchesInState();
+        if (removed) renderAll();
+      });
+    }
+  }
 
   const purgeBtn = document.getElementById('matchlogs-purge-ghosts-btn');
   if (purgeBtn) {
