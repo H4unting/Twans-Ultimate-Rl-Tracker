@@ -1,57 +1,55 @@
 # QA Test Data Tools (dev only)
 
-Generate synthetic match data for smoke testing without playing hundreds of games.
+Generate realistic synthetic data for smoke testing without playing hundreds of matches.
 
-**Not visible on GitHub Pages.** Only works on `localhost` after explicit opt-in.
+**Architecture:** [QA-ARCHITECTURE.md](./QA-ARCHITECTURE.md)
 
-## Enable (once per browser session)
+## Enable
 
-1. Run the tracker locally: `start-grind.bat` → http://localhost:8080/
-2. Visit: **http://localhost:8080/?qa=enable**
-3. Sign in with a **throwaway QA account** (never your main grind account)
+1. Run `start-grind.bat` → http://localhost:8080/
+2. Press **Ctrl+Shift+D** or visit `/?qa=enable` once
+3. Sign in (use a throwaway `+qa` email for Supabase persist tests)
 
-The red **QA Tools (dev)** panel appears bottom-left after sign-in.
+The **Developer Tools** panel toggles bottom-left. Hidden on GitHub Pages.
 
-## Safety rules
+## Panel actions
 
-| Layer | What it does |
-|-------|----------------|
-| Host gate | Panel never loads off localhost |
-| Opt-in | `?qa=enable` sets session flag |
-| Allowlist | **Preview** works on any account; **Save/Clear+DB** only on QA accounts |
-| Markers | All synthetic rows have `[QA]` in notes |
-| Clear | Only removes `[QA]` rows — real matches untouched |
+### Rocket League
+- **Generate 10 / 50 / 100 RL Matches** — 1's/2's/3's, MMR ±8/9/10, streaks, tags
 
-### QA accounts
+### Valorant
+- **Generate 10 / 50 / 100 Val Matches** — Competitive only, RR +18/22/27 or -15/18/22
 
-Use a throwaway email, e.g. `you+qa@gmail.com`.
+### Sessions
+- **Generate 5 / 10 / 25 Sessions** — for the **active game** (4–11 games per session, good/bad nights)
 
-Optional: copy `config/qa.local.example.js` → `config/qa.local.js` and add your QA email (gitignored).
+### Data
+- **Generate Full QA Dataset** — 100 RL + 100 Val + goal targets for reports/analytics/focus
+- **Clear Test Data** — removes only `[QA]` rows from memory
+- **Clear + Supabase** — same, synced to DB (QA account, type `DELETE QA`)
+- **Export Test Data** — JSON download
+- **Persist to Supabase** — saves current QA data (QA account, type `PERSIST`)
 
-Default allow pattern without `qa.local.js`: email contains `+qa`.
+## Safety
 
-## Actions
+| Rule | Detail |
+|------|--------|
+| Host | localhost only |
+| Generate | Memory only — safe on any account |
+| Persist / Clear+DB | QA allowlist only (`+qa` email or `config/qa.local.js`) |
+| Marker | All rows: `notes` starts with `[QA]` |
+| Real data | Never deleted by Clear |
 
-| Button | Effect |
-|--------|--------|
-| **Preview 10/50/100** | Loads synthetic data in memory — charts, reports, focus update. **Not saved.** |
-| **Save 10/50/100** | Writes to Supabase (requires QA account + type `PERSIST N`) |
-| **Clear [QA] (memory)** | Removes QA rows from app state only |
-| **Clear [QA] + Supabase** | Removes QA rows from DB (type `DELETE QA`) |
-| **Export [QA] JSON** | Downloads QA matches as JSON |
+Copy `config/qa.local.example.js` → `config/qa.local.js` to allow specific emails (gitignored).
 
-## What gets generated
+## Generated data includes
 
-- Realistic sessions (3–7 games each) over ~75 days
-- Win/loss ratios ~52–55%
-- MMR/RR chains, tags on losses, goals patch on persist
-- RL: 1's / 2's / 3's mix
-- Val: mostly Competitive + K/D/A/ACS
+- Win/loss streaks, good/bad sessions
+- Edge cases: empty notes, long notes, no tags, many tags
+- Recent-week games for weekly reports and goal progress
+- Goal states: completed targets, active, nearly complete
 
-## Release testing
+## Do not
 
-Use **Preview** for reports/analytics/focus/scaling UI checks.
-
-Use **Save 100** on a QA-only account for boot time + large-account DB tests.
-
-Do **not** run Save on your main account.
+- Run **Persist** on your main grind account
+- Ship v1.0 without manual smoke test on real flows too

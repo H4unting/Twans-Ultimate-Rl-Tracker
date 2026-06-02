@@ -867,12 +867,21 @@ function wireGoogleSignIn() {
   btn.addEventListener('click', handleGoogleSignIn);
 }
 
-import { maybeEnableQaFromUrl } from './qa/qa-gate.js';
+import { maybeEnableQaFromUrl, wireDevModeShortcut } from './qa/qa-gate.js';
 
 async function init() {
   window.__appBootstrapped = true;
   try {
     maybeEnableQaFromUrl();
+    wireDevModeShortcut(() => {
+      import('./qa/qa-panel.js').then(m => m.toggleQaPanel({
+        renderAll: (scope) => {
+          if (typeof window.__refreshHome === 'function') window.__refreshHome();
+          document.dispatchEvent(new CustomEvent('tracker-data-changed'));
+        },
+        getSettingsPayload: () => ({}),
+      })).catch(() => {});
+    });
     applyAppMode();
     wireLoginScreen();
     if (hasPendingAuthHash()) {

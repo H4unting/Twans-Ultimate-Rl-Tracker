@@ -1,6 +1,9 @@
-/** QA tooling gates — localhost + opt-in + account allowlist */
+/** QA tooling gates — localhost + dev mode + account allowlist */
 
-import { QA_SESSION_KEY, QA_NOTE_PREFIX, QA_URL_PARAM, QA_URL_VALUE } from './qa-constants.js';
+import {
+  QA_SESSION_KEY, QA_NOTE_PREFIX, QA_URL_PARAM, QA_URL_VALUE,
+  DEV_MODE_KEY, QA_PANEL_VISIBLE_KEY,
+} from './qa-constants.js';
 
 const DEFAULT_EMAIL_PATTERNS = [/\+qa/i];
 
@@ -11,11 +14,19 @@ export function isQaHost() {
   return h === 'localhost' || h === '127.0.0.1';
 }
 
+export function enableDevMode({ showPanel = false } = {}) {
+  if (!isQaHost()) return false;
+  sessionStorage.setItem(QA_SESSION_KEY, '1');
+  localStorage.setItem(DEV_MODE_KEY, '1');
+  if (showPanel) sessionStorage.setItem(QA_PANEL_VISIBLE_KEY, '1');
+  return true;
+}
+
 export function maybeEnableQaFromUrl() {
   if (!isQaHost()) return false;
   const params = new URLSearchParams(window.location.search);
   if (params.get(QA_URL_PARAM) !== QA_URL_VALUE) return false;
-  sessionStorage.setItem(QA_SESSION_KEY, '1');
+  enableDevMode({ showPanel: true });
   params.delete(QA_URL_PARAM);
   const qs = params.toString();
   const next = `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash}`;
@@ -23,8 +34,24 @@ export function maybeEnableQaFromUrl() {
   return true;
 }
 
+/** @deprecated alias */
 export function isQaToolsEnabled() {
-  return isQaHost() && sessionStorage.getItem(QA_SESSION_KEY) === '1';
+  return isDevModeEnabled();
+}
+
+export function isDevModeEnabled() {
+  if (!isQaHost()) return false;
+  return sessionStorage.getItem(QA_SESSION_KEY) === '1'
+    || localStorage.getItem(DEV_MODE_KEY) === '1';
+}
+
+export function shouldShowQaPanelInitially() {
+  return sessionStorage.getItem(QA_PANEL_VISIBLE_KEY) === '1';
+}
+
+export function setQaPanelVisible(visible) {
+  if (visible) sessionStorage.setItem(QA_PANEL_VISIBLE_KEY, '1');
+  else sessionStorage.removeItem(QA_PANEL_VISIBLE_KEY);
 }
 
 export function isQaMatch(game) {
@@ -70,13 +97,22 @@ export function isQaAllowedUser(user, allowlist) {
 }
 
 export function assertQaWriteAllowed(user, allowlist) {
-  if (!isQaToolsEnabled()) {
-    throw new Error('QA tools are not enabled. Open http://localhost:8080/?qa=enable once.');
+  if (!isDevModeEnabled()) {
+    throw new Error('Dev mode off. Press Ctrl+Shift+D on localhost or open /?qa=enable');
   }
   if (!isQaAllowedUser(user, allowlist)) {
     throw new Error(
-      'QA writes blocked for this account. Sign in with a throwaway QA email (e.g. you+qa@gmail.com) '
-      + 'or add your email to config/qa.local.js (gitignored).',
+      'DB writes blocked — use a throwaway QA email (e.g. you+qa@gmail.com) or config/qa.local.js',
     );
   }
+}
+
+export function wireDevModeShortcut(onToggle) {
+  if (!isQaHost()) return;
+  document.addEventListener('keydown', (e) => {
+    if (!e.ctrlKey || !e.shiftKey || e.key.toLowerCase() !== 'd') return;
+    e.preventDefault();
+    enableDevMode({ showPanel: true });
+    onToggle?.();
+  });
 }
