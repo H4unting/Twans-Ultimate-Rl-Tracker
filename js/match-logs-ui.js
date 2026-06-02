@@ -7,7 +7,9 @@ import { getRank, rankIconHTML } from './ranks.js';
 import {
   valRankStartCellHTML,
   valRankEndCellHTML,
+  resolveValorantMatchDisplayRanks,
 } from './games/valorant/ranks.js';
+import { getActiveGames } from './state.js';
 import { getLoggingSessionNum } from './sessions.js';
 import { state } from './state.js';
 import { GAME_IDS, getGameMeta, getRankDiff } from './games.js';
@@ -110,9 +112,10 @@ export function renderGroupedMatchLogs(games, editable = false) {
   }).join('');
 }
 
-function valRankDetailHTML(g, startRR, endRR, diffLabel) {
-  const startCell = valRankStartCellHTML(g.startRank, startRR);
-  const endCell = valRankEndCellHTML(g.endRank, endRR, g.startRank);
+function valRankDetailHTML(g, diffLabel) {
+  const d = resolveValorantMatchDisplayRanks(getActiveGames(), g);
+  const startCell = valRankStartCellHTML(d.startRank, d.startRR);
+  const endCell = valRankEndCellHTML(d.endRank, d.endRR, d.startRank);
   return `<span class="val-rank-detail"><b>${diffLabel}</b> ${startCell} → ${endCell}</span>`;
 }
 
@@ -123,8 +126,6 @@ function matchRowHTML(g, gameNum, editable, gameId) {
   const diff = getRankDiff(g, gameId);
   const diffCls = diff >= 0 ? 'pos' : 'neg';
   const diffStr = `${diff >= 0 ? '+' : ''}${diff}`;
-  const startRank = g[meta.startRankField ?? 'startMMR'] ?? g.startMMR ?? '';
-  const endRank = g[meta.rankField ?? 'endMMR'] ?? g.endMMR ?? '';
   const agent = g.agent ? `<span class="match-log-agent">${g.agent}</span>` : '';
   const map = g.map ? `<span class="match-log-map">${g.map}</span>` : '';
 
@@ -144,7 +145,7 @@ function matchRowHTML(g, gameNum, editable, gameId) {
           <span><b>Match #</b> ${g.match}</span>
           ${isVal
             ? `<span><b>K/D/A</b> ${g.kills ?? g.goals ?? 0}/${g.deaths ?? 0}/${g.valAssists ?? g.assists ?? 0}</span>
-               ${valRankDetailHTML(g, startRank, endRank, diffLabel)}
+               ${valRankDetailHTML(g, diffLabel)}
                ${g.agent ? `<span><b>Agent</b> ${g.agent}</span>` : ''}
                ${g.map ? `<span><b>Map</b> ${g.map}</span>` : ''}`
             : `<span><b>G/A/S</b> ${g.goals}/${g.assists || 0}/${g.saves}</span>

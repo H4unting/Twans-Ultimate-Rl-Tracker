@@ -7,9 +7,13 @@ import {
   getTierColor,
   isRadiant,
   inferRankFromLegacyRR,
+  applyRRDelta,
   rankIndex,
   RANK_LADDER,
 } from './rank-ladder.js';
+import { resolveGameStartRankState } from './rank-chain.js';
+
+const RANK_SEP = ' · ';
 
 export { RANK_LADDER };
 
@@ -68,7 +72,7 @@ export function formatGameRankDisplay(game) {
 }
 
 const TIER_ABBR = {
-  Iron: 'I',
+  Iron: 'Ir',
   Bronze: 'B',
   Silver: 'S',
   Gold: 'G',
@@ -83,15 +87,46 @@ function escapeAttr(s) {
   return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 }
 
-/** Compact match-log label: "B2 • 87", "Imm3 • 12", "Rad • 150" */
+/** Compact match-log label: "Ir1 · 7", "B2 · 87", "Imm3 · 12" */
 export function formatValorantRankShort(rankName, rr) {
   const n = normalizeRankName(rankName) || 'Iron 1';
   const r = Number(rr) || 0;
-  if (isRadiant(n)) return `Rad • ${r}`;
+  if (isRadiant(n)) return `Rad${RANK_SEP}${r}`;
   const m = /^(\w+)\s+(\d+)$/.exec(n);
-  if (!m) return `${n} • ${r}`;
-  const abbr = TIER_ABBR[m[1]] ?? m[1].charAt(0);
-  return `${abbr}${m[2]} • ${r}`;
+  if (!m) return `${n}${RANK_SEP}${r}`;
+  const abbr = TIER_ABBR[m[1]] ?? m[1].slice(0, 2);
+  return `${abbr}${m[2]}${RANK_SEP}${r}`;
+}
+
+/**
+ * Display-only rank/RR for match logs — mirrors repairRankChain read path without persisting.
+ * Uses rrDiff + applyRRDelta so promotions show even when stored endRank is stale.
+ */
+export function resolveValorantMatchDisplayRanks(allGames, game) {
+  const sorted = [...allGames].sort((a, b) => a.match - b.match);
+  const start = resolveGameStartRankState(sorted, game);
+  let endRank = normalizeRankName(game.endRank);
+  let endRR = parseInt(game.endRR, 10);
+  if (Number.isNaN(endRR)) endRR = 0;
+
+  if (game.rrDiff != null && Number.isFinite(game.rrDiff)) {
+    const applied = applyRRDelta(start.rank, start.rr, game.rrDiff);
+    endRank = applied.rank;
+    endRR = applied.rr;
+  } else if (endRank) {
+    endRR = parseInt(game.endRR, 10) || 0;
+  } else {
+    const applied = applyRRDelta(start.rank, start.rr, endRR - start.rr);
+    endRank = applied.rank;
+    endRR = applied.rr;
+  }
+
+  return {
+    startRank: start.rank,
+    startRR: start.rr,
+    endRank,
+    endRR,
+  };
 }
 
 /** Full tooltip label: "Bronze 2 — 87 RR" */

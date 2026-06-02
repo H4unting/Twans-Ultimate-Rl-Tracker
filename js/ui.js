@@ -2,11 +2,13 @@
 
 import { TAG_COLORS, PLAYLISTS } from './config.js';
 import { getRank, rankIconHTML, rankBadgeHTML } from './ranks.js';
-import { valRankStartCellHTML, valRankEndCellHTML } from './games/valorant/ranks.js';
+import {
+  valRankStartCellHTML, valRankEndCellHTML, resolveValorantMatchDisplayRanks,
+} from './games/valorant/ranks.js';
 import { calcStats } from './utils.js';
 import { getGoalProgress } from './goals.js';
 import { getUniqueSessions } from './filters.js';
-import { state } from './state.js';
+import { state, getActiveGames } from './state.js';
 import {
   GAME_IDS, getPlaylists, getTagGroups, getTagColors, getTagCat, getGameMeta, getDefaultMode,
   getTagDefinitions, getRankDiff, getRankValue, getGameRankStart,
@@ -124,8 +126,10 @@ export function renderLog(tableId, games, limit, editable = false, gameId = stat
     </tr></thead>
     <tbody>${rows.map(g => {
       const diff = getRankDiff(g, gameId);
-      const startCell = valRankStartCellHTML(g.startRank, g.startRR ?? 0);
-      const endCell = valRankEndCellHTML(g.endRank, g.endRR ?? 0, g.startRank);
+      const chainGames = getActiveGames();
+      const d = resolveValorantMatchDisplayRanks(chainGames, g);
+      const startCell = valRankStartCellHTML(d.startRank, d.startRR);
+      const endCell = valRankEndCellHTML(d.endRank, d.endRR, d.startRank);
       return `
       <tr>
         <td style="color:#555">${g.match}</td>

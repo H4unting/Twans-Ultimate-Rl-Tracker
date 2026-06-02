@@ -764,7 +764,8 @@ body[data-active-game="valorant"] .val-rank-text {
   font-weight: 500;
   white-space: nowrap;
   line-height: 1.25;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
 }
 
 body[data-active-game="valorant"] .val-rank-text--start {
