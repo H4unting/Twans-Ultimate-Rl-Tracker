@@ -3,8 +3,8 @@
 import { formatDisplayDate } from './utils.js';
 import { getGamesInWeek } from './utils.js';
 import { renderInlineTags } from './ui.js';
-import { getRank, rankIconHTML, rankBadgeHTML } from './ranks.js';
-import { formatRankShort } from './games/valorant/rank-ladder.js';
+import { getRank, rankIconHTML } from './ranks.js';
+import { formatRankCompact, valRankChangeIndicatorHTML } from './games/valorant/ranks.js';
 import { getLoggingSessionNum } from './sessions.js';
 import { state } from './state.js';
 import { GAME_IDS, getGameMeta, getRankDiff } from './games.js';
@@ -107,6 +107,11 @@ export function renderGroupedMatchLogs(games, editable = false) {
   }).join('');
 }
 
+function valRankDetailHTML(g, startRR, endRR, diffLabel) {
+  const change = valRankChangeIndicatorHTML(g.startRank, g.endRank);
+  return `<span class="val-rank-detail"><b>${diffLabel}</b> ${formatRankCompact(g.startRank, startRR)} → ${formatRankCompact(g.endRank, endRR)}${change ? ` ${change}` : ''}</span>`;
+}
+
 function matchRowHTML(g, gameNum, editable, gameId) {
   const meta = getGameMeta(gameId);
   const diffLabel = meta.diffLabel;
@@ -135,7 +140,7 @@ function matchRowHTML(g, gameNum, editable, gameId) {
           <span><b>Match #</b> ${g.match}</span>
           ${isVal
             ? `<span><b>K/D/A</b> ${g.kills ?? g.goals ?? 0}/${g.deaths ?? 0}/${g.valAssists ?? g.assists ?? 0}</span>
-               <span><b>${diffLabel}</b> ${g.startRank ? formatRankShort(g.startRank, startRank) : startRank} → ${g.endRank ? formatRankShort(g.endRank, endRank) : endRank} ${rankBadgeHTML({ endRank: g.endRank, endRR: endRank }, 14)}</span>
+               ${valRankDetailHTML(g, startRank, endRank, diffLabel)}
                ${g.agent ? `<span><b>Agent</b> ${g.agent}</span>` : ''}
                ${g.map ? `<span><b>Map</b> ${g.map}</span>` : ''}`
             : `<span><b>G/A/S</b> ${g.goals}/${g.assists || 0}/${g.saves}</span>
