@@ -10,6 +10,7 @@ import {
   getRankBaselinesForUI,
   needsRankSetup,
 } from './rank-baselines.js';
+import { RANK_LADDER, parseValorantBaseline, serializeValorantBaseline } from './games/valorant/rank-ladder.js';
 
 let onCompleteCallback = null;
 let modalWired = false;
@@ -23,6 +24,8 @@ function renderModeFields(gameId) {
   const game = GAMES[gameId];
   const modes = getRankSetupModes(gameId);
   const stored = getRankBaselinesForUI()?.[gameId] ?? {};
+  const isVal = gameId === GAME_IDS.VALORANT;
+  const rankOpts = RANK_LADDER.map(r => `<option value="${escapeAttr(r)}">${r}</option>`).join('');
 
   return `
     <section class="rank-setup-game" data-rank-game="${gameId}">
@@ -30,26 +33,55 @@ function renderModeFields(gameId) {
         <span class="rank-setup-game-emoji">${game.emoji}</span>
         <div>
           <h3>${game.label}</h3>
-          <p class="rank-setup-game-desc">Current ${meta.rankLabel} for each playlist you play.</p>
+          <p class="rank-setup-game-desc">Current ${isVal ? 'rank and RR' : meta.rankLabel} for each playlist you play.</p>
         </div>
       </div>
       <div class="rank-setup-grid">
-        ${modes.map(mode => `
-          <div class="rank-setup-field">
-            <label for="rank-baseline-${gameId}-${mode.replace(/[^a-z0-9]/gi, '')}">${mode}</label>
+        ${modes.map(mode => {
+          const slug = mode.replace(/[^a-z0-9]/gi, '');
+          const raw = stored[mode];
+          const valBase = isVal ? parseValorantBaseline(raw) : null;
+          if (isVal) {
+            return `
+          <div class="rank-setup-field rank-setup-field-val">
+            <span class="rank-setup-field-label">${mode}</span>
+            <select
+              id="rank-baseline-rank-${gameId}-${slug}"
+              class="setup-input rank-setup-rank-select"
+              data-game="${gameId}"
+              data-mode="${escapeAttr(mode)}"
+              aria-label="${mode} rank"
+            >${rankOpts}</select>
             <input
               type="number"
-              id="rank-baseline-${gameId}-${mode.replace(/[^a-z0-9]/gi, '')}"
+              id="rank-baseline-rr-${gameId}-${slug}"
+              class="setup-input rank-setup-rr-input"
+              data-game="${gameId}"
+              data-mode="${escapeAttr(mode)}"
+              min="0"
+              max="100"
+              inputmode="numeric"
+              placeholder="RR"
+              value="${valBase ? escapeAttr(valBase.rr) : ''}"
+            >
+          </div>`;
+          }
+          return `
+          <div class="rank-setup-field">
+            <label for="rank-baseline-${gameId}-${slug}">${mode}</label>
+            <input
+              type="number"
+              id="rank-baseline-${gameId}-${slug}"
               class="setup-input rank-setup-input"
               data-game="${gameId}"
               data-mode="${escapeAttr(mode)}"
               min="0"
               inputmode="numeric"
               placeholder="${meta.rankLabel}"
-              value="${stored[mode] != null && stored[mode] !== '' ? escapeAttr(stored[mode]) : ''}"
+              value="${raw != null && raw !== '' ? escapeAttr(raw) : ''}"
             >
-          </div>
-        `).join('')}
+          </div>`;
+        }).join('')}
       </div>
     </section>`;
 }
@@ -79,6 +111,19 @@ function readBaselinesFromForm() {
     if (!raw) return;
     const n = parseInt(raw, 10);
     if (Number.isFinite(n) && n >= 0) out[gameId][mode] = n;
+  });
+
+  document.querySelectorAll('.rank-setup-rank-select').forEach(sel => {
+    const gameId = sel.dataset.game;
+    const mode = sel.dataset.mode;
+    const rank = sel.value;
+    const rrInput = sel.closest('.rank-setup-field-val')?.querySelector('.rank-setup-rr-input');
+    const rrRaw = rrInput?.value?.trim() ?? '';
+    if (!rank && !rrRaw) return;
+    const rr = parseInt(rrRaw, 10);
+    if (rank && Number.isFinite(rr) && rr >= 0) {
+      out[gameId][mode] = serializeValorantBaseline({ rank, rr });
+    }
   });
 
   return out;
@@ -144,6 +189,13 @@ export function openRankSetupModal({ onComplete } = {}) {
 
   onCompleteCallback = onComplete ?? null;
   body.innerHTML = renderRankSetupBody();
+  const stored = getRankBaselinesForUI()?.[GAME_IDS.VALORANT] ?? {};
+  getRankSetupModes(GAME_IDS.VALORANT).forEach(mode => {
+    const slug = mode.replace(/[^a-z0-9]/gi, '');
+    const parsed = parseValorantBaseline(stored[mode]);
+    const sel = document.getElementById(`rank-baseline-rank-${GAME_IDS.VALORANT}-${slug}`);
+    if (sel && parsed?.rank) sel.value = parsed.rank;
+  });
   wireRankSetupModal();
   overlay.classList.add('open');
 }

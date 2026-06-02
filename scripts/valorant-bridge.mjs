@@ -401,6 +401,8 @@ async function attachRankData(parsed, matchId) {
   if (!mmrRow) return parsed;
   parsed.rrChange = mmrRow.mmr_change_to_last_game ?? null;
   parsed.endRR = mmrRow.ranking_in_tier ?? null;
+  const tier = mmrRow.currenttier_patched ?? mmrRow.currenttier ?? mmrRow.current_tier;
+  if (tier) parsed.endRank = String(tier).trim();
   return parsed;
 }
 

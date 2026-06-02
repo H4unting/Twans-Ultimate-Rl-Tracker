@@ -104,6 +104,8 @@ function matchRowToGame(row) {
     map: stats.map,
     startRR: stats.startRR ?? row.start_mmr,
     endRR: stats.endRR ?? row.end_mmr,
+    startRank: stats.startRank,
+    endRank: stats.endRank,
     rrDiff: stats.rrDiff,
   });
 }
@@ -147,6 +149,8 @@ function gameToMatchRow(userId, game) {
       map: game.map ?? '',
       startRR: game.startRR ?? game.startMMR ?? 0,
       endRR: game.endRR ?? game.endMMR ?? 0,
+      startRank: game.startRank ?? '',
+      endRank: game.endRank ?? '',
       rrDiff: game.rrDiff ?? game.mmrDiff ?? 0,
     };
   }

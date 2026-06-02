@@ -102,8 +102,12 @@ export function calcStats(games, gameId = games?.[0]?.game ?? DEFAULT_GAME) {
   const totalMMRGain = sumRankDiff(games, diffField);
   const sessions = new Set(games.map(g => `${g.session}|${g.date}`)).size;
   const diffs = games.map(g => g[diffField] || 0);
+  const last = games[games.length - 1];
   return {
-    currentMMR: games[games.length - 1][rankField] ?? 0,
+    currentMMR: last[rankField] ?? 0,
+    currentRankDisplay: last?.endRank
+      ? { endRank: last.endRank, endRR: last[rankField] ?? 0 }
+      : null,
     totalGames: games.length,
     wins,
     losses,

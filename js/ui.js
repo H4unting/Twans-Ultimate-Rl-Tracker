@@ -82,7 +82,9 @@ export function renderStats(containerId, stats, playlist = 'all', gameId = state
       label: `Current ${diffLabel}`,
       val: stats.currentMMR,
       cls: 'gold',
-      extra: !isVal && stats.currentMMR ? rankBadgeHTML(stats.currentMMR, 18, rankMode) : '',
+      extra: !isVal && stats.currentMMR
+        ? rankBadgeHTML(stats.currentMMR, 18, rankMode)
+        : (isVal && stats.currentRankDisplay ? rankBadgeHTML(stats.currentRankDisplay, 18, rankMode) : ''),
     },
     { label: isVal ? 'Matches' : 'Total Games', val: stats.totalGames, cls: 'teal' },
     { label: 'Wins', val: stats.wins, cls: 'green' },
@@ -123,6 +125,8 @@ export function renderLog(tableId, games, limit, editable = false, gameId = stat
       const diff = getRankDiff(g, gameId);
       const startRank = getGameRankStart(g, gameId);
       const endRank = getRankValue(g, gameId);
+      const startBadge = rankBadgeHTML({ rank: g.startRank, rr: startRank }, 16, g.mode, gameId);
+      const endBadge = rankBadgeHTML({ endRank: g.endRank, endRR: endRank }, 16, g.mode, gameId);
       return `
       <tr>
         <td style="color:#555">${g.match}</td>
@@ -130,8 +134,8 @@ export function renderLog(tableId, games, limit, editable = false, gameId = stat
         <td style="color:#777">${g.mode}${g.agent ? `<br><span style="font-size:11px;color:#888">${g.agent}</span>` : ''}</td>
         <td><span class="badge ${g.result}">${g.result === 'W' ? 'WIN' : 'LOSS'}</span></td>
         <td>${g.kills ?? g.goals ?? 0}</td><td>${g.deaths ?? 0}</td><td>${g.valAssists ?? g.assists ?? 0}</td>
-        <td>${startRank}</td>
-        <td>${endRank}</td>
+        <td>${startBadge}</td>
+        <td>${endBadge}</td>
         <td class="${diff >= 0 ? 'pos' : 'neg'}">${diff >= 0 ? '+' : ''}${diff}</td>
         <td style="max-width:190px">${renderInlineTags(g.tags, gameId)}${g.notes ? `<div class="note-cell">${g.notes}</div>` : ''}</td>
         <td style="white-space:nowrap">${editable ? `

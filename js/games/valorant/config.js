@@ -97,6 +97,10 @@ export function filterByPlaylist(games, playlist) {
 }
 
 export function getRankValue(game) {
+  if (game?.endRank) {
+    const rr = game.endRR ?? 0;
+    return `${game.endRank} ${rr}`;
+  }
   return game?.endRR ?? 0;
 }
 
@@ -104,13 +108,23 @@ export function getRankDiff(game) {
   return game?.rrDiff ?? 0;
 }
 
-export function getPriorEndRank(games, mode, beforeMatch = Infinity) {
+export function getPriorEndRankState(games, mode, beforeMatch = Infinity) {
   for (let i = games.length - 1; i >= 0; i--) {
     const g = games[i];
     if (g.match >= beforeMatch) continue;
-    if (g.mode === mode && g.endRR != null && g.endRR !== '') return g.endRR;
+    if (g.mode !== mode || g.endRR == null || g.endRR === '') continue;
+    return {
+      rank: g.endRank ?? 'Iron 1',
+      rr: parseInt(g.endRR, 10) || 0,
+    };
   }
   return null;
+}
+
+/** Prior end RR within tier (legacy numeric helpers) */
+export function getPriorEndRank(games, mode, beforeMatch = Infinity) {
+  const st = getPriorEndRankState(games, mode, beforeMatch);
+  return st?.rr ?? null;
 }
 
 export function isRankEstimated(game) {

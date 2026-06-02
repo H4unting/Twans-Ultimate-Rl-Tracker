@@ -1,5 +1,6 @@
-import { DEFAULT_RR_SWING, getPriorEndRank, GAME_ID } from './config.js';
-import { getStoredRankBaseline } from '../../rank-baseline-store.js';
+import { DEFAULT_RR_SWING, getPriorEndRankState, GAME_ID } from './config.js';
+import { getStoredValorantBaseline } from '../../rank-baseline-store.js';
+import { applyRRDelta, normalizeRankName } from './rank-ladder.js';
 
 export function estimateRankDelta(games, result, mode) {
   const recent = games.filter(g =>
@@ -13,34 +14,94 @@ export function estimateRankDelta(games, result, mode) {
 
 export { estimateRankDelta as estimateMMRDelta };
 
-export function resolveGameStartRank(games, game) {
-  const priorEnd = getPriorEndRank(games, game.mode, game.match);
-  if (priorEnd != null) return priorEnd;
+export function resolveGameStartRankState(games, game) {
+  const prior = getPriorEndRankState(games, game.mode, game.match);
+  if (prior) return prior;
 
-  const baseline = getStoredRankBaseline(GAME_ID, game.mode);
-  if (baseline != null) return baseline;
+  const baseline = getStoredValorantBaseline(GAME_ID, game.mode);
+  if (baseline) return baseline;
 
   const endRR = parseInt(game.endRR, 10);
-  if (!endRR) return parseInt(game.startRR, 10) || 0;
+  const endRank = normalizeRankName(game.endRank);
+  if (!endRR && !endRank) {
+    return { rank: 'Iron 1', rr: parseInt(game.startRR, 10) || 0 };
+  }
 
   const priorGames = games.filter(g => g.match < game.match);
   const est = estimateRankDelta(priorGames, game.result, game.mode);
-  return Math.max(0, endRR - est);
+  if (endRank) {
+    const applied = applyRRDelta(endRank, endRR || 0, -est);
+    return { rank: applied.rank, rr: applied.rr };
+  }
+
+  const applied = applyRRDelta('Iron 1', endRR || 0, -est);
+  return { rank: applied.rank, rr: applied.rr };
+}
+
+/** @deprecated numeric start RR only — use resolveGameStartRankState */
+export function resolveGameStartRank(games, game) {
+  return resolveGameStartRankState(games, game).rr;
+}
+
+export function applyPromotion(startRank, startRR, delta) {
+  return applyRRDelta(startRank, startRR, delta);
+}
+
+export function resolveGameEndFromDelta(games, game, delta) {
+  const start = resolveGameStartRankState(games, game);
+  return applyRRDelta(start.rank, start.rr, delta);
 }
 
 export function repairRankChain(games) {
   let changed = false;
   const sorted = [...games].sort((a, b) => a.match - b.match);
+  let priorEndRank = null;
+
   const fixed = sorted.map(g => {
-    const startRR = resolveGameStartRank(sorted, g);
-    const endRR = parseInt(g.endRR, 10) || 0;
-    const rrDiff = endRR - startRR;
-    if (g.startRR !== startRR || g.rrDiff !== rrDiff) {
+    const start = resolveGameStartRankState(sorted, g);
+    let endRank = normalizeRankName(g.endRank);
+    let endRR = parseInt(g.endRR, 10);
+    if (Number.isNaN(endRR)) endRR = 0;
+
+    if (g.rrDiff != null && Number.isFinite(g.rrDiff)) {
+      const applied = applyRRDelta(start.rank, start.rr, g.rrDiff);
+      endRank = applied.rank;
+      endRR = applied.rr;
+    } else if (endRank) {
+      endRR = parseInt(g.endRR, 10) || 0;
+    } else {
+      const inferred = applyRRDelta(start.rank, start.rr, endRR - start.rr);
+      endRank = inferred.rank;
+      endRR = inferred.rr;
+    }
+
+    const startRR = start.rr;
+    const rrDiff = g.rrDiff != null && Number.isFinite(g.rrDiff)
+      ? g.rrDiff
+      : (endRank === start.rank ? endRR - startRR : 0);
+
+    priorEndRank = endRank;
+
+    if (
+      g.startRank !== start.rank
+      || g.endRank !== endRank
+      || g.startRR !== startRR
+      || g.endRR !== endRR
+      || g.rrDiff !== rrDiff
+    ) {
       changed = true;
-      return { ...g, startRR, rrDiff };
+      return {
+        ...g,
+        startRank: start.rank,
+        endRank,
+        startRR,
+        endRR,
+        rrDiff,
+      };
     }
     return g;
   });
+
   return { games: fixed, changed };
 }
 
@@ -54,5 +115,6 @@ export function resolveGameStartMMR(games, game) {
 }
 
 export function getPriorEndMMRForMode(games, mode, beforeMatch) {
-  return getPriorEndRank(games, mode, beforeMatch);
+  const st = getPriorEndRankState(games, mode, beforeMatch);
+  return st?.rr ?? null;
 }

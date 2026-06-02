@@ -7,6 +7,7 @@ import { TAG_DEFINITIONS as RL_TAGS, MODES as RL_MODES } from '../games/rocketle
 import { TAG_DEFINITIONS as VAL_TAGS, AGENTS, MAPS } from '../games/valorant/config.js';
 import { normalizeGame as normalizeRl } from '../games/rocketleague/normalize.js';
 import { normalizeGame as normalizeVal } from '../games/valorant/normalize.js';
+import { applyRRDelta } from '../games/valorant/rank-ladder.js';
 import { normalizeGoalsStorage } from '../goals.js';
 import {
   QA_NOTE_PREFIX, RL_MMR_SWINGS, VAL_RR_WINS, VAL_RR_LOSSES,
@@ -197,12 +198,18 @@ function createRlFactory({ startMmr = 850 } = {}) {
   };
 }
 
-function createValFactory({ startRr = 42 } = {}) {
+function createValFactory({ startRr = 42, startRank = 'Iron 1' } = {}) {
+  let rank = startRank;
   let rr = startRr;
   return ({ sessionNum, date, matchNum, result, edgeCase }) => {
+    const startRankName = rank;
     const startRR = rr;
-    const endRR = Math.max(0, Math.min(100, startRR + valDelta(result)));
-    rr = endRR;
+    const delta = valDelta(result);
+    const applied = applyRRDelta(startRankName, startRR, delta);
+    rank = applied.rank;
+    rr = applied.rr;
+    const endRank = applied.rank;
+    const endRR = applied.rr;
 
     let tags = [];
     if (edgeCase === 'notag') tags = [];
@@ -224,9 +231,11 @@ function createValFactory({ startRr = 42 } = {}) {
       acs: randInt(160, 280),
       agent: pick(AGENTS),
       map: pick(MAPS),
+      startRank: startRankName,
+      endRank,
       startRR,
       endRR,
-      rrDiff: endRR - startRR,
+      rrDiff: applied.rrDiff,
       tags,
       notes: buildNotes(edgeCase, sessionNum),
     });

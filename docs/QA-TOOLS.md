@@ -19,6 +19,7 @@ The **Developer Tools** panel toggles bottom-left. Hidden on GitHub Pages.
 
 ### Valorant
 - **Generate 10 / 50 / 100 Val Matches** — Competitive only, RR +18/22/27 or -15/18/22
+- Full competitive ladder (Iron 1 → Radiant) with promotion carry-over via `applyRRDelta` in `js/games/valorant/rank-ladder.js` — same helper as production.
 
 ### Sessions
 - **Generate 5 / 10 / 25 Sessions** — for the **active game** (4–11 games per session, good/bad nights)

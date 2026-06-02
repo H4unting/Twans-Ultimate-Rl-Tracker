@@ -166,7 +166,9 @@
           <select id="f-agent"><option value="">—</option></select></div>
         <div class="form-group hidden" data-game-ui="valorant"><label for="f-map">Map</label>
           <select id="f-map"><option value="">—</option></select></div>
-        <div class="form-group"><label for="f-startmmr">Starting MMR</label><input type="number" id="f-startmmr" min="0"></div>
+        <div class="form-group hidden" data-game-ui="valorant"><label for="f-startrank">Start rank</label><select id="f-startrank" aria-label="Start rank"></select></div>
+        <div class="form-group"><label for="f-startmmr">Starting MMR</label><input type="number" id="f-startmmr" min="0" max="100"></div>
+        <div class="form-group hidden" data-game-ui="valorant"><label for="f-endrank">End rank</label><select id="f-endrank" aria-label="End rank"></select></div>
         <div class="form-group"><label for="f-endmmr">Ending MMR</label><input type="number" id="f-endmmr" min="0"></div>
       </div>
       <div id="log-tags"></div>
@@ -338,6 +340,7 @@
           <select id="quick-map" class="quick-val-select" aria-label="Map">
             <option value="">Map</option>
           </select>
+          <select id="quick-endrank" class="quick-val-select" aria-label="End rank"></select>
           <input type="number" id="quick-endrr" class="quick-mmr-input" placeholder="End RR" min="0" inputmode="numeric" aria-label="End RR">
           <button type="button" class="quick-log-btn" id="quick-log-btn-val">LOG</button>
         </div>
@@ -442,7 +445,9 @@
       <div class="form-group" data-game-ui="valorant"><label for="e-map">Map</label>
         <select id="e-map"><option value="">—</option></select>
       </div>
-      <div class="form-group"><label for="e-startmmr" id="e-start-label">Starting MMR</label><input type="number" id="e-startmmr"></div>
+      <div class="form-group hidden" data-game-ui="valorant"><label for="e-startrank">Start rank</label><select id="e-startrank" aria-label="Start rank"></select></div>
+      <div class="form-group"><label for="e-startmmr" id="e-start-label">Starting MMR</label><input type="number" id="e-startmmr" max="100"></div>
+      <div class="form-group hidden" data-game-ui="valorant"><label for="e-endrank">End rank</label><select id="e-endrank" aria-label="End rank"></select></div>
       <div class="form-group form-span-2"><label for="e-endmmr" id="e-end-label">Ending MMR</label><input type="number" id="e-endmmr"></div>
     </div>
     <div id="edit-tags"></div>

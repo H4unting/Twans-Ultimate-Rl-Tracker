@@ -655,6 +655,8 @@ async function submitGameLog(source = 'form') {
       map: document.getElementById('f-map')?.value ?? '',
       startRR: document.getElementById('f-startmmr').value,
       endRR: document.getElementById('f-endmmr').value,
+      startRank: document.getElementById('f-startrank')?.value,
+      endRank: document.getElementById('f-endrank')?.value,
       startMMR: document.getElementById('f-startmmr').value,
       endMMR: document.getElementById('f-endmmr').value,
       notes: document.getElementById('f-notes').value,
@@ -768,8 +770,15 @@ function openEditModal(matchNum) {
     document.getElementById('e-assists').value = game.assists || 0;
     document.getElementById('e-saves').value = game.saves;
   }
-  document.getElementById('e-startmmr').value = game.startMMR;
-  document.getElementById('e-endmmr').value = game.endMMR;
+  const mod = getActiveGameModule();
+  document.getElementById('e-startmmr').value = game[mod.META.startRankField] ?? '';
+  document.getElementById('e-endmmr').value = game[mod.META.rankField] ?? '';
+  if (isVal) {
+    const eStartRank = document.getElementById('e-startrank');
+    const eEndRank = document.getElementById('e-endrank');
+    if (eStartRank) eStartRank.value = game.startRank ?? 'Iron 1';
+    if (eEndRank) eEndRank.value = game.endRank ?? 'Iron 1';
+  }
   document.getElementById('e-notes').value = game.notes || '';
   setEditResult(game.result);
   renderEditTags();
@@ -835,6 +844,8 @@ async function handleSaveEdit() {
       endMMR: endRank,
       startRR: startRank,
       endRR: endRank,
+      startRank: document.getElementById('e-startrank')?.value,
+      endRank: document.getElementById('e-endrank')?.value,
       notes: document.getElementById('e-notes').value,
     }, state.ui.editTags);
     if (!updated) return;

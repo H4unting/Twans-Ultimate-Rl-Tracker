@@ -1,5 +1,7 @@
 /** Rank baseline storage — standalone (no state/registry imports) */
 
+import { parseValorantBaseline, serializeValorantBaseline } from './games/valorant/rank-ladder.js';
+
 const RL = 'rocket_league';
 const VAL = 'valorant';
 
@@ -16,10 +18,27 @@ function normalizeGameKey(gameId) {
 }
 
 export function getStoredRankBaseline(gameId, mode) {
-  const raw = baselines[normalizeGameKey(gameId)]?.[mode];
+  const key = normalizeGameKey(gameId);
+  const raw = baselines[key]?.[mode];
   if (raw == null || raw === '') return null;
+  if (key === VAL) {
+    const parsed = parseValorantBaseline(raw);
+    return parsed?.rr ?? null;
+  }
   const n = parseInt(raw, 10);
   return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+/** Valorant baseline: { rank, rr } */
+export function getStoredValorantBaseline(gameId, mode) {
+  if (normalizeGameKey(gameId) !== VAL) return null;
+  const raw = baselines[VAL]?.[mode];
+  return parseValorantBaseline(raw);
+}
+
+export function setStoredValorantBaseline(gameId, mode, { rank, rr }) {
+  if (normalizeGameKey(gameId) !== VAL) return;
+  baselines[VAL][mode] = serializeValorantBaseline({ rank, rr });
 }
 
 export function getRankBaselinesSnapshot() {

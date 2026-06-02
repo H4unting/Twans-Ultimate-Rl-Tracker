@@ -6,6 +6,8 @@ import { getLastMMR } from './matches.js';
 import { getActiveGameModule } from './games/router.js';
 import { estimateMMRDelta } from './utils.js';
 import { VAL_DEFAULT_RR_SWING } from './valorant-config.js';
+import { applyRRDelta, normalizeRankName } from './games/valorant/rank-ladder.js';
+import { getStoredValorantBaseline } from './rank-baseline-store.js';
 import { getBridgeUrl } from './bridge-client.js';
 import { getDockModePillsEl } from './dock-ui.js';
 import {
@@ -35,6 +37,24 @@ function getQuickModeFromDock() {
 function recentGamesHaveMMR() {
   const mod = getActiveGameModule();
   return getActiveGames().slice(-3).some(g => mod.getRankValue(g));
+}
+
+function resolveValorantPriorState(mode) {
+  const games = getActiveGames();
+  const mod = getActiveGameModule();
+  const prior = mod.getPriorEndRankState?.(games, mode);
+  if (prior) {
+    return { rank: prior.rank, rr: prior.rr, hasPrior: true };
+  }
+  const baseline = getStoredValorantBaseline(GAME_IDS.VALORANT, mode);
+  if (baseline) {
+    return { rank: baseline.rank, rr: baseline.rr, hasPrior: true };
+  }
+  const legacyRR = getLastMMR(mode);
+  if (legacyRR !== '') {
+    return { rank: 'Iron 1', rr: parseInt(legacyRR, 10) || 0, hasPrior: true };
+  }
+  return { rank: 'Iron 1', rr: 0, hasPrior: false };
 }
 
 export async function handleValorantAutoLog(match) {
@@ -75,31 +95,63 @@ export async function handleValorantAutoLog(match) {
     map: match.map,
   });
 
-  const priorEnd = getLastMMR(logMode);
-  let startRR;
+  const priorState = resolveValorantPriorState(logMode);
+  let startRank = priorState.rank;
+  let startRR = priorState.rr;
+  let endRank;
   let endRR;
+  let rrDiff;
 
   if (match.endRR != null && match.rrChange != null) {
     endRR = parseInt(match.endRR, 10);
-    startRR = Math.max(0, endRR - parseInt(match.rrChange, 10));
-  } else if (match.rrChange != null && priorEnd !== '') {
-    startRR = parseInt(priorEnd, 10);
-    endRR = Math.max(0, Math.min(100, startRR + parseInt(match.rrChange, 10)));
-  } else {
-    const delta = match.result === 'W' ? VAL_DEFAULT_RR_SWING.W : VAL_DEFAULT_RR_SWING.L;
-    if (priorEnd !== '') {
-      startRR = parseInt(priorEnd, 10);
-      endRR = Math.max(0, Math.min(100, startRR + delta));
+    rrDiff = parseInt(match.rrChange, 10);
+    endRank = normalizeRankName(match.endRank);
+    if (endRank) {
+      const startApplied = applyRRDelta(endRank, endRR, -rrDiff);
+      startRank = startApplied.rank;
+      startRR = startApplied.rr;
     } else {
+      const applied = applyRRDelta(startRank, startRR, rrDiff);
+      endRank = applied.rank;
+      endRR = applied.rr;
+    }
+  } else if (match.rrChange != null && priorState.hasPrior) {
+    rrDiff = parseInt(match.rrChange, 10);
+    const applied = applyRRDelta(startRank, startRR, rrDiff);
+    endRank = applied.rank;
+    endRR = applied.rr;
+  } else {
+    rrDiff = match.result === 'W' ? VAL_DEFAULT_RR_SWING.W : VAL_DEFAULT_RR_SWING.L;
+    if (priorState.hasPrior) {
+      const applied = applyRRDelta(startRank, startRR, rrDiff);
+      endRank = applied.rank;
+      endRR = applied.rr;
+    } else {
+      startRank = 'Iron 1';
       startRR = 0;
-      endRR = Math.abs(delta);
+      endRank = 'Iron 1';
+      endRR = Math.abs(rrDiff);
       showToast(`First ${logMode} log — confirm your real RR after the match`, 'error');
     }
   }
 
+  if (!endRank) {
+    const applied = applyRRDelta(startRank, startRR, rrDiff);
+    endRank = applied.rank;
+    endRR = applied.rr;
+  }
+
+  state.ui.valAutoRank = { startRank, startRR, endRank, endRR, rrDiff };
+
   document.getElementById('quick-endrr').value = endRR;
+  const qRank = document.getElementById('quick-endrank');
+  if (qRank && endRank) qRank.value = endRank;
   const fStart = document.getElementById('f-startmmr');
-  if (fStart) fStart.value = priorEnd !== '' ? startRR : '';
+  const fEndRank = document.getElementById('f-endrank');
+  const fStartRank = document.getElementById('f-startrank');
+  if (fStart) fStart.value = priorState.hasPrior ? startRR : '';
+  if (fEndRank && endRank) fEndRank.value = endRank;
+  if (fStartRank && priorState.hasPrior) fStartRank.value = startRank;
 
   state.ui.autoLogNote = [
     match.matchId ? `id:${match.matchId}` : '',

@@ -34,6 +34,13 @@ async function persistActiveGames(activeGames) {
   return persistChain;
 }
 
+function repairActiveGameChain(games) {
+  const mod = getActiveGameModule();
+  const repairFn = mod.repairPlaylistMMRChain ?? mod.repairRankChain;
+  if (!repairFn) return games;
+  return repairFn(games).games;
+}
+
 export async function addGame(formData, selectedTags, onSuccess) {
   if (!requireSignedIn()) return null;
   const mod = getActiveGameModule();
@@ -61,9 +68,10 @@ export async function updateGame(matchNum, formData, selectedTags) {
   const idx = games.findIndex(g => g.match === matchNum);
   if (idx === -1) throw new Error('Game not found');
   games[idx] = mod.buildGameUpdate(formData, games, idx, selectedTags);
-  await persistActiveGames(games);
+  const repaired = repairActiveGameChain(games);
+  await persistActiveGames(repaired);
   showToast(`${mod.META.matchSingularCap} updated!`);
-  return games[idx];
+  return repaired[idx];
 }
 
 export async function patchLastGame({ endMMR, endRR, tags, notes }) {
@@ -82,9 +90,10 @@ export async function patchLastGame({ endMMR, endRR, tags, notes }) {
   if (notes !== undefined) g.notes = notes;
 
   games[idx] = normalizeGame({ ...g, game: state.activeGame });
-  await persistActiveGames(games);
+  const repaired = repairActiveGameChain(games);
+  await persistActiveGames(repaired);
   notifySessionUIRefresh();
-  return games[idx];
+  return repaired[idx];
 }
 
 export async function undoLastGame(skipConfirm = false) {
@@ -96,7 +105,7 @@ export async function undoLastGame(skipConfirm = false) {
 
   const games = active.slice(0, -1);
   games.forEach((g, i) => { g.match = i + 1; });
-  await persistActiveGames(games);
+  await persistActiveGames(repairActiveGameChain(games));
   notifySessionUIRefresh();
   showToast(`Last ${mod.META.matchSingular} removed`);
   return true;
@@ -108,7 +117,7 @@ export async function deleteGame(matchNum) {
   if (!confirm(`Delete this ${mod.META.matchSingular}?`)) return false;
   const games = getActiveGames().filter(g => g.match !== matchNum);
   games.forEach((g, i) => { g.match = i + 1; });
-  await persistActiveGames(games);
+  await persistActiveGames(repairActiveGameChain(games));
   showToast(`${mod.META.matchSingularCap} deleted`);
   return true;
 }

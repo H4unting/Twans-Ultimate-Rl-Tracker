@@ -68,7 +68,7 @@ function statMiniHTML(stats, games) {
       <div class="group-stat"><span class="group-stat-label">${copy.isVal ? 'Matches' : 'Games'}</span><span class="group-stat-val">${stats.totalGames}</span></div>
       <div class="group-stat"><span class="group-stat-label">Win Rate</span><span class="group-stat-val">${stats.winRate}%</span></div>
       <div class="group-stat"><span class="group-stat-label">${copy.meta.diffLabel} Gain</span><span class="group-stat-val ${stats.totalMMRGain >= 0 ? 'green' : 'red'}">${stats.totalMMRGain >= 0 ? '+' : ''}${stats.totalMMRGain}</span></div>
-      <div class="group-stat"><span class="group-stat-label">Current ${copy.meta.rankLabel}</span><span class="group-stat-val">${stats.currentMMR || '—'}${!copy.isVal && stats.currentMMR ? rankBadgeHTML(stats.currentMMR, 16, mode) : copy.isVal && stats.currentMMR ? ` <span class="val-squad-rr">${stats.currentMMR} RR</span>` : ''}</span></div>
+      <div class="group-stat"><span class="group-stat-label">Current ${copy.meta.rankLabel}</span><span class="group-stat-val">${!copy.isVal && stats.currentMMR ? `${stats.currentMMR}${rankBadgeHTML(stats.currentMMR, 16, mode)}` : copy.isVal && stats.currentRankDisplay ? rankBadgeHTML(stats.currentRankDisplay, 16, mode) : (stats.currentMMR || '—')}</span></div>
     </div>`;
 }
 

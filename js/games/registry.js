@@ -73,6 +73,10 @@ export function getRankDiff(game, gameId = game?.game ?? DEFAULT_GAME) {
 }
 
 export function getGameRankStart(game, gameId = game?.game ?? DEFAULT_GAME) {
+  if (gameId === GAME_IDS.VALORANT && game?.startRank) {
+    const rr = game.startRR ?? '';
+    return rr === '' ? game.startRank : `${game.startRank} ${rr}`;
+  }
   const field = getGameMeta(gameId).startRankField ?? 'startMMR';
   const val = game?.[field];
   return val == null || val === '' ? '' : val;

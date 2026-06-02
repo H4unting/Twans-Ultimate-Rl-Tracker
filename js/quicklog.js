@@ -1,7 +1,8 @@
 /** Quick Log dock — fast mid-session logging with keyboard shortcuts */
 
-import { state } from './state.js';
+import { state, getActiveGames } from './state.js';
 import { GAME_IDS, getTagGroups } from './games.js';
+import { getActiveGameModule } from './games/router.js';
 import { showToast } from './ui.js';
 import { getLoggingSessionNum } from './core/logging-session.js';
 import { isAutoLogEnabled as readAutoLogPref } from './auto-log-prefs.js';
@@ -289,6 +290,9 @@ export function getQuickLogPayload() {
       endRR: endRankInput()?.value,
       startMMR: document.getElementById('f-startmmr')?.value,
       endMMR: endRankInput()?.value,
+      startRank: state.ui.valAutoRank?.startRank,
+      endRank: state.ui.valAutoRank?.endRank,
+      rrDiff: state.ui.valAutoRank?.rrDiff,
     };
   }
   return {
@@ -355,7 +359,10 @@ function bumpStat(stat, delta) {
 export function resetQuickAfterLog() {
   const qEnd = endRankInput();
   const qNotes = document.getElementById('quick-notes');
+  state.ui.valAutoRank = null;
   if (qEnd) { qEnd.value = ''; qEnd.focus(); }
+  const qEndRank = document.getElementById('quick-endrank');
+  if (qEndRank) qEndRank.selectedIndex = 0;
   if (qNotes) qNotes.value = '';
   setQuickStat('goals', 0);
   setQuickStat('assists', 0);
@@ -368,9 +375,15 @@ export function resetQuickAfterLog() {
 }
 
 function syncStartMMR() {
-  const last = callbacks.getLastMMR?.(getQuickMode());
+  const mode = getQuickMode();
+  const last = callbacks.getLastMMR?.(mode);
   const fStart = document.getElementById('f-startmmr');
   if (fStart && last !== '') fStart.value = last;
+  if (state.activeGame === GAME_IDS.VALORANT) {
+    const prior = getActiveGameModule().getPriorEndRankState?.(getActiveGames(), mode);
+    const fStartRank = document.getElementById('f-startrank');
+    if (fStartRank && prior?.rank) fStartRank.value = prior.rank;
+  }
 }
 
 function getQuickMode() {

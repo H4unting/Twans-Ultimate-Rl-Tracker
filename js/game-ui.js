@@ -2,6 +2,7 @@
 
 import { state, setActiveGame, subscribe, getActiveGames } from './state.js';
 import { GAMES, GAME_IDS, getGameMeta, getTagGroups, getPlaylists, getAgents, getMaps, getPageCopy } from './games.js';
+import { RANK_LADDER } from './games/valorant/rank-ladder.js';
 import { saveSettings } from './supabase.js';
 import { savePrefs, loadPrefs, refreshQuickTagsOnGameSwitch } from './quicklog.js';
 import { refreshBridgeStatusUI } from './bridge-ui.js';
@@ -147,6 +148,21 @@ function toggleGamePageChrome(gameId) {
   }
 }
 
+function fillRankSelect(el, selected) {
+  if (!el) return;
+  el.innerHTML = RANK_LADDER.map(r =>
+    `<option value="${r}"${r === selected ? ' selected' : ''}>${r}</option>`,
+  ).join('');
+}
+
+function syncValorantRankSelects() {
+  fillRankSelect(document.getElementById('f-startrank'), 'Iron 1');
+  fillRankSelect(document.getElementById('f-endrank'), 'Iron 1');
+  fillRankSelect(document.getElementById('e-startrank'), 'Iron 1');
+  fillRankSelect(document.getElementById('e-endrank'), 'Iron 1');
+  fillRankSelect(document.getElementById('quick-endrank'), 'Iron 1');
+}
+
 export function syncEditModal(gameId = state.activeGame) {
   const meta = getGameMeta(gameId);
   const isVal = gameId === GAME_IDS.VALORANT;
@@ -186,6 +202,7 @@ export function syncEditModal(gameId = state.activeGame) {
       mapSel.appendChild(opt);
     });
   }
+  if (isVal) syncValorantRankSelects();
 }
 
 export function syncFullLogForm(gameId = state.activeGame) {
@@ -232,6 +249,7 @@ export function syncFullLogForm(gameId = state.activeGame) {
       mapSel.appendChild(opt);
     });
   }
+  if (isVal) syncValorantRankSelects();
 }
 
 export function restoreActiveGameFromPrefs(settingsActiveGame) {

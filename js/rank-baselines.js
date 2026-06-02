@@ -51,8 +51,14 @@ export function inferRankBaselinesFromGames(games = []) {
     if (end != null) out[RL_GAME_ID][mode] = end;
   }
   for (const mode of VAL_RANK_SETUP_MODES) {
-    const end = priorEndFromGamesOnly(valGames, mode, 'endRR');
-    if (end != null) out[VAL_GAME_ID][mode] = end;
+    for (let i = valGames.length - 1; i >= 0; i--) {
+      const g = valGames[i];
+      if (g.mode !== mode || g.endRR == null || g.endRR === '') continue;
+      out[VAL_GAME_ID][mode] = g.endRank
+        ? { rank: g.endRank, rr: parseInt(g.endRR, 10) || 0 }
+        : (parseInt(g.endRR, 10) || 0);
+      break;
+    }
   }
 
   return out;
