@@ -758,28 +758,28 @@ body[data-active-game="valorant"] .val-focus-rr {
   letter-spacing: 0.04em;
 }
 
-/* Match log — compact rank columns */
-body[data-active-game="valorant"] .val-rank-compact {
+/* Match log — compact rank columns (plain text, secondary weight) */
+body[data-active-game="valorant"] .val-rank-text {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
   line-height: 1.25;
+  letter-spacing: 0.01em;
 }
 
-body[data-active-game="valorant"] .val-rank-cell-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  align-items: flex-start;
+body[data-active-game="valorant"] .val-rank-text--start {
+  color: var(--text-muted, #777);
+}
+
+body[data-active-game="valorant"] .val-rank-text--end {
+  color: var(--text-secondary, #999);
 }
 
 body[data-active-game="valorant"] .val-rank-change {
-  display: inline-block;
-  font-size: 10px;
+  display: inline;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.02em;
-  line-height: 1.2;
-  white-space: nowrap;
+  line-height: 1;
 }
 
 body[data-active-game="valorant"] .val-rank-change--promo { color: #3dd68c; }
@@ -791,22 +791,22 @@ body[data-active-game="valorant"] #log-history-table .val-rank-col {
   min-width: 0;
 }
 
-body[data-active-game="valorant"] .val-rank-detail .val-rank-change {
-  margin-left: 6px;
+body[data-active-game="valorant"] .val-rank-detail .val-rank-text {
+  font-size: 12px;
 }
 
 @media (max-width: 640px) {
-  body[data-active-game="valorant"] #log-history-table .val-rank-col {
-    padding-top: 4px;
-    padding-bottom: 4px;
+  body[data-active-game="valorant"] #log-history-table .val-rank-col--start,
+  body[data-active-game="valorant"] #log-history-table thead .val-rank-col--start {
+    display: none;
   }
 
-  body[data-active-game="valorant"] .val-rank-compact {
+  body[data-active-game="valorant"] .val-rank-text {
     font-size: 11px;
   }
 
   body[data-active-game="valorant"] .val-rank-change {
-    font-size: 9px;
+    font-size: 10px;
   }
 
   body[data-active-game="valorant"] #log-history-table td:nth-child(3) span {

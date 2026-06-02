@@ -2,7 +2,7 @@
 
 import { TAG_COLORS, PLAYLISTS } from './config.js';
 import { getRank, rankIconHTML, rankBadgeHTML } from './ranks.js';
-import { valRankCellHTML, valMatchLogEndCellHTML } from './games/valorant/ranks.js';
+import { valRankStartCellHTML, valRankEndCellHTML } from './games/valorant/ranks.js';
 import { calcStats } from './utils.js';
 import { getGoalProgress } from './goals.js';
 import { getUniqueSessions } from './filters.js';
@@ -119,13 +119,13 @@ export function renderLog(tableId, games, limit, editable = false, gameId = stat
     t.innerHTML = `
     <thead><tr>
       <th>#</th><th>Date</th><th>Mode</th><th>Result</th>
-      <th>K</th><th>D</th><th>A</th><th>Start</th><th>End</th><th>+/-</th>
+      <th>K</th><th>D</th><th>A</th><th class="val-rank-col val-rank-col--start">Start</th><th class="val-rank-col val-rank-col--end">End</th><th>+/-</th>
       <th>Tags / Notes</th><th></th>
     </tr></thead>
     <tbody>${rows.map(g => {
       const diff = getRankDiff(g, gameId);
-      const startCell = valRankCellHTML(g.startRank, g.startRR ?? 0);
-      const endCell = valMatchLogEndCellHTML(g.endRank, g.endRR ?? 0, g.startRank);
+      const startCell = valRankStartCellHTML(g.startRank, g.startRR ?? 0);
+      const endCell = valRankEndCellHTML(g.endRank, g.endRR ?? 0, g.startRank);
       return `
       <tr>
         <td style="color:#555">${g.match}</td>
@@ -133,8 +133,8 @@ export function renderLog(tableId, games, limit, editable = false, gameId = stat
         <td style="color:#777">${g.mode}${g.agent ? `<br><span style="font-size:11px;color:#888">${g.agent}</span>` : ''}</td>
         <td><span class="badge ${g.result}">${g.result === 'W' ? 'WIN' : 'LOSS'}</span></td>
         <td>${g.kills ?? g.goals ?? 0}</td><td>${g.deaths ?? 0}</td><td>${g.valAssists ?? g.assists ?? 0}</td>
-        <td class="val-rank-col">${startCell}</td>
-        <td class="val-rank-col">${endCell}</td>
+        <td class="val-rank-col val-rank-col--start">${startCell}</td>
+        <td class="val-rank-col val-rank-col--end">${endCell}</td>
         <td class="${diff >= 0 ? 'pos' : 'neg'}">${diff >= 0 ? '+' : ''}${diff}</td>
         <td style="max-width:190px">${renderInlineTags(g.tags, gameId)}${g.notes ? `<div class="note-cell">${g.notes}</div>` : ''}</td>
         <td style="white-space:nowrap">${editable ? `

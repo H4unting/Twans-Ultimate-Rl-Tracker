@@ -67,21 +67,77 @@ export function formatGameRankDisplay(game) {
   return formatRankDisplay(inferRankFromLegacyRR(rr, game.startRank).rank, rr);
 }
 
-/** Compact match-log label: "Bronze 2 • 87 RR" */
-export function formatRankCompact(rank, rr) {
-  const n = normalizeRankName(rank) || 'Iron 1';
-  const r = Number(rr) || 0;
-  if (isRadiant(n)) return `Radiant • ${r} RR`;
-  return `${n} • ${r} RR`;
+const TIER_ABBR = {
+  Iron: 'I',
+  Bronze: 'B',
+  Silver: 'S',
+  Gold: 'G',
+  Platinum: 'P',
+  Diamond: 'D',
+  Ascendant: 'A',
+  Immortal: 'Imm',
+  Radiant: 'Rad',
+};
+
+function escapeAttr(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 }
 
-export function valRankCellHTML(rankName, rr) {
+/** Compact match-log label: "B2 • 87", "Imm3 • 12", "Rad • 150" */
+export function formatValorantRankShort(rankName, rr) {
   const n = normalizeRankName(rankName) || 'Iron 1';
-  const color = getTierColor(n);
-  return `<span class="val-rank-compact" style="color:${color}">${formatRankCompact(rankName, rr)}</span>`;
+  const r = Number(rr) || 0;
+  if (isRadiant(n)) return `Rad • ${r}`;
+  const m = /^(\w+)\s+(\d+)$/.exec(n);
+  if (!m) return `${n} • ${r}`;
+  const abbr = TIER_ABBR[m[1]] ?? m[1].charAt(0);
+  return `${abbr}${m[2]} • ${r}`;
 }
 
-/** Promotion/demotion chip — empty when start and end rank are the same */
+/** Full tooltip label: "Bronze 2 — 87 RR" */
+export function formatValorantRankTooltip(rankName, rr) {
+  const n = normalizeRankName(rankName) || 'Iron 1';
+  const r = Number(rr) || 0;
+  if (isRadiant(n)) return `Radiant — ${r} RR`;
+  return `${n} — ${r} RR`;
+}
+
+/** Promotion/demotion tooltip — empty when ranks match */
+export function formatValorantRankChangeTooltip(startRank, endRank) {
+  const start = normalizeRankName(startRank);
+  const end = normalizeRankName(endRank);
+  if (!start || !end || start === end) return '';
+  const promoted = rankIndex(end) > rankIndex(start);
+  return promoted ? `Promoted: ${start} → ${end}` : `Demoted: ${start} → ${end}`;
+}
+
+/** @deprecated use formatValorantRankTooltip */
+export function formatRankCompact(rank, rr) {
+  return formatValorantRankTooltip(rank, rr);
+}
+
+/** Start column — muted plain text */
+export function valRankStartCellHTML(rankName, rr) {
+  const label = formatValorantRankShort(rankName, rr);
+  const title = formatValorantRankTooltip(rankName, rr);
+  return `<span class="val-rank-text val-rank-text--start" title="${escapeAttr(title)}">${label}</span>`;
+}
+
+/** End column — compact label + ↑/↓ when rank tier changes */
+export function valRankEndCellHTML(rankName, rr, startRank) {
+  const label = formatValorantRankShort(rankName, rr);
+  const changeTip = formatValorantRankChangeTooltip(startRank, rankName);
+  const title = changeTip || formatValorantRankTooltip(rankName, rr);
+  const change = valRankChangeIndicatorHTML(startRank, rankName);
+  return `<span class="val-rank-text val-rank-text--end" title="${escapeAttr(title)}">${label}${change ? ` ${change}` : ''}</span>`;
+}
+
+/** @deprecated use valRankStartCellHTML */
+export function valRankCellHTML(rankName, rr) {
+  return valRankStartCellHTML(rankName, rr);
+}
+
+/** Promotion/demotion arrow — empty when start and end rank are the same */
 export function valRankChangeIndicatorHTML(startRank, endRank) {
   const start = normalizeRankName(startRank);
   const end = normalizeRankName(endRank);
@@ -89,12 +145,10 @@ export function valRankChangeIndicatorHTML(startRank, endRank) {
   const promoted = rankIndex(end) > rankIndex(start);
   const arrow = promoted ? '↑' : '↓';
   const cls = promoted ? 'promo' : 'demo';
-  return `<span class="val-rank-change val-rank-change--${cls}">${arrow} ${start} → ${end}</span>`;
+  return `<span class="val-rank-change val-rank-change--${cls}">${arrow}</span>`;
 }
 
+/** @deprecated use valRankEndCellHTML */
 export function valMatchLogEndCellHTML(rankName, rr, startRank) {
-  const change = valRankChangeIndicatorHTML(startRank, rankName);
-  const compact = valRankCellHTML(rankName, rr);
-  if (!change) return compact;
-  return `<div class="val-rank-cell-stack">${compact}${change}</div>`;
+  return valRankEndCellHTML(rankName, rr, startRank);
 }

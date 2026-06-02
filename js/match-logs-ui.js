@@ -4,7 +4,10 @@ import { formatDisplayDate } from './utils.js';
 import { getGamesInWeek } from './utils.js';
 import { renderInlineTags } from './ui.js';
 import { getRank, rankIconHTML } from './ranks.js';
-import { formatRankCompact, valRankChangeIndicatorHTML } from './games/valorant/ranks.js';
+import {
+  valRankStartCellHTML,
+  valRankEndCellHTML,
+} from './games/valorant/ranks.js';
 import { getLoggingSessionNum } from './sessions.js';
 import { state } from './state.js';
 import { GAME_IDS, getGameMeta, getRankDiff } from './games.js';
@@ -108,8 +111,9 @@ export function renderGroupedMatchLogs(games, editable = false) {
 }
 
 function valRankDetailHTML(g, startRR, endRR, diffLabel) {
-  const change = valRankChangeIndicatorHTML(g.startRank, g.endRank);
-  return `<span class="val-rank-detail"><b>${diffLabel}</b> ${formatRankCompact(g.startRank, startRR)} → ${formatRankCompact(g.endRank, endRR)}${change ? ` ${change}` : ''}</span>`;
+  const startCell = valRankStartCellHTML(g.startRank, startRR);
+  const endCell = valRankEndCellHTML(g.endRank, endRR, g.startRank);
+  return `<span class="val-rank-detail"><b>${diffLabel}</b> ${startCell} → ${endCell}</span>`;
 }
 
 function matchRowHTML(g, gameNum, editable, gameId) {
