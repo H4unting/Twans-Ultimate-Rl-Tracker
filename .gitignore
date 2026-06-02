@@ -11,4 +11,6 @@ Twans-Tracker-Bridge-new.exe
 Twans Auto-Log.exe
 tools/launcher/node_modules/
 tools/launcher/dist/
+launcher/node_modules/
+launcher/dist/
 *.log
