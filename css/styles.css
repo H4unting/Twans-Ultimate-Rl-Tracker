@@ -358,6 +358,7 @@ body.logged-out.has-quick-dock { padding-bottom: 0; }
 .table-wrap::-webkit-scrollbar-thumb { background: #2a2a4a; border-radius: 4px; }
 .table-wrap::-webkit-scrollbar-thumb:hover { background: #3a3a5a; }
 .log-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 640px; }
+.log-history-table-wrap .log-table { table-layout: fixed; }
 .log-table th {
   background: #0d0d22; color: var(--dim); font-weight: 600;
   padding: 9px 10px; text-align: left; border-bottom: 1px solid #1e1e3a;
@@ -372,7 +373,23 @@ body.logged-out.has-quick-dock { padding-bottom: 0; }
 .badge.L { background: #ff444422; color: var(--red); border: 1px solid #ff444455; }
 .pos { color: var(--green); font-weight: 600; }
 .neg { color: var(--red); font-weight: 600; }
-.note-cell { color: var(--muted); font-size: 11px; font-style: italic; margin-top: 3px; }
+.log-table-col-notes,
+.log-table-cell-notes {
+  width: 190px;
+  max-width: 190px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.note-cell {
+  color: var(--muted);
+  font-size: 11px;
+  font-style: italic;
+  margin-top: 3px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
 
 /* Forms */
 .add-form {
@@ -1182,6 +1199,7 @@ body.has-quick-dock.quick-dock-collapsed .mobile-nav { bottom: 52px; }
 }
 .log-history-table-wrap {
   margin-top: 12px;
+  max-width: 100%;
 }
 
 .full-log-details {

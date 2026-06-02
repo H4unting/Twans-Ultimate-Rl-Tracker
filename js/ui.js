@@ -122,7 +122,7 @@ export function renderLog(tableId, games, limit, editable = false, gameId = stat
     <thead><tr>
       <th>#</th><th>Date</th><th>Mode</th><th>Result</th>
       <th>K</th><th>D</th><th>A</th><th class="val-rank-col val-rank-col--start">Start</th><th class="val-rank-col val-rank-col--end">End</th><th>+/-</th>
-      <th>Tags / Notes</th><th></th>
+      <th class="log-table-col-notes">Tags / Notes</th><th></th>
     </tr></thead>
     <tbody>${rows.map(g => {
       const diff = getRankDiff(g, gameId);
@@ -130,6 +130,9 @@ export function renderLog(tableId, games, limit, editable = false, gameId = stat
       const d = resolveValorantMatchDisplayRanks(chainGames, g);
       const startCell = valRankStartCellHTML(d.startRank, d.startRR);
       const endCell = valRankEndCellHTML(d.endRank, d.endRR, d.startRank);
+      const noteHtml = g.notes
+        ? `<div class="note-cell" title="${String(g.notes).replace(/"/g, '&quot;')}">${g.notes}</div>`
+        : '';
       return `
       <tr>
         <td style="color:#555">${g.match}</td>
@@ -140,7 +143,7 @@ export function renderLog(tableId, games, limit, editable = false, gameId = stat
         <td class="val-rank-col val-rank-col--start">${startCell}</td>
         <td class="val-rank-col val-rank-col--end">${endCell}</td>
         <td class="${diff >= 0 ? 'pos' : 'neg'}">${diff >= 0 ? '+' : ''}${diff}</td>
-        <td style="max-width:190px">${renderInlineTags(g.tags, gameId)}${g.notes ? `<div class="note-cell">${g.notes}</div>` : ''}</td>
+        <td class="log-table-cell-notes">${renderInlineTags(g.tags, gameId)}${noteHtml}</td>
         <td style="white-space:nowrap">${editable ? `
           <button class="action-btn edit" data-match="${g.match}" title="Edit" aria-label="Edit match ${g.match}">✏️</button>
           <button class="action-btn del" data-match="${g.match}" title="Delete" aria-label="Delete match ${g.match}">🗑️</button>` : ''}</td>
@@ -152,12 +155,15 @@ export function renderLog(tableId, games, limit, editable = false, gameId = stat
     <thead><tr>
       <th>#</th><th>Date</th><th>Mode</th><th>Result</th>
       <th>G</th><th>S</th><th>Start</th><th>End</th><th>+/-</th>
-      <th>Tags / Notes</th><th></th>
+      <th class="log-table-col-notes">Tags / Notes</th><th></th>
     </tr></thead>
     <tbody>${rows.map(g => {
       const diff = getRankDiff(g, gameId);
       const startRank = getGameRankStart(g, gameId);
       const endRank = getRankValue(g, gameId);
+      const noteHtml = g.notes
+        ? `<div class="note-cell" title="${String(g.notes).replace(/"/g, '&quot;')}">${g.notes}</div>`
+        : '';
       return `
       <tr>
         <td style="color:#555">${g.match}</td>
@@ -168,7 +174,7 @@ export function renderLog(tableId, games, limit, editable = false, gameId = stat
         <td>${startRank}</td>
         <td><span style="margin-right:4px">${endRank}</span>${rankIconHTML(getRank(endRank, g.mode), 22)}</td>
         <td class="${diff >= 0 ? 'pos' : 'neg'}">${diff >= 0 ? '+' : ''}${diff}</td>
-        <td style="max-width:190px">${renderInlineTags(g.tags, gameId)}${g.notes ? `<div class="note-cell">${g.notes}</div>` : ''}</td>
+        <td class="log-table-cell-notes">${renderInlineTags(g.tags, gameId)}${noteHtml}</td>
         <td style="white-space:nowrap">${editable ? `
           <button class="action-btn edit" data-match="${g.match}" title="Edit" aria-label="Edit game ${g.match}">✏️</button>
           <button class="action-btn del" data-match="${g.match}" title="Delete" aria-label="Delete game ${g.match}">🗑️</button>` : ''}</td>

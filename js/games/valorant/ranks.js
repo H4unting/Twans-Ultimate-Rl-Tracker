@@ -72,30 +72,41 @@ export function formatGameRankDisplay(game) {
 }
 
 const TIER_ABBR = {
-  Iron: 'Ir',
   Bronze: 'B',
   Silver: 'S',
   Gold: 'G',
   Platinum: 'P',
   Diamond: 'D',
   Ascendant: 'A',
-  Immortal: 'Imm',
-  Radiant: 'Rad',
 };
 
-function escapeAttr(s) {
-  return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+function rankLabelForDisplay(rankName) {
+  const n = normalizeRankName(rankName) || 'Iron 1';
+  if (isRadiant(n)) return 'Radiant';
+  const m = /^(\w+)\s+(\d+)$/.exec(n);
+  if (!m) return n;
+  // Iron & Immortal: full name (Ir2 / Imm3 feel tacky). Mid tiers: B2, S1, etc.
+  if (m[1] === 'Iron' || m[1] === 'Immortal') return n;
+  const abbr = TIER_ABBR[m[1]];
+  return abbr ? `${abbr}${m[2]}` : n;
 }
 
-/** Compact match-log label: "Ir1 · 7", "B2 · 87", "Imm3 · 12" */
+/** Compact match-log label: "Iron 2 · 83", "B2 · 87", "Immortal 3 · 12" */
 export function formatValorantRankShort(rankName, rr) {
+  const r = Number(rr) || 0;
+  return `${rankLabelForDisplay(rankName)}${RANK_SEP}${r}`;
+}
+
+function valRankTextHTML(rankName, rr, role, titleOverride = null) {
   const n = normalizeRankName(rankName) || 'Iron 1';
   const r = Number(rr) || 0;
-  if (isRadiant(n)) return `Rad${RANK_SEP}${r}`;
-  const m = /^(\w+)\s+(\d+)$/.exec(n);
-  if (!m) return `${n}${RANK_SEP}${r}`;
-  const abbr = TIER_ABBR[m[1]] ?? m[1].slice(0, 2);
-  return `${abbr}${m[2]}${RANK_SEP}${r}`;
+  const tierColor = getTierColor(n);
+  const label = rankLabelForDisplay(rankName);
+  const title = titleOverride ?? formatValorantRankTooltip(rankName, rr);
+  return `<span class="val-rank-text val-rank-text--${role}" style="--val-tier:${tierColor}" title="${escapeAttr(title)}">`
+    + `<span class="val-rank-tier">${label}</span>`
+    + `<span class="val-rank-sep">${RANK_SEP.trim()}</span>`
+    + `<span class="val-rank-rr">${r}</span></span>`;
 }
 
 /**
@@ -146,6 +157,10 @@ export function formatValorantRankChangeTooltip(startRank, endRank) {
   return promoted ? `Promoted: ${start} → ${end}` : `Demoted: ${start} → ${end}`;
 }
 
+function escapeAttr(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
 /** @deprecated use formatValorantRankTooltip */
 export function formatRankCompact(rank, rr) {
   return formatValorantRankTooltip(rank, rr);
@@ -153,18 +168,17 @@ export function formatRankCompact(rank, rr) {
 
 /** Start column — muted plain text */
 export function valRankStartCellHTML(rankName, rr) {
-  const label = formatValorantRankShort(rankName, rr);
-  const title = formatValorantRankTooltip(rankName, rr);
-  return `<span class="val-rank-text val-rank-text--start" title="${escapeAttr(title)}">${label}</span>`;
+  return valRankTextHTML(rankName, rr, 'start');
 }
 
 /** End column — compact label + ↑/↓ when rank tier changes */
 export function valRankEndCellHTML(rankName, rr, startRank) {
-  const label = formatValorantRankShort(rankName, rr);
   const changeTip = formatValorantRankChangeTooltip(startRank, rankName);
   const title = changeTip || formatValorantRankTooltip(rankName, rr);
   const change = valRankChangeIndicatorHTML(startRank, rankName);
-  return `<span class="val-rank-text val-rank-text--end" title="${escapeAttr(title)}">${label}${change ? ` ${change}` : ''}</span>`;
+  const base = valRankTextHTML(rankName, rr, 'end', title);
+  if (!change) return base;
+  return base.replace('</span>', ` ${change}</span>`);
 }
 
 /** @deprecated use valRankStartCellHTML */

@@ -764,16 +764,36 @@ body[data-active-game="valorant"] .val-rank-text {
   font-weight: 500;
   white-space: nowrap;
   line-height: 1.25;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
   font-variant-numeric: tabular-nums;
 }
 
-body[data-active-game="valorant"] .val-rank-text--start {
-  color: var(--text-muted, #777);
+body[data-active-game="valorant"] .val-rank-tier {
+  color: var(--val-tier, #999);
+  font-weight: 500;
 }
 
-body[data-active-game="valorant"] .val-rank-text--end {
-  color: var(--text-secondary, #999);
+body[data-active-game="valorant"] .val-rank-sep {
+  color: #555;
+  margin: 0 1px;
+  font-weight: 400;
+}
+
+body[data-active-game="valorant"] .val-rank-rr {
+  color: #aaa;
+  font-weight: 600;
+}
+
+body[data-active-game="valorant"] .val-rank-text--start .val-rank-tier {
+  opacity: 0.75;
+}
+
+body[data-active-game="valorant"] .val-rank-text--start .val-rank-rr {
+  color: #777;
+}
+
+body[data-active-game="valorant"] .val-rank-text--end .val-rank-tier {
+  opacity: 0.9;
 }
 
 body[data-active-game="valorant"] .val-rank-change {
