@@ -10,7 +10,7 @@ import { applyFilters, DEFAULT_FILTERS } from './filters.js';
 import { calcStats } from './utils.js';
 import { getActiveGameModule } from './games/router.js';
 import { addGame, updateGame, deleteGame, getLastMMR, patchLastGame, undoLastGame, isMmrEstimated, purgeGhostValorantMatches, countGhostValorantMatches, clearGameHistory, collapseDuplicateValorantMatchesInState, countDuplicateValorantMatches } from './matches.js';
-import { startSession, endSession, closeSessionModal, closeSessionModalAndContinue, initSessionUI, refreshSessionUI, restoreSessionFromStorage, getLoggingSessionNum } from './sessions.js';
+import { startSession, endSession, closeSessionModal, closeSessionModalAndContinue, initSessionUI, refreshSessionUI, restoreSessionFromStorage, getLoggingSessionNum, clearSessionTimer } from './sessions.js';
 import {
   initQuickLog, showQuickDock, hideQuickDock, getQuickLogPayload,
   resetQuickAfterLog, loadPrefs, savePrefs, syncFormFromQuick, applyLiveStats,
@@ -263,6 +263,7 @@ async function refreshGroupsPage() {
 }
 
 async function handleSignOut() {
+  clearSessionTimer();
   await signOut();
   resetAppState();
   resetGroupsUI();
@@ -854,9 +855,10 @@ async function handleSaveEdit() {
   } catch (err) {
     console.error('Save edit failed:', err);
     showToast(err?.message || 'Save failed', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save Changes';
   }
-  btn.disabled = false;
-  btn.textContent = 'Save Changes';
 }
 
 function wireLogTableActions() {

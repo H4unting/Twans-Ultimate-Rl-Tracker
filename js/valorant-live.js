@@ -14,6 +14,8 @@ let pollingArmSent = false;
 let onStats = null;
 let onStatus = null;
 let onAutoLog = null;
+let onVisibilityChange = null;
+let onSessionStart = null;
 
 async function fetchJson(path, timeoutMs = 4000) {
   const res = await fetch(`${getBridgeUrl()}${path}`, { signal: AbortSignal.timeout(timeoutMs) });
@@ -141,20 +143,30 @@ export function initValorantLive(applyStats, statusCb, autoLogCb) {
   pollingArmSent = false;
   pollId = setInterval(poll, 5000);
   poll();
-  document.addEventListener('visibilitychange', () => {
+  onVisibilityChange = () => {
     if (document.visibilityState === 'visible') {
       ensurePollingArmed();
       poll();
     }
-  });
-  document.addEventListener('rl-session-start', () => {
+  };
+  onSessionStart = () => {
     if (state.activeGame === GAME_IDS.VALORANT) void armValorantPolling();
-  });
+  };
+  document.addEventListener('visibilitychange', onVisibilityChange);
+  document.addEventListener('rl-session-start', onSessionStart);
 }
 
 export function stopValorantLive() {
   if (pollId) clearInterval(pollId);
   pollId = null;
+  if (onVisibilityChange) {
+    document.removeEventListener('visibilitychange', onVisibilityChange);
+    onVisibilityChange = null;
+  }
+  if (onSessionStart) {
+    document.removeEventListener('rl-session-start', onSessionStart);
+    onSessionStart = null;
+  }
 }
 
 export async function refreshValorantStatus() {

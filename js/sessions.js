@@ -92,6 +92,8 @@ function clearSessionTimer() {
   }
 }
 
+export { clearSessionTimer };
+
 function syncSessionField(num) {
   const el = document.getElementById('f-session');
   if (el) el.value = num;

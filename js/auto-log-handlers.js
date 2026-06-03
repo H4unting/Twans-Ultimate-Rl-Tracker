@@ -155,7 +155,7 @@ export async function handleValorantAutoLog(match) {
 
   state.ui.autoLogNote = [
     match.matchId ? `id:${match.matchId}` : '',
-    priorEnd === '' ? 'RR estimated' : '',
+    !priorState.hasPrior ? 'RR estimated' : '',
     match.agent ? match.agent : '',
     match.map ? match.map : '',
   ].filter(Boolean).join(' · ');
