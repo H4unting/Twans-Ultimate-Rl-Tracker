@@ -53,7 +53,7 @@ user_settings.data.__qaMeta: { seededAt, version }  // optional on persist
 
 ## Enable
 
-1. `start-grind.bat` → http://localhost:8080/
+1. `Rocket League Tracker.bat` → http://localhost:8080/
 2. **Ctrl+Shift+D** or visit `/?qa=enable` once
 3. Sign in (throwaway `+qa` email for persist tests)
 

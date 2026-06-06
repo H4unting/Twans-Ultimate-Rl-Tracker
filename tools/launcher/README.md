@@ -10,7 +10,7 @@ Small Windows tray app that reads game stats and sends them to the tracker — n
 
 ## Daily use
 
-1. Double-click **`Twans Auto-Log.exe`** (same folder as `start-grind.bat`).
+1. Double-click **`Twans Auto-Log.exe`** (same folder as **`Rocket League Tracker.bat`**).
 2. Tray icon:
    - **Green** — Rocket League connected, stats flowing
    - **Orange** — app running, waiting for Rocket League
@@ -30,6 +30,6 @@ Logs (if something fails): **`bridge.log`** in the tracker root.
 
 ## Notes
 
-- Still uses **Node.js** under the hood (same as `start-grind.bat`).
+- Still uses **Node.js** under the hood (same as the game launcher `.bat` files).
 - **v1.1+:** stats scripts are bundled inside the exe — you only need the exe in any folder (plus Node.js). Config files live in **`config/`** next to the tracker (`grind-config.json`, `bridge.log`).
 - Older builds were named `Twans-Tracker-Bridge.exe` — same app, new name.

@@ -361,12 +361,12 @@ export function startBridge(options = {}) {
     server.listen(httpPort, '127.0.0.1', () => {
       console.log(`Stats bridge → http://127.0.0.1:${httpPort}`);
       if (!activePlayerName) {
-        console.warn('Tip: run setup in the tracker and click Apply & Go (or set RLNAME in start-grind.bat)');
+        console.warn('Tip: run setup in the tracker and click Apply & Go (or set RLNAME in Rocket League Tracker.bat)');
       } else {
         console.log(`Watching player: ${activePlayerName}`);
       }
       if (!skipRl) {
-        console.log('Rocket League bridge connects in 30s (use start-val-grind.bat if you are only playing Val)');
+        console.log('Rocket League bridge connects in 30s (use Valorant Tracker.bat if you are only playing Val)');
         setTimeout(connectRL, 30000);
       } else {
         console.log('Valorant-only mode — Rocket League TCP bridge skipped');

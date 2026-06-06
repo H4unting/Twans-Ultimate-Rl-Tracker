@@ -226,6 +226,10 @@ const skipBrowser = process.env.BRIDGE_NO_BROWSER === '1' || process.argv.includ
 
 const valOnly = process.env.VAL_ONLY === '1' || process.argv.includes('--val-only');
 
+const launchRl = process.argv.includes('--launch-rl');
+
+const launchVal = process.argv.includes('--launch-val');
+
 const autoPoll = process.argv.includes('--auto-poll');
 
 const quiet = process.env.BRIDGE_QUIET === '1';
@@ -238,29 +242,96 @@ function log(...args) {
 
 }
 
+function printLauncherBanner() {
+  if (quiet || (!launchRl && !launchVal)) return;
+  log('');
+  log('  Connecting services...');
+}
+
+function launchRocketLeague() {
+  if (process.platform !== 'win32') {
+    log('  Launch Rocket League manually (auto-launch is Windows-only).');
+    return;
+  }
+  log('');
+  log('  Launching Rocket League...');
+  exec('start "" "steam://rungameid/252950"', (err) => {
+    if (err) {
+      console.warn('  Could not open Steam. Start Rocket League manually (Steam app ID 252950).');
+      console.warn('  Epic players: open Rocket League from the Epic Games launcher.');
+    }
+  });
+}
+
+function launchValorant() {
+  if (process.platform !== 'win32') {
+    log('  Launch Valorant manually (auto-launch is Windows-only).');
+    return;
+  }
+  log('');
+  log('  Launching Valorant...');
+  const riotUri = 'riotclient://launch-product=valorant&patchline=live';
+  exec(`start "" "${riotUri}"`, (err) => {
+    if (err) tryLaunchValorantViaRiotClientExe();
+  });
+}
+
+function tryLaunchValorantViaRiotClientExe() {
+  const candidates = [
+    path.join(process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', 'Riot Games', 'Riot Client', 'RiotClientServices.exe'),
+    path.join(process.env.LOCALAPPDATA || '', 'Riot Games', 'Riot Client', 'RiotClientServices.exe'),
+  ];
+  for (const exe of candidates) {
+    if (fs.existsSync(exe)) {
+      exec(`"${exe}" --launch-product=valorant --launch-patchline=live`, (err) => {
+        if (err) {
+          console.warn('  Could not start Valorant via Riot Client. Open Valorant manually.');
+        }
+      });
+      return;
+    }
+  }
+  console.warn('  Riot Client not found. Open Valorant manually, or install the Riot Client.');
+  console.warn('  URI fallback: riotclient://launch-product=valorant&patchline=live');
+}
+
+function launchGameIfRequested() {
+  if (launchRl && !valOnly) launchRocketLeague();
+  else if (launchVal && valOnly) launchValorant();
+}
+
+function printReadyMessage() {
+  if (quiet || (!launchRl && !launchVal)) return;
+  log('');
+  log('  Ready. Good luck!');
+  log('');
+  log('  Keep this window open while you play.');
+  log('  Tracker: ' + LOCAL_TRACKER_URL);
+  log('');
+}
+
 
 
 log('');
 
-log('  Twans Ultimate Tracker');
-
-log(`  Player: ${playerName || '(set via tracker setup — Apply & Go)'}`);
-
-if (valOnly) {
-  log('  Mode: Valorant only (no Rocket League TCP bridge)');
+if (launchRl && !valOnly) {
+  /* Banner printed by .bat */
+} else if (launchVal && valOnly) {
+  /* Banner printed by .bat */
+} else {
+  log('  Twans Ultimate Tracker');
+  log(`  Player: ${playerName || '(set via tracker setup — Apply & Go)'}`);
+  if (valOnly) {
+    log('  Mode: Valorant only (no Rocket League TCP bridge)');
+  }
+  log(`  Local tracker: ${LOCAL_TRACKER_URL}`);
+  if (!isLocalTrackerUrl(configuredTrackerUrl)) {
+    log(`  Remote bookmark: ${configuredTrackerUrl} (phone / other devices — not for auto-log)`);
+  }
+  log('');
 }
 
-log(`  Local tracker: ${LOCAL_TRACKER_URL}`);
-
-if (!isLocalTrackerUrl(configuredTrackerUrl)) {
-
-  log(`  Remote bookmark: ${configuredTrackerUrl} (phone / other devices — not for auto-log)`);
-
-}
-
-log('');
-
-
+printLauncherBanner();
 
 await startBridge({ playerName, skipRl: valOnly, manualValPoll: !autoPoll });
 
@@ -278,7 +349,10 @@ await new Promise((resolve, reject) => {
 
 
 
-if (!quiet) {
+launchGameIfRequested();
+printReadyMessage();
+
+if (!quiet && !launchRl && !launchVal) {
 
   console.log('');
 
@@ -303,11 +377,10 @@ if (!quiet) {
   console.log('  >>> Use localhost:8080 on your gaming PC (not GitHub Pages) <<<');
 
   if (valOnly) {
-    console.log('  >>> Valorant: run bat BEFORE launching Val, or from the Val main menu <<<');
-    console.log('  >>> Then open http://localhost:8080 once — that arms auto-log <<<');
+    console.log('  >>> Valorant: open http://localhost:8080 once to arm auto-log <<<');
     console.log('  >>> Do not Ctrl+C mid-match <<<');
   } else {
-    console.log('  >>> Playing Val only? Use start-val-grind.bat instead <<<');
+    console.log('  >>> Playing Val only? Double-click Valorant Tracker.bat <<<');
   }
 
   console.log('');
@@ -318,9 +391,11 @@ if (!quiet) {
 
 if (valOnly && skipBrowser) {
   setTimeout(() => {
-    console.log('');
-    console.log('  >>> Opening tracker in your browser — keep that tab open for auto-log <<<');
-    console.log('');
+    if (!quiet) {
+      console.log('');
+      console.log('  >>> Opening tracker in your browser — keep that tab open for auto-log <<<');
+      console.log('');
+    }
     openBrowser(LOCAL_TRACKER_URL);
   }, 15000);
 } else if (!skipBrowser) {

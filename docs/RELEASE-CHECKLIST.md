@@ -94,9 +94,9 @@ Run this **before** tagging `v1.0.0` or running `push-updates.bat`.
 
 | Test | Pass | Notes |
 |------|:----:|-------|
-| `start-grind.bat` starts without bridge errors | | |
+| `Rocket League Tracker.bat` starts without bridge errors | | |
 | RL bridge connects (BakkesMod Stats API) | | |
-| `start-val-grind.bat` / Val bridge starts clean | | |
+| `Valorant Tracker.bat` / Val bridge starts clean | | |
 | **Twans Auto-Log.exe** tray app runs | | |
 | Tray → Open tracker works | | |
 | Auto-log toggle in dock syncs with bridge | | |

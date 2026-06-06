@@ -4,12 +4,19 @@ export const APP_NAME = 'Twans Ultimate Tracker';
 
 export const DESKTOP_APP = {
   name: 'Twans Auto-Log',
-  launcher: 'start-grind.bat',
+  launcher: 'Rocket League Tracker.bat',
+  launcherRl: 'Rocket League Tracker.bat',
+  launcherVal: 'Valorant Tracker.bat',
   exe: 'Twans Auto-Log.exe',
   legacyExe: 'Twans-Tracker-Bridge.exe',
   shortName: 'auto-log app',
   whatItDoes: 'Runs on your PC while you play and sends match stats to the tracker',
 };
+
+/** Game-specific launcher filename for UI copy */
+export function getDesktopLauncher(gameId) {
+  return gameId === 'valorant' ? DESKTOP_APP.launcherVal : DESKTOP_APP.launcherRl;
+}
 
 export const LOCAL_TRACKER_URL = 'http://localhost:8080';
 

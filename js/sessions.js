@@ -369,7 +369,7 @@ export function updateSessionBar() {
     if (stats) {
       if (copy.isVal && isAutoLogEnabled()) {
         if (!isBridgeUp()) {
-          stats.innerHTML = '<span class="slive-item neutral">Bridge disconnected — keep start-grind.bat open, then Ctrl+F5</span>';
+          stats.innerHTML = '<span class="slive-item neutral">Bridge disconnected — keep your game tracker launcher open, then Ctrl+F5</span>';
         } else {
         const vs = getCachedValorantStatus();
         if (vs?.configured && vs?.seeded) {

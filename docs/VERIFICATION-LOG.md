@@ -27,7 +27,7 @@
 **Status:** NOT TESTED
 
 **Reproduction steps:**
-1. Run `start-val-grind.bat`; open `http://localhost:8080`; sign in.
+1. Run `Valorant Tracker.bat`; open `http://localhost:8080`; sign in.
 2. Complete setup: Riot ID + Henrik API key applied via bridge (setup wizard → Apply & Go).
 3. Confirm bridge status online and auto-log enabled on dock.
 4. Play and finish one Valorant **Competitive** match.

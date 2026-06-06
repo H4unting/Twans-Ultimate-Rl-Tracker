@@ -1022,7 +1022,7 @@ async function init() {
       wireLoginScreen();
       const note = document.getElementById('boot-failure-note');
       if (note) {
-        note.textContent = 'Sign-in did not finish. Restart start-grind.bat, open http://localhost:8080/, and try Google sign-in again.';
+        note.textContent = 'Sign-in did not finish. Restart Rocket League Tracker.bat, open http://localhost:8080/, and try Google sign-in again.';
         note.classList.remove('hidden');
       }
     } else {
@@ -1038,7 +1038,7 @@ async function init() {
       const note = document.getElementById('boot-failure-note');
       if (note) {
         note.textContent = e?.message
-          || 'Sign-in failed. Close this tab, restart start-grind.bat, open http://localhost:8080/, then sign in again.';
+          || 'Sign-in failed. Close this tab, restart Rocket League Tracker.bat, open http://localhost:8080/, then sign in again.';
         note.classList.remove('hidden');
       }
     } else {

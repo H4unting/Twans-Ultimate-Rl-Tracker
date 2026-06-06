@@ -151,8 +151,10 @@ export function patchStatsApiIni(iniPath = findStatsApiIniPath()) {
   return iniPath;
 }
 
+const RL_LAUNCHER_BAT = 'Rocket League Tracker.bat';
+
 export function patchStartGrindBat(rlName) {
-  const batPath = path.join(ROOT, 'start-grind.bat');
+  const batPath = path.join(ROOT, RL_LAUNCHER_BAT);
   const safe = String(rlName ?? '').trim().replace(/"/g, '');
   if (!safe) throw new Error('Name is empty');
 
@@ -165,8 +167,8 @@ export function patchStartGrindBat(rlName) {
     content = content.replace(/^set "?RLNAME=.*$/m, line);
   } else {
     content = content.replace(
-      /REM === EDIT THIS to your exact Rocket League display name ===/,
-      `REM === EDIT THIS to your exact Rocket League display name ===\r\n${line}`,
+      /REM === Your RL name \(or set via tracker setup — Apply & Go\) ===/,
+      `REM === Your RL name (or set via tracker setup — Apply & Go) ===\r\n${line}`,
     );
   }
 
@@ -201,8 +203,10 @@ export function getSetupStatus() {
       configDir: CONFIG_DIR,
       grindConfig: CONFIG_FILE,
       grindConfigExists: fs.existsSync(CONFIG_FILE),
-      startGrindBat: path.join(ROOT, 'start-grind.bat'),
-      startValGrindBat: path.join(ROOT, 'start-val-grind.bat'),
+      startGrindBat: path.join(ROOT, RL_LAUNCHER_BAT),
+      startValGrindBat: path.join(ROOT, 'Valorant Tracker.bat'),
+      legacyStartGrindBat: path.join(ROOT, 'start-grind.bat'),
+      legacyStartValGrindBat: path.join(ROOT, 'start-val-grind.bat'),
       statsApiIni: iniPath,
       statsApiIniExists: fs.existsSync(iniPath),
       statsApiIniConfigured: iniOk,
@@ -235,7 +239,7 @@ export function applyLocalSetup({ rlDisplayName, riotId, riotApiKey, henrikApiKe
     try {
       result.files.startGrindBat = patchStartGrindBat(name);
     } catch (e) {
-      result.warnings.push(`Could not update start-grind.bat: ${e.message}`);
+      result.warnings.push(`Could not update Rocket League Tracker.bat: ${e.message}`);
     }
   }
 

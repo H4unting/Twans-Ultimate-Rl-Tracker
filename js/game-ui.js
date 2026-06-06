@@ -6,7 +6,7 @@ import { RANK_LADDER } from './games/valorant/rank-ladder.js';
 import { saveSettings } from './supabase.js';
 import { savePrefs, loadPrefs, refreshQuickTagsOnGameSwitch } from './quicklog.js';
 import { refreshBridgeStatusUI } from './bridge-ui.js';
-import { DESKTOP_APP, LOCAL_TRACKER_URL } from './config.js';
+import { DESKTOP_APP, LOCAL_TRACKER_URL, getDesktopLauncher } from './config.js';
 import { isBridgeUp } from './bridge-client.js';
 import { needsLocalTrackerForAutoLog } from './env.js';
 import { refreshValorantStatus } from './valorant-live.js';
@@ -102,14 +102,15 @@ export function applyGameShell(gameId = state.activeGame) {
     if (badge) badge.textContent = needsLocalTrackerForAutoLog() ? 'Use local tracker' : 'Auto-log off';
     const p = banner.querySelector('p');
     if (p) {
+      const launcher = getDesktopLauncher(gameId);
       if (needsLocalTrackerForAutoLog()) {
         p.innerHTML = `Auto-log can't connect from this bookmark. On your gaming PC open `
           + `<a href="${LOCAL_TRACKER_URL}" class="btn-link">${LOCAL_TRACKER_URL}</a> `
-          + `with <code>${DESKTOP_APP.launcher}</code> running.`;
+          + `with <code>${launcher}</code> running.`;
       } else {
         p.innerHTML = gameId === GAME_IDS.VALORANT
-          ? `Run <code>${DESKTOP_APP.launcher}</code> on this PC while playing for Valorant auto-log. Set Riot ID in <button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>`
-          : `Run <code>${DESKTOP_APP.launcher}</code> on this PC while playing for Rocket League auto-log. <button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>`;
+          ? `Run <code>${launcher}</code> on this PC while playing for Valorant auto-log. Set Riot ID in <button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>`
+          : `Run <code>${launcher}</code> on this PC while playing for Rocket League auto-log. <button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>`;
       }
     }
   }

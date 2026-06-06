@@ -4,7 +4,7 @@ Simple Valorant auto-log — **no Henrik API key, no Riot ID setup**. Overwolf r
 
 ## What you still need running
 
-1. **`start-grind.bat`** or **`Twans Auto-Log.exe`** — the local bridge the tracker talks to
+1. **`Valorant Tracker.bat`** or **`Twans Auto-Log.exe`** — the local bridge the tracker talks to
 2. **Tracker** at `http://localhost:8080` (or your GitHub Pages bookmark for manual log only)
 3. **Overwolf** with this app loaded
 
@@ -25,12 +25,12 @@ Rocket League auto-log still uses BakkesMod + the same bridge app.
 |---------|-----|
 | **Not connected / Can’t load this page** (Store or Library) | Close Overwolf fully (tray → Quit), check internet/VPN/firewall, reopen. You can still load the unpacked extension via **Development options** without the Store. |
 | Extension won’t load | Make sure `icon.png` exists and you selected **`integrations/overwolf`** (not the whole repo root). |
-| Tracker says auto-log off | Run **`start-grind.bat`** or **`Twans Auto-Log.exe`** first — Overwolf only sends data to that local bridge. |
+| Tracker says auto-log off | Run **`Valorant Tracker.bat`** or **`Twans Auto-Log.exe`** first — Overwolf only sends data to that local bridge. |
 | No match logged | Turn **Auto-log** on in the tracker dock, play a full match (not custom/training — Overwolf does not fire on those). |
 
 ## Daily use
 
-1. Start **`Twans Auto-Log.exe`** (or `start-grind.bat`)
+1. Start **`Twans Auto-Log.exe`** (or **`Valorant Tracker.bat`**)
 2. Open tracker → turn **Auto-log** on in the dock
 3. Launch Valorant — play a match — it logs when the match ends
 

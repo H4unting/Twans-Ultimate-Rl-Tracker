@@ -8,7 +8,7 @@ import { getUserDisplay, state } from './state.js';
 import { GAME_IDS } from './games.js';
 import { showToast } from './ui.js';
 import { refreshBridgeStatusUI } from './bridge-ui.js';
-import { DESKTOP_APP } from './config.js';
+import { DESKTOP_APP, getDesktopLauncher } from './config.js';
 import { clearGameHistory } from './matches.js';
 import { getBridgeUrl } from './bridge-client.js';
 import { openRankSetupModal } from './rank-setup-ui.js';
@@ -26,12 +26,13 @@ export function renderLogSetupNudge() {
   }
 
   const isVal = state.activeGame === GAME_IDS.VALORANT;
+  const launcher = getDesktopLauncher(state.activeGame);
   el.classList.remove('hidden');
   el.innerHTML = `
     <div class="log-setup-nudge-inner">
       <span class="log-setup-nudge-text">${isVal
-        ? `Want Valorant auto-log? Run ${DESKTOP_APP.launcher} + load the Overwolf app (see integrations/overwolf/README.md) — or use Riot ID + Henrik key in setup.`
-        : `Want auto-log from Rocket League? Run ${DESKTOP_APP.launcher} on this PC.`}</span>
+        ? `Want Valorant auto-log? Run ${launcher} + load the Overwolf app (see integrations/overwolf/README.md) — or use Riot ID + Henrik key in setup.`
+        : `Want auto-log from Rocket League? Run ${launcher} on this PC.`}</span>
       <button type="button" class="btn-link" id="log-setup-nudge-link">Auto-Log Setup →</button>
     </div>`;
   document.getElementById('log-setup-nudge-link')?.addEventListener('click', () => {
@@ -105,16 +106,17 @@ function renderValPanel(riotIdValue, riotRegionValue, { compact = false } = {}) 
     </div>`;
 }
 
-function renderBridgeStep(bridge, stepNum = 1) {
+function renderBridgeStep(bridge, stepNum = 1, gameId = GAME_IDS.ROCKET_LEAGUE) {
+  const launcher = getDesktopLauncher(gameId);
   return `
     <li class="setup-step${bridge ? ' done' : ''}" data-step="bridge">
       <span class="setup-step-num">${stepNum}</span>
       <div class="setup-step-body">
         <strong>Run ${DESKTOP_APP.name}</strong>
-        <p>Double-click <code>${DESKTOP_APP.launcher}</code> in your tracker folder — leave it running while you play:</p>
-        <pre class="setup-code setup-code-highlight" id="setup-bridge-cmd">${DESKTOP_APP.launcher}</pre>
+        <p>Double-click <code>${launcher}</code> in your tracker folder — leave it running while you play:</p>
+        <pre class="setup-code setup-code-highlight" id="setup-bridge-cmd">${launcher}</pre>
         <p class="setup-hint">Optional: run <code>launcher\\build-bridge.bat</code> once to build <code>${DESKTOP_APP.exe}</code> (tray icon, no black window).</p>
-        <span class="setup-status-pill${bridge ? ' ok' : ''}" id="setup-bridge-pill">${bridge ? `● ${DESKTOP_APP.name} is running — ready for Apply & Go` : `○ Waiting for ${DESKTOP_APP.launcher}…`}</span>
+        <span class="setup-status-pill${bridge ? ' ok' : ''}" id="setup-bridge-pill">${bridge ? `● ${DESKTOP_APP.name} is running — ready for Apply & Go` : `○ Waiting for ${launcher}…`}</span>
       </div>
     </li>`;
 }
@@ -127,12 +129,12 @@ function renderRlSteps(profile, rlName, bridge, allReady) {
         <span class="setup-step-num">1</span>
         <div class="setup-step-body">${renderProfileNameStep(profile)}</div>
       </li>
-      ${renderBridgeStep(bridge, 2)}
+      ${renderBridgeStep(bridge, 2, GAME_IDS.ROCKET_LEAGUE)}
       <li class="setup-step" data-step="apply">
         <span class="setup-step-num">3</span>
         <div class="setup-step-body">
           <strong>Apply &amp; Go</strong>
-          <p>We write your name into <code>start-grind.bat</code> and set up the Rocket League Stats API file on this PC.</p>
+          <p>We write your name into <code>Rocket League Tracker.bat</code> and set up the Rocket League Stats API file on this PC.</p>
           ${renderApplySection(true)}
         </div>
       </li>
@@ -143,7 +145,7 @@ function renderValSteps(riotIdValue, riotRegionValue, bridge, allReady) {
   if (allReady) return renderValPanel(riotIdValue, riotRegionValue, { compact: true });
   return `
     <ol class="setup-steps setup-steps-val">
-      ${renderBridgeStep(bridge, 1)}
+      ${renderBridgeStep(bridge, 1, GAME_IDS.VALORANT)}
       ${renderOverwolfStep(2)}
       <li class="setup-step${riotIdValue ? ' done' : ''}" data-step="valorant">
         <span class="setup-step-num">3</span>
@@ -220,6 +222,7 @@ export function renderSetupWizard(displayName = '') {
   const riotRegionValue = quickPrefs.riotRegion ?? 'na';
   const allReady = bridge;
   const isVal = state.activeGame === GAME_IDS.VALORANT;
+  const launcher = getDesktopLauncher(state.activeGame);
   const compact = allReady && prefs.dismissedWhenReady;
 
   el.classList.remove('hidden');
@@ -251,7 +254,7 @@ export function renderSetupWizard(displayName = '') {
         <span class="setup-banner-icon">👇</span>
         <div>
           <strong>One-time setup on your PC — ${isVal ? 'Valorant' : 'Rocket League'}</strong>
-          <p>Run <code>${DESKTOP_APP.launcher}</code>, then click <strong>Apply &amp; Go</strong>.</p>
+          <p>Run <code>${launcher}</code>, then click <strong>Apply &amp; Go</strong>.</p>
         </div>
       </div>`}
       <div class="setup-wizard-head">
@@ -263,14 +266,14 @@ export function renderSetupWizard(displayName = '') {
       ? `${DESKTOP_APP.name} is running. Set Riot ID + Henrik key below, then play with auto-log ON.`
       : 'G/A/S fill in automatically. You pick W/L and enter End MMR after each game.')
     : (isVal
-      ? `Valorant only — Riot ID + free Henrik key, start ${DESKTOP_APP.launcher}, then Apply & Go.`
-      : `Rocket League only — enter your RL name, start ${DESKTOP_APP.launcher}, then Apply & Go.`)}
+      ? `Valorant only — Riot ID + free Henrik key, start ${launcher}, then Apply & Go.`
+      : `Rocket League only — enter your RL name, start ${launcher}, then Apply & Go.`)}
           </p>
         ${allReady ? `<button type="button" class="setup-dismiss" id="setup-dismiss">Got it</button>` : ''}
       </div>
       ${allReady ? `
       <div class="setup-callout setup-callout-success">
-        <strong>While you play:</strong> keep <code>${DESKTOP_APP.launcher}</code> running (leave the window open).
+        <strong>While you play:</strong> keep <code>${launcher}</code> running (leave the window open).
       </div>
       <div class="setup-callout setup-callout-workflow">
         <strong>After each ${isVal ? 'match' : 'game'}:</strong> ${isVal
@@ -462,7 +465,8 @@ function wireSetupApplyGo() {
     }
 
     if (!isBridgeUp()) {
-      showToast(`Run ${DESKTOP_APP.launcher} first, then click Apply & Go`, 'error');
+      const launcher = getDesktopLauncher(state.activeGame);
+      showToast(`Run ${launcher} first, then click Apply & Go`, 'error');
       return;
     }
 
@@ -506,7 +510,7 @@ function wireSetupApplyGo() {
             ...(result.warnings ?? []).map(w => `⚠ ${w}`),
           ]
           : [
-            result.files?.startGrindBat ? '✓ Updated start-grind.bat' : null,
+            result.files?.startGrindBat ? '✓ Updated Rocket League Tracker.bat' : null,
             result.files?.statsApiIni ? '✓ Updated Rocket League Stats API file' : null,
             result.files?.grindConfig ? '✓ Saved local config' : null,
             `✓ Watching player: ${name || riotId}`,
@@ -530,7 +534,7 @@ function wireSetupApplyGo() {
         resultEl.classList.remove('hidden');
         resultEl.innerHTML = `<div class="setup-callout setup-callout-important">${escapeHtml(e.message || 'Apply failed')}</div>`;
       }
-      showToast(e.message || `Apply failed — is ${DESKTOP_APP.launcher} running?`, 'error');
+      showToast(e.message || `Apply failed — is ${getDesktopLauncher(state.activeGame)} running?`, 'error');
     } finally {
       btn.disabled = false;
       btn.textContent = 'Apply & Go';
@@ -623,8 +627,9 @@ export function refreshSetupWizard(displayName) {
 
 function updateBridgePill(bridge) {
   const pill = document.getElementById('setup-bridge-pill');
+  const launcher = getDesktopLauncher(state.activeGame);
   if (pill) {
-    pill.textContent = bridge ? `● ${DESKTOP_APP.name} is running — you're good` : `○ Waiting for ${DESKTOP_APP.launcher}…`;
+    pill.textContent = bridge ? `● ${DESKTOP_APP.name} is running — you're good` : `○ Waiting for ${launcher}…`;
     pill.classList.toggle('ok', bridge);
   }
   if (bridge) {

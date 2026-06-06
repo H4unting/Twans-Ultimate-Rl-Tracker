@@ -6,9 +6,11 @@ Rocket League + Valorant grind tracker with local auto-log and Supabase sync.
 
 | What | File |
 |------|------|
-| **Play Valorant** | Double-click **`start-val-grind.bat`** |
-| **Play Rocket League** | Double-click **`start-grind.bat`** |
-| **Open tracker** | http://localhost:8080 (while a bat is running) |
+| **Play Rocket League** | Double-click **`Rocket League Tracker.bat`** |
+| **Play Valorant** | Double-click **`Valorant Tracker.bat`** |
+| **Open tracker** | http://localhost:8080 (while a launcher is running) |
+
+Legacy names `start-grind.bat` and `start-val-grind.bat` still work (they forward to the files above).
 
 Full setup: **[docs/SETUP.md](docs/SETUP.md)**  
 Folder map: **[docs/STRUCTURE.md](docs/STRUCTURE.md)**

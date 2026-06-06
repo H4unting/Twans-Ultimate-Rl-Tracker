@@ -87,7 +87,7 @@
 - Post-match card for MMR confirm (`post-match.js`).
 
 **Reproduction:**
-1. Start `start-grind.bat`, open localhost:8080, sign in.
+1. Start `Rocket League Tracker.bat`, open localhost:8080, sign in.
 2. Set RL rank baselines if prompted.
 3. Quick dock: WIN, enter end MMR, log.
 4. Row appears in Match Logs with correct +/- MMR.
@@ -106,7 +106,7 @@
 - Long notes wrap without breaking scroll (CSS fix in `styles.css`).
 
 **Reproduction:**
-1. Start `start-val-grind.bat`, sign in, switch to Val.
+1. Start `Valorant Tracker.bat`, sign in, switch to Val.
 2. Log Competitive win with K/D/A, start/end RR.
 3. Verify Start/End columns (`Iron 2 · 40` style) and +/- column.
 4. Log match with very long note (QA edge case) — page scrolls normally.
@@ -287,7 +287,7 @@
 - Tray app locks build files in git clone — process issue only.
 
 **Reproduction:**
-1. Run `start-val-grind.bat` → bridge status online in setup wizard.
+1. Run `Valorant Tracker.bat` → bridge status online in setup wizard.
 2. Stop bridge → status offline, manual log still works.
 3. Open GitHub Pages URL → no bridge, no crash.
 

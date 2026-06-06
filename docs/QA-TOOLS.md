@@ -6,7 +6,7 @@ Generate realistic synthetic data for smoke testing without playing hundreds of 
 
 ## Enable
 
-1. Run `start-grind.bat` → http://localhost:8080/
+1. Run `Rocket League Tracker.bat` → http://localhost:8080/
 2. Press **Ctrl+Shift+D** or visit `/?qa=enable` once
 3. Sign in (use a throwaway `+qa` email for Supabase persist tests)
 

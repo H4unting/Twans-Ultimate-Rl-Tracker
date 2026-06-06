@@ -5,7 +5,7 @@ import { GAME_IDS, getGameMeta } from './games.js';
 import { isBridgeUp, isBridgeProbeDone, getBridgeUrl } from './bridge-client.js';
 import { isAutoLogEnabled, loadPrefs, syncAutoLogToggleUI } from './quicklog.js';
 import { setBridgeHintVisible, needsLocalTrackerForAutoLog, getLocalTrackerUrl, isLocalTrackerHost } from './env.js';
-import { DESKTOP_APP } from './config.js';
+import { DESKTOP_APP, getDesktopLauncher } from './config.js';
 
 let cachedValStatus = null;
 let cachedRlInMatch = false;
@@ -49,6 +49,8 @@ export function refreshBridgeStatusUI() {
   el.classList.remove('connected', 'in-match', 'bridge-needs-setup', 'bridge-error');
   el.dataset.bridgeState = up ? 'online' : 'offline';
 
+  const launcher = getDesktopLauncher(isVal ? GAME_IDS.VALORANT : GAME_IDS.ROCKET_LEAGUE);
+
   if (!up) {
     if (!isBridgeProbeDone() && isLocalTrackerHost()) {
       el.textContent = 'Connecting…';
@@ -60,11 +62,11 @@ export function refreshBridgeStatusUI() {
     }
     el.textContent = 'Auto-log off';
     if (needsLocalTrackerForAutoLog()) {
-      el.title = `Auto-log only works on this PC — open ${getLocalTrackerUrl()} while ${DESKTOP_APP.launcher} is running`;
+      el.title = `Auto-log only works on this PC — open ${getLocalTrackerUrl()} while ${launcher} is running`;
     } else {
       el.title = isVal
-        ? `Click for setup — run ${DESKTOP_APP.launcher} on this PC and add Riot ID + Henrik key`
-        : `Click for setup — run ${DESKTOP_APP.launcher} on this PC and set your RL name`;
+        ? `Click for setup — run ${launcher} on this PC and add Riot ID + Henrik key`
+        : `Click for setup — run ${launcher} on this PC and set your RL name`;
     }
     setBridgeHintVisible(!loggedOut);
     updateDesktopAppBanner(isVal, false);
@@ -184,12 +186,14 @@ function updateDesktopAppBanner(isVal, appUp, valStatus) {
   const p = banner.querySelector('p');
   if (!badge || !p) return;
 
+  const launcher = getDesktopLauncher(isVal ? GAME_IDS.VALORANT : GAME_IDS.ROCKET_LEAGUE);
+
   if (!appUp && needsLocalTrackerForAutoLog()) {
     banner.classList.remove('hidden');
     badge.textContent = 'Use local tracker';
     p.innerHTML = `Auto-log can't connect from this bookmark. On your gaming PC, open `
       + `<a href="${getLocalTrackerUrl()}" class="btn-link">${getLocalTrackerUrl()}</a> `
-      + `with <code>${DESKTOP_APP.launcher}</code> running (same stats — sign in once).`;
+      + `with <code>${launcher}</code> running (same stats — sign in once).`;
     return;
   }
 
@@ -201,11 +205,11 @@ function updateDesktopAppBanner(isVal, appUp, valStatus) {
     banner.classList.remove('hidden');
     badge.textContent = 'Auto-log off';
     p.innerHTML = isLocalTrackerHost()
-      ? `Bridge not connected — keep <code>${DESKTOP_APP.launcher}</code> open, then `
+      ? `Bridge not connected — keep <code>${launcher}</code> open, then `
         + `<a href="${window.location.origin}/api/bridge/status" class="btn-link" target="_blank" rel="noopener">test bridge</a> `
         + 'or hard refresh (Ctrl+F5). '
         + '<button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>'
-      : `Run <code>${DESKTOP_APP.launcher}</code> on this PC while playing. `
+      : `Run <code>${launcher}</code> on this PC while playing. `
         + '<button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>';
     return;
   }
