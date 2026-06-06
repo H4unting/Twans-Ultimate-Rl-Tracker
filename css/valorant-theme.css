@@ -545,6 +545,7 @@ body[data-active-game="valorant"] .val-charts-row {
   display: flex;
   flex-direction: column;
   margin-bottom: 20px;
+  width: 100%;
 }
 
 body[data-active-game="valorant"] .val-charts-label {
@@ -558,8 +559,9 @@ body[data-active-game="valorant"] .val-charts-label {
 
 body[data-active-game="valorant"] .val-charts-inner {
   display: grid;
-  grid-template-columns: 1fr 130px;
+  grid-template-columns: minmax(0, 2.5fr) minmax(200px, 1fr);
   gap: 10px;
+  width: 100%;
 }
 
 body[data-active-game="valorant"] .val-chart-box {

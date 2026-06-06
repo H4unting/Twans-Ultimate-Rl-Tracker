@@ -7,8 +7,8 @@
   --space-lg: 16px;
   --space-xl: 24px;
   --space-2xl: 32px;
-  --content-max: 1800px;
-  --content-width: min(var(--content-max), 92vw);
+  --content-max: 2000px;
+  --content-width: min(var(--content-max), 95vw);
   --header-pad-x: 24px;
   --control-height: 40px;
 }
@@ -105,6 +105,7 @@
 body[data-active-game="valorant"] .val-charts-inner {
   gap: var(--space-md);
   align-items: stretch;
+  width: 100%;
 }
 
 .chart-box,
@@ -117,12 +118,17 @@ body[data-active-game="valorant"] .val-chart-box {
 }
 
 .home-charts-inner {
-  grid-template-columns: minmax(0, 1fr) minmax(120px, 160px);
+  grid-template-columns: minmax(0, 2.5fr) minmax(200px, 1fr);
+  width: 100%;
 }
 
 .home-chart-box {
   min-height: 140px;
   height: 150px;
+}
+
+.home-chart-wl {
+  max-width: none;
 }
 
 /* ── Home dashboard ───────────────────────────────────────────────────────── */

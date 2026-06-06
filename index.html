@@ -61,22 +61,20 @@
 <!-- APP -->
 <div id="app-shell" class="hidden">
   <div class="top-bar">
-    <button type="button" class="logo logo-home-btn" id="logo-home-btn" aria-label="Go to Home">Twans <span>Ultimate Tracker</span></button>
-    <div class="game-switcher" id="game-switcher" role="group" aria-label="Game"></div>
-    <div class="top-bar-meta">
-      <div class="sync-status">
-        <div class="sync-dot" id="sync-dot"></div>
-        <span id="sync-label">Connecting...</span>
+    <div class="top-bar-head">
+      <button type="button" class="logo logo-home-btn" id="logo-home-btn" aria-label="Go to Home">Twans <span>Ultimate Tracker</span></button>
+      <div class="game-switcher" id="game-switcher" role="group" aria-label="Game"></div>
+      <div class="top-bar-meta">
+        <div class="sync-status">
+          <div class="sync-dot" id="sync-dot"></div>
+          <span id="sync-label">Connecting...</span>
+        </div>
+        <button type="button" class="top-profile-btn" id="top-profile-btn">Profile</button>
       </div>
-      <button type="button" class="top-profile-btn" id="top-profile-btn">Profile</button>
+      <div class="user-bar" id="user-bar"></div>
     </div>
-    <div class="user-bar" id="user-bar"></div>
-    <div class="tabs primary-nav" id="primary-nav">
-      <button type="button" class="tab section-tab active" data-section="home">Home</button>
-      <button type="button" class="tab section-tab" data-section="review">Review</button>
-      <button type="button" class="tab section-tab" data-section="squad">Squad</button>
-    </div>
-    <nav class="sub-nav" id="sub-nav" aria-label="Section pages"></nav>
+    <nav class="main-nav tabs" id="main-nav" aria-label="Main navigation"></nav>
+    <nav class="sub-nav review-sub-nav hidden" id="review-sub-nav" aria-label="Review pages"></nav>
   </div>
 
   <div id="bridge-hint-banner" class="bridge-hint-banner hidden">
@@ -382,7 +380,7 @@
   <div id="dock-footer-slot"></div>
 
   <nav class="mobile-nav" id="mobile-nav" aria-label="Mobile navigation">
-    <button type="button" class="mobile-nav-btn active" data-section="home"><span>🏠</span>Home</button>
+    <button type="button" class="mobile-nav-btn active" data-page="dashboard"><span>🏠</span>Dashboard</button>
     <button type="button" class="mobile-nav-btn mobile-nav-log" data-page="log"><span>📋</span>Match Logs</button>
     <button type="button" class="mobile-nav-btn mobile-nav-sessions" data-page="sessions"><span>⏱</span>Sessions</button>
     <button type="button" class="mobile-nav-btn" data-section="review"><span>📊</span>Review</button>
