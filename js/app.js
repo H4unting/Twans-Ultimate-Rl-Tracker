@@ -581,7 +581,7 @@ function wireKeyboardShortcuts() {
       document.getElementById('session-start-btn')?.click();
     } else if (key === 'f') {
       e.preventDefault();
-      navigate('focus', 'home');
+      navigate('focus', 'review');
     }
   });
 }

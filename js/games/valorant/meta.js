@@ -9,15 +9,15 @@ export const NAV = {
       { id: 'dashboard', label: 'Combat Report' },
       { id: 'log', label: 'Match History' },
       { id: 'sessions', label: 'Grind Blocks' },
-      { id: 'focus', label: 'Mission Brief' },
       { id: 'setup', label: 'Auto-Log Setup' },
     ],
   },
   review: {
     label: 'Intel',
     icon: '📊',
-    defaultPage: 'analytics',
+    defaultPage: 'focus',
     pages: [
+      { id: 'focus', label: 'Mission Brief' },
       { id: 'analytics', label: 'Performance' },
       { id: 'reports', label: 'Rank Cycle' },
     ],

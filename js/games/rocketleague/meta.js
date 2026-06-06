@@ -10,14 +10,14 @@ export const NAV = {
       { id: 'log', label: 'Match Logs' },
       { id: 'sessions', label: 'Sessions' },
       { id: 'setup', label: 'Auto Setup' },
-      { id: 'focus', label: 'Focus' },
     ],
   },
   review: {
     label: 'Review',
     icon: '📊',
-    defaultPage: 'analytics',
+    defaultPage: 'focus',
     pages: [
+      { id: 'focus', label: 'Focus' },
       { id: 'analytics', label: 'Analytics' },
       { id: 'reports', label: 'Reports' },
     ],

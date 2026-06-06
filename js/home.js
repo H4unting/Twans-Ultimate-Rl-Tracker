@@ -227,7 +227,7 @@ function wireHomeLinks(el) {
     link.addEventListener('click', e => {
       e.preventDefault();
       const page = link.dataset.goto;
-      const section = ['analytics', 'reports', 'sessions'].includes(page) ? 'review' : 'home';
+      const section = ['analytics', 'reports', 'focus'].includes(page) ? 'review' : 'home';
       window.__navigate?.(page, section);
     });
   });

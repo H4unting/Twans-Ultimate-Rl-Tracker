@@ -90,9 +90,14 @@ export function updateNavUI(pageId, gameId = state.activeGame) {
   document.getElementById('top-profile-btn')?.classList.toggle('active', pageId === 'profile');
 
   const mobileNav = document.getElementById('mobile-nav');
+  const mobileHomeShortcut = section === 'home' && (pageId === 'log' || pageId === 'sessions')
+    ? pageId
+    : null;
+
   mobileNav?.querySelectorAll('.mobile-nav-btn[data-section]').forEach(btn => {
     const key = btn.dataset.section;
-    btn.classList.toggle('active', key === section);
+    const active = key === section && !(key === 'home' && mobileHomeShortcut);
+    btn.classList.toggle('active', active);
     const secCfg = allSections[key];
     if (secCfg) {
       const label = btn.querySelector('span:last-child') || btn;
@@ -102,15 +107,23 @@ export function updateNavUI(pageId, gameId = state.activeGame) {
     }
   });
 
+  mobileNav?.querySelectorAll('.mobile-nav-btn[data-page]').forEach(btn => {
+    btn.classList.remove('active');
+  });
+
   const logBtn = mobileNav?.querySelector('.mobile-nav-btn[data-page="log"]');
   if (logBtn) {
     const logPage = allSections.home?.pages.find(p => p.id === 'log');
     if (logPage && logBtn.lastChild) logBtn.lastChild.textContent = logPage.label;
+    if (pageId === 'log') logBtn.classList.add('active');
   }
-  const focusBtn = mobileNav?.querySelector('.mobile-nav-btn[data-page="focus"]');
-  if (focusBtn) {
-    const focusPage = allSections.home?.pages.find(p => p.id === 'focus');
-    if (focusPage && focusBtn.lastChild) focusBtn.lastChild.textContent = focusPage.label;
+  const sessionsBtn = mobileNav?.querySelector('.mobile-nav-btn[data-page="sessions"]');
+  if (sessionsBtn) {
+    const sessionsPage = allSections.home?.pages.find(p => p.id === 'sessions');
+    if (sessionsPage && sessionsBtn.lastChild) {
+      sessionsBtn.lastChild.textContent = sessionsPage.label;
+    }
+    if (pageId === 'sessions') sessionsBtn.classList.add('active');
   }
 
   document.body.dataset.section = section;
