@@ -10,7 +10,7 @@ import { showToast } from './ui.js';
 import { refreshBridgeStatusUI } from './bridge-ui.js';
 import { DESKTOP_APP, getDesktopLauncher } from './config.js';
 import { clearGameHistory } from './matches.js';
-import { getBridgeUrl } from './bridge-client.js';
+import { getBridgeUrl, bridgeFetch } from './bridge-client.js';
 import { openRankSetupModal } from './rank-setup-ui.js';
 
 const SETUP_KEY = 'rl-grind-setup';
@@ -315,13 +315,15 @@ async function prefillRiotFromBridge() {
       regionSel.value = cfg.riotRegion;
       savePrefs({ riotRegion: cfg.riotRegion });
     }
-    if (keyField && cfg.henrikApiKeySet && cfg.henrikApiKeyHint) {
+    if (keyField && cfg.henrikApiKeySet) {
       keyField.placeholder = 'Paste new key to replace saved key';
       const fieldWrap = keyField.closest('.setup-field');
       if (fieldWrap && !fieldWrap.querySelector('.setup-riot-key-saved')) {
         const note = document.createElement('p');
         note.className = 'setup-hint setup-riot-key-saved';
-        note.innerHTML = `Key on this PC: <code>${escapeHtml(cfg.henrikApiKeyHint)}</code> — paste a new key above to replace it.`;
+        note.textContent = cfg.henrikKeyViaEnv
+          ? 'Henrik key loaded from environment on this PC — paste above only to replace the saved key.'
+          : 'Henrik key saved on this PC — paste a new key above to replace it.';
         keyField.insertAdjacentElement('afterend', note);
       }
     } else if (keyField && cfg.hasLegacyRiotKey && !cfg.henrikApiKeySet) {
@@ -403,7 +405,7 @@ function wireSetupWizard() {
       const ok = await clearGameHistory(GAME_IDS.VALORANT);
       if (!ok) return;
       try {
-        await fetch(`${getBridgeUrl()}/valorant/reset-baseline`, { method: 'POST' });
+        await bridgeFetch('/valorant/reset-baseline', { method: 'POST' });
       } catch { /* bridge optional */ }
       refreshValorantStatus();
       document.dispatchEvent(new CustomEvent('tracker-data-changed'));

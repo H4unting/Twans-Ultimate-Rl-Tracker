@@ -11,24 +11,28 @@
 
 
 import http from 'http';
-
 import fs from 'fs';
-
 import path from 'path';
-
+import crypto from 'crypto';
 import { exec } from 'child_process';
-
 import { fileURLToPath } from 'url';
-
 import { startBridge } from './rl-bridge.mjs';
-
 import { loadGrindConfig } from './local-setup.mjs';
+import {
+  checkRateLimit,
+  getBridgeAuthToken,
+  initBridgeAuth,
+  isProxyBridgePath,
+  sendRateLimited,
+} from './bridge-security.mjs';
 
 
 
 const TRACKER_PORT = 8080;
 const BRIDGE_PORT = 49200;
 const LOCAL_TRACKER_URL = `http://localhost:${TRACKER_PORT}`;
+const BRIDGE_AUTH_TOKEN = process.env.BRIDGE_AUTH_TOKEN || crypto.randomBytes(32).toString('hex');
+initBridgeAuth({ token: BRIDGE_AUTH_TOKEN });
 
 
 
@@ -129,19 +133,42 @@ function readRequestBody(req) {
 }
 
 async function proxyToBridge(req, res, bridgePath) {
+  if (!isProxyBridgePath(bridgePath)) {
+    res.writeHead(403, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: false, error: 'Forbidden bridge path' }));
+    return;
+  }
+
+  const rate = checkRateLimit(req, bridgePath);
+  if (!rate.allowed) {
+    sendRateLimited(res, rate.retryAfterSec);
+    return;
+  }
+
   try {
     const url = `http://127.0.0.1:${BRIDGE_PORT}${bridgePath}`;
     const init = { method: req.method };
+    const headers = {};
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       init.body = await readRequestBody(req);
       if (req.headers['content-type']) {
-        init.headers = { 'Content-Type': req.headers['content-type'] };
+        headers['Content-Type'] = req.headers['content-type'];
       }
+      headers['X-Bridge-Token'] = BRIDGE_AUTH_TOKEN;
     }
+    init.headers = headers;
     const upstream = await fetch(url, init);
-    const body = Buffer.from(await upstream.arrayBuffer());
+    let body = Buffer.from(await upstream.arrayBuffer());
+    const contentType = upstream.headers.get('content-type') || 'application/json';
+    if (bridgePath.split('?')[0] === '/status' && upstream.ok && contentType.includes('json')) {
+      try {
+        const json = JSON.parse(body.toString('utf8'));
+        json.authToken = BRIDGE_AUTH_TOKEN;
+        body = Buffer.from(JSON.stringify(json));
+      } catch { /* pass through */ }
+    }
     res.writeHead(upstream.status, {
-      'Content-Type': upstream.headers.get('content-type') || 'application/json',
+      'Content-Type': contentType,
       'Cache-Control': 'no-store',
     });
     res.end(body);
@@ -333,7 +360,7 @@ if (launchRl && !valOnly) {
 
 printLauncherBanner();
 
-await startBridge({ playerName, skipRl: valOnly, manualValPoll: !autoPoll });
+await startBridge({ playerName, skipRl: valOnly, manualValPoll: !autoPoll, authToken: BRIDGE_AUTH_TOKEN });
 
 
 

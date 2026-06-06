@@ -18,6 +18,8 @@ let bridgeProbeDone = false;
 let heartbeatId = null;
 let heartbeatPromise = null;
 let visibilityWired = false;
+/** Session token injected by tracker proxy — required for mutating bridge POSTs. */
+let bridgeAuthToken = null;
 const listeners = new Set();
 
 export function subscribeBridgeOnline(fn) {
@@ -66,7 +68,24 @@ export function isBridgeProbeDone() {
 async function pingBridgeOnce() {
   const res = await fetch(`${bridgeBase()}/status`, { signal: AbortSignal.timeout(PING_TIMEOUT_MS) });
   if (!res.ok) throw new Error('bridge offline');
-  return res.json();
+  const json = await res.json();
+  if (json.authToken) bridgeAuthToken = json.authToken;
+  return json;
+}
+
+/**
+ * Fetch bridge API — attaches X-Bridge-Token on mutating requests when using tracker proxy.
+ */
+export async function bridgeFetch(path, options = {}) {
+  const method = (options.method || 'GET').toUpperCase();
+  if (method !== 'GET' && method !== 'HEAD' && !bridgeAuthToken) {
+    await fetchBridgeStatus();
+  }
+  const headers = { ...(options.headers || {}) };
+  if (bridgeAuthToken && method !== 'GET' && method !== 'HEAD') {
+    headers['X-Bridge-Token'] = bridgeAuthToken;
+  }
+  return fetch(`${bridgeBase()}${path}`, { ...options, method, headers });
 }
 
 async function heartbeatTick() {

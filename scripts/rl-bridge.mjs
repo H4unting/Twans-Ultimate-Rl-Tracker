@@ -8,6 +8,17 @@ import http from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { applyLocalSetup, getSetupStatus, loadGrindConfig } from './local-setup.mjs';
+import {
+  applyCors,
+  ALLOWED_ORIGINS,
+  checkRateLimit,
+  getBridgeAuthToken,
+  initBridgeAuth,
+  readJsonBody,
+  requireBridgeAuth,
+  sendRateLimited,
+  validateSetupApply,
+} from './bridge-security.mjs';
 
 const RL_PORT = 49123;
 const DEFAULT_HTTP_PORT = 49200;
@@ -71,22 +82,9 @@ function inferModeFromPlaylist(playlist, playerCount) {
   return inferMode(playerCount);
 }
 
-function readJsonBody(req) {
-  return new Promise((resolve, reject) => {
-    let data = '';
-    req.on('data', chunk => { data += chunk; });
-    req.on('end', () => {
-      try {
-        resolve(data ? JSON.parse(data) : {});
-      } catch {
-        reject(new Error('Invalid JSON body'));
-      }
-    });
-    req.on('error', reject);
-  });
-}
 
 export function startBridge(options = {}) {
+  initBridgeAuth({ token: options.authToken });
   const config = loadGrindConfig();
   let activePlayerName = (
     options.playerName
@@ -273,27 +271,38 @@ export function startBridge(options = {}) {
   }
 
   const server = http.createServer(async (req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    res.setHeader('Access-Control-Allow-Private-Network', 'true');
+    applyCors(req, res);
     if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
+    const urlPath = (req.url || '/').split('?')[0];
+    const rate = checkRateLimit(req, urlPath);
+    if (!rate.allowed) {
+      sendRateLimited(res, rate.retryAfterSec);
+      return;
+    }
+    if (!requireBridgeAuth(req, res, urlPath)) return;
+
     try {
-      if (req.url === '/status') {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({
+      if (urlPath === '/status') {
+        const payload = {
           rlConnected,
           inMatch,
           playerName: activePlayerName || null,
           httpPort,
           playlist: currentPlaylist.name,
           isRanked: currentPlaylist.isRanked,
-        }));
+          authRequired: true,
+        };
+        const origin = req.headers.origin;
+        if (!origin || ALLOWED_ORIGINS.has(origin)) {
+          payload.authToken = getBridgeAuthToken();
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(payload));
         return;
       }
 
-      if (req.url === '/setup/status') {
+      if (urlPath === '/setup/status') {
         const setup = getSetupStatus();
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
@@ -304,14 +313,15 @@ export function startBridge(options = {}) {
         return;
       }
 
-      if (req.url === '/setup/apply' && req.method === 'POST') {
+      if (urlPath === '/setup/apply' && req.method === 'POST') {
         const body = await readJsonBody(req);
+        const validated = validateSetupApply(body);
         const applied = applyLocalSetup({
-          rlDisplayName: body.rlDisplayName,
-          riotId: body.riotId,
-          henrikApiKey: body.henrikApiKey ?? body.riotApiKey,
-          riotRegion: body.riotRegion,
-          patchIni: body.patchIni !== false,
+          rlDisplayName: validated.rlDisplayName,
+          riotId: validated.riotId,
+          henrikApiKey: validated.henrikApiKey,
+          riotRegion: validated.riotRegion,
+          patchIni: validated.patchIni,
         });
         const valBridge = await loadValorantBridge();
         valBridge?.resetValorantCache({ full: true });
@@ -325,19 +335,19 @@ export function startBridge(options = {}) {
         return;
       }
 
-      if (req.url === '/live') {
+      if (urlPath === '/live') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ inMatch, stats: live }));
         return;
       }
 
-      if (req.url === '/last-match') {
+      if (urlPath === '/last-match') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(lastMatch));
         return;
       }
 
-      if (req.url === '/last-match/consume' && req.method === 'POST') {
+      if (urlPath === '/last-match/consume' && req.method === 'POST') {
         const out = lastMatch;
         if (lastMatch) lastMatch = { ...lastMatch, consumed: true };
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -351,7 +361,13 @@ export function startBridge(options = {}) {
       res.writeHead(404);
       res.end('Not found');
     } catch (err) {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
+      const status = err.message?.includes('Unexpected field')
+        || err.message?.includes('Invalid')
+        || err.message?.includes('too large')
+        || err.message?.includes('Enter your')
+        ? 400
+        : 500;
+      res.writeHead(status, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: false, error: err.message }));
     }
   });

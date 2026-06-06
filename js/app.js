@@ -22,7 +22,7 @@ import { initRlLive, stopRlLive, refreshLiveStatus,
   saveRlDisplayName, getRlDisplayName,
 } from './rl-live.js';
 import { initValorantLive, stopValorantLive, refreshValorantStatus } from './valorant-live.js';
-import { startBridgeHeartbeat, stopBridgeHeartbeat, subscribeBridgeOnline, getBridgeUrl } from './bridge-client.js';
+import { startBridgeHeartbeat, stopBridgeHeartbeat, subscribeBridgeOnline, getBridgeUrl, bridgeFetch } from './bridge-client.js';
 import { wireBridgeStatusClick, refreshBridgeStatusUI } from './bridge-ui.js';
 import { initGameSwitcher, restoreActiveGameFromPrefs, applyGameShell, applyPageCopy, syncEditModal } from './game-ui.js';
 import { renderSetupWizard, refreshSetupWizard, onBridgeStatusChange, renderLogSetupNudge } from './setup-wizard.js';
@@ -435,7 +435,7 @@ function wireMatchLogMaintenanceButtons() {
         const ok = await clearGameHistory(GAME_IDS.VALORANT);
         if (!ok) return;
         try {
-          await fetch(`${getBridgeUrl()}/valorant/reset-baseline`, { method: 'POST' });
+          await bridgeFetch('/valorant/reset-baseline', { method: 'POST' });
         } catch { /* bridge optional */ }
         refreshValorantStatus();
         renderAll();

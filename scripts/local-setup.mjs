@@ -188,15 +188,17 @@ export function getSetupStatus() {
   } catch { /* ignore */ }
 
   const henrikKey = String(config.henrikApiKey || '').trim();
+  const envHenrik = String(process.env.HENRIK_API_KEY || '').trim();
   const legacyRiotKey = String(config.riotApiKey || '').trim();
-  const key = henrikKey || (legacyRiotKey.startsWith('RGAPI-') ? '' : legacyRiotKey);
+  const key = envHenrik || henrikKey || (legacyRiotKey.startsWith('RGAPI-') ? '' : legacyRiotKey);
   const { riotApiKey: _omit, henrikApiKey: _omit2, ...safeConfig } = config;
   return {
     config: {
       ...safeConfig,
       henrikApiKeySet: Boolean(key),
-      henrikApiKeyHint: key ? `${key.slice(0, 10)}…${key.slice(-4)}` : null,
       hasLegacyRiotKey: legacyRiotKey.startsWith('RGAPI-'),
+      /** Prefer HENRIK_API_KEY env var — keys are never returned to the client. */
+      henrikKeyViaEnv: Boolean(process.env.HENRIK_API_KEY?.trim()),
     },
     paths: {
       trackerRoot: ROOT,
@@ -215,13 +217,18 @@ export function getSetupStatus() {
 }
 
 export function applyLocalSetup({ rlDisplayName, riotId, riotApiKey, henrikApiKey, riotRegion, patchIni = true }) {
-  const name = String(rlDisplayName ?? '').trim();
+  const name = String(rlDisplayName ?? '').trim().slice(0, 64);
   const partial = {};
   if (name) partial.rlDisplayName = name;
-  if (riotId) partial.riotId = String(riotId).trim();
+  if (riotId) partial.riotId = String(riotId).trim().slice(0, 64);
+  // Env var takes precedence — do not overwrite disk key with empty wizard submit.
+  const envHenrik = String(process.env.HENRIK_API_KEY ?? '').trim();
   const henrik = String(henrikApiKey ?? riotApiKey ?? '').trim();
-  if (henrik && !henrik.startsWith('RGAPI-')) partial.henrikApiKey = henrik;
-  if (riotRegion) partial.riotRegion = String(riotRegion).trim().toLowerCase();
+  if (henrik && !henrik.startsWith('RGAPI-')) partial.henrikApiKey = henrik.slice(0, 128);
+  else if (envHenrik && !envHenrik.startsWith('RGAPI-')) {
+    /* key loaded from environment at runtime — optional persist skip */
+  }
+  if (riotRegion) partial.riotRegion = String(riotRegion).trim().toLowerCase().slice(0, 16);
   if (Object.keys(partial).length) saveGrindConfig(partial);
 
   if (!name && !riotId) throw new Error('Enter your Rocket League or Riot ID first');

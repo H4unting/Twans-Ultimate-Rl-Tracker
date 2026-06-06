@@ -4,7 +4,7 @@ import { state } from './state.js';
 import { GAME_IDS } from './games.js';
 import { showToast } from './ui.js';
 import { isAutoLogEnabled } from './quicklog.js';
-import { isBridgeUp, getBridgeUrl, setBridgeOnline } from './bridge-client.js';
+import { isBridgeUp, getBridgeUrl, setBridgeOnline, bridgeFetch } from './bridge-client.js';
 import { setCachedValorantStatus, refreshBridgeStatusUI } from './bridge-ui.js';
 
 let pollId = null;
@@ -33,7 +33,7 @@ export async function armValorantPolling() {
   if (state.activeGame !== GAME_IDS.VALORANT) return false;
   if (!isBridgeUp()) return false;
   try {
-    const res = await fetch(`${getBridgeUrl()}/valorant/arm`, {
+    const res = await bridgeFetch('/valorant/arm', {
       method: 'POST',
       signal: AbortSignal.timeout(4000),
     });
@@ -118,7 +118,7 @@ async function poll() {
 
     if (!isAutoLogEnabled()) {
       showToast(`${last.result === 'W' ? 'Win' : 'Loss'} · K:${last.kills} D:${last.deaths} — tap LOG`);
-      await fetch(`${getBridgeUrl()}/valorant/last-match/consume`, { method: 'POST' });
+      await bridgeFetch('/valorant/last-match/consume', { method: 'POST' });
       return;
     }
 
@@ -127,7 +127,7 @@ async function poll() {
     try {
       const logged = await onAutoLog(last);
       if (logged) {
-        await fetch(`${getBridgeUrl()}/valorant/last-match/consume`, { method: 'POST' });
+        await bridgeFetch('/valorant/last-match/consume', { method: 'POST' });
         showToast(`${last.result === 'W' ? 'Win' : 'Loss'} · K:${last.kills} D:${last.deaths} — logged`);
       }
     } finally {

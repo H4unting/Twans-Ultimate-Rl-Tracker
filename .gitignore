@@ -2,6 +2,7 @@ config/grind-config.json
 config/qa.local.js
 config/.valorant-bridge-state.json
 config/bridge.log
+.env
 grind-config.json
 .valorant-bridge-state.json
 node_modules/

@@ -10,7 +10,7 @@ import { state } from './state.js';
 
 import { GAME_IDS } from './games.js';
 
-import { isBridgeUp, getBridgeUrl, fetchBridgeStatus } from './bridge-client.js';
+import { isBridgeUp, getBridgeUrl, fetchBridgeStatus, bridgeFetch } from './bridge-client.js';
 
 import { setCachedRlInMatch, refreshBridgeStatusUI } from './bridge-ui.js';
 
@@ -166,7 +166,7 @@ async function pollBridge() {
 
         lastAppliedEnd = last.endedAt;
 
-        await fetch(`${BRIDGE}/last-match/consume`, { method: 'POST' });
+        await bridgeFetch('/last-match/consume', { method: 'POST' });
 
       } else if (last.result) {
 
@@ -174,7 +174,7 @@ async function pollBridge() {
 
         showToast(`${last.result === 'W' ? 'Win' : 'Loss'} · G:${last.goals} A:${last.assists} S:${last.saves} — tap LOG`);
 
-        await fetch(`${BRIDGE}/last-match/consume`, { method: 'POST' });
+        await bridgeFetch('/last-match/consume', { method: 'POST' });
 
       } else {
 
@@ -182,7 +182,7 @@ async function pollBridge() {
 
         showToast(`Stats ready — G:${last.goals} A:${last.assists} S:${last.saves}. Pick W/L + MMR.`);
 
-        await fetch(`${BRIDGE}/last-match/consume`, { method: 'POST' });
+        await bridgeFetch('/last-match/consume', { method: 'POST' });
 
       }
 
@@ -252,7 +252,7 @@ export async function applyBridgeSetup({
 
 
 
-  const res = await fetch(`${BRIDGE}/setup/apply`, {
+  const res = await bridgeFetch('/setup/apply', {
 
     method: 'POST',
 

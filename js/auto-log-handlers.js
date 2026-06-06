@@ -8,7 +8,7 @@ import { estimateMMRDelta } from './utils.js';
 import { VAL_DEFAULT_RR_SWING } from './valorant-config.js';
 import { applyRRDelta, normalizeRankName } from './games/valorant/rank-ladder.js';
 import { getStoredValorantBaseline } from './rank-baseline-store.js';
-import { getBridgeUrl } from './bridge-client.js';
+import { bridgeFetch } from './bridge-client.js';
 import { getDockModePillsEl } from './dock-ui.js';
 import {
   applyLiveStats, flashAutoLogged, setQuickResult, setQuickMode,
@@ -64,7 +64,7 @@ export async function handleValorantAutoLog(match) {
     (g.game ?? GAME_IDS.ROCKET_LEAGUE) === GAME_IDS.VALORANT
     && (g.notes ?? '').includes(`id:${match.matchId}`))) {
     try {
-      await fetch(`${getBridgeUrl()}/valorant/last-match/consume`, { method: 'POST' });
+      await bridgeFetch('/valorant/last-match/consume', { method: 'POST' });
     } catch { /* optional */ }
     return true;
   }
@@ -72,7 +72,7 @@ export async function handleValorantAutoLog(match) {
   const activity = Number(match.kills ?? 0) + Number(match.deaths ?? 0) + Number(match.valAssists ?? 0);
   if (activity === 0) {
     try {
-      await fetch(`${getBridgeUrl()}/valorant/last-match/consume`, { method: 'POST' });
+      await bridgeFetch('/valorant/last-match/consume', { method: 'POST' });
     } catch { /* optional */ }
     showToast('Match stats not ready yet — wait ~30s after the scoreboard or log manually', 'error');
     return false;

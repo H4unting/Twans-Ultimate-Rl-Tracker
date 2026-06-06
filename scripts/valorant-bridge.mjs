@@ -5,6 +5,7 @@
  */
 
 import { loadGrindConfig, loadValorantBridgeState, saveValorantBridgeState, clearValorantBridgeState } from './local-setup.mjs';
+import { checkHenrikRateLimit, readJsonBody, validateOverwolfMatch } from './bridge-security.mjs';
 
 const HENRIK_BASE = 'https://api.henrikdev.xyz';
 const HENRIK_POLL_MS = 12000;
@@ -99,20 +100,6 @@ function parseOverwolfGameMode(raw) {
   }
 }
 
-function readJsonBody(req) {
-  return new Promise((resolve, reject) => {
-    let data = '';
-    req.on('data', (chunk) => { data += chunk; });
-    req.on('end', () => {
-      try {
-        resolve(data ? JSON.parse(data) : {});
-      } catch {
-        reject(new Error('Invalid JSON body'));
-      }
-    });
-    req.on('error', reject);
-  });
-}
 
 export function pushOverwolfMatch(payload = {}) {
   markOverwolfPing();
@@ -136,8 +123,8 @@ export function pushOverwolfMatch(payload = {}) {
     deaths: Number(payload.deaths ?? 0),
     valAssists: Number(payload.valAssists ?? payload.assists ?? 0),
     acs: Number(payload.acs ?? 0),
-    agent: payload.agent || '',
-    map: payload.map || '',
+    agent: String(payload.agent || '').slice(0, 128),
+    map: String(payload.map || '').slice(0, 128),
     matchId,
     isRanked: String(payload.mode || '').toLowerCase() === 'competitive'
       || parseOverwolfGameMode(payload.game_mode) === 'Competitive',
@@ -282,14 +269,14 @@ export async function seedValorantBaseline() {
 function getBridgeConfig() {
   const cfg = loadGrindConfig();
   const henrikApiKey = (
-    cfg.henrikApiKey
-    || process.env.HENRIK_API_KEY
+    process.env.HENRIK_API_KEY
+    || cfg.henrikApiKey
     || ''
   ).trim();
-  const legacyRiotKey = (cfg.riotApiKey || process.env.RIOT_API_KEY || '').trim();
+  const legacyRiotKey = (process.env.RIOT_API_KEY || cfg.riotApiKey || '').trim();
   return {
-    riotId: (cfg.riotId || process.env.RIOT_ID || '').trim(),
-    riotRegion: (cfg.riotRegion || process.env.RIOT_REGION || 'na').toLowerCase(),
+    riotId: (process.env.RIOT_ID || cfg.riotId || '').trim(),
+    riotRegion: (process.env.RIOT_REGION || cfg.riotRegion || 'na').toLowerCase(),
     henrikApiKey: henrikApiKey || (legacyRiotKey.startsWith('RGAPI-') ? '' : legacyRiotKey),
     legacyRiotKey,
   };
@@ -309,6 +296,9 @@ function splitRiotId(riotId) {
 }
 
 async function henrikFetch(path) {
+  if (!checkHenrikRateLimit()) {
+    throw Object.assign(new Error('Henrik API rate limit (local bridge)'), { status: 429 });
+  }
   const { henrikApiKey, legacyRiotKey } = getBridgeConfig();
   if (!henrikApiKey) {
     if (legacyRiotKey.startsWith('RGAPI-')) {
@@ -579,7 +569,8 @@ export function handleValorantRequest(req, res) {
   if (url === '/valorant/overwolf-match' && req.method === 'POST') {
     readJsonBody(req)
       .then((body) => {
-        const out = pushOverwolfMatch(body);
+        const validated = validateOverwolfMatch(body);
+        const out = pushOverwolfMatch(validated);
         res.writeHead(out.ok ? 200 : 400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(out));
       })
