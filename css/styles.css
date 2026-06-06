@@ -847,20 +847,15 @@ body.has-quick-dock .live-session-panel { display: none !important; }
 }
 .quick-tags {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
+  align-items: flex-start;
   gap: 6px;
-  overflow-x: auto;
-  overflow-y: hidden;
   max-width: 100%;
-  padding-bottom: 2px;
-  scrollbar-width: thin;
-  -webkit-overflow-scrolling: touch;
 }
 .quick-tags .tag-chip {
   font-size: 10px;
   padding: 4px 9px;
   background: transparent;
-  flex-shrink: 0;
 }
 
 .quick-dock-hint {

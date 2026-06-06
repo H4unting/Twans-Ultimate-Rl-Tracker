@@ -259,7 +259,7 @@ body[data-active-game="valorant"] .val-chart-box {
 }
 
 .quick-tags {
-  align-items: center;
+  align-items: flex-start;
 }
 
 /* ── Login ────────────────────────────────────────────────────────────────── */
