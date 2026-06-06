@@ -9,6 +9,7 @@
   --space-2xl: 32px;
   --content-max: 2000px;
   --content-width: min(var(--content-max), 95vw);
+  --profile-max: min(1100px, 100%);
   --header-pad-x: 24px;
   --control-height: 40px;
 }
@@ -306,6 +307,10 @@ body[data-active-game="valorant"] .val-chart-box {
 .profile-ranks-grid,
 .profile-edit-grid {
   gap: var(--space-md);
+}
+
+.profile-ranks-grid {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 }
 
 .profile-edit-actions {
