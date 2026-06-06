@@ -7,7 +7,8 @@
   --space-lg: 16px;
   --space-xl: 24px;
   --space-2xl: 32px;
-  --content-max: 1200px;
+  --content-max: 1800px;
+  --content-width: min(var(--content-max), 92vw);
   --header-pad-x: 24px;
   --control-height: 40px;
 }
@@ -15,7 +16,10 @@
 /* ── Page rhythm ────────────────────────────────────────────────────────── */
 .page {
   padding: var(--space-xl) var(--header-pad-x);
-  max-width: var(--content-max);
+  width: var(--content-width);
+  max-width: 100%;
+  margin-inline: auto;
+  box-sizing: border-box;
 }
 
 .page-heading {
@@ -60,8 +64,11 @@
 }
 
 .bridge-hint-inner {
-  max-width: var(--content-max);
+  width: var(--content-width);
+  max-width: 100%;
+  margin-inline: auto;
   padding: 0 var(--header-pad-x);
+  box-sizing: border-box;
 }
 
 /* ── Cards & stat grids ───────────────────────────────────────────────────── */
@@ -448,6 +455,8 @@ body.has-quick-dock.quick-dock-collapsed .mobile-nav {
 @media (max-width: 768px) {
   .page {
     padding: var(--space-lg) var(--header-pad-x);
+    width: 100%;
+    max-width: none;
   }
 
   .home-activity-row {
