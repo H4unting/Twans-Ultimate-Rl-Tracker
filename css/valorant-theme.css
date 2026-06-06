@@ -121,6 +121,16 @@ body[data-active-game="valorant"] .sub-nav .sub-nav-pill.active {
   box-shadow: inset 3px 0 0 var(--val-red);
 }
 
+body[data-active-game="valorant"] .main-nav .tab.active,
+body[data-active-game="valorant"] .main-nav .tab.tab-log.active {
+  transform: none;
+  box-shadow: inset 3px 0 0 var(--val-red);
+}
+
+body[data-active-game="valorant"] .main-nav .tab-section.active {
+  background: #ff465522;
+}
+
 body[data-active-game="valorant"] .sync-dot.live { background: var(--val-red); box-shadow: 0 0 8px var(--val-red); }
 body[data-active-game="valorant"] .top-profile-btn:hover { border-color: var(--val-red); color: var(--val-red); }
 

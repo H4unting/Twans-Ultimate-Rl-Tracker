@@ -48,7 +48,7 @@ export function initGameSwitcher({ onChange, getSettingsPayload }) {
     }
 
     applyGameShell(next);
-    updateNavUI(document.body.dataset.page || 'dashboard', next);
+    updateNavUI(state.activePage || document.body.dataset.page || 'dashboard', next);
     applyPageCopy(next);
     restoreSessionFromStorage(getActiveGames());
     refreshQuickTagsOnGameSwitch();

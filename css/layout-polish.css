@@ -7,8 +7,8 @@
   --space-lg: 16px;
   --space-xl: 24px;
   --space-2xl: 32px;
-  --content-max: 2000px;
-  --content-width: min(var(--content-max), 95vw);
+  --content-max: 1800px;
+  --content-width: min(var(--content-max), 92vw);
   --profile-max: min(1100px, 100%);
   --header-pad-x: 24px;
   --control-height: 40px;
