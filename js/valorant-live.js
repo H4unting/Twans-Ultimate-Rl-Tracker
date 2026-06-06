@@ -8,6 +8,7 @@ import { isBridgeUp, getBridgeUrl, setBridgeOnline } from './bridge-client.js';
 import { setCachedValorantStatus, refreshBridgeStatusUI } from './bridge-ui.js';
 
 let pollId = null;
+let pollMs = 5000;
 let wasBridgeUp = false;
 let autoLogInFlight = false;
 let pollingArmSent = false;
@@ -109,8 +110,10 @@ async function poll() {
       mode: last.mode,
       agent: last.agent,
       map: last.map,
+      matchId: last.matchId,
       rrChange: last.rrChange,
       endRR: last.endRR,
+      endRank: last.endRank,
     });
 
     if (!isAutoLogEnabled()) {
@@ -141,7 +144,8 @@ export function initValorantLive(applyStats, statusCb, autoLogCb) {
   onAutoLog = autoLogCb;
   stopValorantLive();
   pollingArmSent = false;
-  pollId = setInterval(poll, 5000);
+  pollMs = 3000;
+  pollId = setInterval(poll, pollMs);
   poll();
   onVisibilityChange = () => {
     if (document.visibilityState === 'visible') {

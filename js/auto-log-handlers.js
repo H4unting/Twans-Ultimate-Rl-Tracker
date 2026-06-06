@@ -101,8 +101,9 @@ export async function handleValorantAutoLog(match) {
   let endRank;
   let endRR;
   let rrDiff;
+  const henrikRank = match.endRR != null && match.rrChange != null;
 
-  if (match.endRR != null && match.rrChange != null) {
+  if (henrikRank) {
     endRR = parseInt(match.endRR, 10);
     rrDiff = parseInt(match.rrChange, 10);
     endRank = normalizeRankName(match.endRank);
@@ -155,7 +156,7 @@ export async function handleValorantAutoLog(match) {
 
   state.ui.autoLogNote = [
     match.matchId ? `id:${match.matchId}` : '',
-    !priorState.hasPrior ? 'RR estimated' : '',
+    !henrikRank ? 'RR estimated' : '',
     match.agent ? match.agent : '',
     match.map ? match.map : '',
   ].filter(Boolean).join(' · ');

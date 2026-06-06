@@ -120,7 +120,7 @@ export function renderProfilePage({
             </div>
             <div class="profile-hero-title">
               <h1 class="profile-display-name" id="profile-display-heading">${escapeHtml(display.name)}</h1>
-              <p class="profile-level-hint profile-level-hint-inline">${stats.totalGames} ${isVal ? 'matches' : 'games'} logged · Level ${level}</p>
+              <p class="profile-level-hint profile-level-hint-inline">${stats.totalGames} ${isVal ? 'matches' : 'games'} logged</p>
               <div class="profile-meta">
                 <div class="profile-subline">
                   ${uidLabel ? `<span class="profile-uid-tag">${escapeHtml(uidLabel)}</span><span class="profile-dot">·</span>` : ''}
@@ -129,6 +129,12 @@ export function renderProfilePage({
                   <span>${formatMemberSince(profile?.created_at)}</span>
                 </div>
                 ${bio ? `<p class="profile-bio" id="profile-bio-display">${escapeHtml(bio)}</p>` : '<p class="profile-bio profile-bio-empty hidden" id="profile-bio-display"></p>'}
+              </div>
+            </div>
+            <div class="profile-hero-right">
+              <div class="profile-level-block">
+                <span class="profile-level-label">Level</span>
+                <span class="profile-level-badge" title="${stats.totalGames} ${isVal ? 'matches' : 'games'} logged">${level}</span>
               </div>
             </div>
           </div>

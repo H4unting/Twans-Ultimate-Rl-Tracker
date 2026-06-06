@@ -8,6 +8,7 @@ export const NAV = {
     pages: [
       { id: 'dashboard', label: 'Combat Report' },
       { id: 'log', label: 'Match History' },
+      { id: 'sessions', label: 'Grind Blocks' },
       { id: 'focus', label: 'Mission Brief' },
       { id: 'setup', label: 'Auto-Log Setup' },
     ],
@@ -17,7 +18,6 @@ export const NAV = {
     icon: '📊',
     defaultPage: 'analytics',
     pages: [
-      { id: 'sessions', label: 'Grind Blocks' },
       { id: 'analytics', label: 'Performance' },
       { id: 'reports', label: 'Rank Cycle' },
     ],

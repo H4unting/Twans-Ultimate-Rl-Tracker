@@ -7,7 +7,7 @@
 import { loadGrindConfig, loadValorantBridgeState, saveValorantBridgeState, clearValorantBridgeState } from './local-setup.mjs';
 
 const HENRIK_BASE = 'https://api.henrikdev.xyz';
-const HENRIK_POLL_MS = 20000;
+const HENRIK_POLL_MS = 12000;
 const HENRIK_DEFER_MS = 45000;
 const AUTO_ARM_MS = 45000;
 const MAX_SEEN_IDS = 64;
@@ -379,16 +379,23 @@ async function fetchRecentHenrikMatches(size = RECENT_MATCHES_SIZE) {
   return body.data ?? [];
 }
 
+let mmrHistoryCache = { fetchedAt: 0, rows: [] };
+
 async function fetchMmrHistoryForMatch(matchId) {
   if (!matchId) return null;
   const { riotId, riotRegion } = getBridgeConfig();
   const { name, tag } = splitRiotId(riotId);
   const region = encodeURIComponent(riotRegion);
   try {
-    const body = await henrikFetch(
-      `/valorant/v2/mmr-history/${region}/pc/${encodeURIComponent(name)}/${encodeURIComponent(tag)}?size=8`,
-    );
-    const rows = body.data ?? [];
+    const now = Date.now();
+    let rows = mmrHistoryCache.rows;
+    if (!rows.length || now - mmrHistoryCache.fetchedAt > 30000) {
+      const body = await henrikFetch(
+        `/valorant/v2/mmr-history/${region}/pc/${encodeURIComponent(name)}/${encodeURIComponent(tag)}?size=8`,
+      );
+      rows = body.data ?? [];
+      mmrHistoryCache = { fetchedAt: now, rows };
+    }
     return rows.find(r => String(r.match_id) === String(matchId)) ?? rows[0] ?? null;
   } catch {
     return null;

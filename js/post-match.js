@@ -80,6 +80,7 @@ function renderCard(el, game, estimated) {
   const win = game.result === 'W';
   const delta = getRankDiff(game, state.activeGame);
   const matchLabel = isVal ? 'Match' : 'Game';
+  const showRankConfirm = estimated;
 
   el.innerHTML = `
     <div class="post-match-inner ${win ? 'pm-win' : 'pm-loss'}${estimated ? ' pm-needs-mmr' : ''}">
@@ -105,19 +106,20 @@ function renderCard(el, game, estimated) {
              <div class="pm-stat"><span class="pm-stat-val">${game.saves}</span><span class="pm-stat-lbl">Saves</span></div>`}
       </div>
 
+      ${showRankConfirm ? `
       <div class="post-match-section post-match-mmr-section" id="pm-mmr-section">
         <div class="post-match-section-head">
-          <span>${estimated ? `Required — confirm ${meta.rankLabel}` : `Confirm ${meta.rankLabel}`}</span>
+          <span>Required — confirm ${meta.rankLabel}</span>
           <span class="post-match-section-sub">from ranked screen</span>
         </div>
         <div class="post-match-mmr-input-row">
           <input type="number" id="pm-mmr" class="post-match-mmr-input"
-            placeholder="e.g. ${isVal ? '45' : '807'}" value="${estimated ? '' : game.endMMR}" min="0" inputmode="numeric"
+            placeholder="e.g. ${isVal ? '45' : '807'}" value="" min="0" inputmode="numeric"
             aria-label="${meta.rankLabel} from ranked screen">
-          <button type="button" class="btn btn-primary" id="pm-mmr-save">Save</button>
+          <button type="button" class="btn btn-primary" id="pm-mmr-save">Confirm &amp; continue</button>
         </div>
-        ${estimated ? `<p class="post-match-mmr-hint">Auto-log estimated ${meta.diffLabel} — type the real number before your next ${isVal ? 'match' : 'game'}.</p>` : ''}
-      </div>
+        <p class="post-match-mmr-hint">Auto-log estimated ${meta.diffLabel} — enter the real number from your ranked screen.</p>
+      </div>` : ''}
 
       <div class="post-match-section">
         <div class="post-match-section-head">What went wrong?</div>
@@ -126,7 +128,9 @@ function renderCard(el, game, estimated) {
 
       <div class="post-match-foot">
         <button type="button" class="btn btn-cancel" id="pm-undo">Undo log</button>
-        <button type="button" class="btn btn-primary" id="pm-next"${estimated && !mmrConfirmed ? ` disabled title="Save ${meta.rankLabel} first"` : ''}>Next ${isVal ? 'match' : 'game'} →</button>
+        ${showRankConfirm
+    ? ''
+    : `<button type="button" class="btn btn-primary" id="pm-next">Continue →</button>`}
       </div>
     </div>`;
 }
@@ -193,8 +197,7 @@ async function saveMMR() {
   if (ok) {
     mmrConfirmed = true;
     needsMmrConfirm = false;
-    showToast(`${meta.rankLabel} saved — ${val}`);
-    document.getElementById('pm-next')?.removeAttribute('disabled');
+    showToast(`${meta.rankLabel} confirmed — ${val}`);
     hidePostMatchCard(true);
   }
 }

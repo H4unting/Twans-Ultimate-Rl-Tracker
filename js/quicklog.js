@@ -436,8 +436,8 @@ function renderQuickTags() {
   const el = getDockTagsEl();
   if (!el) return;
   const groups = getTagGroups(state.activeGame);
-  const hotTags = groups.flatMap(g => g.tags).slice(0, 8);
-  el.innerHTML = hotTags.map(tag => {
+  const allTags = groups.flatMap(g => g.tags);
+  el.innerHTML = allTags.map(tag => {
     const cat = groups.find(g => g.tags.includes(tag))?.cat ?? (state.activeGame === GAME_IDS.VALORANT ? 'aim' : 'def');
     const sel = quickTags.includes(tag) ? ' selected' : '';
     return `<button type="button" class="tag-chip ${cat}${sel}" data-tag="${tag}">${tag}</button>`;

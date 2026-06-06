@@ -689,7 +689,7 @@ async function submitGameLog(source = 'form') {
       state.ui.autoLogNote = '';
       resetQuickAfterLog();
     });
-    renderAll();
+    renderAll(source === 'auto' || source === 'quick' ? 'core' : 'full');
     if (saved) {
       state.homeChartMode = saved.mode;
       showPostMatchCard(saved, { estimated: isMmrEstimated(saved) });

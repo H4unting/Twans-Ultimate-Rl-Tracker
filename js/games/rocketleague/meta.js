@@ -8,6 +8,7 @@ export const NAV = {
     pages: [
       { id: 'dashboard', label: 'Dashboard' },
       { id: 'log', label: 'Match Logs' },
+      { id: 'sessions', label: 'Sessions' },
       { id: 'setup', label: 'Auto Setup' },
       { id: 'focus', label: 'Focus' },
     ],
@@ -17,7 +18,6 @@ export const NAV = {
     icon: '📊',
     defaultPage: 'analytics',
     pages: [
-      { id: 'sessions', label: 'Sessions' },
       { id: 'analytics', label: 'Analytics' },
       { id: 'reports', label: 'Reports' },
     ],

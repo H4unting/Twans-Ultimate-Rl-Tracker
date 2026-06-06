@@ -30,7 +30,7 @@ export function applyDockForGame(gameId = state.activeGame) {
   if (hint) {
     hint.textContent = isVal
       ? 'Match ends → auto-log saves · confirm RR on the card · tap tags · undo if wrong'
-      : 'Match ends → auto-log saves · confirm MMR on the card · tap tags · undo if wrong';
+      : 'Match ends → auto-log saves · confirm rank on the card if prompted · tap tags';
   }
 
   if (isVal) populateValSelects();
