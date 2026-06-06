@@ -2826,6 +2826,10 @@ textarea:focus-visible {
 /* Reduce motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  .main-nav .tab:hover:not(.active),
+  .main-nav .tab.active,
+  .sub-nav-pill:hover,
+  .top-profile-btn:hover { transform: none; }
 }
 
 /* ── UX Overhaul: Navigation ─────────────────────────────────────────────── */
