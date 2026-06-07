@@ -13,6 +13,7 @@ import { getActiveGames } from './state.js';
 import { getLoggingSessionNum } from './sessions.js';
 import { state } from './state.js';
 import { GAME_IDS, getGameMeta, getRankDiff } from './games.js';
+import { escapeHtml, escapeAttr } from './core/dom-safe.js';
 
 export const QUICK_FILTERS = [
   { id: 'all', label: 'All' },
@@ -126,8 +127,8 @@ function matchRowHTML(g, gameNum, editable, gameId) {
   const diff = getRankDiff(g, gameId);
   const diffCls = diff >= 0 ? 'pos' : 'neg';
   const diffStr = `${diff >= 0 ? '+' : ''}${diff}`;
-  const agent = g.agent ? `<span class="match-log-agent">${g.agent}</span>` : '';
-  const map = g.map ? `<span class="match-log-map">${g.map}</span>` : '';
+  const agent = g.agent ? `<span class="match-log-agent">${escapeHtml(g.agent)}</span>` : '';
+  const map = g.map ? `<span class="match-log-map">${escapeHtml(g.map)}</span>` : '';
 
   return `
     <details class="match-log-row">
@@ -135,23 +136,23 @@ function matchRowHTML(g, gameNum, editable, gameId) {
         <span class="match-log-game-num">${isVal ? 'Match' : 'Game'} ${gameNum}</span>
         <span class="badge ${g.result}">${g.result === 'W' ? 'W' : 'L'}</span>
         <span class="match-log-mmr ${diffCls}">${diffStr} ${diffLabel}</span>
-        <span class="match-log-mode">${g.mode}</span>
+        <span class="match-log-mode">${escapeHtml(g.mode)}</span>
         ${agent}${map}
         ${renderInlineTags(g.tags, gameId)}
       </summary>
       <div class="match-log-detail">
         <div class="match-log-detail-grid">
-          <span><b>Date</b> ${g.date}</span>
-          <span><b>Match #</b> ${g.match}</span>
+          <span><b>Date</b> ${escapeHtml(g.date)}</span>
+          <span><b>Match #</b> ${escapeHtml(g.match)}</span>
           ${isVal
             ? `<span><b>K/D/A</b> ${g.kills ?? g.goals ?? 0}/${g.deaths ?? 0}/${g.valAssists ?? g.assists ?? 0}</span>
                ${valRankDetailHTML(g, diffLabel)}
-               ${g.agent ? `<span><b>Agent</b> ${g.agent}</span>` : ''}
-               ${g.map ? `<span><b>Map</b> ${g.map}</span>` : ''}`
+               ${g.agent ? `<span><b>Agent</b> ${escapeHtml(g.agent)}</span>` : ''}
+               ${g.map ? `<span><b>Map</b> ${escapeHtml(g.map)}</span>` : ''}`
             : `<span><b>G/A/S</b> ${g.goals}/${g.assists || 0}/${g.saves}</span>
                <span><b>MMR</b> ${g.startMMR} → ${g.endMMR} ${rankIconHTML(getRank(g.endMMR, g.mode), 18)}</span>`}
         </div>
-        ${g.notes ? `<p class="match-log-notes">${g.notes}</p>` : ''}
+        ${g.notes ? `<p class="match-log-notes">${escapeHtml(g.notes)}</p>` : ''}
         ${editable ? `
           <div class="match-log-actions">
             <button class="action-btn edit" data-match="${g.match}" title="Edit">✏️ Edit</button>

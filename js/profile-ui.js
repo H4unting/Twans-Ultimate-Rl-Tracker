@@ -7,6 +7,7 @@ import { showToast } from './ui.js';
 import { formatApiError } from './supabase.js';
 import { GAME_IDS, getGameMeta, getGameModule, filterGamesByTitle } from './games.js';
 import { state } from './state.js';
+import { sanitizeImageUrl } from './core/dom-safe.js';
 
 function escapeHtml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -45,8 +46,9 @@ function resolveProfileColors(profile, display) {
 }
 
 function renderAvatarHtml(display, primary, avatarId = 'profile-avatar-img') {
-  if (display.avatar) {
-    return `<img class="profile-avatar" id="${avatarId}" src="${escapeAttr(display.avatar)}" alt="">`;
+  const safeUrl = sanitizeImageUrl(display.avatar);
+  if (safeUrl) {
+    return `<img class="profile-avatar" id="${avatarId}" src="${escapeAttr(safeUrl)}" alt="">`;
   }
   return `<span class="profile-avatar profile-avatar-fallback" id="${avatarId}" style="background:${escapeAttr(primary)}">${escapeHtml(display.name.charAt(0).toUpperCase())}</span>`;
 }

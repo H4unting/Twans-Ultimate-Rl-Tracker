@@ -280,25 +280,13 @@ function renderSquadDetail(group, members, myRole, userId, memberDetailHTML, wee
 }
 
 export async function renderGroupsPage(ctx) {
-  console.group('Squad Page');
-  console.log('renderGroupsPage', {
-    groups: ctx.groups?.length ?? 0,
-    userId: ctx.userId ?? null,
-    gameId: state.activeGame,
-  });
-
   if (ui.lastGameId !== state.activeGame) {
     ui.gamesCache = {};
     ui.lastGameId = state.activeGame;
-    console.log('squad gamesCache cleared (game switch)');
   }
 
   const el = document.getElementById('group-content');
-  if (!el) {
-    console.warn('group-content missing');
-    console.groupEnd();
-    return;
-  }
+  if (!el) return;
 
   const { groups, userId, onCreate, onJoin, onLeave, onRefresh } = ctx;
   const selectedGroup = groups.find(g => (g.id ?? g.group_id) === ui.selectedGroupId);
@@ -328,8 +316,6 @@ export async function renderGroupsPage(ctx) {
 
   wireCreateJoin(el, { onCreate, onJoin, onRefresh });
   await wireSquadList(el, groups, userId, { onLeave, onRefresh });
-  console.log('renderGroupsPage done');
-  console.groupEnd();
 }
 
 async function wireSquadList(el, groups, userId, { onLeave, onRefresh }) {

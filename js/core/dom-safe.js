@@ -23,3 +23,9 @@ export function sanitizeImageUrl(url) {
   } catch { /* reject */ }
   return '';
 }
+
+/** Allow hex colors in inline style attributes. */
+export function escapeCssColor(c, fallback = '#888888') {
+  const s = String(c ?? '').trim();
+  return /^#[0-9A-Fa-f]{3,8}$/.test(s) ? s : fallback;
+}

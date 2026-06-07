@@ -6,7 +6,7 @@ import {
   valRankStartCellHTML, valRankEndCellHTML, resolveValorantMatchDisplayRanks,
 } from './games/valorant/ranks.js';
 import { calcStats } from './utils.js';
-import { escapeHtml, escapeAttr, sanitizeImageUrl } from './core/dom-safe.js';
+import { escapeHtml, escapeAttr, sanitizeImageUrl, escapeCssColor } from './core/dom-safe.js';
 import { getGoalProgress } from './goals.js';
 import { getUniqueSessions } from './filters.js';
 import { state, getActiveGames } from './state.js';
@@ -205,7 +205,7 @@ export function renderWelcomeHeader(display, stats) {
   const el = document.getElementById('welcome-header');
   if (!el) return;
   el.innerHTML = `
-    <h1 class="welcome-title">Hey, <span style="color:${display.color}">${display.name}</span></h1>
+    <h1 class="welcome-title">Hey, <span style="color:${escapeCssColor(display.color, '#e65c00')}">${escapeHtml(display.name)}</span></h1>
     <p class="welcome-sub">${stats.totalGames ? `${stats.totalGames} games tracked · ${stats.winRate}% win rate` : 'Log your first game to start tracking'}</p>`;
 }
 
@@ -326,7 +326,7 @@ export function renderCoachReport(lines) {
   el.innerHTML = `
     <div class="coach-report">
       <h3>Coach Notes</h3>
-      ${lines.map(l => `<div class="coach-line coach-${l.type}">${l.text}</div>`).join('')}
+      ${lines.map(l => `<div class="coach-line coach-${escapeAttr(l.type)}">${escapeHtml(l.text)}</div>`).join('')}
     </div>`;
 }
 
@@ -341,13 +341,13 @@ export function renderActionItems(items) {
         ${items.slice(0, 5).map(item => {
           const title = item.tag ?? item.title ?? (item.text?.split('—')[0]?.trim() || 'Focus');
           return `
-          <div class="action-item-card action-${item.type}">
+          <div class="action-item-card action-${escapeAttr(item.type)}">
             <span class="action-item-kicker">Action Item</span>
-            <h4 class="action-item-title">${title}</h4>
+            <h4 class="action-item-title">${escapeHtml(title)}</h4>
             ${item.lossPct != null
               ? `<p class="action-item-stat">Responsible for ${item.lossPct}% of tagged losses.</p>`
-              : `<p class="action-item-stat">${item.text}</p>`}
-            ${item.focus ? `<div class="action-item-focus"><span>Focus</span><p>${item.focus}</p></div>` : ''}
+              : `<p class="action-item-stat">${escapeHtml(item.text)}</p>`}
+            ${item.focus ? `<div class="action-item-focus"><span>Focus</span><p>${escapeHtml(item.focus)}</p></div>` : ''}
           </div>`;
         }).join('')}
       </div>

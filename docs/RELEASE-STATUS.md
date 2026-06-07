@@ -9,7 +9,7 @@
 
 ## Verdict
 
-**🟡 Conditional** — awaiting agent runs and prod Supabase P0 verification
+**🟢 Conditional** — security blockers closed 2026-06-02; smoke test + deploy remain
 
 **Current commit:** _run `git rev-parse --short HEAD`_
 
@@ -17,7 +17,7 @@
 
 | Source | ID | Item | Owner |
 |--------|-----|------|-------|
-| Security | P0 | `app_settings` prod drop — see [`SECURITY-AUDIT.md`](SECURITY-AUDIT.md) | Manual SQL |
+| Security | P0 + XSS + DB hardening | **Closed 2026-06-02** |
 
 ## Conditional items (waivable)
 
@@ -38,7 +38,7 @@
 
 | Agent | Report | Status |
 |-------|--------|--------|
-| Security Auditor | [`SECURITY-AUDIT.md`](SECURITY-AUDIT.md) | Partial — P0 SQL pending |
+| Security Auditor | [`SECURITY-AUDIT.md`](SECURITY-AUDIT.md) | P0 closed — live verified |
 | UX / Frontend | [`UX-REPORT.md`](UX-REPORT.md) | Not run |
 | QA Lead | [`QA-REPORT.md`](QA-REPORT.md) | Not run |
 | Architecture | [`ARCHITECTURE-REPORT.md`](ARCHITECTURE-REPORT.md) | Not run |

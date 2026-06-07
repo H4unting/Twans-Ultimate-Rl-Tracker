@@ -306,9 +306,6 @@ function renderHomePage() {
 }
 
 function renderAnalyticsPage() {
-  console.group('Review Page');
-  console.log('renderAnalyticsPage', { games: getAnalyticsGames().length, gameId: state.activeGame });
-
   const filtered = getAnalyticsGames();
   const stats = calcStats(filtered, state.activeGame);
   const display = getDisplay();
@@ -317,9 +314,6 @@ function renderAnalyticsPage() {
   mmrChart('dashMMR', filtered, isVal ? '#ff4655' : display.color, isVal ? 'RR' : 'MMR');
   wlChart('dashWL', stats);
   renderAnalytics(filtered);
-
-  console.log('renderAnalyticsPage done');
-  console.groupEnd();
 }
 
 function renderAll(scope = 'full') {
@@ -461,9 +455,6 @@ function renderSessionsPageContent() {
 }
 
 function renderReportsPageContent() {
-  console.group('Review Page');
-  console.log('renderReportsPageContent', { games: getActiveGames().length, gameId: state.activeGame });
-
   renderReportsPage(
     getActiveGames(),
     getDisplay().name,
@@ -477,9 +468,6 @@ function renderReportsPageContent() {
       showToast('Goals saved!');
     },
   );
-
-  console.log('renderReportsPageContent done');
-  console.groupEnd();
 }
 
 function renderProfilePageContent() {
@@ -570,25 +558,11 @@ function renderActivePageContent(pageId) {
 }
 
 function navigate(pageId, section) {
-  const reviewPages = new Set(['focus', 'analytics', 'reports']);
-  if (reviewPages.has(pageId)) {
-    console.group('Review Page');
-    console.log('navigate', { pageId, section: section ?? getSectionForPage(pageId) });
-  } else if (pageId === 'group') {
-    console.group('Squad Page');
-    console.log('navigate', { pageId, section: section ?? getSectionForPage(pageId) });
-  }
-
   state.activePage = pageId;
   showPage(pageId);
   updateNavUI(pageId);
   mountDock();
   renderActivePageContent(pageId);
-
-  if (reviewPages.has(pageId) || pageId === 'group') {
-    console.log('navigate render complete', pageId);
-    console.groupEnd();
-  }
 }
 
 function wireNavigation() {

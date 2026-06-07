@@ -8,6 +8,7 @@ import { rankBadgeHTML } from './ranks.js';
 import { getLoggingSessionNum } from './sessions.js';
 import { state } from './state.js';
 import { GAME_IDS, getActionFocusTips } from './games.js';
+import { escapeHtml, escapeAttr, escapeCssColor } from './core/dom-safe.js';
 
 function gamesSinceLastTag(games, tag) {
   for (let i = games.length - 1; i >= 0; i--) {
@@ -33,15 +34,8 @@ function improvementStreak(games, tags) {
 }
 
 export function renderFocusPage(games, goals, display) {
-  console.group('Review Page');
-  console.log('renderFocusPage', { games: games?.length ?? 0, gameId: state.activeGame });
-
   const container = document.getElementById('focus-content');
-  if (!container) {
-    console.warn('focus-content missing');
-    console.groupEnd();
-    return;
-  }
+  if (!container) return;
 
   const gameId = state.activeGame;
   const isVal = gameId === GAME_IDS.VALORANT;
@@ -104,7 +98,7 @@ export function renderFocusPage(games, goals, display) {
 
   const customFocusHTML = goals?.focusTag ? `
     <div class="coach-section coach-focus-week">
-      <h3>Custom Focus · ${goals.focusTag}</h3>
+      <h3>Custom Focus · ${escapeHtml(goals.focusTag)}</h3>
       ${(() => {
         const weekGames = getGamesInWeek(games, 0);
         const focusCount = weekGames.filter(g => (g.tags || []).includes(goals.focusTag)).length;
@@ -121,10 +115,10 @@ export function renderFocusPage(games, goals, display) {
     </div>` : '';
 
   const actionHTML = (insights.actionItems ?? []).slice(0, 3).map(item => `
-    <div class="action-item-card action-${item.type}">
+    <div class="action-item-card action-${escapeAttr(item.type)}">
       <span class="action-item-kicker">Action Item</span>
-      <h4 class="action-item-title">${item.tag ?? item.text.split('—')[0]?.trim()}</h4>
-      ${item.focus ? `<p class="action-item-stat">${item.focus}</p>` : `<p class="action-item-stat">${item.text}</p>`}
+      <h4 class="action-item-title">${escapeHtml(item.tag ?? item.text.split('—')[0]?.trim())}</h4>
+      ${item.focus ? `<p class="action-item-stat">${escapeHtml(item.focus)}</p>` : `<p class="action-item-stat">${escapeHtml(item.text)}</p>`}
     </div>`).join('');
 
   const goalsHTML = goalItems.length ? goalItems.map(g => `
@@ -137,7 +131,7 @@ export function renderFocusPage(games, goals, display) {
     <div class="coach-player-card focus-page-card">
       <div class="coach-player-header">
         <div>
-          <h2 style="color:${display.color}">${isVal ? 'Mission Brief' : 'Focus Mode'}</h2>
+          <h2 style="color:${escapeCssColor(display.color, '#e65c00')}">${isVal ? 'Mission Brief' : 'Focus Mode'}</h2>
           <div class="coach-sub">${stats.totalGames} ${isVal ? 'matches' : 'games'} · ${state.session.active ? `${isVal ? 'Block' : 'Session'} ${sessionNum} · ${sessionGames.length} logged` : week.label}</div>
         </div>
         ${!isVal && modeRR ? rankBadgeHTML(modeRR, 24, mode) : isVal && modeRR ? `<span class="val-focus-rr">${modeRR} RR</span>` : ''}
@@ -147,7 +141,4 @@ export function renderFocusPage(games, goals, display) {
       <div class="coach-section"><h3>Actions</h3><div class="action-item-grid">${actionHTML || `<div class="empty">Log ${isVal ? 'matches' : 'games'} for insights</div>`}</div></div>
       <div class="coach-section coach-section-compact"><h3>Goals</h3>${goalsHTML}</div>
     </div>`;
-
-  console.log('renderFocusPage done');
-  console.groupEnd();
 }

@@ -14,8 +14,8 @@ Related: `docs/PRODUCTION-READINESS.md`, `scripts/bridge-security.mjs`, `docs/su
 | Area | Status |
 |------|--------|
 | API keys in browser | **PASS** (anon only; Henrik keys server-local) |
-| Supabase RLS | **BLOCKED until prod SQL run** — `app_settings` removed from templates; run `drop-app-settings.sql` |
-| User input / XSS | **WARNING** (major gaps fixed in audit; see below) |
+| Supabase RLS | **PASS (P0 closed 2026-06-02)** — `app_settings` dropped on prod via migration `drop_app_settings` |
+| User input / XSS | **PASS** (2026-06-02 hardening — notes, names, print export, coach/focus) |
 | Abuse protection | **PASS** (bridge); **WARNING** (Supabase client) |
 | Local storage | **PASS** (no Henrik keys; Supabase session expected) |
 | Error disclosure | **WARNING** (raw Supabase errors to UI) |
@@ -24,7 +24,17 @@ Related: `docs/PRODUCTION-READINESS.md`, `scripts/bridge-security.mjs`, `docs/su
 
 ---
 
-## P0 — `app_settings` (release blocker)
+## P0 — `app_settings` (release blocker) — **CLOSED 2026-06-02**
+
+Verified live on project `pwuxocijdnuhhghufizn` (Supabase MCP):
+
+| Check | Result |
+|-------|--------|
+| `app_settings` exists | **false** |
+| Open policy `Allow anon read/write app_settings` | **removed** |
+| `user_settings` RLS | `user_id = auth.uid()` on ALL |
+
+Migration applied: `drop_app_settings` (DROP POLICY + DROP TABLE).
 
 ### Code audit conclusion
 
@@ -37,22 +47,22 @@ Related: `docs/PRODUCTION-READINESS.md`, `scripts/bridge-security.mjs`, `docs/su
 
 **Decision: DROP TABLE** (not lock to `auth.uid()` — redundant with `user_settings`).
 
-### Production verification (you must run)
+### Production verification — **DONE**
 
-Auto-probe from CI/agents is blocked (live credentials). Run in **Supabase Dashboard → SQL Editor**:
+~~Auto-probe from CI/agents is blocked~~ Live verification via Supabase MCP on 2026-06-02:
 
 ```sql
--- Step A: Does the table exist?
+-- Result: app_settings_still_exists = false
 SELECT EXISTS (
   SELECT 1 FROM information_schema.tables
   WHERE table_schema = 'public' AND table_name = 'app_settings'
-) AS app_settings_exists;
+) AS app_settings_still_exists;
 ```
 
 | `app_settings_exists` | Action |
 |-----------------------|--------|
-| `false` | **Release unblocked** for this item — confirm `user_settings` policy below |
-| `true` | Run full script: **`docs/supabase/drop-app-settings.sql`** |
+| `false` | **Release unblocked** for this item ✓ |
+| `true` | ~~Run full script~~ — no longer needed |
 
 After drop, confirm:
 
