@@ -507,6 +507,7 @@ export function startValorantBridge(options = {}) {
   }
 
   const manualArm = options.manualArm !== false;
+  const launcherMode = Boolean(options.launcherMode);
   if (manualArm) {
     console.log('');
     console.log('  STEP 2 REQUIRED: open http://localhost:8080 in your browser');
@@ -527,11 +528,21 @@ export function startValorantBridge(options = {}) {
   const pollMs = Number(options.pollMs ?? HENRIK_POLL_MS);
   const beginPolling = () => {
     if (pollTimer) return;
+    if (launcherMode) {
+      if (seeded && lastSeenMatchId) {
+        console.log('[valorant-launcher] Baseline seeded — waiting for next finished match');
+      } else {
+        console.log('[valorant-launcher] Polling armed — seeding baseline from Henrik');
+      }
+    }
     pollTimer = setInterval(pollLatestMatch, pollMs);
     pollLatestMatch();
   };
 
-  if (deferMs > 0) {
+  if (launcherMode) {
+    console.log('[valorant-launcher] Polling armed — Henrik match watch starting now');
+    beginPolling();
+  } else if (deferMs > 0) {
     console.log(`Valorant match polling starts in ${Math.round(deferMs / 1000)}s`);
     deferTimer = setTimeout(beginPolling, deferMs);
   } else {

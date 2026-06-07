@@ -259,6 +259,8 @@ const launchVal = process.argv.includes('--launch-val');
 
 const autoPoll = process.argv.includes('--auto-poll');
 
+const valLauncherMode = valOnly && launchVal;
+
 const quiet = process.env.BRIDGE_QUIET === '1';
 
 
@@ -267,6 +269,10 @@ function log(...args) {
 
   if (!quiet) console.log(...args);
 
+}
+
+function valLauncherLog(...args) {
+  if (!quiet && valLauncherMode) log('[valorant-launcher]', ...args);
 }
 
 function printLauncherBanner() {
@@ -290,6 +296,16 @@ function launchRocketLeague() {
   });
 }
 
+function launchValorantViaUri() {
+  const riotUri = 'riotclient://launch-product=valorant&patchline=live';
+  valLauncherLog('Method: riotclient URI —', riotUri);
+  exec(`start "" "${riotUri}"`, (err) => {
+    if (err) {
+      console.warn('  [valorant-launcher] Could not start Valorant via URI. Open Valorant manually.');
+    }
+  });
+}
+
 function launchValorant() {
   if (process.platform !== 'win32') {
     log('  Launch Valorant manually (auto-launch is Windows-only).');
@@ -297,29 +313,25 @@ function launchValorant() {
   }
   log('');
   log('  Launching Valorant...');
-  const riotUri = 'riotclient://launch-product=valorant&patchline=live';
-  exec(`start "" "${riotUri}"`, (err) => {
-    if (err) tryLaunchValorantViaRiotClientExe();
-  });
-}
-
-function tryLaunchValorantViaRiotClientExe() {
+  valLauncherLog('Executing Valorant launch command...');
   const candidates = [
     path.join(process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', 'Riot Games', 'Riot Client', 'RiotClientServices.exe'),
     path.join(process.env.LOCALAPPDATA || '', 'Riot Games', 'Riot Client', 'RiotClientServices.exe'),
   ];
   for (const exe of candidates) {
     if (fs.existsSync(exe)) {
+      valLauncherLog('Method: RiotClientServices.exe —', exe);
       exec(`"${exe}" --launch-product=valorant --launch-patchline=live`, (err) => {
         if (err) {
-          console.warn('  Could not start Valorant via Riot Client. Open Valorant manually.');
+          valLauncherLog('RiotClientServices.exe failed — trying riotclient:// URI fallback');
+          launchValorantViaUri();
         }
       });
       return;
     }
   }
-  console.warn('  Riot Client not found. Open Valorant manually, or install the Riot Client.');
-  console.warn('  URI fallback: riotclient://launch-product=valorant&patchline=live');
+  valLauncherLog('RiotClientServices.exe not found — trying riotclient:// URI fallback');
+  launchValorantViaUri();
 }
 
 function launchGameIfRequested() {
@@ -360,9 +372,18 @@ if (launchRl && !valOnly) {
 
 printLauncherBanner();
 
-await startBridge({ playerName, skipRl: valOnly, manualValPoll: !autoPoll, authToken: BRIDGE_AUTH_TOKEN });
+if (valLauncherMode) valLauncherLog('Launcher started');
 
+await startBridge({
+  playerName,
+  skipRl: valOnly,
+  manualValPoll: !autoPoll && !valLauncherMode,
+  deferPollMs: valLauncherMode ? 0 : undefined,
+  valLauncherMode,
+  authToken: BRIDGE_AUTH_TOKEN,
+});
 
+if (valLauncherMode) valLauncherLog(`Bridge started (port ${BRIDGE_PORT})`);
 
 const tracker = createTrackerServer();
 
@@ -374,7 +395,17 @@ await new Promise((resolve, reject) => {
 
 });
 
+if (valLauncherMode) valLauncherLog(`Tracker ready (port ${TRACKER_PORT})`);
 
+if (valLauncherMode && skipBrowser) {
+  if (!quiet) {
+    console.log('');
+    console.log('  >>> Opening tracker in your browser — keep that tab open for auto-log <<<');
+    console.log('');
+  }
+  valLauncherLog('Opening tracker tab for client-side auto-log');
+  openBrowser(LOCAL_TRACKER_URL);
+}
 
 launchGameIfRequested();
 printReadyMessage();
@@ -416,7 +447,7 @@ if (!quiet && !launchRl && !launchVal) {
 
 
 
-if (valOnly && skipBrowser) {
+if (valOnly && skipBrowser && !valLauncherMode) {
   setTimeout(() => {
     if (!quiet) {
       console.log('');

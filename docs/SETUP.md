@@ -56,7 +56,7 @@ First sign-in may prompt for your current rank (MMR for Rocket League queues, RR
 | Game | Double-click | What happens |
 |------|--------------|--------------|
 | **Rocket League** | **`Rocket League Tracker.bat`** | Starts tracker + bridge → opens http://localhost:8080 → launches Rocket League via Steam (`steam://rungameid/252950`) |
-| **Valorant** | **`Valorant Tracker.bat`** | Starts Val bridge → opens tracker tab after ~15s → launches Valorant via Riot Client |
+| **Valorant** | **`Valorant Tracker.bat`** | Starts Val bridge → opens tracker tab immediately → launches Valorant via Riot Client |
 
 Keep the launcher window open while you play.
 
@@ -64,7 +64,7 @@ Keep the launcher window open while you play.
 
 **Rocket League on Epic:** if the Steam link does not open your game, launch Rocket League from the Epic Games launcher manually.
 
-**Valorant fallback:** if Riot Client does not open, install/update the [Riot Client](https://playvalorant.com/) or run Valorant manually. The launcher tries `riotclient://launch-product=valorant&patchline=live`, then `RiotClientServices.exe --launch-product=valorant --launch-patchline=live`.
+**Valorant fallback:** if Valorant does not launch, install/update the [Riot Client](https://playvalorant.com/) or run Valorant manually. The launcher tries `RiotClientServices.exe --launch-product=valorant --launch-patchline=live` first, then `riotclient://launch-product=valorant&patchline=live`.
 
 ### Tray app (no black window)
 

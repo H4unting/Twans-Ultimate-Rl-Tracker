@@ -95,6 +95,7 @@ export function startBridge(options = {}) {
   const httpPort = options.httpPort ?? DEFAULT_HTTP_PORT;
   const skipRl = Boolean(options.skipRl);
   const manualValPoll = options.manualValPoll !== false;
+  const valLauncherMode = Boolean(options.valLauncherMode);
 
   let rlConnected = false;
   let inMatch = false;
@@ -388,7 +389,11 @@ export function startBridge(options = {}) {
         console.log('Valorant-only mode — Rocket League TCP bridge skipped');
       }
       loadValorantBridge().then((valBridge) => {
-        valBridge?.startValorantBridge({ manualArm: manualValPoll });
+        valBridge?.startValorantBridge({
+          manualArm: manualValPoll,
+          deferPollMs: options.deferPollMs,
+          launcherMode: valLauncherMode,
+        });
       });
       resolve(server);
     });
