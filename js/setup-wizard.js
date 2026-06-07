@@ -78,11 +78,12 @@ function renderOverwolfStep(stepNum = 2, overwolfLinked = false) {
         <ol class="setup-substeps">
           <li>Install <a href="https://www.overwolf.com/" target="_blank" rel="noopener">Overwolf</a> (one time)</li>
           <li>Overwolf → <strong>Settings</strong> → <strong>Support</strong> → <strong>Development options</strong> → <strong>Load unpacked extension</strong></li>
-          <li>Select this folder on your PC:
+          <li>Select the <strong>integrations/overwolf</strong> folder — <strong>not</strong> Desktop, Downloads, or the repo root:
             <div class="setup-ow-path-row">
               <code class="setup-ow-path" id="setup-ow-path">integrations/overwolf</code>
               <button type="button" class="btn btn-secondary setup-ow-copy" id="setup-ow-copy-path">Copy path</button>
             </div>
+            <p class="setup-hint setup-ow-folder-tip">Wrong folder causes &ldquo;missing manifest.json&rdquo;. Run <code>integrations/overwolf/OPEN-THIS-FOLDER.bat</code> to open the correct folder.</p>
           </li>
           <li>In Overwolf, enable <strong>Twans Val Auto-Log</strong> (Library or apps tray)</li>
           <li>Keep <code>Valorant Tracker.bat</code> running — Overwolf sends matches to the local bridge</li>
@@ -458,13 +459,20 @@ function wireOverwolfSetupActions() {
   if (!copyBtn || copyBtn.dataset.wired) return;
   copyBtn.dataset.wired = '1';
   copyBtn.addEventListener('click', async () => {
-    const pathEl = document.getElementById('setup-ow-path');
-    const text = pathEl?.textContent?.trim() || '';
-    if (!text || text.startsWith('integrations/')) {
-      if (isBridgeUp()) await updateOverwolfSetupUI();
+    let finalPath = '';
+    if (isBridgeUp()) {
+      try {
+        const setup = await fetchBridgeSetupStatus();
+        finalPath = setup.paths?.overwolfExtension?.trim() || '';
+        const pathEl = document.getElementById('setup-ow-path');
+        if (finalPath && pathEl) pathEl.textContent = finalPath;
+      } catch { /* fall through */ }
     }
-    const finalPath = pathEl?.textContent?.trim() || '';
     if (!finalPath) {
+      const pathEl = document.getElementById('setup-ow-path');
+      finalPath = pathEl?.textContent?.trim() || '';
+    }
+    if (!finalPath || finalPath.startsWith('integrations/')) {
       showToast('Start Valorant Tracker.bat first to copy the full folder path', 'error');
       return;
     }

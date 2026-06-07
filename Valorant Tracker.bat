@@ -13,6 +13,10 @@ echo.
 echo  Starting tracker on http://localhost:8080 ...
 echo  Use THAT tab for auto-log (not Live Server / GitHub Pages).
 echo.
+echo  Overwolf extension folder:
+echo    %~dp0integrations\overwolf
+echo  Double-click OPEN-THIS-FOLDER.bat there when loading in Overwolf.
+echo.
 
 where node >nul 2>&1
 if errorlevel 1 (

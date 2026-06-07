@@ -23,6 +23,8 @@ Download and install from [overwolf.com](https://www.overwolf.com/). You do **no
 4. Select the folder: **`integrations/overwolf`** inside your tracker download  
    (In the tracker app: **Auto-Log Setup → Copy path** when `Valorant Tracker.bat` is running)
 
+**⚠ Wrong folder?** Overwolf shows *"Couldn't load extension — missing manifest.json"* if you pick **Desktop**, **Downloads**, or the **tracker repo root**. Select only **`integrations/overwolf`** — double-click **`OPEN-THIS-FOLDER.bat`** in that folder to open Explorer and see the instructions.
+
 The folder must contain `manifest.json`, `background.js`, and `icon.png`.
 
 After updating extension files (e.g. `icon.png`), reload without re-picking the folder: **Settings → Support → Development options → Reload extension** (or remove and **Load unpacked extension** again on `integrations/overwolf`).
@@ -57,7 +59,7 @@ Overwolf starts with Windows if you left it enabled — the extension still need
 
 | Problem | Fix |
 |---------|-----|
-| Extension won't load | Ensure **`icon.png`** exists in `integrations/overwolf`. Select that folder, not the repo root. |
+| **missing manifest.json** / extension won't load | You picked the wrong folder (Desktop, repo root, etc.). Run **`OPEN-THIS-FOLDER.bat`** in `integrations/overwolf` or use **Copy path** in Auto-Log Setup. |
 | Tracker says **Auto-log off** | Run **`Valorant Tracker.bat`** first. Use **`http://localhost:8080`**, not port 5500 or GitHub Pages. |
 | **Waiting for Overwolf extension** | Reload the unpacked extension in Overwolf. Keep `.bat` running. Restart Overwolf if needed. |
 | Pill never shows **Overwolf linked** | Open Auto-Log Setup → **Copy path** → reload extension pointing at that folder. Hard refresh tracker (Ctrl+F5). |
