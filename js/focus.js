@@ -33,8 +33,15 @@ function improvementStreak(games, tags) {
 }
 
 export function renderFocusPage(games, goals, display) {
+  console.group('Review Page');
+  console.log('renderFocusPage', { games: games?.length ?? 0, gameId: state.activeGame });
+
   const container = document.getElementById('focus-content');
-  if (!container) return;
+  if (!container) {
+    console.warn('focus-content missing');
+    console.groupEnd();
+    return;
+  }
 
   const gameId = state.activeGame;
   const isVal = gameId === GAME_IDS.VALORANT;
@@ -42,7 +49,7 @@ export function renderFocusPage(games, goals, display) {
   const stats = calcStats(games, gameId);
   const mode = getPrimaryMode(games, gameId);
   const modeRR = getCurrentMMRForMode(games, mode);
-  const week = buildWeeklyReport(games, 0);
+  const week = buildWeeklyReport(games, 0, gameId);
   const insights = getPerformanceInsights(games, gameId);
   const goalItems = getGoalProgress(games, goals, gameId);
   const correlations = getTagLossCorrelations(games, gameId);
@@ -140,4 +147,7 @@ export function renderFocusPage(games, goals, display) {
       <div class="coach-section"><h3>Actions</h3><div class="action-item-grid">${actionHTML || `<div class="empty">Log ${isVal ? 'matches' : 'games'} for insights</div>`}</div></div>
       <div class="coach-section coach-section-compact"><h3>Goals</h3>${goalsHTML}</div>
     </div>`;
+
+  console.log('renderFocusPage done');
+  console.groupEnd();
 }

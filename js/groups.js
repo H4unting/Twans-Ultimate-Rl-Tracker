@@ -30,6 +30,7 @@ const ui = {
   selectedMemberId: null,
   membersCache: {},
   gamesCache: {},
+  lastGameId: null,
 };
 
 function roleLabel(role) {
@@ -108,7 +109,7 @@ async function renderWeeklySnapshot(members, userId) {
     if (!ui.gamesCache[m.user_id]) {
       ui.gamesCache[m.user_id] = await loadMemberGames(m.user_id);
     }
-    const week = buildWeeklyReport(filterSquadGames(ui.gamesCache[m.user_id]), 0);
+    const week = buildWeeklyReport(filterSquadGames(ui.gamesCache[m.user_id]), 0, state.activeGame);
     return { member: m, week };
   }));
 
@@ -279,8 +280,25 @@ function renderSquadDetail(group, members, myRole, userId, memberDetailHTML, wee
 }
 
 export async function renderGroupsPage(ctx) {
+  console.group('Squad Page');
+  console.log('renderGroupsPage', {
+    groups: ctx.groups?.length ?? 0,
+    userId: ctx.userId ?? null,
+    gameId: state.activeGame,
+  });
+
+  if (ui.lastGameId !== state.activeGame) {
+    ui.gamesCache = {};
+    ui.lastGameId = state.activeGame;
+    console.log('squad gamesCache cleared (game switch)');
+  }
+
   const el = document.getElementById('group-content');
-  if (!el) return;
+  if (!el) {
+    console.warn('group-content missing');
+    console.groupEnd();
+    return;
+  }
 
   const { groups, userId, onCreate, onJoin, onLeave, onRefresh } = ctx;
   const selectedGroup = groups.find(g => (g.id ?? g.group_id) === ui.selectedGroupId);
@@ -309,7 +327,9 @@ export async function renderGroupsPage(ctx) {
     </div>`;
 
   wireCreateJoin(el, { onCreate, onJoin, onRefresh });
-  wireSquadList(el, groups, userId, { onLeave, onRefresh });
+  await wireSquadList(el, groups, userId, { onLeave, onRefresh });
+  console.log('renderGroupsPage done');
+  console.groupEnd();
 }
 
 async function wireSquadList(el, groups, userId, { onLeave, onRefresh }) {
@@ -336,23 +356,35 @@ async function renderDetail(detailWrap, groups, userId, { onLeave, onRefresh }) 
   const group = groups.find(g => (g.id ?? g.group_id) === ui.selectedGroupId);
   if (!group || !detailWrap) return;
 
-  const groupId = group.id ?? group.group_id;
-  if (!ui.membersCache[groupId]) {
-    ui.membersCache[groupId] = await loadGroupMembers(groupId);
-  }
-  const members = ui.membersCache[groupId];
+  console.log('renderDetail', { groupId: group.id ?? group.group_id });
 
-  let memberDetailHTML = '';
-  if (ui.selectedMemberId) {
-    const member = members.find(m => m.user_id === ui.selectedMemberId);
-    if (member && (member.user_id === userId || canViewMemberStats(group.role, member.role))) {
-      memberDetailHTML = await loadMemberDetail(groupId, member, group.role);
+  try {
+    const groupId = group.id ?? group.group_id;
+    if (!ui.membersCache[groupId]) {
+      ui.membersCache[groupId] = await loadGroupMembers(groupId);
     }
-  }
+    const members = ui.membersCache[groupId];
 
-  const weeklyHTML = await renderWeeklySnapshot(members, userId);
-  detailWrap.innerHTML = renderSquadDetail(group, members, group.role, userId, memberDetailHTML, weeklyHTML);
-  wireDetail(detailWrap, group, members, groups, userId, { onLeave, onRefresh });
+    let memberDetailHTML = '';
+    if (ui.selectedMemberId) {
+      const member = members.find(m => m.user_id === ui.selectedMemberId);
+      if (member && (member.user_id === userId || canViewMemberStats(group.role, member.role))) {
+        memberDetailHTML = await loadMemberDetail(groupId, member, group.role);
+      }
+    }
+
+    const weeklyHTML = await renderWeeklySnapshot(members, userId);
+    detailWrap.innerHTML = renderSquadDetail(group, members, group.role, userId, memberDetailHTML, weeklyHTML);
+    wireDetail(detailWrap, group, members, groups, userId, { onLeave, onRefresh });
+    console.log('renderDetail done', { members: members.length });
+  } catch (err) {
+    console.error('renderDetail failed', err);
+    detailWrap.innerHTML = `
+      <div class="group-detail group-detail-error">
+        <div class="empty">Could not load squad — ${escapeHtml(parseRpcError(err))}</div>
+      </div>`;
+    showToast(parseRpcError(err), 'error');
+  }
 }
 
 function wireDetail(detailWrap, group, members, groups, userId, { onLeave, onRefresh }) {
@@ -465,4 +497,5 @@ export function resetGroupsUI() {
   ui.selectedMemberId = null;
   ui.membersCache = {};
   ui.gamesCache = {};
+  ui.lastGameId = null;
 }

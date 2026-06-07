@@ -482,7 +482,10 @@ export async function loadUserGroups() {
   try {
     const members = await sbFetch(`group_members?user_id=eq.${user.id}&select=role,group_id,groups(id,name,invite_code,created_at)`);
     return (members ?? []).map(m => ({ ...m.groups, role: m.role, group_id: m.group_id }));
-  } catch {
+  } catch (err) {
+    console.group('Squad Page');
+    console.error('loadUserGroups failed', err);
+    console.groupEnd();
     return [];
   }
 }

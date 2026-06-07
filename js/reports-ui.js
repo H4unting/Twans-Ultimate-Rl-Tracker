@@ -65,7 +65,7 @@ function renderWeeklyReport(games, displayName, weekOffset) {
 
   const meta = getGameMeta(state.activeGame);
   const isVal = state.activeGame === GAME_IDS.VALORANT;
-  const report = buildWeeklyReport(games, weekOffset);
+  const report = buildWeeklyReport(games, weekOffset, state.activeGame);
   const insights = getPerformanceInsights(games, state.activeGame);
   const goalItems = weekOffset === 0 ? getGoalProgress(games, getActiveGoals()) : [];
 
