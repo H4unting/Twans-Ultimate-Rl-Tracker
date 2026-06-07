@@ -29,7 +29,11 @@ export function initGameSwitcher({ onChange, getSettingsPayload }) {
   if (switcherWired) return;
   switcherWired = true;
 
-  document.getElementById('game-switcher')?.addEventListener('click', async (e) => {
+  document.getElementById('game-switcher')?.addEventListener('click', onGameSwitchClick);
+  document.getElementById('v0-mobile-game-switch')?.addEventListener('click', onGameSwitchClick);
+}
+
+async function onGameSwitchClick(e) {
     const btn = e.target.closest('[data-game]');
     if (!btn || btn.dataset.game === state.activeGame) return;
     const next = btn.dataset.game;
@@ -58,19 +62,22 @@ export function initGameSwitcher({ onChange, getSettingsPayload }) {
     if (next === GAME_IDS.VALORANT) refreshValorantStatus();
     else refreshBridgeStatusUI();
     if (onGameChange) onGameChange(next);
-  });
 }
 
 function renderGameSwitcher() {
-  const el = document.getElementById('game-switcher');
-  if (!el) return;
-  el.innerHTML = Object.values(GAMES).map(g => `
+  const html = Object.values(GAMES).map(g => `
     <button type="button" class="game-switch-btn${state.activeGame === g.id ? ' active' : ''}"
       data-game="${g.id}" aria-pressed="${state.activeGame === g.id}">
       <span class="game-switch-emoji">${g.emoji}</span>
       <span class="game-switch-label">${g.shortLabel}</span>
     </button>
   `).join('');
+
+  const el = document.getElementById('game-switcher');
+  if (el) el.innerHTML = html;
+
+  const mobile = document.getElementById('v0-mobile-game-switch');
+  if (mobile) mobile.innerHTML = html;
 }
 
 export function applyGameShell(gameId = state.activeGame) {
@@ -84,11 +91,18 @@ export function applyGameShell(gameId = state.activeGame) {
     ? 'Twans VAL Tracker'
     : 'Twans Ultimate Tracker';
 
-  const logoBtn = document.getElementById('logo-home-btn');
-  if (logoBtn) {
-    logoBtn.innerHTML = gameId === GAME_IDS.VALORANT
-      ? 'TWANS <span class="val-logo-accent">VAL</span> TRACKER'
-      : 'Twans <span>Ultimate Tracker</span>';
+  const brandTitle = document.querySelector('.v0-brand-title');
+  if (brandTitle) {
+    brandTitle.innerHTML = gameId === GAME_IDS.VALORANT
+      ? 'TWANS<span class="v0-brand-accent"> VAL</span>'
+      : 'TWANS<span class="v0-brand-accent"> ULTIMATE</span>';
+  } else {
+    const logoBtn = document.getElementById('logo-home-btn');
+    if (logoBtn) {
+      logoBtn.innerHTML = gameId === GAME_IDS.VALORANT
+        ? 'TWANS <span class="val-logo-accent">VAL</span> TRACKER'
+        : 'Twans <span>Ultimate Tracker</span>';
+    }
   }
 
   const bridgeStatus = document.getElementById('live-bridge-status');

@@ -7,6 +7,8 @@
 <link rel="stylesheet" href="css/styles.css?v=20260602e">
 <link rel="stylesheet" href="css/valorant-theme.css?v=20260602e">
 <link rel="stylesheet" href="css/layout-polish.css?v=20260602e">
+<link rel="stylesheet" href="css/v0-design-system.css?v=20260602e">
+<link rel="stylesheet" href="css/dashboard-v0.css?v=20260602e">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" defer></script>
 <script>
 (function () {
@@ -60,11 +62,19 @@
 
 <!-- APP -->
 <div id="app-shell" class="hidden">
-  <div class="top-bar">
-    <div class="top-bar-head">
-      <button type="button" class="logo logo-home-btn" id="logo-home-btn" aria-label="Go to Home">Twans <span>Ultimate Tracker</span></button>
-      <div class="game-switcher" id="game-switcher" role="group" aria-label="Game"></div>
-      <div class="top-bar-meta">
+  <header class="top-bar v0-topbar">
+    <div class="top-bar-head v0-topbar-inner">
+      <div class="v0-brand">
+        <button type="button" class="v0-brand-mark logo-home-btn" id="logo-home-btn" aria-label="Go to Home">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2l2.6 6.3L21 9l-5 4.2L17.4 20 12 16.4 6.6 20 8 13.2 3 9l6.4-.7z" fill="currentColor"/></svg>
+        </button>
+        <div class="v0-brand-text logo logo-home-btn-text" aria-hidden="true">
+          <p class="v0-brand-title">TWANS<span class="v0-brand-accent"> ULTIMATE</span></p>
+          <p class="v0-brand-sub">Tracker</p>
+        </div>
+      </div>
+      <div class="game-switcher v0-game-switch" id="game-switcher" role="group" aria-label="Game"></div>
+      <div class="top-bar-meta v0-topbar-actions">
         <div class="sync-status">
           <div class="sync-dot" id="sync-dot"></div>
           <span id="sync-label">Connecting...</span>
@@ -73,10 +83,16 @@
       </div>
       <div class="user-bar" id="user-bar"></div>
     </div>
-    <nav class="main-nav tabs" id="main-nav" aria-label="Main navigation"></nav>
-    <nav class="sub-nav review-sub-nav hidden" id="review-sub-nav" aria-label="Review pages"></nav>
-  </div>
+    <div class="v0-mobile-game-switch" id="v0-mobile-game-switch" role="group" aria-label="Game"></div>
+  </header>
 
+  <div class="v0-app-layout">
+    <aside class="v0-sidebar" aria-label="Sidebar">
+      <nav class="main-nav tabs v0-sidebar-nav" id="main-nav" aria-label="Main navigation"></nav>
+      <nav class="sub-nav review-sub-nav v0-sidebar-sub hidden" id="review-sub-nav" aria-label="Review pages"></nav>
+    </aside>
+
+    <div class="v0-main app-main">
   <div id="bridge-hint-banner" class="bridge-hint-banner hidden">
     <div class="bridge-hint-inner">
       <span class="bridge-hint-badge">Auto-log off</span>
@@ -85,31 +101,56 @@
   </div>
 
   <!-- DASHBOARD / HOME -->
-  <div id="page-dashboard" class="page active">
-    <div id="val-dashboard" class="val-dashboard"></div>
-    <div id="home-summary"></div>
-    <div id="home-context"></div>
-    <div id="home-focus"></div>
-    <div class="home-charts-row rl-only">
-      <p class="home-charts-label" id="home-charts-label"></p>
-      <div class="home-charts-inner">
-      <div class="home-chart-box"><canvas id="homeMMR"></canvas></div>
-      <div class="home-chart-box home-chart-wl"><canvas id="homeWL"></canvas></div>
+  <div id="page-dashboard" class="page active dash-page">
+    <section id="dash-hero" class="dash-hero v0-glass" aria-label="Overview"></section>
+
+    <div class="dash-grid">
+      <div class="dash-col-main">
+        <section id="dash-rank-progress" class="dash-section v0-glass"></section>
+        <section id="dash-quick-actions" class="dash-quick-actions"></section>
+        <section id="dash-performance" class="dash-section v0-glass">
+          <div class="dash-section-head">
+            <h2 class="dash-section-title"><span class="dash-section-icon">📈</span> Performance</h2>
+            <span class="dash-stat-label">Recent trend</span>
+          </div>
+          <div class="dash-perf-grid" id="dash-perf-stats"></div>
+          <div class="dash-perf-charts">
+            <div class="home-charts-row rl-only">
+              <p class="home-charts-label" id="home-charts-label"></p>
+              <div class="home-charts-inner">
+                <div class="home-chart-box"><canvas id="homeMMR"></canvas></div>
+                <div class="home-chart-box home-chart-wl"><canvas id="homeWL"></canvas></div>
+              </div>
+            </div>
+            <div class="val-charts-row hidden" data-game-ui="valorant">
+              <p class="val-charts-label" id="val-charts-label"></p>
+              <div class="val-charts-inner">
+                <div class="val-chart-box"><canvas id="valHomeRR"></canvas></div>
+                <div class="val-chart-box"><canvas id="valHomeWL"></canvas></div>
+              </div>
+            </div>
+          </div>
+        </section>
+        <div id="home-focus"></div>
+      </div>
+
+      <div class="dash-col-side">
+        <section id="dash-session-panel" class="dash-section v0-glass"></section>
+        <section id="dash-activity" class="dash-section v0-glass">
+          <div class="dash-recent-head">
+            <p class="section-title">Activity</p>
+            <button type="button" class="section-link" id="dash-view-all-logs">View history →</button>
+          </div>
+          <div id="val-match-feed" class="val-match-feed"></div>
+          <div id="home-activity" class="home-activity"></div>
+        </section>
       </div>
     </div>
-    <div class="val-charts-row hidden" data-game-ui="valorant">
-      <p class="val-charts-label" id="val-charts-label"></p>
-      <div class="val-charts-inner">
-        <div class="val-chart-box"><canvas id="valHomeRR"></canvas></div>
-        <div class="val-chart-box"><canvas id="valHomeWL"></canvas></div>
-      </div>
-    </div>
-    <div class="dash-recent-head">
-      <p class="section-title">Recent activity</p>
-      <button type="button" class="section-link" id="dash-view-all-logs">View history →</button>
-    </div>
-    <div id="val-match-feed" class="val-match-feed"></div>
-    <div id="home-activity" class="home-activity"></div>
+
+    <!-- Legacy sinks (JS clears these) -->
+    <div id="val-dashboard" class="sr-only" aria-hidden="true"></div>
+    <div id="home-summary" class="sr-only" aria-hidden="true"></div>
+    <div id="home-context" class="sr-only" aria-hidden="true"></div>
   </div>
 
   <!-- LOG GAME + MATCH HISTORY -->
@@ -386,6 +427,8 @@
     <button type="button" class="mobile-nav-btn" data-section="review"><span>📊</span>Review</button>
     <button type="button" class="mobile-nav-btn" data-section="squad"><span>👥</span>Squad</button>
   </nav>
+    </div><!-- /.v0-main -->
+  </div><!-- /.v0-app-layout -->
 </div>
 
 <div class="modal-overlay" id="session-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
