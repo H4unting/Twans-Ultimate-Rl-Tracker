@@ -355,7 +355,9 @@ function renderAll(scope = 'full') {
 
   renderReportsPageContent();
   renderFocusPage(games, getActiveGoals(), display);
-  renderGroupsPage(getGroupsCtx());
+  void renderGroupsPage(getGroupsCtx()).catch((err) => {
+    console.error('[squad] renderGroupsPage failed', err);
+  });
   renderSessionsPageContent();
   renderProfilePageContent();
 
@@ -364,6 +366,7 @@ function renderAll(scope = 'full') {
   applyPageCopy(state.activeGame);
   refreshLogTagChips();
   rerenderQuickTags();
+  renderActivePageContent(state.activePage || 'dashboard');
   updateNavUI(state.activePage || 'dashboard');
   mountDock();
 }
@@ -546,15 +549,29 @@ async function handleProfileSave({
 }
 
 function renderActivePageContent(pageId) {
-  if (pageId === 'dashboard') renderDashboard();
-  if (pageId === 'log') renderMatchLogs();
-  if (pageId === 'setup') refreshSetupWizard(getDisplay().name);
-  if (pageId === 'profile') renderProfilePageContent();
-  if (pageId === 'analytics') renderAnalyticsPage();
-  if (pageId === 'reports') renderReportsPageContent();
-  if (pageId === 'focus') renderFocusPage(getActiveGames(), getActiveGoals(), getDisplay());
-  if (pageId === 'group') void renderGroupsPage(getGroupsCtx());
-  if (pageId === 'sessions') renderSessionsPageContent();
+  try {
+    if (pageId === 'dashboard') renderDashboard();
+    if (pageId === 'log') renderMatchLogs();
+    if (pageId === 'setup') refreshSetupWizard(getDisplay().name);
+    if (pageId === 'profile') renderProfilePageContent();
+    if (pageId === 'analytics') renderAnalyticsPage();
+    if (pageId === 'reports') renderReportsPageContent();
+    if (pageId === 'focus') renderFocusPage(getActiveGames(), getActiveGoals(), getDisplay());
+    if (pageId === 'group') {
+      void renderGroupsPage(getGroupsCtx()).catch((err) => {
+        console.error('[squad] renderGroupsPage failed', err);
+        const el = document.getElementById('group-content');
+        if (el) {
+          el.innerHTML = `<div class="empty-state">Could not load squads — ${err?.message || 'unknown error'}</div>`;
+        }
+        showToast(err?.message || 'Could not load squads', 'error');
+      });
+    }
+    if (pageId === 'sessions') renderSessionsPageContent();
+  } catch (err) {
+    console.error('[tracker] renderActivePageContent failed', pageId, err);
+    showToast(`Could not load page (${pageId})`, 'error');
+  }
 }
 
 function navigate(pageId, section) {

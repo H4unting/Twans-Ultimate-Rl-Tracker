@@ -19,10 +19,12 @@ import { DEFAULT_FILTERS } from './filters.js';
 import { resetQuickFilter } from './match-logs-ui.js';
 
 let onGameChange = null;
+let getSettingsPayloadFn = null;
 let switcherWired = false;
 
 export function initGameSwitcher({ onChange, getSettingsPayload }) {
   onGameChange = onChange;
+  getSettingsPayloadFn = getSettingsPayload;
   renderGameSwitcher();
   subscribe(() => renderGameSwitcher());
 
@@ -47,8 +49,8 @@ async function onGameSwitchClick(e) {
     state.matchLogFilters = { ...DEFAULT_FILTERS };
     resetQuickFilter();
 
-    if (getSettingsPayload) {
-      await saveSettings(getSettingsPayload({ activeGame: next }));
+    if (getSettingsPayloadFn) {
+      await saveSettings(getSettingsPayloadFn({ activeGame: next }));
     }
 
     applyGameShell(next);

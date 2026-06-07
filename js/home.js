@@ -178,7 +178,12 @@ function renderDashHero(games, goals, rows, activeRow) {
         <div class="dash-hero-rank">
           <div class="dash-hero-emblem-wrap">
             <div class="dash-hero-emblem-glow" aria-hidden="true"></div>
-            <div class="dash-hero-emblem">${rankBadgeHTML(row.mmr, 96, row.mode, state.activeGame)}</div>
+            <div class="dash-hero-emblem">${rankBadgeHTML(
+              isVal && lastGame ? { endRank: lastGame.endRank, endRR: lastGame.endRR ?? row.mmr } : row.mmr,
+              48,
+              row.mode,
+              state.activeGame,
+            )}</div>
           </div>
           <div>
             <div class="dash-hero-badges">

@@ -342,8 +342,6 @@ async function renderDetail(detailWrap, groups, userId, { onLeave, onRefresh }) 
   const group = groups.find(g => (g.id ?? g.group_id) === ui.selectedGroupId);
   if (!group || !detailWrap) return;
 
-  console.log('renderDetail', { groupId: group.id ?? group.group_id });
-
   try {
     const groupId = group.id ?? group.group_id;
     if (!ui.membersCache[groupId]) {
@@ -362,9 +360,8 @@ async function renderDetail(detailWrap, groups, userId, { onLeave, onRefresh }) 
     const weeklyHTML = await renderWeeklySnapshot(members, userId);
     detailWrap.innerHTML = renderSquadDetail(group, members, group.role, userId, memberDetailHTML, weeklyHTML);
     wireDetail(detailWrap, group, members, groups, userId, { onLeave, onRefresh });
-    console.log('renderDetail done', { members: members.length });
   } catch (err) {
-    console.error('renderDetail failed', err);
+    console.error('[squad] renderDetail failed', err);
     detailWrap.innerHTML = `
       <div class="group-detail group-detail-error">
         <div class="empty">Could not load squad — ${escapeHtml(parseRpcError(err))}</div>
