@@ -240,10 +240,18 @@ function updateDesktopAppBanner(isVal, appUp, valStatus) {
     return;
   }
 
+  if (appUp && isVal && valStatus && !valStatus.overwolfConnected && !valStatus.configured) {
+    banner.classList.remove('hidden');
+    badge.textContent = 'Overwolf setup';
+    p.innerHTML = `${DESKTOP_APP.name} is running — load <strong>Twans Val Auto-Log</strong> in Overwolf (no API keys). `
+      + '<button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>';
+    return;
+  }
+
   if (appUp && isVal && valStatus && !valStatus.configured) {
     banner.classList.remove('hidden');
     badge.textContent = 'Setup needed';
-    p.innerHTML = `${DESKTOP_APP.name} is running but Riot ID / Henrik key are not applied yet. `
+    p.innerHTML = `${DESKTOP_APP.name} is running but auto-log is not configured — use Overwolf or Henrik API in `
       + '<button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>';
     return;
   }

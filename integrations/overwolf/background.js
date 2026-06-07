@@ -73,7 +73,24 @@ function bridgePost(path, body) {
 }
 
 function pingBridge() {
-  bridgePost('/valorant/overwolf/ping');
+  return bridgePost('/valorant/overwolf/ping').then((res) => res?.ok === true);
+}
+
+const PING_FAST_MS = 5000;
+const PING_SLOW_MS = 20000;
+let bridgePingOk = false;
+let pingTimer = null;
+
+function scheduleBridgePing() {
+  if (pingTimer) clearInterval(pingTimer);
+  const ms = bridgePingOk ? PING_SLOW_MS : PING_FAST_MS;
+  pingTimer = setInterval(async () => {
+    const ok = await pingBridge();
+    if (ok && !bridgePingOk) {
+      bridgePingOk = true;
+      scheduleBridgePing();
+    }
+  }, ms);
 }
 
 function applyInfoUpdate(update) {
@@ -167,8 +184,10 @@ function whenValorantRunning(cb) {
 }
 
 function init() {
-  pingBridge();
-  setInterval(pingBridge, 20000);
+  pingBridge().then((ok) => {
+    if (ok) bridgePingOk = true;
+    scheduleBridgePing();
+  });
 
   whenValorantRunning(registerGameEvents);
 

@@ -1804,6 +1804,58 @@ body[data-active-game="rocket_league"] .setup-game-panel-rl { box-shadow: 0 0 20
 }
 .setup-danger-zone .setup-hint { margin: 8px 0 12px; }
 
+.setup-overwolf-callout {
+  margin: 14px 0;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid #ff465544;
+  background: rgba(255, 70, 85, 0.06);
+}
+.setup-overwolf-callout strong { color: #ff8a96; }
+.setup-overwolf-ready { border-color: #00c85166; background: rgba(0, 200, 81, 0.08); }
+.setup-overwolf-ready strong { color: #7dffb0; }
+
+.setup-substeps {
+  margin: 10px 0 12px;
+  padding-left: 1.25rem;
+  font-size: 14px;
+  color: var(--muted, #aaa);
+}
+.setup-substeps li { margin-bottom: 8px; }
+
+.setup-ow-path-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+.setup-ow-path {
+  flex: 1;
+  min-width: 0;
+  word-break: break-all;
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border, #333);
+}
+.setup-ow-copy { flex-shrink: 0; font-size: 12px; padding: 6px 10px; }
+.setup-ow-tip { margin-top: 8px; }
+
+.setup-henrik-fallback {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border, #333);
+}
+.setup-henrik-fallback summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--muted, #aaa);
+  margin-bottom: 10px;
+}
+.setup-henrik-fallback[open] summary { margin-bottom: 12px; }
+
 .profile-danger-zone { margin-top: 28px; max-width: 28rem; }
 .profile-danger-zone .form-group { margin-bottom: 10px; }
 .profile-delete-btn {
