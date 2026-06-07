@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy — Twans Ultimate Tracker</title>
+<link rel="stylesheet" href="../css/styles.css?v=20260607c">
+<link rel="stylesheet" href="../css/legal.css?v=20260607c">
+</head>
+<body class="legal-page">
+
+<header class="legal-header">
+  <a class="legal-brand" href="../index.html">Twans <span>Ultimate Tracker</span></a>
+  <nav class="legal-nav" aria-label="Legal pages">
+    <a href="privacy.html" aria-current="page">Privacy</a>
+    <a href="terms.html">Terms</a>
+    <a href="disclaimer.html">Disclaimer</a>
+    <a href="../index.html">App</a>
+  </nav>
+</header>
+
+<main class="legal-main">
+  <h1>Privacy Policy</h1>
+  <p class="legal-meta">Last updated: June 7, 2026</p>
+
+  <p class="legal-notice">
+    This document describes how Twans Ultimate Tracker (&ldquo;the Service&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;) handles information.
+    It is provided for transparency and is <strong>not legal advice</strong>. We do not claim any specific regulatory certification (such as GDPR, CCPA, or SOC 2 compliance).
+  </p>
+
+  <h2>1. Who we are</h2>
+  <p>
+    Twans Ultimate Tracker is an independent personal improvement tracker for Rocket League and Valorant match logging and statistics.
+    The operator is <strong>Anthony</strong>, independent developer of Twans Ultimate Tracker.
+  </p>
+  <p>
+    <strong>Contact:</strong><br>
+    Privacy / data requests: <a href="mailto:anthonyinf354332@gmail.com">anthonyinf354332@gmail.com</a>
+  </p>
+
+  <h2>2. Information we collect</h2>
+  <p>Depending on how you use the Service, we may process:</p>
+  <ul>
+    <li><strong>Account data</strong> — email address, authentication identifiers, and profile fields you provide (display name, bio, colors, optional avatar).</li>
+    <li><strong>Game &amp; match data</strong> — logged match results, ranks/MMR or RR, agents, maps, tags, notes, session numbers, and related statistics you enter or that are sent via optional local auto-log tools.</li>
+    <li><strong>Settings &amp; preferences</strong> — goals, active game, rank baselines, UI preferences stored in your account settings.</li>
+    <li><strong>Squad data</strong> — squad names, invite codes, membership roles, and shared stats visible to squad members per app permissions.</li>
+    <li><strong>Technical data</strong> — standard web logs from our hosting and database providers (e.g. IP address, user agent, request timestamps) as part of normal infrastructure operation.</li>
+    <li><strong>Local browser data</strong> — session tokens and preferences may be stored in your browser (localStorage / sessionStorage) for sign-in and convenience.</li>
+  </ul>
+  <p>We do not intentionally collect payment card data — the Service is not a paid storefront at this time.</p>
+
+  <h2>3. How we use information</h2>
+  <ul>
+    <li>Provide and maintain your account and synced data across devices.</li>
+    <li>Display statistics, dashboards, squads, and coaching insights you request.</li>
+    <li>Authenticate you and protect accounts (via Supabase Auth).</li>
+    <li>Improve reliability, security, and bugs (based on errors you or we observe).</li>
+  </ul>
+  <p>We do not sell your personal information.</p>
+
+  <h2>4. Authentication providers</h2>
+  <p>The Service uses <strong>Supabase Auth</strong> for account management. Sign-in options may include:</p>
+  <ul>
+    <li><strong>Email and password</strong> — credentials are handled by Supabase; we do not store plain-text passwords in app code.</li>
+    <li><strong>Google OAuth</strong> — if you choose Google sign-in, Google processes your authentication according to Google&rsquo;s policies. We receive basic profile information (such as email and name/avatar URL) needed to create your account.</li>
+  </ul>
+  <p>Third-party auth providers have their own privacy policies independent of this Service.</p>
+
+  <h2>5. Storage &amp; processing (Supabase)</h2>
+  <p>
+    Account and match data are stored in a <strong>Supabase</strong> project (PostgreSQL database and optional Storage buckets).
+    Data is associated with your user ID and protected by Row Level Security (RLS) policies intended to limit access to your own records and squad-shared views.
+  </p>
+  <p>
+    Profile avatars may be stored in a Supabase Storage bucket (<code>avatars</code>) or, if storage is unavailable, as a compressed image reference in your profile record.
+    Squad members with permission may see your display name and avatar in squad views.
+  </p>
+  <p>
+    Supabase acts as our infrastructure provider. Their handling of data is subject to
+    <a href="https://supabase.com/privacy" rel="noopener noreferrer" target="_blank">Supabase&rsquo;s privacy policy</a>.
+    Database region and subprocessors depend on your Supabase project configuration.
+  </p>
+
+  <h2>6. Local auto-log (optional)</h2>
+  <p>
+    Optional desktop bridge / auto-log tools run on <strong>your computer</strong> and may read game-related data locally before sending match summaries to the Service.
+    That local processing is not stored on our servers except for the match records you choose to save.
+  </p>
+
+  <h2>7. Cookies &amp; similar technologies</h2>
+  <p>
+    The Service uses browser storage for authentication sessions and preferences. We do not operate third-party advertising cookies.
+    Third-party CDNs (e.g. Chart.js) may set their own caching behavior when loading scripts.
+  </p>
+
+  <h2>8. Data retention</h2>
+  <p>
+    We retain your data while your account is active and as needed to operate the Service.
+    You may delete individual match logs in the app. Account deletion is described below.
+  </p>
+
+  <h2>9. Your choices &amp; rights</h2>
+  <p>Depending on where you live, you may have rights to access, correct, export, or delete personal data. We will try to honor reasonable requests, subject to technical and legal limits.</p>
+  <ul>
+    <li><strong>Access / export</strong> — use in-app export features where available, or email us.</li>
+    <li><strong>Correction</strong> — edit profile and match data in the app.</li>
+    <li><strong>Deletion</strong> — see Section 10.</li>
+    <li><strong>Withdraw consent</strong> — stop using the Service and request account deletion.</li>
+  </ul>
+  <p>We may need to verify your identity before processing requests.</p>
+
+  <h2>10. Data deletion requests</h2>
+  <p>
+    <strong>In the app:</strong> Profile &rarr; type <strong>DELETE</strong> &rarr; <strong>Delete my account</strong>
+    to permanently remove your cloud data and sign-in access (requires the operator to enable server-side deletion).
+  </p>
+  <p>
+    <strong>By email:</strong> contact <a href="mailto:anthonyinf354332@gmail.com">anthonyinf354332@gmail.com</a>
+    from the address linked to your account with the subject line <strong>Account Deletion Request</strong>.
+  </p>
+  <p>We will aim to delete or anonymize account data within a reasonable period after verification. Backups, logs, and legal retention requirements may delay complete removal.</p>
+  <p>Deleting your account does not automatically delete copies squad mates may have seen during membership; squad admin features may retain historical references until squads are updated.</p>
+
+  <h2>11. Children</h2>
+  <p>The Service is not directed at children under 13 (or the minimum age in your jurisdiction). We do not knowingly collect data from children. Contact us if you believe a child has provided personal data.</p>
+
+  <h2>12. Security</h2>
+  <p>We use industry-common practices (HTTPS, authenticated APIs, RLS). No method of transmission or storage is 100% secure; we cannot guarantee absolute security.</p>
+
+  <h2>13. International transfers</h2>
+  <p>If you access the Service from outside the country where Supabase/hosting processes data, your information may be transferred internationally. By using the Service, you understand this may occur.</p>
+
+  <h2>14. Changes</h2>
+  <p>We may update this policy. The &ldquo;Last updated&rdquo; date will change. Continued use after changes means you accept the updated policy.</p>
+
+  <h2>15. Contact</h2>
+  <p>Questions or privacy requests: <a href="mailto:anthonyinf354332@gmail.com">anthonyinf354332@gmail.com</a></p>
+</main>
+
+<footer class="legal-footer">
+  <p>Twans Ultimate Tracker — independent project. Not affiliated with Riot Games, Psyonix, or Epic Games.</p>
+  <p><a href="terms.html">Terms</a> · <a href="disclaimer.html">Disclaimer</a> · <a href="../index.html">Back to app</a></p>
+</footer>
+
+</body>
+</html>

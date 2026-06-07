@@ -2,6 +2,17 @@
 
 export const APP_NAME = 'Twans Ultimate Tracker';
 
+/** Public legal / support contact — update when you add a custom domain. */
+export const LEGAL_CONTACT = {
+  operator: 'Anthony, operator of Twans Ultimate Tracker',
+  email: 'anthonyinf354332@gmail.com',
+  privacyEmail: 'anthonyinf354332@gmail.com',
+  supportEmail: 'anthonyinf354332@gmail.com',
+  legalEmail: 'anthonyinf354332@gmail.com',
+  siteUrl: 'https://h4unting.github.io/Twans-Ultimate-Rl-Tracker/',
+  governingLaw: 'the laws of the United States',
+};
+
 export const DESKTOP_APP = {
   name: 'Twans Auto-Log',
   launcher: 'Rocket League Tracker.bat',

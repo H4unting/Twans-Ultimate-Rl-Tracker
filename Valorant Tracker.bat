@@ -10,7 +10,19 @@ echo   Twans Ultimate Tracker
 echo   Valorant Mode
 echo  =================================
 echo.
-echo  Starting tracker...
+echo  Starting tracker on http://localhost:8080 ...
+echo.
+echo  FIRST TIME setup (in the tab this opens):
+echo    1. Auto-Log Setup - add Riot ID (Name#TAG)
+echo    2. Get free Henrik key at api.henrikdev.xyz/dashboard
+echo    3. Paste key, click Apply ^& Go
+echo    4. Turn Auto-log ON in the dock
+echo.
+echo  IMPORTANT: Use http://localhost:8080 from THIS launcher.
+echo  Close Live Server / other apps on port 8080 first.
+echo  Port blocked? Run Kill-Port-8080.bat, then start this .bat again.
+echo  Players without admin: use "Valorant Tracker (Player).bat" ^(docs\USER-SETUP.md^).
+echo.
 
 where node >nul 2>&1
 if errorlevel 1 (
@@ -21,6 +33,12 @@ if errorlevel 1 (
 
 if not exist "scripts\start-grind.mjs" (
   echo ERROR: Missing scripts\start-grind.mjs — run from the full tracker folder.
+  pause
+  exit /b 1
+)
+
+if not exist "index.html" (
+  echo ERROR: Missing index.html — run from the full tracker folder.
   pause
   exit /b 1
 )

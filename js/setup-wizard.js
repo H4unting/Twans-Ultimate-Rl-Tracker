@@ -1,16 +1,24 @@
 /** In-app setup wizard for auto stats + quick log workflow */
 
 import { loadPrefs, savePrefs } from './quicklog.js';
-import { isBridgeUp, getRlDisplayName, saveRlDisplayName, applyBridgeSetup, fetchBridgeSetupStatus } from './rl-live.js';
+import { getRlDisplayName, saveRlDisplayName, applyBridgeSetup, fetchBridgeSetupStatus } from './rl-live.js';
 import { refreshValorantStatus } from './valorant-live.js';
 import { getAuthUser } from './auth.js';
 import { getUserDisplay, state } from './state.js';
 import { GAME_IDS } from './games.js';
 import { showToast } from './ui.js';
-import { refreshBridgeStatusUI } from './bridge-ui.js';
+import { refreshBridgeStatusUI, getCachedValorantStatus } from './bridge-ui.js';
 import { DESKTOP_APP, getDesktopLauncher } from './config.js';
 import { clearGameHistory } from './matches.js';
-import { getBridgeUrl, bridgeFetch } from './bridge-client.js';
+import {
+  getBridgeUrl,
+  bridgeFetch,
+  isBridgeReachable,
+  isBridgeUp,
+  getLastBridgeFailure,
+  isBridgeProcessDetected,
+} from './bridge-client.js';
+import { getLocalTrackerUrl } from './env.js';
 import { openRankSetupModal } from './rank-setup-ui.js';
 
 const SETUP_KEY = 'rl-grind-setup';
@@ -19,19 +27,25 @@ export function renderLogSetupNudge() {
   const el = document.getElementById('log-setup-nudge');
   if (!el) return;
 
-  if (isBridgeUp()) {
+  const isVal = state.activeGame === GAME_IDS.VALORANT;
+  const valStatus = getCachedValorantStatus();
+  const bridge = isBridgeUp();
+  const valReady = isVal && isValorantAutoLogReady(bridge, valStatus);
+
+  if (valReady || (bridge && !isVal)) {
     el.classList.add('hidden');
     el.innerHTML = '';
     return;
   }
 
-  const isVal = state.activeGame === GAME_IDS.VALORANT;
   const launcher = getDesktopLauncher(state.activeGame);
   el.classList.remove('hidden');
   el.innerHTML = `
     <div class="log-setup-nudge-inner">
       <span class="log-setup-nudge-text">${isVal
-        ? `Want Valorant auto-log? Run ${launcher} + load the Overwolf app (see integrations/overwolf/README.md) — or use Riot ID + Henrik key in setup.`
+        ? (bridge
+          ? 'Bridge is running — add Riot ID + Henrik key in Auto-Log Setup, then Apply & Go.'
+          : `Valorant auto-log: run ${launcher}, open http://localhost:8080, then Apply & Go in setup.`)
         : `Want auto-log from Rocket League? Run ${launcher} on this PC.`}</span>
       <button type="button" class="btn-link" id="log-setup-nudge-link">Auto-Log Setup →</button>
     </div>`;
@@ -62,41 +76,80 @@ function renderRlPanel(profile, { compact = false } = {}) {
     </div>`;
 }
 
-function renderOverwolfStep(stepNum = 2) {
+function renderHenrikStep(stepNum = 2, riotIdValue = '', riotRegionValue = '') {
   return `
-    <li class="setup-step" data-step="overwolf">
+    <li class="setup-step${riotIdValue ? ' done' : ''}" data-step="valorant">
       <span class="setup-step-num">${stepNum}</span>
       <div class="setup-step-body">
-        <strong>Easy mode — Overwolf (recommended)</strong>
-        <p>Install <a href="https://www.overwolf.com/" target="_blank" rel="noopener">Overwolf</a>, enable developer mode, and load the <code>overwolf</code> folder from this tracker as an unpacked extension.</p>
-        <p class="setup-hint">No Riot ID or API keys needed — play a match and it auto-logs. Full steps in <code>integrations/overwolf/README.md</code>.</p>
+        <strong>Riot ID + Henrik API key</strong>
+        <p class="setup-hint">Free key at <a href="https://api.henrikdev.xyz/dashboard/" target="_blank" rel="noopener">api.henrikdev.xyz/dashboard</a> — paste below, then <strong>Apply &amp; Go</strong>.</p>
+        ${renderValorantFields(riotIdValue, riotRegionValue)}
+        <div class="setup-apply-block">
+          ${renderApplySection(false)}
+        </div>
       </div>
     </li>`;
 }
 
-function renderOverwolfCallout() {
+function renderOverwolfOptionalSection(overwolfLinked = false) {
+  if (overwolfLinked) {
+    return `
+      <div class="setup-overwolf-callout setup-overwolf-ready">
+        <strong>Overwolf linked</strong>
+        <p>Turn <strong>Auto-log</strong> on in the dock below, play a Competitive match, and it logs when the match ends.</p>
+      </div>`;
+  }
   return `
-    <div class="setup-overwolf-callout">
-      <strong>Easy mode — Overwolf (recommended)</strong>
-      <p>Install <a href="https://www.overwolf.com/" target="_blank" rel="noopener">Overwolf</a>, load the <code>integrations/overwolf</code> folder as an unpacked extension — no API keys. See <code>integrations/overwolf/README.md</code>.</p>
-    </div>`;
+    <details class="setup-overwolf-advanced">
+      <summary>Advanced — Overwolf (optional)</summary>
+      <p class="setup-hint">Requires Overwolf <a href="https://dev.overwolf.com/ow-native/getting-started/onboarding-resources/basic-sample-app/" target="_blank" rel="noopener">developer access</a> for unpacked apps — most users get <em>Unauthorized App</em>. Use Henrik API above instead.</p>
+      <ol class="setup-substeps">
+        <li>Install <a href="https://www.overwolf.com/" target="_blank" rel="noopener">Overwolf</a> and sign in</li>
+        <li>Development options → <strong>Load unpacked extension</strong></li>
+        <li>Select the folder below (not Desktop or repo root):
+          <div class="setup-ow-path-row">
+            <code class="setup-ow-path" id="setup-ow-path">integrations/overwolf</code>
+            <button type="button" class="btn btn-secondary setup-ow-copy" id="setup-ow-copy-path">Copy path</button>
+          </div>
+          <p class="setup-hint setup-ow-folder-tip">Run <code>Load Overwolf Extension.bat</code> to open the correct folder. <strong>missing manifest.json</strong> = wrong folder.</p>
+        </li>
+        <li>Enable <strong>Twans Val Auto-Log</strong> in Overwolf</li>
+      </ol>
+      <span class="setup-status-pill" id="setup-overwolf-pill">○ Waiting for Overwolf extension…</span>
+    </details>`;
 }
 
-function renderValPanel(riotIdValue, riotRegionValue, { compact = false } = {}) {
+function isWrongTrackerTab() {
+  const failure = getLastBridgeFailure();
+  return failure === 'wrong_tracker_alive'
+    || (failure === 'wrong_server' && isBridgeProcessDetected());
+}
+
+function bridgeReadyForSetup() {
+  return isBridgeReachable();
+}
+
+function isValorantAutoLogReady(bridge, valStatus = getCachedValorantStatus()) {
+  if (!bridge) return false;
+  if (valStatus?.overwolfConnected) return true;
+  if (valStatus?.configured && valStatus?.source === 'henrik' && valStatus?.seeded) return true;
+  return false;
+}
+
+function renderValPanel(riotIdValue, riotRegionValue, { compact = false, overwolfLinked = false } = {}) {
   return `
     <div class="setup-game-panel setup-game-panel-val" data-setup-game="valorant">
       <div class="setup-panel-head">
         <strong>Valorant auto-log</strong>
         <p class="setup-panel-desc">${compact
-    ? 'Overwolf is the simple path. Henrik API is the fallback below.'
-    : 'Use Overwolf (no keys) or Henrik API (saved in config/grind-config.json).'}</p>
+    ? (overwolfLinked ? 'Overwolf is linked — play with Auto-log ON.' : 'Update Riot ID or Henrik key, then Apply & Go.')
+    : 'Henrik API (free key) — works for everyone. Overwolf is optional below.'}</p>
       </div>
-      ${renderOverwolfCallout()}
-      <p class="setup-hint"><strong>Fallback — Henrik API</strong> (if you do not use Overwolf):</p>
       ${renderValorantFields(riotIdValue, riotRegionValue)}
       <div class="setup-apply-block">
         ${renderApplySection(false)}
       </div>
+      ${renderOverwolfOptionalSection(overwolfLinked)}
       <div class="setup-danger-zone">
         <strong>Wrong match count?</strong>
         <p class="setup-hint">Removes every Valorant match from your account and resets auto-log baseline. Rocket League stats are not touched.</p>
@@ -108,6 +161,9 @@ function renderValPanel(riotIdValue, riotRegionValue, { compact = false } = {}) 
 
 function renderBridgeStep(bridge, stepNum = 1, gameId = GAME_IDS.ROCKET_LEAGUE) {
   const launcher = getDesktopLauncher(gameId);
+  const isVal = gameId === GAME_IDS.VALORANT;
+  const wrongTab = bridge && isWrongTrackerTab();
+  const trackerUrl = getLocalTrackerUrl();
   return `
     <li class="setup-step${bridge ? ' done' : ''}" data-step="bridge">
       <span class="setup-step-num">${stepNum}</span>
@@ -115,8 +171,18 @@ function renderBridgeStep(bridge, stepNum = 1, gameId = GAME_IDS.ROCKET_LEAGUE) 
         <strong>Run ${DESKTOP_APP.name}</strong>
         <p>Double-click <code>${launcher}</code> in your tracker folder — leave it running while you play:</p>
         <pre class="setup-code setup-code-highlight" id="setup-bridge-cmd">${launcher}</pre>
-        <p class="setup-hint">Optional: run <code>launcher\\build-bridge.bat</code> once to build <code>${DESKTOP_APP.exe}</code> (tray icon, no black window).</p>
-        <span class="setup-status-pill${bridge ? ' ok' : ''}" id="setup-bridge-pill">${bridge ? `● ${DESKTOP_APP.name} is running — ready for Apply & Go` : `○ Waiting for ${launcher}…`}</span>
+        ${isVal
+    ? `<p class="setup-hint">Open <code>${trackerUrl}</code> in the tab the .bat opens — not Live Server, not GitHub Pages.</p>`
+    : '<p class="setup-hint">Optional: run <code>launcher\\build-bridge.bat</code> once to build <code>' + DESKTOP_APP.exe + '</code> (tray icon, no black window).</p>'}
+        ${wrongTab ? `
+        <p class="setup-callout setup-callout-important">Bridge is running, but this tab is not served by <code>${launcher}</code>. Close Live Server on port 8080, restart the .bat, then use the tab it opens.</p>
+        <a href="${trackerUrl}" class="btn btn-secondary" id="setup-open-tracker-tab" target="_blank" rel="noopener">Open correct tracker tab</a>
+        ` : ''}
+        <span class="setup-status-pill${bridge ? ' ok' : ''}" id="setup-bridge-pill">${wrongTab
+    ? `● Bridge running — open ${trackerUrl} for auto-log`
+    : bridge
+      ? `● ${DESKTOP_APP.name} is running — ready for Apply & Go`
+      : `○ Waiting for ${launcher}…`}</span>
       </div>
     </li>`;
 }
@@ -141,24 +207,21 @@ function renderRlSteps(profile, rlName, bridge, allReady) {
     </ol>`;
 }
 
-function renderValSteps(riotIdValue, riotRegionValue, bridge, allReady) {
-  if (allReady) return renderValPanel(riotIdValue, riotRegionValue, { compact: true });
+function renderValSteps(riotIdValue, riotRegionValue, bridge, allReady, overwolfLinked = false) {
+  if (allReady) return renderValPanel(riotIdValue, riotRegionValue, { compact: true, overwolfLinked });
   return `
     <ol class="setup-steps setup-steps-val">
       ${renderBridgeStep(bridge, 1, GAME_IDS.VALORANT)}
-      ${renderOverwolfStep(2)}
-      <li class="setup-step${riotIdValue ? ' done' : ''}" data-step="valorant">
+      ${renderHenrikStep(2, riotIdValue, riotRegionValue)}
+      <li class="setup-step" data-step="autolog">
         <span class="setup-step-num">3</span>
         <div class="setup-step-body">
-          <strong>Fallback — Riot account + Henrik API key</strong>
-          <p>Only if you are not using Overwolf. Saves to <code>config/grind-config.json</code>.</p>
-          ${renderValorantFields(riotIdValue, riotRegionValue)}
-          <div class="setup-apply-block">
-            ${renderApplySection(false)}
-          </div>
+          <strong>Play with Auto-log ON</strong>
+          <p>At <code>http://localhost:8080</code>, turn <strong>Auto-log</strong> on in the dock, then play a Competitive match. Finished matches auto-log in 1–3 minutes.</p>
         </div>
       </li>
-    </ol>`;
+    </ol>
+    ${renderOverwolfOptionalSection(overwolfLinked)}`;
 }
 
 function renderValorantFields(riotIdValue, riotRegionValue, { keyHint = '', keySaved = false, hasLegacyRiotKey = false } = {}) {
@@ -217,11 +280,13 @@ export function renderSetupWizard(displayName = '') {
   const quickPrefs = loadPrefs();
   const profile = getProfileContext(displayName);
   const rlName = profile.rlName;
-  const bridge = isBridgeUp();
+  const bridge = bridgeReadyForSetup();
+  const valStatus = getCachedValorantStatus();
+  const overwolfLinked = Boolean(valStatus?.overwolfConnected);
   const riotIdValue = quickPrefs.riotId ?? '';
   const riotRegionValue = quickPrefs.riotRegion ?? 'na';
-  const allReady = bridge;
   const isVal = state.activeGame === GAME_IDS.VALORANT;
+  const allReady = isVal ? isValorantAutoLogReady(isBridgeUp(), valStatus) : isBridgeUp();
   const launcher = getDesktopLauncher(state.activeGame);
   const compact = allReady && prefs.dismissedWhenReady;
 
@@ -233,17 +298,22 @@ export function renderSetupWizard(displayName = '') {
         <div class="setup-callout setup-callout-success">
           <strong>${DESKTOP_APP.name} is running.</strong>
           ${isVal
-    ? 'Set your Riot ID + Henrik API key below, then Apply &amp; Go.'
+    ? (overwolfLinked
+      ? 'Overwolf linked — turn Auto-log ON in the dock and play.'
+      : 'Henrik API linked — turn Auto-log ON in the dock and play.')
     : 'Rocket League auto-log is ready on this PC.'}
         </div>
         <button type="button" class="btn btn-secondary" id="setup-show-steps">Show full setup steps</button>
         ${isVal
-    ? renderValPanel(riotIdValue, riotRegionValue, { compact: true })
+    ? renderValPanel(riotIdValue, riotRegionValue, { compact: true, overwolfLinked })
     : renderRlPanel(profile, { compact: true })}
       </div>`;
     wireSetupWizard();
     wireSetupApplyGo();
-    if (bridge) prefillRiotFromBridge();
+    if (bridge) {
+      prefillRiotFromBridge();
+      void updateOverwolfSetupUI();
+    }
     return;
   }
 
@@ -254,7 +324,9 @@ export function renderSetupWizard(displayName = '') {
         <span class="setup-banner-icon">👇</span>
         <div>
           <strong>One-time setup on your PC — ${isVal ? 'Valorant' : 'Rocket League'}</strong>
-          <p>Run <code>${launcher}</code>, then click <strong>Apply &amp; Go</strong>.</p>
+          <p>${isVal
+    ? `Run <code>${launcher}</code>, open <code>http://localhost:8080</code>, add Riot ID + Henrik key, Apply &amp; Go.`
+    : `Run <code>${launcher}</code>, then click <strong>Apply &amp; Go</strong>.`}</p>
         </div>
       </div>`}
       <div class="setup-wizard-head">
@@ -263,10 +335,12 @@ export function renderSetupWizard(displayName = '') {
           <h3>${allReady ? `You're ready — ${isVal ? 'Valorant' : 'Rocket League'}` : `${isVal ? 'Valorant' : 'Rocket League'} auto-log setup`}</h3>
           <p class="setup-desc">${allReady
     ? (isVal
-      ? `${DESKTOP_APP.name} is running. Set Riot ID + Henrik key below, then play with auto-log ON.`
+      ? (overwolfLinked
+        ? 'Overwolf is linked. Turn Auto-log ON and play Competitive — matches log when they end.'
+        : 'Henrik API linked. Turn Auto-log ON and play — matches auto-log after they end.')
       : 'G/A/S fill in automatically. You pick W/L and enter End MMR after each game.')
     : (isVal
-      ? `Valorant only — Riot ID + free Henrik key, start ${launcher}, then Apply & Go.`
+      ? `Start ${launcher}, open http://localhost:8080, add Riot ID + Henrik key, Apply & Go.`
       : `Rocket League only — enter your RL name, start ${launcher}, then Apply & Go.`)}
           </p>
         ${allReady ? `<button type="button" class="setup-dismiss" id="setup-dismiss">Got it</button>` : ''}
@@ -282,7 +356,7 @@ export function renderSetupWizard(displayName = '') {
         → check G/A/S → tags → <strong>End MMR</strong> → <span class="setup-log-chip">LOG</span>`}
       </div>` : ''}
       ${isVal
-    ? renderValSteps(riotIdValue, riotRegionValue, bridge, allReady)
+    ? renderValSteps(riotIdValue, riotRegionValue, bridge, allReady, overwolfLinked)
     : renderRlSteps(profile, rlName, bridge, allReady)}
       <div class="setup-footer">
         ${!allReady ? `
@@ -297,7 +371,10 @@ export function renderSetupWizard(displayName = '') {
 
   wireSetupWizard();
   updateBridgePill(bridge);
-  if (bridge) prefillRiotFromBridge();
+  if (bridge) {
+    prefillRiotFromBridge();
+    void updateOverwolfSetupUI();
+  }
 }
 
 async function prefillRiotFromBridge() {
@@ -367,6 +444,64 @@ function escapeHtml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+async function updateOverwolfSetupUI() {
+  if (state.activeGame !== GAME_IDS.VALORANT) return;
+
+  const pill = document.getElementById('setup-overwolf-pill');
+  let status = getCachedValorantStatus();
+  if (bridgeReadyForSetup()) {
+    status = (await refreshValorantStatus()) ?? status;
+  }
+  const linked = Boolean(status?.overwolfConnected);
+  if (pill) {
+    pill.textContent = linked ? '● Overwolf linked' : '○ Waiting for Overwolf extension…';
+    pill.classList.toggle('ok', linked);
+  }
+  if (linked) {
+    document.querySelector('.setup-overwolf-advanced')?.setAttribute('open', '');
+  }
+
+  const pathEl = document.getElementById('setup-ow-path');
+  if (pathEl && bridgeReadyForSetup()) {
+    try {
+      const setup = await fetchBridgeSetupStatus();
+      const owPath = setup.paths?.overwolfExtension;
+      if (owPath) pathEl.textContent = owPath;
+    } catch { /* bridge starting */ }
+  }
+}
+
+function wireOverwolfSetupActions() {
+  const copyBtn = document.getElementById('setup-ow-copy-path');
+  if (!copyBtn || copyBtn.dataset.wired) return;
+  copyBtn.dataset.wired = '1';
+  copyBtn.addEventListener('click', async () => {
+    let finalPath = '';
+    if (bridgeReadyForSetup()) {
+      try {
+        const setup = await fetchBridgeSetupStatus();
+        finalPath = setup.paths?.overwolfExtension?.trim() || '';
+        const pathEl = document.getElementById('setup-ow-path');
+        if (finalPath && pathEl) pathEl.textContent = finalPath;
+      } catch { /* fall through */ }
+    }
+    if (!finalPath) {
+      const pathEl = document.getElementById('setup-ow-path');
+      finalPath = pathEl?.textContent?.trim() || '';
+    }
+    if (!finalPath || /^integrations[/\\]/i.test(finalPath)) {
+      showToast('Start Valorant Tracker.bat first, then click Copy path again', 'error');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(finalPath);
+      showToast('Overwolf folder path copied');
+    } catch {
+      showToast('Could not copy — select the path and copy manually', 'error');
+    }
+  });
+}
+
 function wireSetupWizard() {
   document.getElementById('setup-dismiss')?.addEventListener('click', () => {
     saveSetupPrefs({ dismissedWhenReady: true });
@@ -397,6 +532,7 @@ function wireSetupWizard() {
   wireProfileNameDropdown();
   wireSetupApplyGo();
   wireRankBaselinesButton();
+  wireOverwolfSetupActions();
 
   const clearBtn = document.getElementById('setup-clear-val-history');
   if (clearBtn && !clearBtn.dataset.wired) {
@@ -466,7 +602,7 @@ function wireSetupApplyGo() {
       return;
     }
 
-    if (!isBridgeUp()) {
+    if (!bridgeReadyForSetup()) {
       const launcher = getDesktopLauncher(state.activeGame);
       showToast(`Run ${launcher} first, then click Apply & Go`, 'error');
       return;
@@ -630,8 +766,14 @@ export function refreshSetupWizard(displayName) {
 function updateBridgePill(bridge) {
   const pill = document.getElementById('setup-bridge-pill');
   const launcher = getDesktopLauncher(state.activeGame);
+  const wrongTab = bridge && isWrongTrackerTab();
+  const trackerUrl = getLocalTrackerUrl();
   if (pill) {
-    pill.textContent = bridge ? `● ${DESKTOP_APP.name} is running — you're good` : `○ Waiting for ${launcher}…`;
+    pill.textContent = wrongTab
+      ? `● Bridge running — open ${trackerUrl}`
+      : bridge
+        ? `● ${DESKTOP_APP.name} is running — you're good`
+        : `○ Waiting for ${launcher}…`;
     pill.classList.toggle('ok', bridge);
   }
   if (bridge) {
@@ -647,13 +789,14 @@ function displayNameFromAuth() {
 let bridgeWasUpForSetup = false;
 
 export function onBridgeStatusChange() {
-  const up = isBridgeUp();
-  updateBridgePill(up);
+  const reachable = bridgeReadyForSetup();
+  updateBridgePill(reachable);
   refreshBridgeStatusUI();
   renderLogSetupNudge();
-  if (up && !bridgeWasUpForSetup) {
+  void updateOverwolfSetupUI();
+  if (reachable && !bridgeWasUpForSetup) {
     bridgeWasUpForSetup = true;
     refreshSetupWizard(displayNameFromAuth());
   }
-  if (!up) bridgeWasUpForSetup = false;
+  if (!reachable) bridgeWasUpForSetup = false;
 }

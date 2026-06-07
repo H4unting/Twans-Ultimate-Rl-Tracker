@@ -399,6 +399,28 @@ body[data-active-game="valorant"] .home-focus-card {
   border-left: 4px solid var(--val-red);
   background: linear-gradient(160deg, #161c24, #0d1116);
   clip-path: var(--val-cut);
+  overflow: visible;
+}
+
+body[data-active-game="valorant"] .home-focus-card-featured {
+  border-left-width: 5px;
+  padding: 20px 22px;
+  box-shadow: 0 0 28px #ff465522;
+}
+
+body[data-active-game="valorant"] .profile-rank-card {
+  padding: 18px 20px;
+  overflow: visible;
+}
+
+body[data-active-game="valorant"] .profile-rank-card .rank-icon {
+  width: 52px;
+  height: 52px;
+}
+
+body[data-active-game="valorant"] .profile-rank-card .rank-badge:hover .rank-icon {
+  transform: none;
+  filter: brightness(1.12) drop-shadow(0 4px 12px rgba(255, 70, 85, 0.35));
 }
 
 body[data-active-game="valorant"] .home-focus-label {

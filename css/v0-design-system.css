@@ -1,0 +1,66 @@
+/**
+ * v0 design tokens — ported from app/globals.css (reference only).
+ * Maps to legacy vars where practical so non-migrated pages still work.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+  /* v0 oklch palette */
+  --v0-background: oklch(0.17 0.018 264);
+  --v0-foreground: oklch(0.97 0.005 260);
+  --v0-card: oklch(0.22 0.022 264);
+  --v0-card-foreground: oklch(0.97 0.005 260);
+  --v0-primary: oklch(0.78 0.14 196);
+  --v0-primary-foreground: oklch(0.17 0.03 230);
+  --v0-secondary: oklch(0.27 0.025 264);
+  --v0-muted: oklch(0.26 0.02 264);
+  --v0-muted-foreground: oklch(0.68 0.02 262);
+  --v0-accent: oklch(0.8 0.16 68);
+  --v0-destructive: oklch(0.63 0.21 18);
+  --v0-success: oklch(0.74 0.17 152);
+  --v0-border: oklch(1 0 0 / 9%);
+  --v0-chart-1: oklch(0.78 0.14 196);
+  --v0-chart-5: oklch(0.6 0.12 264);
+  --v0-radius: 0.85rem;
+  --v0-font-heading: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  --v0-font-sans: 'Inter', 'Segoe UI', system-ui, sans-serif;
+
+  /* Game accents */
+  --v0-accent-rl: var(--v0-chart-1);
+  --v0-accent-val: var(--v0-destructive);
+
+  /* Bridge legacy tokens for unmigrated pages */
+  --bg: color-mix(in oklch, var(--v0-background) 100%, #000);
+  --surface: var(--v0-card);
+  --surface-2: var(--v0-secondary);
+  --border: color-mix(in oklch, var(--v0-foreground) 12%, transparent);
+  --text: var(--v0-foreground);
+  --muted: var(--v0-muted-foreground);
+  --dim: oklch(0.55 0.02 262);
+}
+
+body:not(.logged-out) {
+  background: var(--v0-background);
+  color: var(--v0-foreground);
+  font-family: var(--v0-font-sans);
+}
+
+body:not(.logged-out) .v0-glass {
+  background: linear-gradient(
+    160deg,
+    color-mix(in oklch, var(--v0-card) 92%, transparent),
+    color-mix(in oklch, var(--v0-card) 70%, transparent)
+  );
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+body:not(.logged-out) .v0-heading {
+  font-family: var(--v0-font-heading);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+body[data-active-game="rocket-league"] { --v0-game-accent: var(--v0-accent-rl); }
+body[data-active-game="valorant"] { --v0-game-accent: var(--v0-accent-val); }

@@ -5,7 +5,7 @@
 import { applyAppMode } from './env.js';
 import { state, subscribe, setGames, setSyncStatus, setGoals, setProfile, getUserDisplay, getActiveGames, resetAppState } from './state.js';
 import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, sendPasswordReset, signOut, onAuthChange, getAuthUser, hasPendingAuthHash, clearAuthHashFromUrl } from './auth.js';
-import { saveSettings, createGroup, joinGroup, leaveGroup, loadUserGroups, saveProfile, uploadProfileAvatar } from './supabase.js';
+import { saveSettings, createGroup, joinGroup, leaveGroup, loadUserGroups, saveProfile, uploadProfileAvatar, deleteOwnAccount } from './supabase.js';
 import { applyFilters, DEFAULT_FILTERS } from './filters.js';
 import { calcStats } from './utils.js';
 import { getActiveGameModule } from './games/router.js';
@@ -22,7 +22,14 @@ import { initRlLive, stopRlLive, refreshLiveStatus,
   saveRlDisplayName, getRlDisplayName,
 } from './rl-live.js';
 import { initValorantLive, stopValorantLive, refreshValorantStatus } from './valorant-live.js';
-import { startBridgeHeartbeat, stopBridgeHeartbeat, subscribeBridgeOnline, getBridgeUrl, bridgeFetch } from './bridge-client.js';
+import {
+  startBridgeHeartbeat,
+  stopBridgeHeartbeat,
+  subscribeBridgeOnline,
+  subscribeBridgeReachable,
+  getBridgeUrl,
+  bridgeFetch,
+} from './bridge-client.js';
 import { wireBridgeStatusClick, refreshBridgeStatusUI } from './bridge-ui.js';
 import { initGameSwitcher, restoreActiveGameFromPrefs, applyGameShell, applyPageCopy, syncEditModal } from './game-ui.js';
 import { renderSetupWizard, refreshSetupWizard, onBridgeStatusChange, renderLogSetupNudge } from './setup-wizard.js';
@@ -258,6 +265,7 @@ function getGroupsCtx() {
 }
 
 async function refreshGroupsPage() {
+  console.log('[SQUAD] query started');
   state.groups = await loadUserGroups();
   await renderGroupsPage(getGroupsCtx());
 }
@@ -355,7 +363,9 @@ function renderAll(scope = 'full') {
 
   renderReportsPageContent();
   renderFocusPage(games, getActiveGoals(), display);
-  renderGroupsPage(getGroupsCtx());
+  void renderGroupsPage(getGroupsCtx()).catch((err) => {
+    console.error('[squad] renderGroupsPage failed', err);
+  });
   renderSessionsPageContent();
   renderProfilePageContent();
 
@@ -364,6 +374,7 @@ function renderAll(scope = 'full') {
   applyPageCopy(state.activeGame);
   refreshLogTagChips();
   rerenderQuickTags();
+  renderActivePageContent(state.activePage || 'dashboard');
   updateNavUI(state.activePage || 'dashboard');
   mountDock();
 }
@@ -479,7 +490,27 @@ function renderProfilePageContent() {
     bio: state.profileBio ?? '',
     gameId: state.activeGame,
     onSave: handleProfileSave,
+    onDeleteAccount: handleDeleteAccount,
   });
+}
+
+async function handleDeleteAccount() {
+  await deleteOwnAccount();
+  try {
+    await signOut();
+  } catch {
+    /* session may already be invalid after server-side user delete */
+  }
+  clearSessionTimer();
+  resetAppState();
+  resetGroupsUI();
+  hideQuickDock();
+  stopBridgeHeartbeat();
+  stopBridgeServices();
+  resetBootState();
+  destroyAllCharts();
+  showToast('Account deleted');
+  showLoggedOut();
 }
 
 function getSettingsPayload(overrides = {}) {
@@ -546,18 +577,55 @@ async function handleProfileSave({
 }
 
 function renderActivePageContent(pageId) {
-  if (pageId === 'dashboard') renderDashboard();
-  if (pageId === 'log') renderMatchLogs();
-  if (pageId === 'setup') refreshSetupWizard(getDisplay().name);
-  if (pageId === 'profile') renderProfilePageContent();
-  if (pageId === 'analytics') renderAnalyticsPage();
-  if (pageId === 'reports') renderReportsPageContent();
-  if (pageId === 'focus') renderFocusPage(getActiveGames(), getActiveGoals(), getDisplay());
-  if (pageId === 'group') void renderGroupsPage(getGroupsCtx());
-  if (pageId === 'sessions') renderSessionsPageContent();
+  try {
+    if (pageId === 'dashboard') renderDashboard();
+    if (pageId === 'log') renderMatchLogs();
+    if (pageId === 'setup') refreshSetupWizard(getDisplay().name);
+    if (pageId === 'profile') renderProfilePageContent();
+    if (pageId === 'analytics') {
+      console.log('[REVIEW] render started', pageId);
+      renderAnalyticsPage();
+      console.log('[REVIEW] render completed', pageId);
+    }
+    if (pageId === 'reports') {
+      console.log('[REVIEW] render started', pageId);
+      renderReportsPageContent();
+      console.log('[REVIEW] render completed', pageId);
+    }
+    if (pageId === 'focus') {
+      console.log('[REVIEW] render started', pageId);
+      renderFocusPage(getActiveGames(), getActiveGoals(), getDisplay());
+      console.log('[REVIEW] render completed', pageId);
+    }
+    if (pageId === 'group') {
+      console.log('[SQUAD] query started');
+      void renderGroupsPage(getGroupsCtx())
+        .then(() => console.log('[SQUAD] render completed'))
+        .catch((err) => {
+          console.error('[SQUAD] query completed with error', err);
+          console.error('[squad] renderGroupsPage failed', err);
+          const el = document.getElementById('group-content');
+          if (el) {
+            el.innerHTML = `<div class="empty-state">Could not load squads — ${err?.message || 'unknown error'}</div>`;
+          }
+          showToast(err?.message || 'Could not load squads', 'error');
+        });
+    }
+    if (pageId === 'sessions') renderSessionsPageContent();
+  } catch (err) {
+    console.error('[tracker] renderActivePageContent failed', pageId, err);
+    if (['focus', 'analytics', 'reports'].includes(pageId)) {
+      console.error('[REVIEW] render failed at renderActivePageContent', pageId, err);
+    }
+    if (pageId === 'group') console.error('[SQUAD] render failed at renderActivePageContent', err);
+    showToast(`Could not load page (${pageId})`, 'error');
+  }
 }
 
 function navigate(pageId, section) {
+  const reviewPages = new Set(['focus', 'analytics', 'reports']);
+  if (reviewPages.has(pageId)) console.log('[REVIEW] route entered', pageId, section);
+  if (pageId === 'group') console.log('[SQUAD] route entered', pageId, section);
   state.activePage = pageId;
   showPage(pageId);
   updateNavUI(pageId);
@@ -934,9 +1002,10 @@ async function init() {
     document.getElementById('logo-home-btn')?.addEventListener('click', () => navigate('dashboard', 'home'));
     wireBridgeStatusClick(() => navigate('setup', 'home'));
     subscribeBridgeOnline((online) => {
-      refreshBridgeStatusUI();
+      onBridgeStatusChange();
       if (online && state.activeGame === GAME_IDS.VALORANT) refreshValorantStatus();
     });
+    subscribeBridgeReachable(() => onBridgeStatusChange());
     wireKeyboardShortcuts();
     document.getElementById('dash-view-all-logs')?.addEventListener('click', () => {
       navigate('log', 'home');

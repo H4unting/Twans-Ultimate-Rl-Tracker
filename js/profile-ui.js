@@ -54,7 +54,7 @@ function renderAvatarHtml(display, primary, avatarId = 'profile-avatar-img') {
 }
 
 export function renderProfilePage({
-  games, profile, display, authUser, bio = '', onSave, gameId = state.activeGame,
+  games, profile, display, authUser, bio = '', onSave, onDeleteAccount, gameId = state.activeGame,
 }) {
   const el = document.getElementById('profile-content');
   if (!el) return;
@@ -119,6 +119,7 @@ export function renderProfilePage({
                 <input type="file" id="profile-avatar-input" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
                 Change photo
               </label>
+              <p class="profile-avatar-legal form-hint">Only upload images you have the right to use. Stored per our <a href="legal/privacy.html" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.</p>
             </div>
             <div class="profile-hero-title">
               <h1 class="profile-display-name" id="profile-display-heading">${escapeHtml(display.name)}</h1>
@@ -152,6 +153,7 @@ export function renderProfilePage({
                 <div class="form-group">
                   <label for="profile-avatar-url-input">Photo URL <span class="form-optional">optional</span></label>
                   <input type="url" id="profile-avatar-url-input" value="${escapeAttr(display.avatar || '')}" placeholder="https://… or use Change photo">
+                  <span class="form-hint">You must have rights to any image you link. See <a href="legal/privacy.html" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.</span>
                 </div>
                 <div class="form-group${isVal ? ' hidden' : ''}">
                   <label for="profile-rl-input">Rocket League name</label>
@@ -219,6 +221,19 @@ export function renderProfilePage({
 
       <p class="section-title">${isVal ? 'Queue ranks' : 'Playlist ranks'}</p>
       <div class="profile-ranks-grid">${ranksHTML}</div>
+
+      <div class="profile-danger-zone setup-danger-zone">
+        <p class="section-title">Delete account</p>
+        <p class="form-hint setup-hint">
+          Permanently deletes your cloud matches, settings, squad memberships, profile, and sign-in access.
+          This cannot be undone. See our <a href="legal/privacy.html" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.
+        </p>
+        <div class="form-group">
+          <label for="profile-delete-confirm">Type <strong>DELETE</strong> to confirm</label>
+          <input type="text" id="profile-delete-confirm" autocomplete="off" spellcheck="false" placeholder="DELETE" maxlength="12">
+        </div>
+        <button type="button" class="btn profile-delete-btn" id="profile-delete-btn" disabled>Delete my account</button>
+      </div>
     </div>`;
 
   wireProfilePage({ onSave, primary, secondary, isVal, display });
@@ -333,6 +348,36 @@ function wireProfilePage({ onSave, primary, secondary, isVal, display }) {
       }
     } catch (e) {
       showToast(formatApiError(e, 'Could not save profile'), 'error');
+    }
+  });
+
+  const deleteConfirm = document.getElementById('profile-delete-confirm');
+  const deleteBtn = document.getElementById('profile-delete-btn');
+
+  deleteConfirm?.addEventListener('input', () => {
+    if (deleteBtn) deleteBtn.disabled = deleteConfirm.value.trim() !== 'DELETE';
+  });
+
+  deleteBtn?.addEventListener('click', async () => {
+    if (deleteConfirm?.value.trim() !== 'DELETE') {
+      showToast('Type DELETE to confirm', 'error');
+      return;
+    }
+    if (!onDeleteAccount) {
+      showToast('Account deletion is unavailable', 'error');
+      return;
+    }
+    const email = authUser?.email ?? 'your account';
+    if (!window.confirm(`Delete ${email} and all cloud data permanently? This cannot be undone.`)) return;
+
+    deleteBtn.disabled = true;
+    deleteBtn.textContent = 'Deleting…';
+    try {
+      await onDeleteAccount();
+    } catch (e) {
+      showToast(formatApiError(e, 'Could not delete account'), 'error');
+      deleteBtn.disabled = deleteConfirm?.value.trim() !== 'DELETE';
+      deleteBtn.textContent = 'Delete my account';
     }
   });
 }

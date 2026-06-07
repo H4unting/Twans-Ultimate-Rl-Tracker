@@ -21,20 +21,64 @@ let visibilityWired = false;
 /** Session token injected by tracker proxy — required for mutating bridge POSTs. */
 let bridgeAuthToken = null;
 const listeners = new Set();
+const reachableListeners = new Set();
+let lastReachableEmitted = false;
 
 export function subscribeBridgeOnline(fn) {
   listeners.add(fn);
   return () => listeners.delete(fn);
 }
 
-export function getBridgeUrl() {
+export function subscribeBridgeReachable(fn) {
+  reachableListeners.add(fn);
+  fn(isBridgeReachable());
+  return () => reachableListeners.delete(fn);
+}
+
+/** @typedef {'ok'|'wrong_port'|'wrong_server'|'bridge_down'|'unreachable'|'wrong_tracker_alive'} BridgeFailureKind */
+
+let lastBridgeFailure = /** @type {BridgeFailureKind|null} */ (null);
+/** True when /api/bridge 404s but direct :49200 /status responds — wrong app on port 8080. */
+let bridgeProcessOnDirectPort = false;
+
+export function getLastBridgeFailure() {
+  return lastBridgeFailure;
+}
+
+export function isBridgeProcessDetected() {
+  return bridgeProcessOnDirectPort;
+}
+
+async function probeDirectBridge() {
+  try {
+    const res = await fetch(`http://127.0.0.1:${BRIDGE_PORT}/status`, { signal: AbortSignal.timeout(2000) });
+    if (!res.ok) return false;
+    try {
+      const json = await res.json();
+      if (json.authToken) bridgeAuthToken = json.authToken;
+    } catch { /* ignore */ }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function isOnTrackerPort() {
   const h = window.location.hostname;
-  const p = window.location.port;
-  if ((h === 'localhost' || h === '127.0.0.1') && (p === '8080' || p === String(TRACKER_PORT))) {
+  const p = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
+  return (h === 'localhost' || h === '127.0.0.1') && p === '8080';
+}
+
+export function getBridgeUrl() {
+  if (bridgeProcessOnDirectPort) {
+    return `http://127.0.0.1:${BRIDGE_PORT}`;
+  }
+  const h = window.location.hostname;
+  if (isOnTrackerPort()) {
     return `${window.location.origin}/api/bridge`;
   }
   if (h === 'localhost' || h === '127.0.0.1') {
-    return `http://${h}:${BRIDGE_PORT}`;
+    return `http://${h}:8080/api/bridge`;
   }
   return `http://127.0.0.1:${BRIDGE_PORT}`;
 }
@@ -61,15 +105,45 @@ export function isBridgeUp() {
   return bridgeOnline;
 }
 
+/** True when proxy or direct :49200 /status responds — enough for setup Apply. */
+export function isBridgeReachable() {
+  return bridgeOnline || bridgeProcessOnDirectPort;
+}
+
+function emitReachableIfChanged() {
+  const reachable = isBridgeReachable();
+  if (reachable === lastReachableEmitted) return;
+  lastReachableEmitted = reachable;
+  reachableListeners.forEach(fn => {
+    try { fn(reachable); } catch { /* ignore */ }
+  });
+}
+
 export function isBridgeProbeDone() {
   return bridgeProbeDone;
 }
 
 async function pingBridgeOnce() {
   const res = await fetch(`${bridgeBase()}/status`, { signal: AbortSignal.timeout(PING_TIMEOUT_MS) });
-  if (!res.ok) throw new Error('bridge offline');
+  if (res.status === 404 && bridgeBase().includes('/api/bridge')) {
+    bridgeProcessOnDirectPort = await probeDirectBridge();
+    lastBridgeFailure = bridgeProcessOnDirectPort ? 'wrong_tracker_alive' : 'wrong_server';
+    throw new Error(lastBridgeFailure);
+  }
+  if (res.status === 502) {
+    bridgeProcessOnDirectPort = await probeDirectBridge();
+    lastBridgeFailure = bridgeProcessOnDirectPort ? 'wrong_tracker_alive' : 'bridge_down';
+    throw new Error(lastBridgeFailure);
+  }
+  if (!res.ok) {
+    lastBridgeFailure = 'unreachable';
+    bridgeProcessOnDirectPort = false;
+    throw new Error('bridge offline');
+  }
   const json = await res.json();
   if (json.authToken) bridgeAuthToken = json.authToken;
+  lastBridgeFailure = null;
+  bridgeProcessOnDirectPort = false;
   return json;
 }
 
@@ -99,6 +173,9 @@ async function heartbeatTick() {
     } catch {
       const hidden = document.visibilityState === 'hidden';
       if (!hidden) failStreak += 1;
+      if (!lastBridgeFailure) {
+        lastBridgeFailure = isOnTrackerPort() ? 'unreachable' : 'wrong_port';
+      }
       const age = lastSuccessAt ? Date.now() - lastSuccessAt : Infinity;
       const withinGrace = age < ONLINE_GRACE_MS;
       const withinHiddenGrace = hidden && age < HIDDEN_GRACE_MS;
@@ -107,6 +184,7 @@ async function heartbeatTick() {
       }
     } finally {
       bridgeProbeDone = true;
+      emitReachableIfChanged();
       heartbeatPromise = null;
     }
   })();
@@ -136,7 +214,10 @@ export function stopBridgeHeartbeat() {
   heartbeatId = null;
   failStreak = 0;
   lastSuccessAt = 0;
+  bridgeProcessOnDirectPort = false;
+  lastReachableEmitted = false;
   setBridgeOnline(false);
+  emitReachableIfChanged();
 }
 
 /** Game pollers can fetch /status without affecting online state */

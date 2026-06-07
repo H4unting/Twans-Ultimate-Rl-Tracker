@@ -1,0 +1,84 @@
+TWANS VAL AUTO-LOG — OVERWOLF SETUP
+===================================
+
+WRONG FOLDER = "missing manifest.json" ERROR
+--------------------------------------------
+Overwolf needs THIS folder (the one containing manifest.json and this file).
+Do NOT select Desktop, Downloads, or the tracker repo root.
+
+If Overwolf shows an error path like:
+  C:\Users\...\Desktop
+you picked the Desktop PARENT folder, not this subfolder.
+
+
+"UNAUTHORIZED APP" ERROR (different from missing manifest)
+----------------------------------------------------------
+Message: "You're trying to install an app from an unauthorized source..."
+
+This is NOT a wrong-folder error. Overwolf blocks non-Appstore apps unless:
+
+  1. You are SIGNED IN to the Overwolf client
+     → Click the Appstore icon in the Overwolf dock and log in, then retry.
+
+  2. Your Overwolf account is DEVELOPER-WHITELISTED (for unpacked extensions)
+     → Only approved Overwolf developers can load unpacked extensions.
+     → Docs: https://dev.overwolf.com/ow-native/getting-started/onboarding-resources/basic-sample-app/
+     → If you are a regular player (not developing apps), Overwolf may keep
+       blocking this until Twans Val Auto-Log is on the official Appstore.
+
+  FIX FOR MOST PLAYERS: use Henrik API fallback in the tracker instead:
+     1. Run Valorant Tracker.bat
+     2. Open http://localhost:8080 → Auto-Log Setup
+     3. Expand "Fallback — Henrik API (if not using Overwolf)"
+     4. Add Riot ID + free key from https://api.henrikdev.xyz/dashboard/
+
+
+EASIEST FIX (correct folder + load unpacked)
+--------------------------------------------
+1. Sign in to Overwolf (Appstore icon in dock).
+
+2. Double-click "Load Overwolf Extension.bat" at the tracker repo root
+   (same folder as Valorant Tracker.bat).
+
+   OR double-click OPEN-THIS-FOLDER.bat in this folder.
+
+3. Explorer opens HERE with manifest.json highlighted.
+   The full path is copied to your clipboard.
+
+4. In Overwolf Development options:
+   Wrench icon → About → Development options
+   OR tray icon → Settings → About → Development options
+   OR Settings → Support → Development options
+
+5. Click "Load unpacked extension" (NOT Appstore install).
+
+6. Either:
+   - Paste the clipboard path into the folder picker, OR
+   - Navigate to the open Explorer window and select THIS folder
+
+7. Enable "Twans Val Auto-Log" in Overwolf (Library or apps tray).
+
+8. Keep Valorant Tracker.bat running while you play.
+
+
+IF YOU ALREADY TRIED AND FAILED
+-------------------------------
+Overwolf may remember the wrong Desktop path.
+
+1. Overwolf → Development options
+2. Remove / uninstall the broken extension entry
+3. Run Load Overwolf Extension.bat again
+4. Load unpacked extension and select THIS folder
+
+
+EXACT PATH (your machine)
+---------------------------
+Replace with your tracker location + \integrations\overwolf
+
+Example if tracker is in your user folder:
+  C:\Users\H4unt\rl-grind-tracker\integrations\overwolf
+
+Example if tracker is on Desktop:
+  C:\Users\H4unt\OneDrive\Desktop\rl-grind-tracker\integrations\overwolf
+
+The folder you select MUST contain manifest.json (visible in Explorer).

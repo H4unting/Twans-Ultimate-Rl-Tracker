@@ -11,6 +11,7 @@ import { applyLocalSetup, getSetupStatus, loadGrindConfig } from './local-setup.
 import {
   applyCors,
   ALLOWED_ORIGINS,
+  isLocalDevOrigin,
   checkRateLimit,
   getBridgeAuthToken,
   initBridgeAuth,
@@ -295,7 +296,7 @@ export function startBridge(options = {}) {
           authRequired: true,
         };
         const origin = req.headers.origin;
-        if (!origin || ALLOWED_ORIGINS.has(origin)) {
+        if (!origin || ALLOWED_ORIGINS.has(origin) || isLocalDevOrigin(origin)) {
           payload.authToken = getBridgeAuthToken();
         }
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -374,7 +375,15 @@ export function startBridge(options = {}) {
   });
 
   return new Promise((resolve, reject) => {
-    server.on('error', reject);
+    server.on('error', (err) => {
+      if (err?.code === 'EADDRINUSE') {
+        console.error('');
+        console.error(`  ERROR: Bridge port ${httpPort} is already in use.`);
+        console.error('  Close other Valorant Tracker / Rocket League Tracker windows and try again.');
+        console.error('');
+      }
+      reject(err);
+    });
     server.listen(httpPort, '127.0.0.1', () => {
       console.log(`Stats bridge → http://127.0.0.1:${httpPort}`);
       if (!activePlayerName) {

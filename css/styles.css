@@ -511,11 +511,21 @@ body.logged-out.has-quick-dock { padding-bottom: 0; }
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
   transition: transform 0.15s ease;
 }
-.rank-badge:hover .rank-icon { transform: scale(1.08); }
+.rank-badge:hover .rank-icon {
+  filter: brightness(1.1) drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
+}
+.rank-badge:not(.rank-badge-no-hover):hover .rank-icon {
+  transform: scale(1.04);
+}
 .rank-badge {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 4px 10px 4px 6px; border-radius: 8px;
-  font-size: 12px; font-weight: 700; border: 1px solid;
+  padding: 2px 8px 2px 2px; border-radius: 8px;
+  font-size: 12px; font-weight: 700; border: 1px solid transparent;
+  background: transparent;
+}
+.rank-badge.val-rank-badge {
+  border-color: transparent;
+  background: transparent;
 }
 .rank-badge-name { line-height: 1.2; white-space: nowrap; }
 
@@ -1793,6 +1803,72 @@ body[data-active-game="rocket_league"] .setup-game-panel-rl { box-shadow: 0 0 20
   border-top: 1px solid var(--border, #333);
 }
 .setup-danger-zone .setup-hint { margin: 8px 0 12px; }
+
+.setup-overwolf-callout {
+  margin: 14px 0;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid #ff465544;
+  background: rgba(255, 70, 85, 0.06);
+}
+.setup-overwolf-callout strong { color: #ff8a96; }
+.setup-overwolf-ready { border-color: #00c85166; background: rgba(0, 200, 81, 0.08); }
+.setup-overwolf-ready strong { color: #7dffb0; }
+
+.setup-substeps {
+  margin: 10px 0 12px;
+  padding-left: 1.25rem;
+  font-size: 14px;
+  color: var(--muted, #aaa);
+}
+.setup-substeps li { margin-bottom: 8px; }
+
+.setup-ow-path-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+.setup-ow-path {
+  flex: 1;
+  min-width: 0;
+  word-break: break-all;
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border, #333);
+}
+.setup-ow-copy { flex-shrink: 0; font-size: 12px; padding: 6px 10px; }
+.setup-ow-tip { margin-top: 8px; }
+
+.setup-henrik-fallback {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border, #333);
+}
+.setup-henrik-fallback summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--muted, #aaa);
+  margin-bottom: 10px;
+}
+.setup-henrik-fallback[open] summary { margin-bottom: 12px; }
+
+.profile-danger-zone { margin-top: 28px; max-width: 28rem; }
+.profile-danger-zone .form-group { margin-bottom: 10px; }
+.profile-delete-btn {
+  margin-top: 4px;
+  border: 1px solid #ef444466;
+  color: #fecaca;
+  background: #ef444418;
+}
+.profile-delete-btn:hover:not(:disabled) {
+  border-color: #ef4444;
+  background: #ef444428;
+}
+.profile-delete-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .setup-wizard {
   background: linear-gradient(135deg, #111128ee, #0d1a28ee);
   border: 1px solid #00e5ff55; border-radius: var(--radius);
@@ -2446,16 +2522,25 @@ textarea:focus-visible {
 .profile-rank-card {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 14px 16px;
+  gap: 16px;
+  padding: 16px 18px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
+  overflow: visible;
+}
+.profile-rank-card .rank-badge {
+  padding: 4px;
+  overflow: visible;
 }
 .profile-rank-card .rank-icon {
   flex-shrink: 0;
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
+}
+.profile-rank-card .rank-badge:hover .rank-icon {
+  transform: none;
+  filter: brightness(1.1) drop-shadow(0 3px 8px rgba(0, 0, 0, 0.4));
 }
 .profile-rank-meta {
   display: flex;

@@ -233,7 +233,14 @@ export function showLoginScreen(show) {
 export function renderPlaylistTabs(containerId, activePlaylist, onSelect, gameId = state.activeGame) {
   const container = document.getElementById(containerId);
   if (!container) return;
-  container.innerHTML = getPlaylists(gameId).map(pl => `
+  const playlists = getPlaylists(gameId);
+  if (gameId === GAME_IDS.VALORANT && playlists.length <= 1) {
+    container.innerHTML = '';
+    container.classList.add('hidden');
+    return;
+  }
+  container.classList.remove('hidden');
+  container.innerHTML = playlists.map(pl => `
     <button class="pl-tab${pl.id === activePlaylist ? ' active' : ''}" data-playlist="${pl.id}">${pl.label}</button>
   `).join('');
   container.querySelectorAll('.pl-tab').forEach(btn => {

@@ -1,10 +1,18 @@
-/** Unified navigation — single top row + review sub-nav */
+/** Unified navigation — sidebar (desktop) + mobile bottom nav */
 
 import { getNavSections } from './games.js';
 import { state } from './state.js';
 
 const TOP_BAR_PAGE_IDS = new Set(['profile']);
 
+const NAV_ICONS = {
+  dashboard: '🏠',
+  log: '📋',
+  sessions: '⏱',
+  setup: '⚙',
+  review: '📊',
+  squad: '👥',
+};
 /** Top-level nav order (home pages + section shortcuts). */
 const TOP_NAV_ORDER = [
   { kind: 'page', pageId: 'dashboard' },
@@ -55,16 +63,14 @@ function renderMainNav(pageId, gameId) {
     const active = item.type === 'page'
       ? pageId === item.id
       : section === item.id;
-    const logClass = item.id === 'log' ? ' tab-log' : '';
-    const sectionClass = item.type === 'section' ? ' tab-section' : '';
     const activeClass = active ? ' active' : '';
+    const icon = NAV_ICONS[item.id] ?? '•';
 
     if (item.type === 'page') {
-      return `<button type="button" class="tab main-nav-tab${logClass}${activeClass}" data-page="${item.id}">${item.label}</button>`;
+      return `<button type="button" class="tab main-nav-tab v0-nav-item${activeClass}" data-page="${item.id}"><span class="v0-nav-icon">${icon}</span>${item.label}</button>`;
     }
-    return `<button type="button" class="tab main-nav-tab tab-section${activeClass}" data-section="${item.id}">${item.label}</button>`;
-  }).join('');
-}
+    return `<button type="button" class="tab main-nav-tab tab-section v0-nav-item${activeClass}" data-section="${item.id}"><span class="v0-nav-icon">${icon}</span>${item.label}</button>`;
+  }).join('');}
 
 function renderReviewSubNav(pageId, gameId) {
   const reviewSub = document.getElementById('review-sub-nav');
@@ -132,19 +138,25 @@ function syncMobileNavActive(pageId, section) {
   }
 }
 
+
 export function wireNavigation({ onNavigate, getActivePage }) {
   const main = document.getElementById('main-nav');
   const reviewSub = document.getElementById('review-sub-nav');
 
   main?.addEventListener('click', e => {
-    const pageBtn = e.target.closest('[data-page]');
-    if (pageBtn) {
+    const pageBtn = e.target.closest('button[data-page]');
+    if (pageBtn && main.contains(pageBtn)) {
+      if (getSectionForPage(pageBtn.dataset.page) === 'review') {
+        console.log('[REVIEW] nav clicked', pageBtn.dataset.page);
+      }
       onNavigate(pageBtn.dataset.page, getSectionForPage(pageBtn.dataset.page));
       return;
     }
-    const sectionBtn = e.target.closest('[data-section]');
-    if (sectionBtn) {
+    const sectionBtn = e.target.closest('button[data-section]');
+    if (sectionBtn && main.contains(sectionBtn)) {
       const section = sectionBtn.dataset.section;
+      if (section === 'review') console.log('[REVIEW] nav clicked', section);
+      if (section === 'squad') console.log('[SQUAD] nav clicked', section);
       const cfg = getNavSections(state.activeGame)[section];
       if (!cfg?.defaultPage) return;
       onNavigate(cfg.defaultPage, section);
@@ -152,8 +164,9 @@ export function wireNavigation({ onNavigate, getActivePage }) {
   });
 
   reviewSub?.addEventListener('click', e => {
-    const pill = e.target.closest('[data-page]');
-    if (!pill) return;
+    const pill = e.target.closest('button[data-page]');
+    if (!pill || !reviewSub.contains(pill)) return;
+    console.log('[REVIEW] nav clicked', pill.dataset.page);
     onNavigate(pill.dataset.page, 'review');
   });
 

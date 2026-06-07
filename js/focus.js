@@ -134,7 +134,7 @@ export function renderFocusPage(games, goals, display) {
           <h2 style="color:${escapeCssColor(display.color, '#e65c00')}">${isVal ? 'Mission Brief' : 'Focus Mode'}</h2>
           <div class="coach-sub">${stats.totalGames} ${isVal ? 'matches' : 'games'} · ${state.session.active ? `${isVal ? 'Block' : 'Session'} ${sessionNum} · ${sessionGames.length} logged` : week.label}</div>
         </div>
-        ${!isVal && modeRR ? rankBadgeHTML(modeRR, 24, mode) : isVal && modeRR ? `<span class="val-focus-rr">${modeRR} RR</span>` : ''}
+        ${!isVal && modeRR ? rankBadgeHTML(modeRR, 24, mode) : isVal && modeRR ? rankBadgeHTML(stats.currentRankDisplay ?? { endRank: 'Iron 1', endRR: modeRR }, 24, mode) : ''}
       </div>
       <div class="coach-section"><h3>${isVal ? 'Primary Target' : 'Auto Focus'}</h3>${autoFocusHTML}</div>
       ${customFocusHTML}

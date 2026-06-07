@@ -11,10 +11,18 @@ export function setBridgeHintVisible(show) {
   document.getElementById('bridge-hint-banner')?.classList.toggle('hidden', !show);
 }
 
-/** Tracker page is served from this PC (required for auto-log to reach :49200) */
+/** Tracker page is served from this PC on the launcher port (required for /api/bridge proxy) */
 export function isLocalTrackerHost() {
   const h = window.location.hostname;
-  return h === 'localhost' || h === '127.0.0.1';
+  const p = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
+  return (h === 'localhost' || h === '127.0.0.1') && p === '8080';
+}
+
+/** On localhost but wrong port (Live Server, etc.) — auto-log needs the launcher URL */
+export function isWrongLocalPort() {
+  const h = window.location.hostname;
+  if (h !== 'localhost' && h !== '127.0.0.1') return false;
+  return !isLocalTrackerHost();
 }
 
 /** GitHub Pages / other HTTPS sites cannot talk to the local auto-log app */

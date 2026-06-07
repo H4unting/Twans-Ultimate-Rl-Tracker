@@ -1,6 +1,6 @@
 /** Supabase persistence — auth-scoped user data */
 
-import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
+import { SUPABASE_URL, SUPABASE_KEY, LEGAL_CONTACT } from './config.js';
 import {
   normalizePlayerGames, normalizeGame, parseDisplayDate, formatDisplayDate,
 } from './utils.js';
@@ -483,6 +483,7 @@ export async function loadUserGroups() {
     const members = await sbFetch(`group_members?user_id=eq.${user.id}&select=role,group_id,groups(id,name,invite_code,created_at)`);
     return (members ?? []).map(m => ({ ...m.groups, role: m.role, group_id: m.group_id }));
   } catch (err) {
+    console.error('[SQUAD] query completed with error', err);
     console.error('loadUserGroups failed', err);
     return [];
   }
@@ -502,6 +503,52 @@ export async function joinGroup(inviteCode, role = 'member') {
 
 export async function leaveGroup(groupId) {
   await sbFetch('rpc/leave_grind_squad', 'POST', { p_group_id: groupId });
+}
+
+const AVATAR_EXTENSIONS = ['jpg', 'png', 'webp', 'gif'];
+
+/** Best-effort removal of uploaded avatar objects before account deletion. */
+async function deleteProfileAvatars(userId) {
+  const token = getAccessToken() ?? SUPABASE_KEY;
+  await Promise.all(AVATAR_EXTENSIONS.map(async (ext) => {
+    const objectPath = `${userId}/avatar.${ext}`;
+    try {
+      await fetch(`${SUPABASE_URL}/storage/v1/object/avatars/${objectPath}`, {
+        method: 'DELETE',
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${token}`,
+        },
+        signal: fetchTimeout(15000),
+      });
+    } catch {
+      /* optional cleanup */
+    }
+  }));
+}
+
+function isDeleteAccountUnavailableError(errText) {
+  return /delete_own_account|PGRST202|42883|function.*does not exist|Could not find the function/i.test(errText || '');
+}
+
+/** Permanently delete the signed-in user's cloud data and auth account (requires delete-own-account.sql). */
+export async function deleteOwnAccount() {
+  const user = getAuthUser();
+  if (!user) throw new Error('Not signed in');
+
+  await deleteProfileAvatars(user.id);
+
+  try {
+    await sbFetch('rpc/delete_own_account', 'POST', {});
+  } catch (e) {
+    const msg = formatApiError(e, 'Account deletion failed');
+    if (isDeleteAccountUnavailableError(msg)) {
+      throw new Error(
+        `Account deletion is not enabled on the server yet. Ask the operator to run docs/supabase/delete-own-account.sql, or email ${LEGAL_CONTACT.privacyEmail}.`,
+      );
+    }
+    throw new Error(msg);
+  }
 }
 
 export async function loadGroupMembers(groupId) {

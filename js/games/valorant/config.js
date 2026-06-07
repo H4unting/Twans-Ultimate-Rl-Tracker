@@ -7,13 +7,9 @@ export const GAME_ID = 'valorant';
 /** Queues that use RR — shown in first-sign-in rank setup */
 export const RANK_SETUP_MODES = VAL_RANK_SETUP_MODES;
 
+/** Competitive ranked only — improvement tracking focus */
 export const PLAYLISTS = [
-  { id: 'all', label: 'All Queues', mode: null },
   { id: 'comp', label: 'Competitive', mode: 'Competitive' },
-  { id: 'unrated', label: 'Unrated', mode: 'Unrated' },
-  { id: 'swift', label: 'Swiftplay', mode: 'Swiftplay' },
-  { id: 'spike', label: 'Spike Rush', mode: 'Spike Rush' },
-  { id: 'deathmatch', label: 'Deathmatch', mode: 'Deathmatch' },
 ];
 
 export const AGENTS = [
@@ -91,9 +87,10 @@ export const META = {
 };
 
 export function filterByPlaylist(games, playlist) {
-  if (!playlist || playlist === 'all') return games;
+  const competitive = games.filter(g => g.mode === 'Competitive');
+  if (!playlist || playlist === 'all') return competitive;
   const entry = PLAYLISTS.find(p => p.id === playlist);
-  return entry?.mode ? games.filter(g => g.mode === entry.mode) : games;
+  return entry?.mode ? games.filter(g => g.mode === entry.mode) : competitive;
 }
 
 export function getRankValue(game) {
