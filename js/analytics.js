@@ -57,7 +57,9 @@ export function renderAnalytics(games) {
 
   const total = sorted.reduce((s, [, c]) => s + c, 0);
 
-  document.getElementById('analytics-content').innerHTML = `
+  const analyticsContent = document.getElementById('analytics-content');
+  if (!analyticsContent) return;
+  analyticsContent.innerHTML = `
     <div class="analytics-card analytics-card-compact"><h3>Most Common Mistakes</h3>${barRows(sorted, maxC, cmap, gameId)}</div>
     <div class="analytics-card analytics-card-compact"><h3>Most Common Loss Reasons</h3>${barRows(lossSorted, maxL, cmap, gameId)}<div class="filter-hint">${taggedLossPct}% of losses tagged</div></div>
     <div class="analytics-card analytics-card-compact"><h3>Loss Correlations</h3>${corrHTML}<div class="filter-hint">% of tagged instances that were losses</div></div>
