@@ -21,6 +21,7 @@ echo.
 echo  IMPORTANT: Use http://localhost:8080 from THIS launcher.
 echo  Close Live Server / other apps on port 8080 first.
 echo  Port blocked? Run Kill-Port-8080.bat, then start this .bat again.
+echo  Players without admin: use "Valorant Tracker (Player).bat" ^(docs\USER-SETUP.md^).
 echo.
 
 where node >nul 2>&1
