@@ -67,8 +67,33 @@ body:not(.logged-out) .top-bar.v0-topbar {
 .v0-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
   flex-shrink: 0;
+}
+
+.v0-brand-home {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: none;
+  background: transparent;
+  padding: 4px 6px 4px 4px;
+  margin: 0;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  border-radius: 12px;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.v0-brand-home:hover {
+  opacity: 0.88;
+  transform: scale(1.01);
+}
+
+.v0-brand-home:focus-visible {
+  outline: 2px solid var(--v0-primary);
+  outline-offset: 2px;
 }
 
 .v0-brand-mark {
@@ -86,9 +111,14 @@ body:not(.logged-out) .top-bar.v0-topbar {
 
 .v0-brand-mark svg { width: 20px; height: 20px; }
 
-.v0-brand-text { line-height: 1.15; }
+.v0-brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
 
 .v0-brand-title {
+  display: block;
   font-family: var(--v0-font-heading);
   font-size: 14px;
   font-weight: 700;
@@ -98,6 +128,7 @@ body:not(.logged-out) .top-bar.v0-topbar {
 .v0-brand-title .v0-brand-accent { color: var(--v0-primary); }
 
 .v0-brand-sub {
+  display: block;
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;

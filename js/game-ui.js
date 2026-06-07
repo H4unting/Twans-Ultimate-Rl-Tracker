@@ -7,6 +7,7 @@ import { saveSettings } from './supabase.js';
 import { savePrefs, loadPrefs, refreshQuickTagsOnGameSwitch } from './quicklog.js';
 import { refreshBridgeStatusUI } from './bridge-ui.js';
 import { DESKTOP_APP, LOCAL_TRACKER_URL, getDesktopLauncher } from './config.js';
+import { APP_NAME } from './core/app-config.js';
 import { isBridgeUp } from './bridge-client.js';
 import { needsLocalTrackerForAutoLog } from './env.js';
 import { refreshValorantStatus } from './valorant-live.js';
@@ -93,23 +94,7 @@ export function applyGameShell(gameId = state.activeGame) {
     state.playlist = 'comp';
   }
 
-  document.title = gameId === GAME_IDS.VALORANT
-    ? 'Twans VAL Tracker'
-    : 'Twans Ultimate Tracker';
-
-  const brandTitle = document.querySelector('.v0-brand-title');
-  if (brandTitle) {
-    brandTitle.innerHTML = gameId === GAME_IDS.VALORANT
-      ? 'TWANS<span class="v0-brand-accent"> VAL</span>'
-      : 'TWANS<span class="v0-brand-accent"> ULTIMATE</span>';
-  } else {
-    const logoBtn = document.getElementById('logo-home-btn');
-    if (logoBtn) {
-      logoBtn.innerHTML = gameId === GAME_IDS.VALORANT
-        ? 'TWANS <span class="val-logo-accent">VAL</span> TRACKER'
-        : 'Twans <span>Ultimate Tracker</span>';
-    }
-  }
+  document.title = APP_NAME;
 
   const bridgeStatus = document.getElementById('live-bridge-status');
   if (bridgeStatus) {

@@ -5,7 +5,7 @@
 import { applyAppMode } from './env.js';
 import { state, subscribe, setGames, setSyncStatus, setGoals, setProfile, getUserDisplay, getActiveGames, resetAppState } from './state.js';
 import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, sendPasswordReset, signOut, onAuthChange, getAuthUser, hasPendingAuthHash, clearAuthHashFromUrl } from './auth.js';
-import { saveSettings, createGroup, joinGroup, leaveGroup, loadUserGroups, saveProfile, uploadProfileAvatar } from './supabase.js';
+import { saveSettings, createGroup, joinGroup, leaveGroup, loadUserGroups, saveProfile, uploadProfileAvatar, deleteOwnAccount } from './supabase.js';
 import { applyFilters, DEFAULT_FILTERS } from './filters.js';
 import { calcStats } from './utils.js';
 import { getActiveGameModule } from './games/router.js';
@@ -483,7 +483,27 @@ function renderProfilePageContent() {
     bio: state.profileBio ?? '',
     gameId: state.activeGame,
     onSave: handleProfileSave,
+    onDeleteAccount: handleDeleteAccount,
   });
+}
+
+async function handleDeleteAccount() {
+  await deleteOwnAccount();
+  try {
+    await signOut();
+  } catch {
+    /* session may already be invalid after server-side user delete */
+  }
+  clearSessionTimer();
+  resetAppState();
+  resetGroupsUI();
+  hideQuickDock();
+  stopBridgeHeartbeat();
+  stopBridgeServices();
+  resetBootState();
+  destroyAllCharts();
+  showToast('Account deleted');
+  showLoggedOut();
 }
 
 function getSettingsPayload(overrides = {}) {

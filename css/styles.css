@@ -1803,6 +1803,20 @@ body[data-active-game="rocket_league"] .setup-game-panel-rl { box-shadow: 0 0 20
   border-top: 1px solid var(--border, #333);
 }
 .setup-danger-zone .setup-hint { margin: 8px 0 12px; }
+
+.profile-danger-zone { margin-top: 28px; max-width: 28rem; }
+.profile-danger-zone .form-group { margin-bottom: 10px; }
+.profile-delete-btn {
+  margin-top: 4px;
+  border: 1px solid #ef444466;
+  color: #fecaca;
+  background: #ef444418;
+}
+.profile-delete-btn:hover:not(:disabled) {
+  border-color: #ef4444;
+  background: #ef444428;
+}
+.profile-delete-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .setup-wizard {
   background: linear-gradient(135deg, #111128ee, #0d1a28ee);
   border: 1px solid #00e5ff55; border-radius: var(--radius);
