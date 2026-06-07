@@ -17,8 +17,8 @@ set "OW_PATH=%CD%"
 echo.
 echo  ================================================
 echo   SELECT THIS FOLDER in Overwolf
-echo   Settings ^> Support ^> Development options
-echo   ^> Load unpacked extension
+echo   Development options ^> Load unpacked extension
+echo   (sign in via Appstore icon first)
 echo  ================================================
 echo.
 echo  %OW_PATH%
@@ -33,16 +33,20 @@ start "" explorer /select,"%OW_PATH%\manifest.json"
 
 powershell -NoProfile -Command ^
   "$msg = @'
-In Overwolf:
+1. Sign in to Overwolf (Appstore icon in dock).
 
-Settings -^> Support -^> Development options -^> Load unpacked extension
+2. Development options -^> Load unpacked extension
+   (wrench -^> About, or tray -^> Settings -^> About)
 
-Paste path or select THIS folder (not Desktop parent):
+3. Paste path or select THIS folder (not Desktop parent):
 
 %OW_PATH%
 
-If you previously loaded from Desktop, remove the broken extension in Development options first, then reload.
+Unauthorized App? Sign in first. If still blocked, use Henrik API
+fallback in Auto-Log Setup (Overwolf requires developer whitelist
+for unpacked extensions).
+
+missing manifest.json? Wrong folder — remove broken entry and reload.
 
 Do NOT pick Desktop, Downloads, or the tracker repo root.
-Only the integrations\overwolf folder that contains manifest.json.
 '@; Add-Type -AssemblyName System.Windows.Forms; [void][System.Windows.Forms.MessageBox]::Show($msg,'Twans Val Auto-Log — select this folder',[System.Windows.Forms.MessageBoxButtons]::OK,[System.Windows.Forms.MessageBoxIcon]::Information)"

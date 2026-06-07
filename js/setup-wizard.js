@@ -77,13 +77,15 @@ function renderOverwolfStep(stepNum = 2, overwolfLinked = false) {
         <p class="setup-hint">No Riot ID or API keys — Overwolf reads match results from the game client.</p>
         <ol class="setup-substeps">
           <li>Install <a href="https://www.overwolf.com/" target="_blank" rel="noopener">Overwolf</a> (one time)</li>
-          <li>Overwolf → <strong>Settings</strong> → <strong>Support</strong> → <strong>Development options</strong> → <strong>Load unpacked extension</strong></li>
+          <li><strong>Sign in</strong> to Overwolf — click the <strong>Appstore</strong> icon in the dock. Required; otherwise you get <em>Unauthorized App</em>.</li>
+          <li>Open <strong>Development options</strong> (wrench icon → <strong>About</strong>, or tray icon → <strong>Settings</strong> → <strong>About</strong>) → <strong>Load unpacked extension</strong> — <strong>not</strong> an Appstore install</li>
           <li>Select the <strong>integrations/overwolf</strong> folder — <strong>not</strong> Desktop, Downloads, or the repo root:
             <div class="setup-ow-path-row">
               <code class="setup-ow-path" id="setup-ow-path">integrations/overwolf</code>
               <button type="button" class="btn btn-secondary setup-ow-copy" id="setup-ow-copy-path">Copy path</button>
             </div>
-            <p class="setup-hint setup-ow-folder-tip">Run <code>Load Overwolf Extension.bat</code> at the repo root (copies path, opens the correct folder). If the error shows a <strong>Desktop</strong> path like <code>C:\Users\…\Desktop</code>, you picked the wrong folder — remove the broken extension in Overwolf Development options, then run <code>Load Overwolf Extension.bat</code> again.</p>
+            <p class="setup-hint setup-ow-folder-tip">Run <code>Load Overwolf Extension.bat</code> at the repo root (copies path, opens the correct folder). <strong>missing manifest.json</strong> = wrong folder (often Desktop). Remove the broken entry in Development options and reload.</p>
+            <p class="setup-hint setup-ow-unauth-tip"><strong>Unauthorized App?</strong> Sign in first (step 2). If it still blocks you, Overwolf only allows unpacked extensions for <a href="https://dev.overwolf.com/ow-native/getting-started/onboarding-resources/basic-sample-app/" target="_blank" rel="noopener">developer-whitelisted</a> accounts — use <strong>Fallback — Henrik API</strong> below until this app is on the Overwolf Appstore.</p>
           </li>
           <li>In Overwolf, enable <strong>Twans Val Auto-Log</strong> (Library or apps tray)</li>
           <li>Keep <code>Valorant Tracker.bat</code> running — Overwolf sends matches to the local bridge</li>
@@ -107,7 +109,7 @@ function renderOverwolfCallout(overwolfLinked = false) {
   return `
     <div class="setup-overwolf-callout">
       <strong>Recommended — Overwolf</strong>
-      <p>No API keys. Load <strong>Twans Val Auto-Log</strong> from the steps below (folder path copies from your PC when the bridge is running).</p>
+      <p>No API keys when it works. Load <strong>Twans Val Auto-Log</strong> as an unpacked extension (sign in to Overwolf first). If you see <em>Unauthorized App</em>, use Henrik fallback below.</p>
     </div>`;
 }
 
