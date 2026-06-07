@@ -1,0 +1,14 @@
+/** @deprecated Import from ./games/valorant/config.js — compatibility shim */
+
+export {
+  PLAYLISTS as VAL_QUEUES,
+  AGENTS as VAL_AGENTS,
+  MAPS as VAL_MAPS,
+  TAG_DEFINITIONS as VAL_TAG_DEFINITIONS,
+  TAG_GROUPS as VAL_TAG_GROUPS,
+  TAG_COLORS as VAL_TAG_COLORS,
+  CATEGORY_LABELS as VAL_CATEGORY_LABELS,
+  CATEGORY_ORDER as VAL_CATEGORY_ORDER,
+  ACTION_FOCUS_TIPS as VAL_ACTION_FOCUS_TIPS,
+  DEFAULT_RR_SWING as VAL_DEFAULT_RR_SWING,
+} from './games/valorant/config.js';
