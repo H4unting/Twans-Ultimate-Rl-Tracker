@@ -514,8 +514,13 @@ body.logged-out.has-quick-dock { padding-bottom: 0; }
 .rank-badge:hover .rank-icon { transform: scale(1.08); }
 .rank-badge {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 4px 10px 4px 6px; border-radius: 8px;
-  font-size: 12px; font-weight: 700; border: 1px solid;
+  padding: 2px 8px 2px 2px; border-radius: 8px;
+  font-size: 12px; font-weight: 700; border: 1px solid transparent;
+  background: transparent;
+}
+.rank-badge.val-rank-badge {
+  border-color: transparent;
+  background: transparent;
 }
 .rank-badge-name { line-height: 1.2; white-space: nowrap; }
 

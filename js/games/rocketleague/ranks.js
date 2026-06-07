@@ -161,5 +161,5 @@ export function rankSVG(tier, size = 20) {
 export function rankBadgeHTML(mmr, size = 18, mode = "2's") {
   const r = getRank(mmr, mode);
   const iconSize = Math.round(size * 1.2);
-  return `<span class="rank-badge" style="border-color:${r.color}44;color:${r.color};background:${r.color}11">${rankIconHTML(r, iconSize)}<span class="rank-badge-name">${r.name}</span></span>`;
+  return `<span class="rank-badge" style="border-color:${r.color}44;color:${r.color}">${rankIconHTML(r, iconSize)}<span class="rank-badge-name">${r.name}</span></span>`;
 }

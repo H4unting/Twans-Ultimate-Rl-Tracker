@@ -286,9 +286,13 @@ export async function renderGroupsPage(ctx) {
   }
 
   const el = document.getElementById('group-content');
-  if (!el) return;
+  if (!el) {
+    console.warn('[SQUAD] render aborted — #group-content missing');
+    return;
+  }
 
   const { groups, userId, onCreate, onJoin, onLeave, onRefresh } = ctx;
+  console.log('[SQUAD] query completed', { groups: groups?.length ?? 0, userId: userId ?? null });
   const selectedGroup = groups.find(g => (g.id ?? g.group_id) === ui.selectedGroupId);
 
   el.innerHTML = `

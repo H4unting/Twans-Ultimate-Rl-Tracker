@@ -27,43 +27,47 @@ The handler aborted before `onGameChange()` → `renderAll()`, so the active gam
 
 ---
 
-## 2. Review tab broken — FIXED (partial stale refresh)
+## 2. Review tab broken — FIXED
 
 ### Root cause
-Two issues:
+`updateNavUI()` sets `document.body.dataset.page` and `document.body.dataset.section`. The sidebar click handler used unscoped `e.target.closest('[data-page]')`, which matched **`document.body`** (an ancestor of every nav button) before reaching `button[data-section]`.
 
-1. **Same game-switch crash** (above) broke navigation mid-session.
-2. **`renderAll('full')` never called `renderActivePageContent`** at the end, so navigating to Review sub-pages after certain refresh paths could show stale content. **`renderAll('core')`** (after quick/auto log) refreshed home + logs but not the active Review page when user was on Focus/Analytics/Reports.
+Result:
+- Clicking **Review** while on Dashboard re-navigated to `body.dataset.page` (`dashboard`) — no visible change.
+- Clicking **Review** while on Squad re-navigated to `group` — appeared stuck on Squad.
+- Review sub-nav pills had the same bug via unscoped `[data-page]`.
 
 ### Files changed
-- `js/app.js` — call `renderActivePageContent()` at end of full `renderAll`; core path already calls it; added try/catch diagnostics on `renderActivePageContent`
+- `js/nav.js` — scope nav clicks to `#main-nav` / `#review-sub-nav` buttons only; add `[REVIEW]` / `[SQUAD]` nav logs
+- `js/app.js` — route/render diagnostic logs for Review + Squad pages
 
 ### Verification
-1. Open **Review → Focus** — mission brief / empty state renders.
-2. Open **Review → Analytics** — stats grid and insights render.
-3. Open **Review → Reports** — weekly report renders for active game.
-4. Log a match from dock while on **Analytics** — page updates without manual refresh.
-5. Switch RL ↔ Val on **Reports** — report uses correct game data.
+1. Hard refresh (`Ctrl+F5`) — script cache bust `js/app.js?v=20260607a`.
+2. Click **Review** in sidebar → lands on **Focus** (`#page-focus.active`).
+3. Review sub-pills → **Analytics** / **Reports** switch correctly.
+4. Console shows `[REVIEW] nav clicked` → `[REVIEW] route entered` → `[REVIEW] render started/completed`.
+5. Log a match while on Analytics → page refreshes in place.
 
 ---
 
-## 3. Squad tab broken — HARDENED
+## 3. Squad tab broken — FIXED
 
 ### Root cause
-No single crash found in static audit. Likely contributors:
-- Game-switch `ReferenceError` aborting `renderAll` before squad render completed.
-- **`renderGroupsPage` is async** — unhandled rejections from Supabase/RPC could fail silently when not on the squad route.
+Same **`closest('[data-page]')` → `document.body`** bug as Review (see §2). Clicking **Squad** often re-navigated to the current `body.dataset.page` instead of `group`.
+
+Secondary: `loadUserGroups()` swallows Supabase errors and returns `[]` (empty squads, not an error state).
 
 ### Files changed
-- `js/app.js` — `.catch()` on `renderGroupsPage` with user-visible error + console `[squad]` prefix
-- `js/groups.js` — replace debug `console.log` with `[squad] renderDetail failed` on errors (existing try/catch retained)
+- `js/nav.js` — scoped section clicks (fixes Squad nav)
+- `js/app.js` — `[SQUAD]` route/render logs; async error surface on squad page
+- `js/groups.js` — `[SQUAD]` query/render logs
+- `js/supabase.js` — `[SQUAD] query completed with error` on failed group fetch
 
 ### Verification
-1. Navigate to **Squad** — create/join panel and squad list render.
-2. Create or join a squad — detail panel loads roster.
-3. Click a grinder — member stats load or show permission message.
-4. If Supabase RPC fails — toast + inline error (not blank page).
-5. Check console for `[squad]` errors only on real failures.
+1. Click **Squad** in sidebar → `#page-group.active`, create/join panel visible.
+2. Console: `[SQUAD] nav clicked` → `[SQUAD] route entered` → `[SQUAD] query started/completed` → `[SQUAD] render completed`.
+3. Create/join squad — detail panel loads.
+4. If Supabase fails — console `[SQUAD] query completed with error` + toast (not silent blank).
 
 ---
 

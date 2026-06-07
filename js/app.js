@@ -258,6 +258,7 @@ function getGroupsCtx() {
 }
 
 async function refreshGroupsPage() {
+  console.log('[SQUAD] query started');
   state.groups = await loadUserGroups();
   await renderGroupsPage(getGroupsCtx());
 }
@@ -554,27 +555,50 @@ function renderActivePageContent(pageId) {
     if (pageId === 'log') renderMatchLogs();
     if (pageId === 'setup') refreshSetupWizard(getDisplay().name);
     if (pageId === 'profile') renderProfilePageContent();
-    if (pageId === 'analytics') renderAnalyticsPage();
-    if (pageId === 'reports') renderReportsPageContent();
-    if (pageId === 'focus') renderFocusPage(getActiveGames(), getActiveGoals(), getDisplay());
+    if (pageId === 'analytics') {
+      console.log('[REVIEW] render started', pageId);
+      renderAnalyticsPage();
+      console.log('[REVIEW] render completed', pageId);
+    }
+    if (pageId === 'reports') {
+      console.log('[REVIEW] render started', pageId);
+      renderReportsPageContent();
+      console.log('[REVIEW] render completed', pageId);
+    }
+    if (pageId === 'focus') {
+      console.log('[REVIEW] render started', pageId);
+      renderFocusPage(getActiveGames(), getActiveGoals(), getDisplay());
+      console.log('[REVIEW] render completed', pageId);
+    }
     if (pageId === 'group') {
-      void renderGroupsPage(getGroupsCtx()).catch((err) => {
-        console.error('[squad] renderGroupsPage failed', err);
-        const el = document.getElementById('group-content');
-        if (el) {
-          el.innerHTML = `<div class="empty-state">Could not load squads — ${err?.message || 'unknown error'}</div>`;
-        }
-        showToast(err?.message || 'Could not load squads', 'error');
-      });
+      console.log('[SQUAD] query started');
+      void renderGroupsPage(getGroupsCtx())
+        .then(() => console.log('[SQUAD] render completed'))
+        .catch((err) => {
+          console.error('[SQUAD] query completed with error', err);
+          console.error('[squad] renderGroupsPage failed', err);
+          const el = document.getElementById('group-content');
+          if (el) {
+            el.innerHTML = `<div class="empty-state">Could not load squads — ${err?.message || 'unknown error'}</div>`;
+          }
+          showToast(err?.message || 'Could not load squads', 'error');
+        });
     }
     if (pageId === 'sessions') renderSessionsPageContent();
   } catch (err) {
     console.error('[tracker] renderActivePageContent failed', pageId, err);
+    if (['focus', 'analytics', 'reports'].includes(pageId)) {
+      console.error('[REVIEW] render failed at renderActivePageContent', pageId, err);
+    }
+    if (pageId === 'group') console.error('[SQUAD] render failed at renderActivePageContent', err);
     showToast(`Could not load page (${pageId})`, 'error');
   }
 }
 
 function navigate(pageId, section) {
+  const reviewPages = new Set(['focus', 'analytics', 'reports']);
+  if (reviewPages.has(pageId)) console.log('[REVIEW] route entered', pageId, section);
+  if (pageId === 'group') console.log('[SQUAD] route entered', pageId, section);
   state.activePage = pageId;
   showPage(pageId);
   updateNavUI(pageId);

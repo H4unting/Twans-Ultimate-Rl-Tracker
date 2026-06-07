@@ -40,27 +40,73 @@ export function getRank(value) {
 export function rankBadgeHTML(value, size = 18) {
   const r = getRank(value);
   const label = isRadiant(r.name) ? `Radiant ${r.rr}` : formatRankShort(r.name, r.rr);
-  return `<span class="rank-badge val-rank-badge" style="border-color:${r.color}44;color:${r.color};background:${r.color}11;font-size:${Math.max(10, size - 6)}px"><span class="rank-badge-name">${label}</span></span>`;
+  const iconSize = Math.round(size * 1.2);
+  return `<span class="rank-badge val-rank-badge" style="border-color:${r.color}44;color:${r.color};font-size:${Math.max(10, size - 6)}px">${rankIconHTML(r, iconSize)}<span class="rank-badge-name">${label}</span></span>`;
 }
 
-export function rankIconHTML() {
-  return '';
+const WIKI_IMG = 'https://static.wikia.nocookie.net/valorant/images';
+
+const RANK_ICON_SRC = {
+  'iron-1': `${WIKI_IMG}/7/7c/Iron_1_Rank.png/revision/latest`,
+  'iron-2': `${WIKI_IMG}/b/bf/Iron_2_Rank.png/revision/latest`,
+  'iron-3': `${WIKI_IMG}/7/79/Iron_3_Rank.png/revision/latest`,
+  'bronze-1': `${WIKI_IMG}/b/bd/Bronze_1_Rank.png/revision/latest`,
+  'bronze-2': `${WIKI_IMG}/c/c7/Bronze_2_Rank.png/revision/latest`,
+  'bronze-3': `${WIKI_IMG}/a/ae/Bronze_3_Rank.png/revision/latest`,
+  'silver-1': `${WIKI_IMG}/8/8a/Silver_1_Rank.png/revision/latest`,
+  'silver-2': `${WIKI_IMG}/e/e9/Silver_2_Rank.png/revision/latest`,
+  'silver-3': `${WIKI_IMG}/d/d7/Silver_3_Rank.png/revision/latest`,
+  'gold-1': `${WIKI_IMG}/6/65/Gold_1_Rank.png/revision/latest`,
+  'gold-2': `${WIKI_IMG}/0/02/Gold_2_Rank.png/revision/latest`,
+  'gold-3': `${WIKI_IMG}/2/27/Gold_3_Rank.png/revision/latest`,
+  'platinum-1': `${WIKI_IMG}/9/96/Platinum_1_Rank.png/revision/latest`,
+  'platinum-2': `${WIKI_IMG}/5/5a/Platinum_2_Rank.png/revision/latest`,
+  'platinum-3': `${WIKI_IMG}/1/1b/Platinum_3_Rank.png/revision/latest`,
+  'diamond-1': `${WIKI_IMG}/a/ae/Diamond_1_Rank.png/revision/latest`,
+  'diamond-2': `${WIKI_IMG}/6/6a/Diamond_2_Rank.png/revision/latest`,
+  'diamond-3': `${WIKI_IMG}/0/01/Diamond_3_Rank.png/revision/latest`,
+  'ascendant-1': `${WIKI_IMG}/e/e5/Ascendant_1_Rank.png/revision/latest`,
+  'ascendant-2': `${WIKI_IMG}/1/1e/Ascendant_2_Rank.png/revision/latest`,
+  'ascendant-3': `${WIKI_IMG}/5/53/Ascendant_3_Rank.png/revision/latest`,
+  'immortal-1': `${WIKI_IMG}/a/a8/Immortal_1_Rank.png/revision/latest`,
+  'immortal-2': `${WIKI_IMG}/2/21/Immortal_2_Rank.png/revision/latest`,
+  'immortal-3': `${WIKI_IMG}/0/0b/Immortal_3_Rank.png/revision/latest`,
+  radiant: `${WIKI_IMG}/1/1a/Radiant_Rank.png/revision/latest`,
+};
+
+export function getRankIconKey(rankName) {
+  const n = normalizeRankName(rankName);
+  if (!n) return 'iron-1';
+  if (n === 'Radiant') return 'radiant';
+  return n.toLowerCase().replace(/\s+/g, '-');
+}
+
+export function getRankIconSrc(rankName) {
+  const key = getRankIconKey(rankName);
+  return RANK_ICON_SRC[key] ?? RANK_ICON_SRC['iron-1'];
+}
+
+export function rankIconHTML(rankOrName, size = 20) {
+  const name = typeof rankOrName === 'string'
+    ? (normalizeRankName(rankOrName) || 'Iron 1')
+    : (rankOrName?.name ?? 'Iron 1');
+  const src = getRankIconSrc(name);
+  const fallback = RANK_ICON_SRC['iron-1'];
+  const alt = name === 'Radiant' ? 'Radiant' : name;
+  return `<img class="rank-icon" src="${src}" alt="${alt}" width="${size}" height="${size}" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${fallback}'">`;
+}
+
+export function rankSVG(tier, size = 20) {
+  const fallback = {
+    iron: 'Iron 1', bronze: 'Bronze 1', silver: 'Silver 1', gold: 'Gold 1',
+    platinum: 'Platinum 1', diamond: 'Diamond 1', ascendant: 'Ascendant 1',
+    immortal: 'Immortal 1', radiant: 'Radiant',
+  };
+  return rankIconHTML(fallback[tier] ?? 'Iron 1', size);
 }
 
 export function getRankForPlaylist(value) {
   return getRank(value);
-}
-
-export function getRankIconKey() {
-  return 'valorant';
-}
-
-export function getRankIconSrc() {
-  return '';
-}
-
-export function rankSVG() {
-  return '';
 }
 
 export function formatGameRankDisplay(game) {
