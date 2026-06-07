@@ -36,8 +36,8 @@ export function renderLogSetupNudge() {
     <div class="log-setup-nudge-inner">
       <span class="log-setup-nudge-text">${isVal
         ? (bridge
-          ? 'Bridge is running — load Twans Val Auto-Log in Overwolf to finish setup.'
-          : `Valorant auto-log: run ${launcher}, open http://localhost:8080, load Overwolf extension.`)
+          ? 'Bridge is running — add Riot ID + Henrik key in Auto-Log Setup, then Apply & Go.'
+          : `Valorant auto-log: run ${launcher}, open http://localhost:8080, then Apply & Go in setup.`)
         : `Want auto-log from Rocket League? Run ${launcher} on this PC.`}</span>
       <button type="button" class="btn-link" id="log-setup-nudge-link">Auto-Log Setup →</button>
     </div>`;
@@ -68,49 +68,47 @@ function renderRlPanel(profile, { compact = false } = {}) {
     </div>`;
 }
 
-function renderOverwolfStep(stepNum = 2, overwolfLinked = false) {
+function renderHenrikStep(stepNum = 2, riotIdValue = '', riotRegionValue = '') {
   return `
-    <li class="setup-step${overwolfLinked ? ' done' : ''}" data-step="overwolf">
+    <li class="setup-step${riotIdValue ? ' done' : ''}" data-step="valorant">
       <span class="setup-step-num">${stepNum}</span>
       <div class="setup-step-body">
-        <strong>Load Twans Val Auto-Log in Overwolf</strong>
-        <p class="setup-hint">No Riot ID or API keys — Overwolf reads match results from the game client.</p>
-        <ol class="setup-substeps">
-          <li>Install <a href="https://www.overwolf.com/" target="_blank" rel="noopener">Overwolf</a> (one time)</li>
-          <li><strong>Sign in</strong> to Overwolf — click the <strong>Appstore</strong> icon in the dock. Required; otherwise you get <em>Unauthorized App</em>.</li>
-          <li>Open <strong>Development options</strong> (wrench icon → <strong>About</strong>, or tray icon → <strong>Settings</strong> → <strong>About</strong>) → <strong>Load unpacked extension</strong> — <strong>not</strong> an Appstore install</li>
-          <li>Select the <strong>integrations/overwolf</strong> folder — <strong>not</strong> Desktop, Downloads, or the repo root:
-            <div class="setup-ow-path-row">
-              <code class="setup-ow-path" id="setup-ow-path">integrations/overwolf</code>
-              <button type="button" class="btn btn-secondary setup-ow-copy" id="setup-ow-copy-path">Copy path</button>
-            </div>
-            <p class="setup-hint setup-ow-folder-tip">Run <code>Load Overwolf Extension.bat</code> at the repo root (copies path, opens the correct folder). <strong>missing manifest.json</strong> = wrong folder (often Desktop). Remove the broken entry in Development options and reload.</p>
-            <p class="setup-hint setup-ow-unauth-tip"><strong>Unauthorized App?</strong> Sign in first (step 2). If it still blocks you, Overwolf only allows unpacked extensions for <a href="https://dev.overwolf.com/ow-native/getting-started/onboarding-resources/basic-sample-app/" target="_blank" rel="noopener">developer-whitelisted</a> accounts — use <strong>Fallback — Henrik API</strong> below until this app is on the Overwolf Appstore.</p>
-          </li>
-          <li>In Overwolf, enable <strong>Twans Val Auto-Log</strong> (Library or apps tray)</li>
-          <li>Keep <code>Valorant Tracker.bat</code> running — Overwolf sends matches to the local bridge</li>
-        </ol>
-        <span class="setup-status-pill${overwolfLinked ? ' ok' : ''}" id="setup-overwolf-pill">${overwolfLinked ? '● Overwolf linked' : '○ Waiting for Overwolf extension…'}</span>
-        <p class="setup-hint setup-ow-tip">Tip: launch Valorant once after loading the extension so Overwolf registers game events.</p>
+        <strong>Riot ID + Henrik API key</strong>
+        <p class="setup-hint">Free key at <a href="https://api.henrikdev.xyz/dashboard/" target="_blank" rel="noopener">api.henrikdev.xyz/dashboard</a> — paste below, then <strong>Apply &amp; Go</strong>.</p>
+        ${renderValorantFields(riotIdValue, riotRegionValue)}
+        <div class="setup-apply-block">
+          ${renderApplySection(false)}
+        </div>
       </div>
     </li>`;
 }
 
-function renderOverwolfReadyCallout() {
+function renderOverwolfOptionalSection(overwolfLinked = false) {
+  if (overwolfLinked) {
+    return `
+      <div class="setup-overwolf-callout setup-overwolf-ready">
+        <strong>Overwolf linked</strong>
+        <p>Turn <strong>Auto-log</strong> on in the dock below, play a Competitive match, and it logs when the match ends.</p>
+      </div>`;
+  }
   return `
-    <div class="setup-overwolf-callout setup-overwolf-ready">
-      <strong>Overwolf linked</strong>
-      <p>Turn <strong>Auto-log</strong> on in the dock below, play a Competitive match, and it logs when the match ends.</p>
-    </div>`;
-}
-
-function renderOverwolfCallout(overwolfLinked = false) {
-  if (overwolfLinked) return renderOverwolfReadyCallout();
-  return `
-    <div class="setup-overwolf-callout">
-      <strong>Recommended — Overwolf</strong>
-      <p>No API keys when it works. Load <strong>Twans Val Auto-Log</strong> as an unpacked extension (sign in to Overwolf first). If you see <em>Unauthorized App</em>, use Henrik fallback below.</p>
-    </div>`;
+    <details class="setup-overwolf-advanced">
+      <summary>Advanced — Overwolf (optional)</summary>
+      <p class="setup-hint">Requires Overwolf <a href="https://dev.overwolf.com/ow-native/getting-started/onboarding-resources/basic-sample-app/" target="_blank" rel="noopener">developer access</a> for unpacked apps — most users get <em>Unauthorized App</em>. Use Henrik API above instead.</p>
+      <ol class="setup-substeps">
+        <li>Install <a href="https://www.overwolf.com/" target="_blank" rel="noopener">Overwolf</a> and sign in</li>
+        <li>Development options → <strong>Load unpacked extension</strong></li>
+        <li>Select the folder below (not Desktop or repo root):
+          <div class="setup-ow-path-row">
+            <code class="setup-ow-path" id="setup-ow-path">integrations/overwolf</code>
+            <button type="button" class="btn btn-secondary setup-ow-copy" id="setup-ow-copy-path">Copy path</button>
+          </div>
+          <p class="setup-hint setup-ow-folder-tip">Run <code>Load Overwolf Extension.bat</code> to open the correct folder. <strong>missing manifest.json</strong> = wrong folder.</p>
+        </li>
+        <li>Enable <strong>Twans Val Auto-Log</strong> in Overwolf</li>
+      </ol>
+      <span class="setup-status-pill" id="setup-overwolf-pill">○ Waiting for Overwolf extension…</span>
+    </details>`;
 }
 
 function isValorantAutoLogReady(bridge, valStatus = getCachedValorantStatus()) {
@@ -126,18 +124,14 @@ function renderValPanel(riotIdValue, riotRegionValue, { compact = false, overwol
       <div class="setup-panel-head">
         <strong>Valorant auto-log</strong>
         <p class="setup-panel-desc">${compact
-    ? (overwolfLinked ? 'Overwolf is linked — play with Auto-log ON.' : 'Finish Overwolf setup below, or use Henrik API as fallback.')
-    : 'Overwolf first (no keys). Henrik API is optional fallback.'}</p>
+    ? (overwolfLinked ? 'Overwolf is linked — play with Auto-log ON.' : 'Update Riot ID or Henrik key, then Apply & Go.')
+    : 'Henrik API (free key) — works for everyone. Overwolf is optional below.'}</p>
       </div>
-      ${renderOverwolfCallout(overwolfLinked)}
-      ${overwolfLinked ? '' : renderOverwolfStep(2, false)}
-      <details class="setup-henrik-fallback"${overwolfLinked ? '' : ' open'}>
-        <summary>Fallback — Henrik API (if not using Overwolf)</summary>
-        ${renderValorantFields(riotIdValue, riotRegionValue)}
-        <div class="setup-apply-block">
-          ${renderApplySection(false)}
-        </div>
-      </details>
+      ${renderValorantFields(riotIdValue, riotRegionValue)}
+      <div class="setup-apply-block">
+        ${renderApplySection(false)}
+      </div>
+      ${renderOverwolfOptionalSection(overwolfLinked)}
       <div class="setup-danger-zone">
         <strong>Wrong match count?</strong>
         <p class="setup-hint">Removes every Valorant match from your account and resets auto-log baseline. Rocket League stats are not touched.</p>
@@ -149,6 +143,7 @@ function renderValPanel(riotIdValue, riotRegionValue, { compact = false, overwol
 
 function renderBridgeStep(bridge, stepNum = 1, gameId = GAME_IDS.ROCKET_LEAGUE) {
   const launcher = getDesktopLauncher(gameId);
+  const isVal = gameId === GAME_IDS.VALORANT;
   return `
     <li class="setup-step${bridge ? ' done' : ''}" data-step="bridge">
       <span class="setup-step-num">${stepNum}</span>
@@ -156,7 +151,9 @@ function renderBridgeStep(bridge, stepNum = 1, gameId = GAME_IDS.ROCKET_LEAGUE) 
         <strong>Run ${DESKTOP_APP.name}</strong>
         <p>Double-click <code>${launcher}</code> in your tracker folder — leave it running while you play:</p>
         <pre class="setup-code setup-code-highlight" id="setup-bridge-cmd">${launcher}</pre>
-        <p class="setup-hint">Optional: run <code>launcher\\build-bridge.bat</code> once to build <code>${DESKTOP_APP.exe}</code> (tray icon, no black window).</p>
+        ${isVal
+    ? '<p class="setup-hint">Open <code>http://localhost:8080</code> in the tab the .bat opens — not Live Server, not GitHub Pages.</p>'
+    : '<p class="setup-hint">Optional: run <code>launcher\\build-bridge.bat</code> once to build <code>' + DESKTOP_APP.exe + '</code> (tray icon, no black window).</p>'}
         <span class="setup-status-pill${bridge ? ' ok' : ''}" id="setup-bridge-pill">${bridge ? `● ${DESKTOP_APP.name} is running — ready for Apply & Go` : `○ Waiting for ${launcher}…`}</span>
       </div>
     </li>`;
@@ -187,28 +184,16 @@ function renderValSteps(riotIdValue, riotRegionValue, bridge, allReady, overwolf
   return `
     <ol class="setup-steps setup-steps-val">
       ${renderBridgeStep(bridge, 1, GAME_IDS.VALORANT)}
-      ${renderOverwolfStep(2, overwolfLinked)}
+      ${renderHenrikStep(2, riotIdValue, riotRegionValue)}
       <li class="setup-step" data-step="autolog">
         <span class="setup-step-num">3</span>
         <div class="setup-step-body">
           <strong>Play with Auto-log ON</strong>
-          <p>Open <code>http://localhost:8080</code>, turn <strong>Auto-log</strong> on in the dock, then play a Competitive match. Overwolf logs when the match ends.</p>
+          <p>At <code>http://localhost:8080</code>, turn <strong>Auto-log</strong> on in the dock, then play a Competitive match. Finished matches auto-log in 1–3 minutes.</p>
         </div>
       </li>
-      <li class="setup-step${riotIdValue ? ' done' : ''}" data-step="valorant">
-        <span class="setup-step-num">4</span>
-        <div class="setup-step-body">
-          <details class="setup-henrik-fallback">
-            <summary>Fallback — Riot account + Henrik API key</summary>
-            <p class="setup-hint">Only if you are not using Overwolf. Saves to <code>config/grind-config.json</code>.</p>
-            ${renderValorantFields(riotIdValue, riotRegionValue)}
-            <div class="setup-apply-block">
-              ${renderApplySection(false)}
-            </div>
-          </details>
-        </div>
-      </li>
-    </ol>`;
+    </ol>
+    ${renderOverwolfOptionalSection(overwolfLinked)}`;
 }
 
 function renderValorantFields(riotIdValue, riotRegionValue, { keyHint = '', keySaved = false, hasLegacyRiotKey = false } = {}) {
@@ -287,7 +272,7 @@ export function renderSetupWizard(displayName = '') {
           ${isVal
     ? (overwolfLinked
       ? 'Overwolf linked — turn Auto-log ON in the dock and play.'
-      : 'Load the Overwolf extension (step 2), then play with Auto-log ON.')
+      : 'Henrik API linked — turn Auto-log ON in the dock and play.')
     : 'Rocket League auto-log is ready on this PC.'}
         </div>
         <button type="button" class="btn btn-secondary" id="setup-show-steps">Show full setup steps</button>
@@ -312,7 +297,7 @@ export function renderSetupWizard(displayName = '') {
         <div>
           <strong>One-time setup on your PC — ${isVal ? 'Valorant' : 'Rocket League'}</strong>
           <p>${isVal
-    ? `Run <code>${launcher}</code>, load Overwolf (step 2), then play with Auto-log ON.`
+    ? `Run <code>${launcher}</code>, open <code>http://localhost:8080</code>, add Riot ID + Henrik key, Apply &amp; Go.`
     : `Run <code>${launcher}</code>, then click <strong>Apply &amp; Go</strong>.`}</p>
         </div>
       </div>`}
@@ -324,10 +309,10 @@ export function renderSetupWizard(displayName = '') {
     ? (isVal
       ? (overwolfLinked
         ? 'Overwolf is linked. Turn Auto-log ON and play Competitive — matches log when they end.'
-        : `${DESKTOP_APP.name} is running. Finish Overwolf setup or use Henrik fallback below.`)
+        : 'Henrik API linked. Turn Auto-log ON and play — matches auto-log after they end.')
       : 'G/A/S fill in automatically. You pick W/L and enter End MMR after each game.')
     : (isVal
-      ? `Start ${launcher}, load Twans Val Auto-Log in Overwolf, open http://localhost:8080.`
+      ? `Start ${launcher}, open http://localhost:8080, add Riot ID + Henrik key, Apply & Go.`
       : `Rocket League only — enter your RL name, start ${launcher}, then Apply & Go.`)}
           </p>
         ${allReady ? `<button type="button" class="setup-dismiss" id="setup-dismiss">Got it</button>` : ''}
@@ -444,7 +429,9 @@ async function updateOverwolfSetupUI() {
     pill.textContent = linked ? '● Overwolf linked' : '○ Waiting for Overwolf extension…';
     pill.classList.toggle('ok', linked);
   }
-  document.querySelector('.setup-step[data-step="overwolf"]')?.classList.toggle('done', linked);
+  if (linked) {
+    document.querySelector('.setup-overwolf-advanced')?.setAttribute('open', '');
+  }
 
   const pathEl = document.getElementById('setup-ow-path');
   if (pathEl && isBridgeUp()) {
@@ -474,8 +461,8 @@ function wireOverwolfSetupActions() {
       const pathEl = document.getElementById('setup-ow-path');
       finalPath = pathEl?.textContent?.trim() || '';
     }
-    if (!finalPath || finalPath.startsWith('integrations/')) {
-      showToast('Start Valorant Tracker.bat first to copy the full folder path', 'error');
+    if (!finalPath || /^integrations[/\\]/i.test(finalPath)) {
+      showToast('Start Valorant Tracker.bat first, then click Copy path again', 'error');
       return;
     }
     try {

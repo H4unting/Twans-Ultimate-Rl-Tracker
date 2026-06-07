@@ -995,7 +995,7 @@ async function init() {
     document.getElementById('logo-home-btn')?.addEventListener('click', () => navigate('dashboard', 'home'));
     wireBridgeStatusClick(() => navigate('setup', 'home'));
     subscribeBridgeOnline((online) => {
-      refreshBridgeStatusUI();
+      onBridgeStatusChange();
       if (online && state.activeGame === GAME_IDS.VALORANT) refreshValorantStatus();
     });
     wireKeyboardShortcuts();

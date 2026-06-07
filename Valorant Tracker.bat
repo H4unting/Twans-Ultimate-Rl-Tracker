@@ -11,19 +11,16 @@ echo   Valorant Mode
 echo  =================================
 echo.
 echo  Starting tracker on http://localhost:8080 ...
-echo  Use THAT tab for auto-log (not Live Server / GitHub Pages).
 echo.
-echo  FIRST TIME — load Overwolf extension:
-echo    Double-click "Load Overwolf Extension.bat" in this folder.
-echo    (Opens integrations\overwolf, copies path, shows instructions.)
+echo  FIRST TIME setup (in the tab this opens):
+echo    1. Auto-Log Setup - add Riot ID (Name#TAG)
+echo    2. Get free Henrik key at api.henrikdev.xyz/dashboard
+echo    3. Paste key, click Apply ^& Go
+echo    4. Turn Auto-log ON in the dock
 echo.
-echo  Overwolf folder: %~dp0integrations\overwolf
-echo  If error shows Desktop path, you picked the wrong folder.
+echo  IMPORTANT: Use http://localhost:8080 from THIS launcher.
+echo  Close Live Server / other apps on port 8080 first.
 echo.
-
-if exist "%~dp0integrations\overwolf\manifest.json" (
-  start "" explorer /select,"%~dp0integrations\overwolf\manifest.json"
-)
 
 where node >nul 2>&1
 if errorlevel 1 (

@@ -18,8 +18,6 @@ import { DESKTOP_APP } from './config.js';
 
 
 
-const BRIDGE = getBridgeUrl();
-
 let pollId = null;
 
 let wasBridgeUp = false;
@@ -130,7 +128,7 @@ async function pollBridge() {
 
 
 
-    const lastRes = await fetch(`${BRIDGE}/last-match`, { signal: AbortSignal.timeout(3000) });
+    const lastRes = await fetch(`${getBridgeUrl()}/last-match`, { signal: AbortSignal.timeout(3000) });
 
     const last = await lastRes.json();
 
@@ -227,13 +225,9 @@ export function getRlDisplayName() {
 
 
 export async function fetchBridgeSetupStatus() {
-
-  const res = await fetch(`${BRIDGE}/setup/status`, { signal: AbortSignal.timeout(3000) });
-
+  const res = await fetch(`${getBridgeUrl()}/setup/status`, { signal: AbortSignal.timeout(3000) });
   if (!res.ok) throw new Error('Bridge offline');
-
   return res.json();
-
 }
 
 

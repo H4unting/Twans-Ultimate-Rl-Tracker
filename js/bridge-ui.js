@@ -2,7 +2,7 @@
 
 import { state } from './state.js';
 import { GAME_IDS, getGameMeta } from './games.js';
-import { isBridgeUp, isBridgeProbeDone, getBridgeUrl, getLastBridgeFailure } from './bridge-client.js';
+import { isBridgeUp, isBridgeProbeDone, getBridgeUrl, getLastBridgeFailure, isBridgeProcessDetected } from './bridge-client.js';
 import { isAutoLogEnabled, loadPrefs, syncAutoLogToggleUI } from './quicklog.js';
 import { setBridgeHintVisible, needsLocalTrackerForAutoLog, getLocalTrackerUrl, isLocalTrackerHost, isWrongLocalPort } from './env.js';
 import { DESKTOP_APP, getDesktopLauncher } from './config.js';
@@ -60,8 +60,11 @@ export function refreshBridgeStatusUI() {
       syncAutoLogToggleUI();
       return;
     }
-    el.textContent = 'Auto-log off';
-    if (isWrongLocalPort()) {
+    const failure = getLastBridgeFailure();
+    el.textContent = failure === 'wrong_tracker_alive' ? 'Wrong server' : 'Auto-log off';
+    if (failure === 'wrong_tracker_alive') {
+      el.title = `Port 8080 is the wrong app — close Live Server, restart ${launcher}, open ${getLocalTrackerUrl()}`;
+    } else if (isWrongLocalPort()) {
       el.title = `Open ${getLocalTrackerUrl()} — auto-log does not work from this port`;
     } else if (needsLocalTrackerForAutoLog()) {
       el.title = `Auto-log only works on this PC — open ${getLocalTrackerUrl()} while ${launcher} is running`;
@@ -102,7 +105,7 @@ function renderValorantPill(el, valStatus, meta) {
   if (!valStatus.configured) {
     const prefs = loadPrefs();
     el.textContent = prefs.riotId ? '● Needs Apply' : '● Setup auto-log';
-    el.title = 'Run Twans Auto-Log + Overwolf app, or add Riot ID + Henrik key in Auto-Log Setup';
+    el.title = 'Add Riot ID + Henrik key in Auto-Log Setup, then Apply & Go';
     el.classList.add('bridge-needs-setup');
     el.dataset.bridgeState = 'needs-setup';
     return;
@@ -216,6 +219,14 @@ function updateDesktopAppBanner(isVal, appUp, valStatus) {
     }
 
     const failure = getLastBridgeFailure();
+    if (failure === 'wrong_tracker_alive' || (failure === 'wrong_server' && isBridgeProcessDetected())) {
+      p.innerHTML = `<strong>Wrong app on port 8080.</strong> The auto-log bridge is running, but this tab is not `
+        + `served by <code>${launcher}</code> — close Live Server, <code>npx serve</code>, or anything else on port 8080, `
+        + `restart <code>${launcher}</code>, then open `
+        + `<a href="${localUrl}" class="btn-link">${localUrl}</a> in the tab it opens. `
+        + setupLink;
+      return;
+    }
     if (failure === 'wrong_server') {
       p.innerHTML = `Port 8080 is serving files without the auto-log bridge — close Live Server, `
         + `<code>npx serve</code>, or other apps on port 8080, then restart <code>${launcher}</code>. `
@@ -223,7 +234,7 @@ function updateDesktopAppBanner(isVal, appUp, valStatus) {
       return;
     }
     if (failure === 'bridge_down') {
-      p.innerHTML = `Tracker is up but the bridge on port 49200 is not running — check the `
+      p.innerHTML = `Tracker page loaded but the bridge on port 49200 is not running — check the `
         + `<code>${launcher}</code> console for errors (often a stale bridge window). `
         + `<a href="${localUrl}/api/bridge/status" class="btn-link" target="_blank" rel="noopener">test bridge</a> · `
         + setupLink;
@@ -231,28 +242,22 @@ function updateDesktopAppBanner(isVal, appUp, valStatus) {
     }
 
     p.innerHTML = isLocalTrackerHost()
-      ? `Bridge not connected — keep <code>${launcher}</code> open, then `
-        + `<a href="${window.location.origin}/api/bridge/status" class="btn-link" target="_blank" rel="noopener">test bridge</a> `
-        + `(should show JSON, not 404). Hard refresh (Ctrl+F5). `
+      ? `Bridge not connected — double-click <code>${launcher}</code>, leave that console open, then open `
+        + `<a href="${localUrl}" class="btn-link">${localUrl}</a> `
+        + `(test: <a href="${localUrl}/api/bridge/status" class="btn-link" target="_blank" rel="noopener">/api/bridge/status</a> `
+        + `should show JSON, not 404). Hard refresh (Ctrl+F5). `
         + setupLink
       : `Run <code>${launcher}</code> on this PC while playing. `
         + setupLink;
     return;
   }
 
-  if (appUp && isVal && valStatus && !valStatus.overwolfConnected && !valStatus.configured) {
-    banner.classList.remove('hidden');
-    badge.textContent = 'Overwolf setup';
-    p.innerHTML = `${DESKTOP_APP.name} is running — load <strong>Twans Val Auto-Log</strong> in Overwolf (no API keys). `
-      + '<button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>';
-    return;
-  }
-
   if (appUp && isVal && valStatus && !valStatus.configured) {
     banner.classList.remove('hidden');
     badge.textContent = 'Setup needed';
-    p.innerHTML = `${DESKTOP_APP.name} is running but auto-log is not configured — use Overwolf or Henrik API in `
-      + '<button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>';
+    p.innerHTML = `${DESKTOP_APP.name} is running — add Riot ID + free Henrik key in `
+      + '<button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button> '
+      + 'and click <strong>Apply &amp; Go</strong>.';
     return;
   }
 

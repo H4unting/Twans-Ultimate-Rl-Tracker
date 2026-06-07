@@ -345,7 +345,10 @@ function printReadyMessage() {
   log('  Ready. Good luck!');
   log('');
   log('  Keep this window open while you play.');
-  log('  Tracker: ' + LOCAL_TRACKER_URL);
+  log('  Open in your browser: ' + LOCAL_TRACKER_URL);
+  if (valOnly) {
+    log('  First time? Auto-Log Setup -> Riot ID + Henrik key -> Apply & Go');
+  }
   log('');
 }
 
@@ -389,12 +392,19 @@ const tracker = createTrackerServer();
 
 await new Promise((resolve, reject) => {
 
-  tracker.on('error', (err) => {
+  tracker.on('error', async (err) => {
     if (err?.code === 'EADDRINUSE') {
       console.error('');
       console.error(`  ERROR: Port ${TRACKER_PORT} is already in use.`);
-      console.error('  Close Live Server, npx serve, or other tracker windows, then run the .bat again.');
-      console.error(`  Auto-log requires this launcher on http://localhost:${TRACKER_PORT}`);
+      console.error('  Another app (often Live Server or npx serve) is blocking the tracker.');
+      console.error('  Close it, close other Valorant/Rocket League Tracker windows, then run the .bat again.');
+      try {
+        const probe = await fetch(`http://127.0.0.1:${TRACKER_PORT}/api/bridge/status`, { signal: AbortSignal.timeout(1500) });
+        if (probe.status === 404) {
+          console.error(`  Port ${TRACKER_PORT} is serving files WITHOUT the auto-log bridge — that is the wrong server.`);
+        }
+      } catch { /* ignore probe errors */ }
+      console.error(`  Auto-log requires THIS launcher on http://localhost:${TRACKER_PORT}`);
       console.error('');
     }
     reject(err);
@@ -409,7 +419,8 @@ if (valLauncherMode) valLauncherLog(`Tracker ready (port ${TRACKER_PORT})`);
 if (valLauncherMode && skipBrowser) {
   if (!quiet) {
     console.log('');
-    console.log('  >>> Opening tracker in your browser — keep that tab open for auto-log <<<');
+    console.log('  >>> Open http://localhost:8080 in the tab this opens <<<');
+    console.log('  >>> Keep that tab + this console open while you play <<<');
     console.log('');
   }
   valLauncherLog('Opening tracker tab for client-side auto-log');
@@ -444,7 +455,7 @@ if (!quiet && !launchRl && !launchVal) {
   console.log('  >>> Use localhost:8080 on your gaming PC (not GitHub Pages) <<<');
 
   if (valOnly) {
-    console.log('  >>> Valorant: open http://localhost:8080 once to arm auto-log <<<');
+    console.log('  >>> Valorant: open http://localhost:8080 — Auto-Log Setup -> Henrik key <<<');
     console.log('  >>> Do not Ctrl+C mid-match <<<');
   } else {
     console.log('  >>> Playing Val only? Double-click Valorant Tracker.bat <<<');

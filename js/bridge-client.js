@@ -27,12 +27,27 @@ export function subscribeBridgeOnline(fn) {
   return () => listeners.delete(fn);
 }
 
-/** @typedef {'ok'|'wrong_port'|'wrong_server'|'bridge_down'|'unreachable'} BridgeFailureKind */
+/** @typedef {'ok'|'wrong_port'|'wrong_server'|'bridge_down'|'unreachable'|'wrong_tracker_alive'} BridgeFailureKind */
 
 let lastBridgeFailure = /** @type {BridgeFailureKind|null} */ (null);
+/** True when /api/bridge 404s but direct :49200 /status responds — wrong app on port 8080. */
+let bridgeProcessOnDirectPort = false;
 
 export function getLastBridgeFailure() {
   return lastBridgeFailure;
+}
+
+export function isBridgeProcessDetected() {
+  return bridgeProcessOnDirectPort;
+}
+
+async function probeDirectBridge() {
+  try {
+    const res = await fetch(`http://127.0.0.1:${BRIDGE_PORT}/status`, { signal: AbortSignal.timeout(2000) });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 function isOnTrackerPort() {
@@ -82,20 +97,24 @@ export function isBridgeProbeDone() {
 async function pingBridgeOnce() {
   const res = await fetch(`${bridgeBase()}/status`, { signal: AbortSignal.timeout(PING_TIMEOUT_MS) });
   if (res.status === 404 && bridgeBase().includes('/api/bridge')) {
-    lastBridgeFailure = 'wrong_server';
-    throw new Error('wrong_server');
+    bridgeProcessOnDirectPort = await probeDirectBridge();
+    lastBridgeFailure = bridgeProcessOnDirectPort ? 'wrong_tracker_alive' : 'wrong_server';
+    throw new Error(lastBridgeFailure);
   }
   if (res.status === 502) {
-    lastBridgeFailure = 'bridge_down';
-    throw new Error('bridge_down');
+    bridgeProcessOnDirectPort = await probeDirectBridge();
+    lastBridgeFailure = bridgeProcessOnDirectPort ? 'wrong_tracker_alive' : 'bridge_down';
+    throw new Error(lastBridgeFailure);
   }
   if (!res.ok) {
     lastBridgeFailure = 'unreachable';
+    bridgeProcessOnDirectPort = false;
     throw new Error('bridge offline');
   }
   const json = await res.json();
   if (json.authToken) bridgeAuthToken = json.authToken;
   lastBridgeFailure = null;
+  bridgeProcessOnDirectPort = false;
   return json;
 }
 
