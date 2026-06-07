@@ -104,14 +104,18 @@
   <div id="page-dashboard" class="page active dash-page">
     <section id="dash-hero" class="dash-hero v0-glass" aria-label="Overview"></section>
 
+    <section class="dash-priority-row" aria-label="Session and focus">
+      <section id="dash-session-panel" class="dash-section v0-glass dash-session-featured"></section>
+      <div id="home-focus" class="dash-focus-slot"></div>
+    </section>
+
     <div class="dash-grid">
       <div class="dash-col-main">
         <section id="dash-rank-progress" class="dash-section v0-glass"></section>
-        <section id="dash-quick-actions" class="dash-quick-actions"></section>
-        <section id="dash-performance" class="dash-section v0-glass">
+        <section id="dash-performance" class="dash-section v0-glass dash-performance-secondary">
           <div class="dash-section-head">
-            <h2 class="dash-section-title"><span class="dash-section-icon">📈</span> Performance</h2>
-            <span class="dash-stat-label">Recent trend</span>
+            <h2 class="dash-section-title"><span class="dash-section-icon">📈</span> Recent Performance</h2>
+            <span class="dash-stat-label">Last stretch</span>
           </div>
           <div class="dash-perf-grid" id="dash-perf-stats"></div>
           <div class="dash-perf-charts">
@@ -131,15 +135,14 @@
             </div>
           </div>
         </section>
-        <div id="home-focus"></div>
       </div>
 
       <div class="dash-col-side">
-        <section id="dash-session-panel" class="dash-section v0-glass"></section>
-        <section id="dash-activity" class="dash-section v0-glass">
+        <section id="dash-quick-actions" class="dash-quick-actions dash-quick-actions-compact"></section>
+        <section id="dash-activity" class="dash-section v0-glass dash-activity-secondary">
           <div class="dash-recent-head">
-            <p class="section-title">Activity</p>
-            <button type="button" class="section-link" id="dash-view-all-logs">View history →</button>
+            <p class="section-title">Match History</p>
+            <button type="button" class="section-link" id="dash-view-all-logs">View all →</button>
           </div>
           <div id="val-match-feed" class="val-match-feed"></div>
           <div id="home-activity" class="home-activity"></div>

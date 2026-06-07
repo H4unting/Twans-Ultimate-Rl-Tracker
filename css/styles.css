@@ -511,7 +511,12 @@ body.logged-out.has-quick-dock { padding-bottom: 0; }
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
   transition: transform 0.15s ease;
 }
-.rank-badge:hover .rank-icon { transform: scale(1.08); }
+.rank-badge:hover .rank-icon {
+  filter: brightness(1.1) drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
+}
+.rank-badge:not(.rank-badge-no-hover):hover .rank-icon {
+  transform: scale(1.04);
+}
 .rank-badge {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 2px 8px 2px 2px; border-radius: 8px;
@@ -2451,16 +2456,25 @@ textarea:focus-visible {
 .profile-rank-card {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 14px 16px;
+  gap: 16px;
+  padding: 16px 18px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
+  overflow: visible;
+}
+.profile-rank-card .rank-badge {
+  padding: 4px;
+  overflow: visible;
 }
 .profile-rank-card .rank-icon {
   flex-shrink: 0;
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
+}
+.profile-rank-card .rank-badge:hover .rank-icon {
+  transform: none;
+  filter: brightness(1.1) drop-shadow(0 3px 8px rgba(0, 0, 0, 0.4));
 }
 .profile-rank-meta {
   display: flex;

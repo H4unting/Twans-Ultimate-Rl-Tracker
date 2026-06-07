@@ -18,6 +18,10 @@ function avgField(games, field, fallbackField) {
 }
 
 function ensureHomeChartMode(games) {
+  if (state.activeGame === GAME_IDS.VALORANT) {
+    state.homeChartMode = 'Competitive';
+    return 'Competitive';
+  }
   const rows = getPlaylistMMRRows(games, state.activeGame);
   if (!rows.length) {
     state.homeChartMode = null;
@@ -133,15 +137,16 @@ function renderDashHero(games, goals, rows, activeRow) {
   const meta = getGameMeta(state.activeGame);
   const isVal = state.activeGame === GAME_IDS.VALORANT;
   const gameLabel = meta.label;
+  const displayRows = isVal ? rows.filter(r => r.mode === 'Competitive') : rows;
 
-  if (!rows.length) {
+  if (!displayRows.length) {
     el.innerHTML = `
       <div class="dash-empty">Log a ${gameLabel} ${isVal ? 'match' : 'game'} to see your dashboard overview.</div>`;
     return;
   }
 
   const chartMode = ensureHomeChartMode(games);
-  const row = activeRow ?? rows.find(r => r.mode === chartMode) ?? rows[0];
+  const row = activeRow ?? displayRows.find(r => r.mode === chartMode) ?? displayRows[0];
   const lastGame = getLastGameForMode(games, row.mode);
   const rank = isVal && lastGame
     ? getRank({ endRank: lastGame.endRank, endRR: lastGame.endRR ?? row.mmr })
@@ -160,7 +165,9 @@ function renderDashHero(games, goals, rows, activeRow) {
     ? `${row.mmr} RR · ${row.mode}`
     : `${row.mmr} ${meta.rankLabel} · ${row.mode}`;
 
-  const queueHTML = rows.map(r => {
+  const queueHTML = isVal
+    ? `<span class="dash-queue-static">Competitive</span>`
+    : displayRows.map(r => {
     const wkCls = r.weekGain >= 0 ? 'up' : 'down';
     const wk = `${r.weekGain >= 0 ? '+' : ''}${r.weekGain}`;
     return `
@@ -180,7 +187,7 @@ function renderDashHero(games, goals, rows, activeRow) {
             <div class="dash-hero-emblem-glow" aria-hidden="true"></div>
             <div class="dash-hero-emblem">${rankBadgeHTML(
               isVal && lastGame ? { endRank: lastGame.endRank, endRR: lastGame.endRR ?? row.mmr } : row.mmr,
-              48,
+              isVal ? 56 : 48,
               row.mode,
               state.activeGame,
             )}</div>
@@ -431,7 +438,8 @@ export function renderHomeFocus(games) {
   if (!el) return;
 
   const isVal = state.activeGame === GAME_IDS.VALORANT;
-  const focusLabel = isVal ? 'Mission Brief' : "Today's Focus";
+  const focusLabel = isVal ? "Today's Mission" : "Today's Focus";
+  const featuredClass = ' home-focus-card-featured';
   const emptyHint = isVal
     ? 'Log matches and tag losses — your biggest leak shows up here.'
     : 'Log a few games and tag losses — your top mistake shows up here.';
@@ -441,7 +449,7 @@ export function renderHomeFocus(games) {
 
   if (games.length < 2) {
     el.innerHTML = `
-      <div class="home-focus-card home-focus-card-empty dash-section v0-glass">
+      <div class="home-focus-card home-focus-card-empty dash-section v0-glass${featuredClass}">
         <span class="home-focus-label">${focusLabel}</span>
         <p class="home-focus-empty-text">${emptyHint}</p>
       </div>`;
@@ -452,7 +460,7 @@ export function renderHomeFocus(games) {
   const top = correlations.find(c => c.inLosses >= 1) ?? null;
   if (!top) {
     el.innerHTML = `
-      <div class="home-focus-card home-focus-card-empty dash-section v0-glass">
+      <div class="home-focus-card home-focus-card-empty dash-section v0-glass${featuredClass}">
         <span class="home-focus-label">${focusLabel}</span>
         <p class="home-focus-empty-text">${tagEmpty}</p>
       </div>`;
@@ -466,7 +474,7 @@ export function renderHomeFocus(games) {
   const tip = getActionFocusTips(state.activeGame)[top.tag] ?? 'Slow down and review before you queue again.';
 
   el.innerHTML = `
-    <div class="home-focus-card dash-section v0-glass">
+    <div class="home-focus-card dash-section v0-glass${featuredClass}">
       <div class="home-focus-card-head">
         <span class="home-focus-label">${focusLabel}</span>
         <a href="#" class="home-focus-more" data-goto="focus">Details →</a>
@@ -552,17 +560,19 @@ export function getHomeChartGames(games) {
 }
 
 export function renderHome(games, goals) {
-  const rows = getPlaylistMMRRows(games, state.activeGame);
+  const allRows = getPlaylistMMRRows(games, state.activeGame);
+  const isVal = state.activeGame === GAME_IDS.VALORANT;
+  const rows = isVal ? allRows.filter(r => r.mode === 'Competitive') : allRows;
   const chartMode = ensureHomeChartMode(games);
   const activeRow = rows.find(r => r.mode === chartMode) ?? rows[0];
 
   renderHomeSummary(games, goals);
   renderDashHero(games, goals, rows, activeRow);
+  renderHomeContext(games);
+  renderHomeFocus(games);
   renderDashRankProgress(activeRow, goals, games);
   renderDashQuickActions();
   renderDashPerfStats(getHomeChartGames(games));
-  renderHomeContext(games);
-  renderHomeFocus(games);
   renderHomeActivity(games);
 }
 

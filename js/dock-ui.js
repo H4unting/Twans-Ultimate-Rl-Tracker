@@ -43,6 +43,9 @@ function renderDockModePills(gameId) {
 
   const playlists = getPlaylists(gameId).filter(p => p.mode);
   const activeMode = getLastModeForGame(gameId);
+  const modeRow = wrap.closest('.quick-dock-mode');
+  const singleMode = gameId === GAME_IDS.VALORANT && playlists.length <= 1;
+  if (modeRow) modeRow.classList.toggle('hidden', singleMode);
   wrap.innerHTML = playlists.map(p => `
     <button type="button" data-mode="${p.mode}" class="${p.mode === activeMode ? 'active' : ''}">${p.label}</button>
   `).join('');

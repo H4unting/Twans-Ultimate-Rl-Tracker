@@ -44,7 +44,7 @@ async function onGameSwitchClick(e) {
     setActiveGame(next);
     routeActiveGame(next);
     savePrefs({ activeGame: next });
-    state.playlist = 'all';
+    state.playlist = next === GAME_IDS.VALORANT ? 'comp' : 'all';
     state.filters = { ...DEFAULT_FILTERS };
     state.matchLogFilters = { ...DEFAULT_FILTERS };
     resetQuickFilter();
@@ -88,6 +88,10 @@ export function applyGameShell(gameId = state.activeGame) {
   document.body.dataset.activeGame = gameId;
   document.body.classList.toggle('theme-valorant', gameId === GAME_IDS.VALORANT);
   document.body.classList.toggle('theme-rocket-league', gameId === GAME_IDS.ROCKET_LEAGUE);
+
+  if (gameId === GAME_IDS.VALORANT && (!state.playlist || state.playlist === 'all')) {
+    state.playlist = 'comp';
+  }
 
   document.title = gameId === GAME_IDS.VALORANT
     ? 'Twans VAL Tracker'
@@ -232,6 +236,11 @@ export function syncFullLogForm(gameId = state.activeGame) {
     const activeMode = loadPrefs().lastModes?.[gameId] ?? loadPrefs().lastMode;
     fMode.innerHTML = playlists.map(p => `<option value="${p.mode}">${p.label}</option>`).join('');
     fMode.value = playlists.some(p => p.mode === activeMode) ? activeMode : (playlists[0]?.mode ?? activeMode);
+    const modeGroup = fMode.closest('.form-group');
+    if (modeGroup) {
+      modeGroup.classList.toggle('hidden', isVal && playlists.length <= 1);
+    }
+    if (isVal && playlists.length <= 1) fMode.value = 'Competitive';
   }
 
   const labelMap = isVal

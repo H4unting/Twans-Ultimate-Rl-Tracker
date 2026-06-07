@@ -302,11 +302,16 @@ body:not(.logged-out) .top-bar > .review-sub-nav:not(.v0-sidebar-sub) { display:
   gap: 20px;
 }
 
-.dash-hero-emblem-wrap { position: relative; flex-shrink: 0; }
+.dash-hero-emblem-wrap {
+  position: relative;
+  flex-shrink: 0;
+  padding: 10px;
+  overflow: visible;
+}
 
 .dash-hero-emblem-glow {
   position: absolute;
-  inset: 0;
+  inset: 10px;
   border-radius: 16px;
   opacity: 0.5;
   filter: blur(20px);
@@ -315,31 +320,37 @@ body:not(.logged-out) .top-bar > .review-sub-nav:not(.v0-sidebar-sub) { display:
 
 .dash-hero-emblem {
   position: relative;
-  width: 96px;
-  height: 96px;
+  width: 112px;
+  height: 112px;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .dash-hero-emblem .rank-badge {
   flex-direction: column;
   align-items: center;
   gap: 0;
-  padding: 0;
+  padding: 4px;
   border: none;
   background: transparent;
   max-width: 100%;
+  overflow: visible;
 }
 
 .dash-hero-emblem .rank-icon {
   display: block;
-  width: 100% !important;
+  width: auto !important;
   height: auto !important;
-  max-width: 96px;
-  max-height: 96px;
+  max-width: 104px;
+  max-height: 104px;
   object-fit: contain;
+}
+
+.dash-hero-emblem .rank-badge:hover .rank-icon {
+  transform: none;
+  filter: brightness(1.12) drop-shadow(0 4px 14px rgba(0, 0, 0, 0.45));
 }
 
 .dash-hero-emblem .rank-badge-name,
@@ -348,8 +359,58 @@ body:not(.logged-out) .top-bar > .review-sub-nav:not(.v0-sidebar-sub) { display:
 }
 
 @media (min-width: 768px) {
-  .dash-hero-emblem { width: 128px; height: 128px; }
-  .dash-hero-emblem .rank-icon { max-width: 128px; max-height: 128px; }
+  .dash-hero-emblem-wrap { padding: 12px; }
+  .dash-hero-emblem { width: 144px; height: 144px; }
+  .dash-hero-emblem .rank-icon { max-width: 132px; max-height: 132px; }
+}
+
+.dash-queue-static {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--v0-primary);
+  border: 1px solid color-mix(in oklch, var(--v0-primary) 35%, transparent);
+  background: color-mix(in oklch, var(--v0-primary) 8%, transparent);
+}
+
+/* Priority row — session + today's focus above the fold */
+.dash-priority-row {
+  display: grid;
+  gap: 16px;
+  margin: 16px 0;
+}
+
+@media (min-width: 900px) {
+  .dash-priority-row {
+    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+    align-items: stretch;
+  }
+}
+
+.dash-focus-slot { min-width: 0; }
+
+.dash-session-featured { min-height: 0; }
+
+.dash-performance-secondary,
+.dash-activity-secondary {
+  opacity: 0.95;
+}
+
+.dash-quick-actions-compact {
+  margin-bottom: 12px;
+}
+
+.dash-quick-actions-compact .dash-action-btn {
+  padding: 10px 12px;
+}
+
+.dash-quick-actions-compact .dash-action-desc {
+  display: none;
 }
 
 .dash-hero-badges {
@@ -928,6 +989,24 @@ body:not(.logged-out) .home-focus-card {
   border-radius: 24px;
   border: 1px solid var(--v0-border);
   background: color-mix(in oklch, var(--v0-card) 80%, transparent);
+  height: 100%;
+  box-sizing: border-box;
+}
+
+body:not(.logged-out) .home-focus-card-featured {
+  border-left: 5px solid var(--v0-primary);
+  padding: 20px 22px 22px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklch, var(--v0-primary) 12%, transparent),
+    color-mix(in oklch, var(--v0-card) 88%, transparent)
+  );
+  box-shadow: 0 0 32px color-mix(in oklch, var(--v0-primary) 12%, transparent);
+}
+
+body:not(.logged-out) .home-focus-card-featured .home-focus-tag-name {
+  font-size: clamp(1.35rem, 2.5vw, 1.65rem);
+  line-height: 1.2;
 }
 
 body:not(.logged-out) .home-focus-label { color: var(--v0-primary); }
