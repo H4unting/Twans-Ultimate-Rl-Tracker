@@ -21,10 +21,18 @@ let visibilityWired = false;
 /** Session token injected by tracker proxy — required for mutating bridge POSTs. */
 let bridgeAuthToken = null;
 const listeners = new Set();
+const reachableListeners = new Set();
+let lastReachableEmitted = false;
 
 export function subscribeBridgeOnline(fn) {
   listeners.add(fn);
   return () => listeners.delete(fn);
+}
+
+export function subscribeBridgeReachable(fn) {
+  reachableListeners.add(fn);
+  fn(isBridgeReachable());
+  return () => reachableListeners.delete(fn);
 }
 
 /** @typedef {'ok'|'wrong_port'|'wrong_server'|'bridge_down'|'unreachable'|'wrong_tracker_alive'} BridgeFailureKind */
@@ -44,7 +52,12 @@ export function isBridgeProcessDetected() {
 async function probeDirectBridge() {
   try {
     const res = await fetch(`http://127.0.0.1:${BRIDGE_PORT}/status`, { signal: AbortSignal.timeout(2000) });
-    return res.ok;
+    if (!res.ok) return false;
+    try {
+      const json = await res.json();
+      if (json.authToken) bridgeAuthToken = json.authToken;
+    } catch { /* ignore */ }
+    return true;
   } catch {
     return false;
   }
@@ -57,8 +70,10 @@ function isOnTrackerPort() {
 }
 
 export function getBridgeUrl() {
+  if (bridgeProcessOnDirectPort) {
+    return `http://127.0.0.1:${BRIDGE_PORT}`;
+  }
   const h = window.location.hostname;
-  const p = window.location.port;
   if (isOnTrackerPort()) {
     return `${window.location.origin}/api/bridge`;
   }
@@ -88,6 +103,20 @@ export function setBridgeOnline(online) {
 
 export function isBridgeUp() {
   return bridgeOnline;
+}
+
+/** True when proxy or direct :49200 /status responds — enough for setup Apply. */
+export function isBridgeReachable() {
+  return bridgeOnline || bridgeProcessOnDirectPort;
+}
+
+function emitReachableIfChanged() {
+  const reachable = isBridgeReachable();
+  if (reachable === lastReachableEmitted) return;
+  lastReachableEmitted = reachable;
+  reachableListeners.forEach(fn => {
+    try { fn(reachable); } catch { /* ignore */ }
+  });
 }
 
 export function isBridgeProbeDone() {
@@ -155,6 +184,7 @@ async function heartbeatTick() {
       }
     } finally {
       bridgeProbeDone = true;
+      emitReachableIfChanged();
       heartbeatPromise = null;
     }
   })();
@@ -184,7 +214,10 @@ export function stopBridgeHeartbeat() {
   heartbeatId = null;
   failStreak = 0;
   lastSuccessAt = 0;
+  bridgeProcessOnDirectPort = false;
+  lastReachableEmitted = false;
   setBridgeOnline(false);
+  emitReachableIfChanged();
 }
 
 /** Game pollers can fetch /status without affecting online state */

@@ -11,6 +11,7 @@ import { applyLocalSetup, getSetupStatus, loadGrindConfig } from './local-setup.
 import {
   applyCors,
   ALLOWED_ORIGINS,
+  isLocalDevOrigin,
   checkRateLimit,
   getBridgeAuthToken,
   initBridgeAuth,
@@ -295,7 +296,7 @@ export function startBridge(options = {}) {
           authRequired: true,
         };
         const origin = req.headers.origin;
-        if (!origin || ALLOWED_ORIGINS.has(origin)) {
+        if (!origin || ALLOWED_ORIGINS.has(origin) || isLocalDevOrigin(origin)) {
           payload.authToken = getBridgeAuthToken();
         }
         res.writeHead(200, { 'Content-Type': 'application/json' });

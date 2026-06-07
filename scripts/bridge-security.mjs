@@ -122,9 +122,18 @@ export function sendRateLimited(res, retryAfterSec = 60) {
   res.end(JSON.stringify({ ok: false, error: 'Too many requests', retryAfter: retryAfterSec }));
 }
 
+export function isLocalDevOrigin(origin) {
+  try {
+    const u = new URL(origin);
+    return u.protocol === 'http:' && (u.hostname === 'localhost' || u.hostname === '127.0.0.1');
+  } catch {
+    return false;
+  }
+}
+
 export function applyCors(req, res) {
   const origin = req.headers.origin;
-  if (origin && ALLOWED_ORIGINS.has(origin)) {
+  if (origin && (ALLOWED_ORIGINS.has(origin) || isLocalDevOrigin(origin))) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
   }

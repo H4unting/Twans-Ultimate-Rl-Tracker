@@ -11,6 +11,7 @@
 
 
 import http from 'http';
+import net from 'net';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
