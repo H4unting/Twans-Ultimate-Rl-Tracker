@@ -1,0 +1,56 @@
+TWANS VAL AUTO-LOG — OVERWOLF SETUP
+===================================
+
+WRONG FOLDER = "missing manifest.json" ERROR
+--------------------------------------------
+Overwolf needs THIS folder (the one containing manifest.json and this file).
+Do NOT select Desktop, Downloads, or the tracker repo root.
+
+If Overwolf shows an error path like:
+  C:\Users\...\Desktop
+you picked the Desktop PARENT folder, not this subfolder.
+
+
+EASIEST FIX
+-----------
+1. Double-click "Load Overwolf Extension.bat" at the tracker repo root
+   (same folder as Valorant Tracker.bat).
+
+   OR double-click OPEN-THIS-FOLDER.bat in this folder.
+
+2. Explorer opens HERE with manifest.json highlighted.
+   The full path is copied to your clipboard.
+
+3. In Overwolf:
+   Settings → Support → Development options → Load unpacked extension
+
+4. Either:
+   - Paste the clipboard path into the folder picker, OR
+   - Navigate to the open Explorer window and select THIS folder
+
+5. Enable "Twans Val Auto-Log" in Overwolf (Library or apps tray).
+
+6. Keep Valorant Tracker.bat running while you play.
+
+
+IF YOU ALREADY TRIED AND FAILED
+-------------------------------
+Overwolf may remember the wrong Desktop path.
+
+1. Overwolf → Settings → Support → Development options
+2. Remove / uninstall the broken extension entry
+3. Run Load Overwolf Extension.bat again
+4. Load unpacked extension and select THIS folder
+
+
+EXACT PATH (your machine)
+---------------------------
+Replace with your tracker location + \integrations\overwolf
+
+Example if tracker is in your user folder:
+  C:\Users\H4unt\rl-grind-tracker\integrations\overwolf
+
+Example if tracker is on Desktop:
+  C:\Users\H4unt\OneDrive\Desktop\rl-grind-tracker\integrations\overwolf
+
+The folder you select MUST contain manifest.json (visible in Explorer).

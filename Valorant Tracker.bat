@@ -13,10 +13,17 @@ echo.
 echo  Starting tracker on http://localhost:8080 ...
 echo  Use THAT tab for auto-log (not Live Server / GitHub Pages).
 echo.
-echo  Overwolf extension folder:
-echo    %~dp0integrations\overwolf
-echo  Double-click OPEN-THIS-FOLDER.bat there when loading in Overwolf.
+echo  FIRST TIME — load Overwolf extension:
+echo    Double-click "Load Overwolf Extension.bat" in this folder.
+echo    (Opens integrations\overwolf, copies path, shows instructions.)
 echo.
+echo  Overwolf folder: %~dp0integrations\overwolf
+echo  If error shows Desktop path, you picked the wrong folder.
+echo.
+
+if exist "%~dp0integrations\overwolf\manifest.json" (
+  start "" explorer /select,"%~dp0integrations\overwolf\manifest.json"
+)
 
 where node >nul 2>&1
 if errorlevel 1 (

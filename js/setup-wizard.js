@@ -83,7 +83,7 @@ function renderOverwolfStep(stepNum = 2, overwolfLinked = false) {
               <code class="setup-ow-path" id="setup-ow-path">integrations/overwolf</code>
               <button type="button" class="btn btn-secondary setup-ow-copy" id="setup-ow-copy-path">Copy path</button>
             </div>
-            <p class="setup-hint setup-ow-folder-tip">Wrong folder causes &ldquo;missing manifest.json&rdquo;. Run <code>integrations/overwolf/OPEN-THIS-FOLDER.bat</code> to open the correct folder.</p>
+            <p class="setup-hint setup-ow-folder-tip">Run <code>Load Overwolf Extension.bat</code> at the repo root (copies path, opens the correct folder). If the error shows a <strong>Desktop</strong> path like <code>C:\Users\…\Desktop</code>, you picked the wrong folder — remove the broken extension in Overwolf Development options, then run <code>Load Overwolf Extension.bat</code> again.</p>
           </li>
           <li>In Overwolf, enable <strong>Twans Val Auto-Log</strong> (Library or apps tray)</li>
           <li>Keep <code>Valorant Tracker.bat</code> running — Overwolf sends matches to the local bridge</li>
