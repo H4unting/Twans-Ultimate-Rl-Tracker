@@ -881,9 +881,11 @@ function wireGoogleSignIn() {
 }
 
 import { maybeEnableQaFromUrl, wireDevModeShortcut } from './qa/qa-gate.js';
+import { installGlobalErrorHandlers } from './core/error-log.js';
 
 async function init() {
   window.__appBootstrapped = true;
+  installGlobalErrorHandlers();
   try {
     maybeEnableQaFromUrl();
     wireDevModeShortcut(() => {

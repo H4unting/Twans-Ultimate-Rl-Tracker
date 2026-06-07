@@ -6,6 +6,7 @@ import { getPerformanceInsights } from './insights.js';
 import { rankBadgeHTML } from './ranks.js';
 import { loadGroupMembers, loadMemberGames } from './supabase.js';
 import { showToast } from './ui.js';
+import { escapeHtml, escapeAttr, sanitizeImageUrl } from './core/dom-safe.js';
 import { state } from './state.js';
 import { GAME_IDS, getGameMeta, filterGamesByTitle } from './games.js';
 
@@ -52,11 +53,13 @@ function parseRpcError(err) {
 }
 
 function avatarHTML(member, size = 32) {
-  if (member.avatar_url) {
-    return `<img class="group-avatar" src="${member.avatar_url}" alt="" width="${size}" height="${size}">`;
+  const safeUrl = sanitizeImageUrl(member.avatar_url);
+  if (safeUrl) {
+    return `<img class="group-avatar" src="${escapeAttr(safeUrl)}" alt="" width="${size}" height="${size}">`;
   }
-  const initial = (member.display_name || '?')[0].toUpperCase();
-  return `<span class="group-avatar group-avatar-fallback" style="background:${member.accent_color}">${initial}</span>`;
+  const initial = escapeHtml((member.display_name || '?')[0].toUpperCase());
+  const color = escapeAttr(member.accent_color || '#888');
+  return `<span class="group-avatar group-avatar-fallback" style="background:${color}">${initial}</span>`;
 }
 
 function statMiniHTML(stats, games) {
@@ -113,14 +116,14 @@ async function renderWeeklySnapshot(members, userId) {
     if (week.empty) {
       return `<div class="group-week-card">
         ${avatarHTML(member, 24)}
-        <span class="group-week-name">${member.display_name}</span>
+        <span class="group-week-name">${escapeHtml(member.display_name)}</span>
         <span class="group-week-empty">No ${squadCopy().matchLabel} this week</span>
       </div>`;
     }
     const wrClass = week.winRate >= 50 ? 'green' : 'red';
     return `<div class="group-week-card">
       ${avatarHTML(member, 24)}
-      <span class="group-week-name">${member.display_name}</span>
+      <span class="group-week-name">${escapeHtml(member.display_name)}</span>
       <span class="group-week-stat">${week.games}g · <span class="${wrClass}">${week.winRate}%</span></span>
       <span class="group-week-stat ${week.mmrGain >= 0 ? 'green' : 'red'}">${week.mmrGain >= 0 ? '+' : ''}${week.mmrGain} ${squadCopy().meta.diffLabel}</span>
     </div>`;
@@ -146,7 +149,7 @@ async function loadMemberDetail(groupId, member, myRole) {
       <div class="group-member-detail-head">
         ${avatarHTML(member, 40)}
         <div>
-          <h3 style="color:${member.accent_color}">${member.display_name}</h3>
+          <h3 style="color:${escapeAttr(member.accent_color || '#fff')}">${escapeHtml(member.display_name)}</h3>
           <div class="coach-sub">${roleLabel(member.role)} · ${stats.totalGames} ${copy.matchLabel} logged · ${copy.isVal ? 'Valorant' : 'Rocket League'}</div>
         </div>
       </div>
@@ -237,7 +240,7 @@ function renderSquadDetail(group, members, myRole, userId, memberDetailHTML, wee
         ${viewable ? '' : 'disabled'}
         title="${viewable ? 'View stats' : 'Coaches cannot view other coaches'}">
         ${avatarHTML(m, 28)}
-        <span class="group-roster-name">${m.display_name}${isSelf ? ' (you)' : ''}</span>
+        <span class="group-roster-name">${escapeHtml(m.display_name)}${isSelf ? ' (you)' : ''}</span>
         <span class="group-role-badge sm">${roleLabel(m.role)}</span>
         ${viewable ? '<span class="group-view-stat">View →</span>' : ''}
       </button>`;
@@ -247,12 +250,12 @@ function renderSquadDetail(group, members, myRole, userId, memberDetailHTML, wee
     <div class="group-detail">
       <div class="group-detail-head">
         <div class="group-detail-title">
-          <h3>${group.name}</h3>
+          <h3>${escapeHtml(group.name)}</h3>
           <div class="group-invite-strip">
             <span class="group-invite-label">Invite code</span>
-            <code class="group-code-lg">${group.invite_code}</code>
-            <button class="btn-copy" type="button" data-copy-code="${group.invite_code}">Copy code</button>
-            <button class="btn-copy btn-share" type="button" data-share-code="${group.invite_code}" data-share-name="${group.name}">Share invite</button>
+            <code class="group-code-lg">${escapeHtml(group.invite_code)}</code>
+            <button class="btn-copy" type="button" data-copy-code="${escapeAttr(group.invite_code)}">Copy code</button>
+            <button class="btn-copy btn-share" type="button" data-share-code="${escapeAttr(group.invite_code)}" data-share-name="${escapeAttr(group.name)}">Share invite</button>
           </div>
         </div>
         <button class="btn btn-cancel btn-sm group-leave-btn" type="button" id="group-leave-btn" data-group-id="${id}">Leave squad</button>

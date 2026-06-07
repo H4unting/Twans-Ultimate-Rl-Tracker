@@ -8,6 +8,7 @@ import { setSyncStatus } from './state.js';
 import { DEFAULT_GOALS } from './goals.js';
 import { getAccessToken, getAuthUser } from './auth.js';
 import { DEFAULT_GAME, GAME_IDS } from './games.js';
+import { logError } from './core/error-log.js';
 
 /** Set from loadProfile — avoids PATCHing columns that are not in Supabase yet */
 let profileSchemaExtended = false;
@@ -322,8 +323,8 @@ export async function loadSettings() {
       rankBaselines: data.rankBaselines ?? {},
       rankBaselinesComplete: Boolean(data.rankBaselinesComplete),
     };
-  } catch {
-    /* table may not exist yet */
+  } catch (e) {
+    logError('loadSettings', e);
   }
   return {
     goals: { ...DEFAULT_GOALS },

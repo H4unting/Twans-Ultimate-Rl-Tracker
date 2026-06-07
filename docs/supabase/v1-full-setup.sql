@@ -5,28 +5,11 @@
 --   schema.sql, auth-schema.sql, multi-game.sql, groups-schema.sql,
 --   profile-customization.sql, avatar-storage.sql, sync-matches.sql
 --
+-- Legacy app_settings is NOT created here (removed P0 — use drop-app-settings.sql on existing DBs).
 -- Optional (founder-only): claim-founder-uid.sql — see bottom comment block.
 
 -- ═══════════════════════════════════════════════════════════════════════════════
--- 1. Legacy app_settings (unused by current app; kept for compatibility)
--- ═══════════════════════════════════════════════════════════════════════════════
-CREATE TABLE IF NOT EXISTS app_settings (
-  id bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-  data jsonb NOT NULL DEFAULT '{}',
-  updated_at timestamptz DEFAULT now()
-);
-
-ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Allow anon read/write app_settings" ON app_settings;
-CREATE POLICY "Allow anon read/write app_settings" ON app_settings
-  FOR ALL USING (true) WITH CHECK (true);
-
-INSERT INTO app_settings (data)
-SELECT '{"goals":{}}'::jsonb
-WHERE NOT EXISTS (SELECT 1 FROM app_settings);
-
--- ═══════════════════════════════════════════════════════════════════════════════
--- 2. Matches (normalized — one row per game)
+-- 1. Matches (normalized — one row per game)
 -- ═══════════════════════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS matches (
   id bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
@@ -52,7 +35,7 @@ CREATE INDEX IF NOT EXISTS idx_matches_played_at ON matches (played_at);
 CREATE INDEX IF NOT EXISTS idx_matches_session ON matches (player, session);
 
 -- ═══════════════════════════════════════════════════════════════════════════════
--- 3. Auth profiles + user_settings
+-- 2. Auth profiles + user_settings
 -- ═══════════════════════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS profiles (
   id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -121,7 +104,7 @@ ALTER TABLE matches ALTER COLUMN player DROP NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_matches_user_id ON matches (user_id);
 
 -- ═══════════════════════════════════════════════════════════════════════════════
--- 4. Multi-game columns (RL + Valorant)
+-- 3. Multi-game columns (RL + Valorant)
 -- ═══════════════════════════════════════════════════════════════════════════════
 ALTER TABLE matches
   ADD COLUMN IF NOT EXISTS game text NOT NULL DEFAULT 'rocket_league'
@@ -143,7 +126,7 @@ CREATE INDEX IF NOT EXISTS idx_matches_user_game_played
   ON matches (user_id, game, played_at DESC);
 
 -- ═══════════════════════════════════════════════════════════════════════════════
--- 5. Squads (groups) + RLS helpers (no recursion)
+-- 4. Squads (groups) + RLS helpers (no recursion)
 -- ═══════════════════════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS groups (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -294,7 +277,7 @@ GRANT EXECUTE ON FUNCTION public.join_grind_squad(text, text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.leave_grind_squad(uuid) TO authenticated;
 
 -- ═══════════════════════════════════════════════════════════════════════════════
--- 6. Avatar storage bucket
+-- 5. Avatar storage bucket
 -- ═══════════════════════════════════════════════════════════════════════════════
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES ('avatars', 'avatars', true, 2097152, ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/gif'])

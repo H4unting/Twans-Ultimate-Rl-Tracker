@@ -2,21 +2,9 @@
 -- Run this entire file once in Supabase → SQL Editor.
 -- The app auto-detects the matches table and migrates data from Tracker.
 
--- ── Settings (goals sync across devices) ──────────────────────────────────────
-CREATE TABLE IF NOT EXISTS app_settings (
-  id bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-  data jsonb NOT NULL DEFAULT '{}',
-  updated_at timestamptz DEFAULT now()
-);
-
-ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Allow anon read/write app_settings" ON app_settings;
-CREATE POLICY "Allow anon read/write app_settings" ON app_settings
-  FOR ALL USING (true) WITH CHECK (true);
-
-INSERT INTO app_settings (data)
-SELECT '{"goals":{}}'::jsonb
-WHERE NOT EXISTS (SELECT 1 FROM app_settings);
+-- ── Settings (per-user — replaces legacy app_settings) ───────────────────────
+-- Legacy app_settings was removed (P0). Do not recreate it.
+-- If upgrading an old database, run docs/supabase/drop-app-settings.sql first.
 
 -- ── Normalized matches (one row per game) ─────────────────────────────────────
 CREATE TABLE IF NOT EXISTS matches (

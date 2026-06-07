@@ -6,6 +6,7 @@ import {
   valRankStartCellHTML, valRankEndCellHTML, resolveValorantMatchDisplayRanks,
 } from './games/valorant/ranks.js';
 import { calcStats } from './utils.js';
+import { escapeHtml, escapeAttr, sanitizeImageUrl } from './core/dom-safe.js';
 import { getGoalProgress } from './goals.js';
 import { getUniqueSessions } from './filters.js';
 import { state, getActiveGames } from './state.js';
@@ -38,7 +39,7 @@ export function setSyncUI(status) {
 
 export function renderInlineTags(tags, gameId = state.activeGame) {
   if (!tags?.length) return '';
-  return tags.map(t => `<span class="inline-tag ${getTagCat(t, gameId)}">${t}</span>`).join('');
+  return tags.map(t => `<span class="inline-tag ${getTagCat(t, gameId)}">${escapeHtml(t)}</span>`).join('');
 }
 
 export function renderTagChips(containerId, selectedTags, onToggle, gameId = state.activeGame) {
@@ -131,7 +132,7 @@ export function renderLog(tableId, games, limit, editable = false, gameId = stat
       const startCell = valRankStartCellHTML(d.startRank, d.startRR);
       const endCell = valRankEndCellHTML(d.endRank, d.endRR, d.startRank);
       const noteHtml = g.notes
-        ? `<div class="note-cell" title="${String(g.notes).replace(/"/g, '&quot;')}">${g.notes}</div>`
+        ? `<div class="note-cell" title="${escapeAttr(g.notes)}">${escapeHtml(g.notes)}</div>`
         : '';
       return `
       <tr>
@@ -162,7 +163,7 @@ export function renderLog(tableId, games, limit, editable = false, gameId = stat
       const startRank = getGameRankStart(g, gameId);
       const endRank = getRankValue(g, gameId);
       const noteHtml = g.notes
-        ? `<div class="note-cell" title="${String(g.notes).replace(/"/g, '&quot;')}">${g.notes}</div>`
+        ? `<div class="note-cell" title="${escapeAttr(g.notes)}">${escapeHtml(g.notes)}</div>`
         : '';
       return `
       <tr>
@@ -185,13 +186,14 @@ export function renderLog(tableId, games, limit, editable = false, gameId = stat
 export function renderAuthBar(display, onSignOut, onProfileClick) {
   const el = document.getElementById('user-bar');
   if (!el) return;
-  const avatar = display.avatar
-    ? `<img class="user-avatar" src="${display.avatar}" alt="">`
-    : `<span class="user-avatar user-avatar-fallback">${display.name.charAt(0)}</span>`;
+  const safeAvatar = sanitizeImageUrl(display.avatar);
+  const avatar = safeAvatar
+    ? `<img class="user-avatar" src="${escapeAttr(safeAvatar)}" alt="">`
+    : `<span class="user-avatar user-avatar-fallback">${escapeHtml(display.name.charAt(0))}</span>`;
   el.innerHTML = `
     <button type="button" class="user-bar-profile" id="user-bar-profile" aria-label="Open profile">
       ${avatar}
-      <span class="user-name">${display.name}</span>
+      <span class="user-name">${escapeHtml(display.name)}</span>
       <span class="user-bar-caret" aria-hidden="true">▼</span>
     </button>
     <button class="btn-signout" type="button" id="sign-out-btn">Sign out</button>`;

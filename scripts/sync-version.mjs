@@ -19,4 +19,19 @@ let html = fs.readFileSync(htmlPath, 'utf8');
 html = html.replace(/\?v=[^"']+/g, `?v=${cache}`);
 fs.writeFileSync(htmlPath, html);
 
+const versionJsPath = path.join(root, 'js/core/version.js');
+if (fs.existsSync(versionJsPath)) {
+  let versionJs = fs.readFileSync(versionJsPath, 'utf8');
+  versionJs = versionJs.replace(
+    /export const APP_VERSION = '[^']*';/,
+    `export const APP_VERSION = '${version.app}';`,
+  );
+  versionJs = versionJs.replace(
+    /export const CACHE_BUST = '[^']*';/,
+    `export const CACHE_BUST = '${cache}';`,
+  );
+  fs.writeFileSync(versionJsPath, versionJs);
+  console.log(`Updated js/core/version.js → app ${version.app}, cache ${cache}`);
+}
+
 console.log(`Cache bust synced → ?v=${cache} (app ${version.app})`);
