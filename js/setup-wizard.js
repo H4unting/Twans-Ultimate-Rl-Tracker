@@ -1,7 +1,7 @@
 /** In-app setup wizard for auto stats + quick log workflow */
 
 import { loadPrefs, savePrefs } from './quicklog.js';
-import { isBridgeUp, getRlDisplayName, saveRlDisplayName, applyBridgeSetup, fetchBridgeSetupStatus } from './rl-live.js';
+import { getRlDisplayName, saveRlDisplayName, applyBridgeSetup, fetchBridgeSetupStatus } from './rl-live.js';
 import { refreshValorantStatus } from './valorant-live.js';
 import { getAuthUser } from './auth.js';
 import { getUserDisplay, state } from './state.js';
@@ -10,7 +10,15 @@ import { showToast } from './ui.js';
 import { refreshBridgeStatusUI, getCachedValorantStatus } from './bridge-ui.js';
 import { DESKTOP_APP, getDesktopLauncher } from './config.js';
 import { clearGameHistory } from './matches.js';
-import { getBridgeUrl, bridgeFetch } from './bridge-client.js';
+import {
+  getBridgeUrl,
+  bridgeFetch,
+  isBridgeReachable,
+  isBridgeUp,
+  getLastBridgeFailure,
+  isBridgeProcessDetected,
+} from './bridge-client.js';
+import { getLocalTrackerUrl } from './env.js';
 import { openRankSetupModal } from './rank-setup-ui.js';
 
 const SETUP_KEY = 'rl-grind-setup';
@@ -111,6 +119,16 @@ function renderOverwolfOptionalSection(overwolfLinked = false) {
     </details>`;
 }
 
+function isWrongTrackerTab() {
+  const failure = getLastBridgeFailure();
+  return failure === 'wrong_tracker_alive'
+    || (failure === 'wrong_server' && isBridgeProcessDetected());
+}
+
+function bridgeReadyForSetup() {
+  return isBridgeReachable();
+}
+
 function isValorantAutoLogReady(bridge, valStatus = getCachedValorantStatus()) {
   if (!bridge) return false;
   if (valStatus?.overwolfConnected) return true;
@@ -144,6 +162,8 @@ function renderValPanel(riotIdValue, riotRegionValue, { compact = false, overwol
 function renderBridgeStep(bridge, stepNum = 1, gameId = GAME_IDS.ROCKET_LEAGUE) {
   const launcher = getDesktopLauncher(gameId);
   const isVal = gameId === GAME_IDS.VALORANT;
+  const wrongTab = bridge && isWrongTrackerTab();
+  const trackerUrl = getLocalTrackerUrl();
   return `
     <li class="setup-step${bridge ? ' done' : ''}" data-step="bridge">
       <span class="setup-step-num">${stepNum}</span>
@@ -152,9 +172,17 @@ function renderBridgeStep(bridge, stepNum = 1, gameId = GAME_IDS.ROCKET_LEAGUE) 
         <p>Double-click <code>${launcher}</code> in your tracker folder — leave it running while you play:</p>
         <pre class="setup-code setup-code-highlight" id="setup-bridge-cmd">${launcher}</pre>
         ${isVal
-    ? '<p class="setup-hint">Open <code>http://localhost:8080</code> in the tab the .bat opens — not Live Server, not GitHub Pages.</p>'
+    ? `<p class="setup-hint">Open <code>${trackerUrl}</code> in the tab the .bat opens — not Live Server, not GitHub Pages.</p>`
     : '<p class="setup-hint">Optional: run <code>launcher\\build-bridge.bat</code> once to build <code>' + DESKTOP_APP.exe + '</code> (tray icon, no black window).</p>'}
-        <span class="setup-status-pill${bridge ? ' ok' : ''}" id="setup-bridge-pill">${bridge ? `● ${DESKTOP_APP.name} is running — ready for Apply & Go` : `○ Waiting for ${launcher}…`}</span>
+        ${wrongTab ? `
+        <p class="setup-callout setup-callout-important">Bridge is running, but this tab is not served by <code>${launcher}</code>. Close Live Server on port 8080, restart the .bat, then use the tab it opens.</p>
+        <a href="${trackerUrl}" class="btn btn-secondary" id="setup-open-tracker-tab" target="_blank" rel="noopener">Open correct tracker tab</a>
+        ` : ''}
+        <span class="setup-status-pill${bridge ? ' ok' : ''}" id="setup-bridge-pill">${wrongTab
+    ? `● Bridge running — open ${trackerUrl} for auto-log`
+    : bridge
+      ? `● ${DESKTOP_APP.name} is running — ready for Apply & Go`
+      : `○ Waiting for ${launcher}…`}</span>
       </div>
     </li>`;
 }
@@ -252,13 +280,13 @@ export function renderSetupWizard(displayName = '') {
   const quickPrefs = loadPrefs();
   const profile = getProfileContext(displayName);
   const rlName = profile.rlName;
-  const bridge = isBridgeUp();
+  const bridge = bridgeReadyForSetup();
   const valStatus = getCachedValorantStatus();
   const overwolfLinked = Boolean(valStatus?.overwolfConnected);
   const riotIdValue = quickPrefs.riotId ?? '';
   const riotRegionValue = quickPrefs.riotRegion ?? 'na';
   const isVal = state.activeGame === GAME_IDS.VALORANT;
-  const allReady = isVal ? isValorantAutoLogReady(bridge, valStatus) : bridge;
+  const allReady = isVal ? isValorantAutoLogReady(isBridgeUp(), valStatus) : isBridgeUp();
   const launcher = getDesktopLauncher(state.activeGame);
   const compact = allReady && prefs.dismissedWhenReady;
 
@@ -421,7 +449,7 @@ async function updateOverwolfSetupUI() {
 
   const pill = document.getElementById('setup-overwolf-pill');
   let status = getCachedValorantStatus();
-  if (isBridgeUp()) {
+  if (bridgeReadyForSetup()) {
     status = (await refreshValorantStatus()) ?? status;
   }
   const linked = Boolean(status?.overwolfConnected);
@@ -434,7 +462,7 @@ async function updateOverwolfSetupUI() {
   }
 
   const pathEl = document.getElementById('setup-ow-path');
-  if (pathEl && isBridgeUp()) {
+  if (pathEl && bridgeReadyForSetup()) {
     try {
       const setup = await fetchBridgeSetupStatus();
       const owPath = setup.paths?.overwolfExtension;
@@ -449,7 +477,7 @@ function wireOverwolfSetupActions() {
   copyBtn.dataset.wired = '1';
   copyBtn.addEventListener('click', async () => {
     let finalPath = '';
-    if (isBridgeUp()) {
+    if (bridgeReadyForSetup()) {
       try {
         const setup = await fetchBridgeSetupStatus();
         finalPath = setup.paths?.overwolfExtension?.trim() || '';
@@ -574,7 +602,7 @@ function wireSetupApplyGo() {
       return;
     }
 
-    if (!isBridgeUp()) {
+    if (!bridgeReadyForSetup()) {
       const launcher = getDesktopLauncher(state.activeGame);
       showToast(`Run ${launcher} first, then click Apply & Go`, 'error');
       return;
@@ -738,8 +766,14 @@ export function refreshSetupWizard(displayName) {
 function updateBridgePill(bridge) {
   const pill = document.getElementById('setup-bridge-pill');
   const launcher = getDesktopLauncher(state.activeGame);
+  const wrongTab = bridge && isWrongTrackerTab();
+  const trackerUrl = getLocalTrackerUrl();
   if (pill) {
-    pill.textContent = bridge ? `● ${DESKTOP_APP.name} is running — you're good` : `○ Waiting for ${launcher}…`;
+    pill.textContent = wrongTab
+      ? `● Bridge running — open ${trackerUrl}`
+      : bridge
+        ? `● ${DESKTOP_APP.name} is running — you're good`
+        : `○ Waiting for ${launcher}…`;
     pill.classList.toggle('ok', bridge);
   }
   if (bridge) {
@@ -755,14 +789,14 @@ function displayNameFromAuth() {
 let bridgeWasUpForSetup = false;
 
 export function onBridgeStatusChange() {
-  const up = isBridgeUp();
-  updateBridgePill(up);
+  const reachable = bridgeReadyForSetup();
+  updateBridgePill(reachable);
   refreshBridgeStatusUI();
   renderLogSetupNudge();
   void updateOverwolfSetupUI();
-  if (up && !bridgeWasUpForSetup) {
+  if (reachable && !bridgeWasUpForSetup) {
     bridgeWasUpForSetup = true;
     refreshSetupWizard(displayNameFromAuth());
   }
-  if (!up) bridgeWasUpForSetup = false;
+  if (!reachable) bridgeWasUpForSetup = false;
 }

@@ -22,7 +22,14 @@ import { initRlLive, stopRlLive, refreshLiveStatus,
   saveRlDisplayName, getRlDisplayName,
 } from './rl-live.js';
 import { initValorantLive, stopValorantLive, refreshValorantStatus } from './valorant-live.js';
-import { startBridgeHeartbeat, stopBridgeHeartbeat, subscribeBridgeOnline, getBridgeUrl, bridgeFetch } from './bridge-client.js';
+import {
+  startBridgeHeartbeat,
+  stopBridgeHeartbeat,
+  subscribeBridgeOnline,
+  subscribeBridgeReachable,
+  getBridgeUrl,
+  bridgeFetch,
+} from './bridge-client.js';
 import { wireBridgeStatusClick, refreshBridgeStatusUI } from './bridge-ui.js';
 import { initGameSwitcher, restoreActiveGameFromPrefs, applyGameShell, applyPageCopy, syncEditModal } from './game-ui.js';
 import { renderSetupWizard, refreshSetupWizard, onBridgeStatusChange, renderLogSetupNudge } from './setup-wizard.js';
@@ -998,6 +1005,7 @@ async function init() {
       onBridgeStatusChange();
       if (online && state.activeGame === GAME_IDS.VALORANT) refreshValorantStatus();
     });
+    subscribeBridgeReachable(() => onBridgeStatusChange());
     wireKeyboardShortcuts();
     document.getElementById('dash-view-all-logs')?.addEventListener('click', () => {
       navigate('log', 'home');

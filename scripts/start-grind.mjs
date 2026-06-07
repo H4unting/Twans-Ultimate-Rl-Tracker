@@ -104,6 +104,54 @@ function openBrowser(url) {
 
 }
 
+function isPortInUse(port, host = '127.0.0.1') {
+  return new Promise((resolve) => {
+    const tester = net.createServer()
+      .once('error', (err) => resolve(err?.code === 'EADDRINUSE'))
+      .once('listening', () => tester.close(() => resolve(false)))
+      .listen(port, host);
+  });
+}
+
+async function probePort8080Occupant() {
+  try {
+    const probe = await fetch(`http://127.0.0.1:${TRACKER_PORT}/api/bridge/status`, {
+      signal: AbortSignal.timeout(1500),
+    });
+    if (probe.ok) return 'tracker_already_running';
+    if (probe.status === 404) return 'wrong_server';
+    return 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+
+function printPort8080BlockedError(occupant = 'unknown') {
+  console.error('');
+  console.error(`  ERROR: Port ${TRACKER_PORT} is already in use.`);
+  if (occupant === 'wrong_server') {
+    console.error('  Another app (often Live Server or npx serve) is on port 8080 WITHOUT the auto-log bridge.');
+  } else if (occupant === 'tracker_already_running') {
+    console.error('  Another tracker window may already be running on port 8080.');
+  } else {
+    console.error('  Another app (often Live Server, VS Code Live Preview, or npx serve) is blocking the tracker.');
+  }
+  console.error('');
+  console.error('  Fix:');
+  console.error('    1. Close Live Server / other dev servers using port 8080');
+  console.error('    2. Close other Valorant Tracker / Rocket League Tracker console windows');
+  if (process.platform === 'win32') {
+    console.error(`    3. Find the process:  netstat -ano | findstr :${TRACKER_PORT}`);
+    console.error('       Then kill it:      taskkill /PID <pid> /F');
+    console.error('       Or run:            Kill-Port-8080.bat');
+  } else {
+    console.error(`    3. Find and kill the process using port ${TRACKER_PORT} (lsof / fuser)`);
+  }
+  console.error('');
+  console.error(`  Then run the .bat again — auto-log requires THIS launcher on ${LOCAL_TRACKER_URL}`);
+  console.error('');
+}
+
 
 
 function isLocalTrackerUrl(url) {
@@ -378,55 +426,56 @@ printLauncherBanner();
 
 if (valLauncherMode) valLauncherLog('Launcher started');
 
-await startBridge({
-  playerName,
-  skipRl: valOnly,
-  manualValPoll: !autoPoll && !valLauncherMode,
-  deferPollMs: valLauncherMode ? 0 : undefined,
-  valLauncherMode,
-  authToken: BRIDGE_AUTH_TOKEN,
-});
+if (await isPortInUse(TRACKER_PORT)) {
+  const occupant = await probePort8080Occupant();
+  printPort8080BlockedError(occupant);
+  process.exit(1);
+}
+
+let bridgeServer = null;
+try {
+  bridgeServer = await startBridge({
+    playerName,
+    skipRl: valOnly,
+    manualValPoll: !autoPoll && !valLauncherMode,
+    deferPollMs: valLauncherMode ? 0 : undefined,
+    valLauncherMode,
+    authToken: BRIDGE_AUTH_TOKEN,
+  });
+} catch (err) {
+  console.error(err?.message || err);
+  process.exit(1);
+}
 
 if (valLauncherMode) valLauncherLog(`Bridge started (port ${BRIDGE_PORT})`);
 
 const tracker = createTrackerServer();
 
-await new Promise((resolve, reject) => {
-
-  tracker.on('error', async (err) => {
-    if (err?.code === 'EADDRINUSE') {
-      console.error('');
-      console.error(`  ERROR: Port ${TRACKER_PORT} is already in use.`);
-      console.error('  Another app (often Live Server or npx serve) is blocking the tracker.');
-      console.error('  Close it, close other Valorant/Rocket League Tracker windows, then run the .bat again.');
-      try {
-        const probe = await fetch(`http://127.0.0.1:${TRACKER_PORT}/api/bridge/status`, { signal: AbortSignal.timeout(1500) });
-        if (probe.status === 404) {
-          console.error(`  Port ${TRACKER_PORT} is serving files WITHOUT the auto-log bridge — that is the wrong server.`);
-        }
-      } catch { /* ignore probe errors */ }
-      console.error(`  Auto-log requires THIS launcher on http://localhost:${TRACKER_PORT}`);
-      console.error('');
-    }
-    reject(err);
+try {
+  await new Promise((resolve, reject) => {
+    tracker.on('error', async (err) => {
+      if (err?.code === 'EADDRINUSE') {
+        const occupant = await probePort8080Occupant();
+        printPort8080BlockedError(occupant);
+      }
+      reject(err);
+    });
+    tracker.listen(TRACKER_PORT, '127.0.0.1', resolve);
   });
-
-  tracker.listen(TRACKER_PORT, '127.0.0.1', resolve);
-
-});
+} catch {
+  bridgeServer?.close?.();
+  process.exit(1);
+}
 
 if (valLauncherMode) valLauncherLog(`Tracker ready (port ${TRACKER_PORT})`);
 
-if (valLauncherMode && skipBrowser) {
-  if (!quiet) {
-    console.log('');
-    console.log('  >>> Open http://localhost:8080 in the tab this opens <<<');
-    console.log('  >>> Keep that tab + this console open while you play <<<');
-    console.log('');
-  }
-  valLauncherLog('Opening tracker tab for client-side auto-log');
-  openBrowser(LOCAL_TRACKER_URL);
+if (!quiet) {
+  console.log('');
+  console.log(`  >>> Opening ${LOCAL_TRACKER_URL} — use this tab for auto-log <<<`);
+  console.log('  >>> Keep that tab + this console open while you play <<<');
+  console.log('');
 }
+openBrowser(LOCAL_TRACKER_URL);
 
 launchGameIfRequested();
 printReadyMessage();
@@ -468,16 +517,4 @@ if (!quiet && !launchRl && !launchVal) {
 
 
 
-if (valOnly && skipBrowser && !valLauncherMode) {
-  setTimeout(() => {
-    if (!quiet) {
-      console.log('');
-      console.log('  >>> Opening tracker in your browser — keep that tab open for auto-log <<<');
-      console.log('');
-    }
-    openBrowser(LOCAL_TRACKER_URL);
-  }, 15000);
-} else if (!skipBrowser) {
-  openBrowser(LOCAL_TRACKER_URL);
-}
 

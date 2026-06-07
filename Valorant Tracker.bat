@@ -20,6 +20,7 @@ echo    4. Turn Auto-log ON in the dock
 echo.
 echo  IMPORTANT: Use http://localhost:8080 from THIS launcher.
 echo  Close Live Server / other apps on port 8080 first.
+echo  Port blocked? Run Kill-Port-8080.bat, then start this .bat again.
 echo.
 
 where node >nul 2>&1
