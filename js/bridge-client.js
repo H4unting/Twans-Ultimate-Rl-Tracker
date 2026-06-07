@@ -27,14 +27,28 @@ export function subscribeBridgeOnline(fn) {
   return () => listeners.delete(fn);
 }
 
+/** @typedef {'ok'|'wrong_port'|'wrong_server'|'bridge_down'|'unreachable'} BridgeFailureKind */
+
+let lastBridgeFailure = /** @type {BridgeFailureKind|null} */ (null);
+
+export function getLastBridgeFailure() {
+  return lastBridgeFailure;
+}
+
+function isOnTrackerPort() {
+  const h = window.location.hostname;
+  const p = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
+  return (h === 'localhost' || h === '127.0.0.1') && p === '8080';
+}
+
 export function getBridgeUrl() {
   const h = window.location.hostname;
   const p = window.location.port;
-  if ((h === 'localhost' || h === '127.0.0.1') && (p === '8080' || p === String(TRACKER_PORT))) {
+  if (isOnTrackerPort()) {
     return `${window.location.origin}/api/bridge`;
   }
   if (h === 'localhost' || h === '127.0.0.1') {
-    return `http://${h}:${BRIDGE_PORT}`;
+    return `http://${h}:8080/api/bridge`;
   }
   return `http://127.0.0.1:${BRIDGE_PORT}`;
 }
@@ -67,9 +81,21 @@ export function isBridgeProbeDone() {
 
 async function pingBridgeOnce() {
   const res = await fetch(`${bridgeBase()}/status`, { signal: AbortSignal.timeout(PING_TIMEOUT_MS) });
-  if (!res.ok) throw new Error('bridge offline');
+  if (res.status === 404 && bridgeBase().includes('/api/bridge')) {
+    lastBridgeFailure = 'wrong_server';
+    throw new Error('wrong_server');
+  }
+  if (res.status === 502) {
+    lastBridgeFailure = 'bridge_down';
+    throw new Error('bridge_down');
+  }
+  if (!res.ok) {
+    lastBridgeFailure = 'unreachable';
+    throw new Error('bridge offline');
+  }
   const json = await res.json();
   if (json.authToken) bridgeAuthToken = json.authToken;
+  lastBridgeFailure = null;
   return json;
 }
 
@@ -99,6 +125,9 @@ async function heartbeatTick() {
     } catch {
       const hidden = document.visibilityState === 'hidden';
       if (!hidden) failStreak += 1;
+      if (!lastBridgeFailure) {
+        lastBridgeFailure = isOnTrackerPort() ? 'unreachable' : 'wrong_port';
+      }
       const age = lastSuccessAt ? Date.now() - lastSuccessAt : Infinity;
       const withinGrace = age < ONLINE_GRACE_MS;
       const withinHiddenGrace = hidden && age < HIDDEN_GRACE_MS;

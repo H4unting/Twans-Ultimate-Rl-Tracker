@@ -389,7 +389,16 @@ const tracker = createTrackerServer();
 
 await new Promise((resolve, reject) => {
 
-  tracker.on('error', reject);
+  tracker.on('error', (err) => {
+    if (err?.code === 'EADDRINUSE') {
+      console.error('');
+      console.error(`  ERROR: Port ${TRACKER_PORT} is already in use.`);
+      console.error('  Close Live Server, npx serve, or other tracker windows, then run the .bat again.');
+      console.error(`  Auto-log requires this launcher on http://localhost:${TRACKER_PORT}`);
+      console.error('');
+    }
+    reject(err);
+  });
 
   tracker.listen(TRACKER_PORT, '127.0.0.1', resolve);
 

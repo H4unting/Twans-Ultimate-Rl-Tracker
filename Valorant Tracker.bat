@@ -10,7 +10,9 @@ echo   Twans Ultimate Tracker
 echo   Valorant Mode
 echo  =================================
 echo.
-echo  Starting tracker...
+echo  Starting tracker on http://localhost:8080 ...
+echo  Use THAT tab for auto-log (not Live Server / GitHub Pages).
+echo.
 
 where node >nul 2>&1
 if errorlevel 1 (
@@ -21,6 +23,12 @@ if errorlevel 1 (
 
 if not exist "scripts\start-grind.mjs" (
   echo ERROR: Missing scripts\start-grind.mjs — run from the full tracker folder.
+  pause
+  exit /b 1
+)
+
+if not exist "index.html" (
+  echo ERROR: Missing index.html — run from the full tracker folder.
   pause
   exit /b 1
 )

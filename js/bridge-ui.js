@@ -2,9 +2,9 @@
 
 import { state } from './state.js';
 import { GAME_IDS, getGameMeta } from './games.js';
-import { isBridgeUp, isBridgeProbeDone, getBridgeUrl } from './bridge-client.js';
+import { isBridgeUp, isBridgeProbeDone, getBridgeUrl, getLastBridgeFailure } from './bridge-client.js';
 import { isAutoLogEnabled, loadPrefs, syncAutoLogToggleUI } from './quicklog.js';
-import { setBridgeHintVisible, needsLocalTrackerForAutoLog, getLocalTrackerUrl, isLocalTrackerHost } from './env.js';
+import { setBridgeHintVisible, needsLocalTrackerForAutoLog, getLocalTrackerUrl, isLocalTrackerHost, isWrongLocalPort } from './env.js';
 import { DESKTOP_APP, getDesktopLauncher } from './config.js';
 
 let cachedValStatus = null;
@@ -52,7 +52,7 @@ export function refreshBridgeStatusUI() {
   const launcher = getDesktopLauncher(isVal ? GAME_IDS.VALORANT : GAME_IDS.ROCKET_LEAGUE);
 
   if (!up) {
-    if (!isBridgeProbeDone() && isLocalTrackerHost()) {
+    if (!isBridgeProbeDone() && (isLocalTrackerHost() || isWrongLocalPort())) {
       el.textContent = 'Connecting…';
       el.title = `Looking for ${DESKTOP_APP.name} on this PC…`;
       el.dataset.bridgeState = 'connecting';
@@ -61,7 +61,9 @@ export function refreshBridgeStatusUI() {
       return;
     }
     el.textContent = 'Auto-log off';
-    if (needsLocalTrackerForAutoLog()) {
+    if (isWrongLocalPort()) {
+      el.title = `Open ${getLocalTrackerUrl()} — auto-log does not work from this port`;
+    } else if (needsLocalTrackerForAutoLog()) {
       el.title = `Auto-log only works on this PC — open ${getLocalTrackerUrl()} while ${launcher} is running`;
     } else {
       el.title = isVal
@@ -188,29 +190,53 @@ function updateDesktopAppBanner(isVal, appUp, valStatus) {
 
   const launcher = getDesktopLauncher(isVal ? GAME_IDS.VALORANT : GAME_IDS.ROCKET_LEAGUE);
 
-  if (!appUp && needsLocalTrackerForAutoLog()) {
-    banner.classList.remove('hidden');
-    badge.textContent = 'Use local tracker';
-    p.innerHTML = `Auto-log can't connect from this bookmark. On your gaming PC, open `
-      + `<a href="${getLocalTrackerUrl()}" class="btn-link">${getLocalTrackerUrl()}</a> `
-      + `with <code>${launcher}</code> running (same stats — sign in once).`;
-    return;
-  }
-
   if (!appUp) {
-    if (!isBridgeProbeDone() && isLocalTrackerHost()) {
+    if (!isBridgeProbeDone() && (isLocalTrackerHost() || isWrongLocalPort())) {
       banner.classList.add('hidden');
       return;
     }
     banner.classList.remove('hidden');
     badge.textContent = 'Auto-log off';
+    const setupLink = '<button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>';
+    const localUrl = getLocalTrackerUrl();
+
+    if (isWrongLocalPort()) {
+      p.innerHTML = `Wrong tab — auto-log only works at `
+        + `<a href="${localUrl}" class="btn-link">${localUrl}</a>. `
+        + `Run <code>${launcher}</code>, use the tab it opens (or click the link), not Live Server / another port. `
+        + setupLink;
+      return;
+    }
+
+    if (needsLocalTrackerForAutoLog()) {
+      p.innerHTML = `Auto-log can't connect from this bookmark. On your gaming PC, open `
+        + `<a href="${localUrl}" class="btn-link">${localUrl}</a> `
+        + `with <code>${launcher}</code> running (same stats — sign in once).`;
+      return;
+    }
+
+    const failure = getLastBridgeFailure();
+    if (failure === 'wrong_server') {
+      p.innerHTML = `Port 8080 is serving files without the auto-log bridge — close Live Server, `
+        + `<code>npx serve</code>, or other apps on port 8080, then restart <code>${launcher}</code>. `
+        + setupLink;
+      return;
+    }
+    if (failure === 'bridge_down') {
+      p.innerHTML = `Tracker is up but the bridge on port 49200 is not running — check the `
+        + `<code>${launcher}</code> console for errors (often a stale bridge window). `
+        + `<a href="${localUrl}/api/bridge/status" class="btn-link" target="_blank" rel="noopener">test bridge</a> · `
+        + setupLink;
+      return;
+    }
+
     p.innerHTML = isLocalTrackerHost()
       ? `Bridge not connected — keep <code>${launcher}</code> open, then `
         + `<a href="${window.location.origin}/api/bridge/status" class="btn-link" target="_blank" rel="noopener">test bridge</a> `
-        + 'or hard refresh (Ctrl+F5). '
-        + '<button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>'
+        + `(should show JSON, not 404). Hard refresh (Ctrl+F5). `
+        + setupLink
       : `Run <code>${launcher}</code> on this PC while playing. `
-        + '<button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>';
+        + setupLink;
     return;
   }
 
