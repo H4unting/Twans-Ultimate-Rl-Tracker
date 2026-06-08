@@ -61,6 +61,8 @@ if exist "%SRC%.nojekyll" copy /Y "%SRC%.nojekyll" "%REPO%\" >nul
 if exist "%SRC%.gitignore" copy /Y "%SRC%.gitignore" "%REPO%\" >nul
 
 echo    css, js, scripts...
+if exist "%REPO%\js\js" rd /s /q "%REPO%\js\js"
+if exist "%SRC%js\js" rd /s /q "%SRC%js\js"
 xcopy "%SRC%css\*" "%REPO%\css\" /Y /Q /E >nul
 xcopy "%SRC%js\*" "%REPO%\js\" /Y /Q /E >nul
 xcopy "%SRC%scripts\*" "%REPO%\scripts\" /Y /Q /E >nul
@@ -112,6 +114,20 @@ if errorlevel 1 (
 echo.
 "%GIT%" status -sb
 echo.
+
+echo  Syncing with GitHub before push...
+"%GIT%" fetch origin
+if errorlevel 1 (
+  echo  Fetch failed - check your internet connection.
+  pause
+  exit /b 1
+)
+"%GIT%" merge origin/main --no-edit
+if errorlevel 1 (
+  echo  Merge failed - open GitHub Desktop, pull origin, fix conflicts, then push.
+  pause
+  exit /b 1
+)
 
 "%GIT%" push origin main
 if errorlevel 1 (
