@@ -4,7 +4,10 @@ import { state } from './state.js';
 import { GAME_IDS, getGameMeta } from './games.js';
 import { isBridgeUp, isBridgeProbeDone, getBridgeUrl, getLastBridgeFailure, isBridgeProcessDetected } from './bridge-client.js';
 import { isAutoLogEnabled, loadPrefs, syncAutoLogToggleUI } from './quicklog.js';
-import { setBridgeHintVisible, needsLocalTrackerForAutoLog, getLocalTrackerUrl, isLocalTrackerHost, isWrongLocalPort } from './env.js';
+import {
+  setBridgeHintVisible, needsLocalTrackerForAutoLog, getLocalTrackerUrl,
+  isLocalTrackerHost, isWrongLocalPort, getWebOnlyHostBannerHtml,
+} from './env.js';
 import { DESKTOP_APP, getDesktopLauncher } from './config.js';
 
 let cachedValStatus = null;
@@ -212,9 +215,8 @@ function updateDesktopAppBanner(isVal, appUp, valStatus) {
     }
 
     if (needsLocalTrackerForAutoLog()) {
-      p.innerHTML = `Auto-log can't connect from this bookmark. On your gaming PC, open `
-        + `<a href="${localUrl}" class="btn-link">${localUrl}</a> `
-        + `with <code>${launcher}</code> running (same stats — sign in once).`;
+      badge.textContent = 'Manual log only';
+      p.innerHTML = getWebOnlyHostBannerHtml(launcher);
       return;
     }
 

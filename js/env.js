@@ -1,6 +1,6 @@
 /** Single unified app — no separate glance/grind sites */
 
-import { LOCAL_TRACKER_URL } from './config.js';
+import { LOCAL_TRACKER_URL, USER_SETUP_DOC_URL } from './config.js';
 
 export function applyAppMode() {
   document.body.classList.remove('glance-mode', 'grind-mode');
@@ -34,12 +34,16 @@ export function getLocalTrackerUrl() {
   return LOCAL_TRACKER_URL;
 }
 
-/** @deprecated Use auth + bridge status instead — always returns true so logging works everywhere */
-export function isGrindHost() {
-  return true;
+export function getUserSetupDocUrl() {
+  return USER_SETUP_DOC_URL;
 }
 
-/** @deprecated Always false — one platform */
-export function isGlanceMode() {
-  return false;
+/** Banner copy when opened from GitHub Pages / non-localhost (manual log only). */
+export function getWebOnlyHostBannerHtml(launcher) {
+  const localUrl = getLocalTrackerUrl();
+  const setupUrl = getUserSetupDocUrl();
+  return `This web bookmark supports <strong>manual logging only</strong> — auto-log needs `
+    + `<code>${launcher}</code> on your gaming PC at `
+    + `<a href="${localUrl}" class="btn-link">${localUrl}</a>. `
+    + `<a href="${setupUrl}" class="btn-link" target="_blank" rel="noopener">Player setup guide →</a>`;
 }

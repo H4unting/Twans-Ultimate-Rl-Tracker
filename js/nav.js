@@ -146,17 +146,12 @@ export function wireNavigation({ onNavigate, getActivePage }) {
   main?.addEventListener('click', e => {
     const pageBtn = e.target.closest('button[data-page]');
     if (pageBtn && main.contains(pageBtn)) {
-      if (getSectionForPage(pageBtn.dataset.page) === 'review') {
-        console.log('[REVIEW] nav clicked', pageBtn.dataset.page);
-      }
       onNavigate(pageBtn.dataset.page, getSectionForPage(pageBtn.dataset.page));
       return;
     }
     const sectionBtn = e.target.closest('button[data-section]');
     if (sectionBtn && main.contains(sectionBtn)) {
       const section = sectionBtn.dataset.section;
-      if (section === 'review') console.log('[REVIEW] nav clicked', section);
-      if (section === 'squad') console.log('[SQUAD] nav clicked', section);
       const cfg = getNavSections(state.activeGame)[section];
       if (!cfg?.defaultPage) return;
       onNavigate(cfg.defaultPage, section);
@@ -166,7 +161,6 @@ export function wireNavigation({ onNavigate, getActivePage }) {
   reviewSub?.addEventListener('click', e => {
     const pill = e.target.closest('button[data-page]');
     if (!pill || !reviewSub.contains(pill)) return;
-    console.log('[REVIEW] nav clicked', pill.dataset.page);
     onNavigate(pill.dataset.page, 'review');
   });
 

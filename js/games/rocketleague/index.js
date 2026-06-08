@@ -11,10 +11,6 @@ export { getPerformanceInsights, calcInsights, getGrindRecommendation } from './
 export { buildWeeklyReport, getWeeklyReports } from './reports.js';
 export * from './ranks.js';
 
-export function onLoad() {
-  /* RL-specific boot hooks (MMR chain repair runs from app.js) */
-}
-
 export function getAgents() {
   return [];
 }

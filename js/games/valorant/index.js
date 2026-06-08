@@ -14,8 +14,6 @@ export { getPerformanceInsights, calcInsights, getGrindRecommendation } from './
 export { buildWeeklyReport, getWeeklyReports } from './reports.js';
 export * from './ranks.js';
 
-export function onLoad() {}
-
 export function getAgents() {
   return AGENTS;
 }

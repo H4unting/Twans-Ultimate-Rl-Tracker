@@ -201,14 +201,6 @@ export function renderAuthBar(display, onSignOut, onProfileClick) {
   el.querySelector('#user-bar-profile')?.addEventListener('click', () => onProfileClick?.());
 }
 
-export function renderWelcomeHeader(display, stats) {
-  const el = document.getElementById('welcome-header');
-  if (!el) return;
-  el.innerHTML = `
-    <h1 class="welcome-title">Hey, <span style="color:${escapeCssColor(display.color, '#e65c00')}">${escapeHtml(display.name)}</span></h1>
-    <p class="welcome-sub">${stats.totalGames ? `${stats.totalGames} games tracked · ${stats.winRate}% win rate` : 'Log your first game to start tracking'}</p>`;
-}
-
 export function renderGoalProgress(containerId, games, goals) {
   const el = document.getElementById(containerId);
   if (!el) return;
