@@ -5,10 +5,12 @@ export function getPlaylistRankRows(games) {
   const modes = [...new Set(games.map(g => g.mode).filter(Boolean))];
   return modes.map(mode => {
     const modeGames = getGamesForMode(games, mode);
+    const last = modeGames[modeGames.length - 1];
     const weekGames = getGamesInWeek(modeGames, 0);
     return {
       mode,
-      mmr: modeGames.length ? modeGames[modeGames.length - 1].endRR : null,
+      mmr: last?.endRR ?? null,
+      endRank: last?.endRank ?? null,
       weekGain: getRankGain(weekGames),
       weekGameCount: weekGames.length,
       totalGames: modeGames.length,

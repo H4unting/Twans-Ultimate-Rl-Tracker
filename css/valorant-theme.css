@@ -423,6 +423,13 @@ body[data-active-game="valorant"] .profile-avatar-wrap {
 body[data-active-game="valorant"] .profile-primary-rank {
   color: #ece8e1;
 }
+
+body[data-active-game="valorant"] .profile-rank-rr-inline {
+  font-size: 0.85em;
+  font-weight: 600;
+  color: var(--muted);
+  margin-left: 6px;
+}
 body[data-active-game="valorant"] .profile-rank-card {
   padding: 18px 20px;
   overflow: visible;
@@ -662,6 +669,17 @@ body[data-active-game="valorant"] .quick-log-btn {
   clip-path: var(--val-cut);
   font-weight: 900;
   letter-spacing: 0.1em;
+}
+
+body[data-active-game="valorant"] .quick-val-select optgroup,
+body[data-active-game="valorant"] .rank-setup-rank-select optgroup,
+body[data-active-game="valorant"] select[id$="startrank"] optgroup,
+body[data-active-game="valorant"] select[id$="endrank"] optgroup {
+  font-weight: 800;
+  color: var(--val-red);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 body[data-active-game="valorant"] .quick-val-select {

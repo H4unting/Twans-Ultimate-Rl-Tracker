@@ -2,7 +2,7 @@
 
 import { AGENTS, MAPS } from './config.js';
 
-export { GAME_ID, META, PLAYLISTS, AGENTS, MAPS, TAG_DEFINITIONS, TAG_GROUPS, TAG_COLORS, CATEGORY_LABELS, CATEGORY_ORDER, ACTION_FOCUS_TIPS, DEFAULT_RR_SWING, filterByPlaylist, getRankValue, getRankDiff, getPriorEndRank, getPriorEndRankState, isRankEstimated } from './config.js';
+export { GAME_ID, META, PLAYLISTS, AGENTS, MAPS, TAG_DEFINITIONS, TAG_GROUPS, TAG_COLORS, CATEGORY_LABELS, CATEGORY_ORDER, ACTION_FOCUS_TIPS, DEFAULT_RR_SWING, filterByPlaylist, getQueueLabel, getRankValue, getRankDiff, getPriorEndRank, getPriorEndRankState, isRankEstimated } from './config.js';
 export { normalizeGame } from './normalize.js';
 export { buildGameFromForm, buildGameUpdate, patchLastGameRank } from './matches.js';
 export { repairRankChain, resolveGameStartRank, resolveGameStartRankState, applyPromotion, estimateRankDelta } from './rank-chain.js';

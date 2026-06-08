@@ -15,10 +15,10 @@ Ship-quality polish before v1.0.0 tag. **In order — finish each before startin
 | # | Priority | Owner | Status |
 |---|----------|-------|--------|
 | 1 | **Profile card redesign** — compact gamer card, stats hierarchy, dark neon theme | Frontend Lead | Done |
-| 2 | **Dashboard hierarchy cleanup** — focus order, dead space, primary actions | Frontend Lead | Planned |
-| 3 | **Valorant rank UX polish** — rank display, queue labels, theme consistency | Frontend Lead | Planned |
-| 4 | **Complete smoke test** — full matrix per `RELEASE-CHECKLIST.md` | QA Lead | Planned |
-| 5 | **Ship v1.0.0** — tag, push, announce | Release Manager | Blocked on 1–4 |
+| 2 | **Dashboard hierarchy cleanup** — focus order, dead space, primary actions | Frontend Lead | Done — reordered hero → actions → rank → session/focus → perf/activity; deduped stats |
+| 3 | **Valorant rank UX polish** — rank display, queue labels, theme consistency | Frontend Lead | Done — unified rank/emblem/RR formatting; queue labels; tier-grouped rank selects; Val match feed theme |
+| 4 | **Complete smoke test** — full matrix per `RELEASE-CHECKLIST.md` | QA Lead | In Progress — automated/static PASS (18/18); manual matrix NOT RUN; see [`QA-SMOKE-REPORT.md`](QA-SMOKE-REPORT.md) |
+| 5 | **Ship v1.0.0** — tag, push, announce | Release Manager | Blocked on #4 manual smoke + version bump + sign-off |
 
 ---
 

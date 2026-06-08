@@ -309,9 +309,9 @@ body.logged-out.has-quick-dock { padding-bottom: 0; }
 }
 .dash-recent-head {
   display: flex; align-items: center; justify-content: space-between;
-  gap: 12px; flex-wrap: wrap; margin-top: 8px;
+  gap: 12px; flex-wrap: wrap; margin: 0 0 16px;
 }
-.dash-recent-head .section-title { margin: 20px 0 10px; }
+.dash-recent-head .section-title { margin: 0; }
 .section-link {
   border: none; background: none; padding: 0;
   font-size: 13px; font-weight: 600; color: var(--teal);

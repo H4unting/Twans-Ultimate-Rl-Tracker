@@ -2,7 +2,7 @@
 
 import { state, setActiveGame, subscribe, getActiveGames } from './state.js';
 import { GAMES, GAME_IDS, getGameMeta, getTagGroups, getPlaylists, getAgents, getMaps, getPageCopy } from './games.js';
-import { RANK_LADDER } from './games/valorant/rank-ladder.js';
+import { rankLadderSelectHTML } from './games/valorant/rank-ladder.js';
 import { saveSettings } from './supabase.js';
 import { savePrefs, loadPrefs, refreshQuickTagsOnGameSwitch } from './quicklog.js';
 import { refreshBridgeStatusUI } from './bridge-ui.js';
@@ -146,17 +146,12 @@ function toggleGamePageChrome(gameId) {
   if (rlCharts) rlCharts.classList.toggle('hidden', gameId !== GAME_IDS.ROCKET_LEAGUE);
   if (valCharts) valCharts.classList.toggle('hidden', gameId !== GAME_IDS.VALORANT);
 
-  const recentHead = document.querySelector('.dash-recent-head .section-title');
-  if (recentHead) {
-    recentHead.textContent = gameId === GAME_IDS.VALORANT ? 'Match Feed' : 'Recent activity';
-  }
+  /* Activity section title is static in index.html — game-specific feed styling only */
 }
 
 function fillRankSelect(el, selected) {
   if (!el) return;
-  el.innerHTML = RANK_LADDER.map(r =>
-    `<option value="${r}"${r === selected ? ' selected' : ''}>${r}</option>`,
-  ).join('');
+  el.innerHTML = rankLadderSelectHTML(selected);
 }
 
 function syncValorantRankSelects() {

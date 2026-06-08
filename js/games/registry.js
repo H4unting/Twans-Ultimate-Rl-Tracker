@@ -60,6 +60,10 @@ export function getDefaultMode(gameId = DEFAULT_GAME) {
   return getGameMeta(gameId).defaultMode;
 }
 
+export function getQueueLabel(mode, gameId = DEFAULT_GAME) {
+  return getGameModule(gameId).getQueueLabel?.(mode) ?? mode;
+}
+
 export function filterGamesByTitle(games, gameId) {
   return (games ?? []).filter(g => (g.game ?? GAME_IDS.ROCKET_LEAGUE) === gameId);
 }

@@ -6,7 +6,9 @@ import {
 } from './utils.js';
 import { getRank, rankBadgeHTML, RANK_DATA } from './ranks.js';
 import { getTagLossCorrelations } from './insights.js';
-import { getActionFocusTips, getGameMeta, GAME_IDS, getTagCat, getRankDiff } from './games.js';
+import { getActionFocusTips, getGameMeta, GAME_IDS, getTagCat, getRankDiff, getQueueLabel } from './games.js';
+import { formatRankDisplay } from './games/valorant/rank-ladder.js';
+import { formatRRDelta } from './games/valorant/ranks.js';
 import { state } from './state.js';
 import { getLoggingSessionNum } from './core/logging-session.js';
 import { weekRankGain } from './goals.js';
@@ -156,13 +158,10 @@ function renderDashHero(games, goals, rows, activeRow) {
   const diffLabel = meta.diffLabel;
   const weeklyGain = row.weekGain ?? 0;
   const streak = stats.streak?.type === 'W' ? stats.streak.count : 0;
-  const sessionGames = state.session.active
-    ? games.filter(g => parseInt(g.session, 10) === getLoggingSessionNum()).length
-    : 0;
-  const sessionNet = state.session.active ? getSessionNetMmr(games) : 0;
+  const weekGames = displayRows.reduce((sum, r) => sum + (r.weekGameCount || 0), 0);
   const rankName = rank.name ?? 'Unranked';
   const rankSub = isVal
-    ? `${row.mmr} RR · ${row.mode}`
+    ? `${formatRankDisplay(rank.name, rank.rr)} · ${getQueueLabel(row.mode, state.activeGame)}`
     : `${row.mmr} ${meta.rankLabel} · ${row.mode}`;
 
   const queueHTML = isVal
@@ -195,7 +194,7 @@ function renderDashHero(games, goals, rows, activeRow) {
           <div>
             <div class="dash-hero-badges">
               <span class="dash-hero-game-pill">${gameLabel}</span>
-              <span class="dash-hero-playlist">${row.mode}</span>
+              <span class="dash-hero-playlist">${isVal ? getQueueLabel(row.mode, state.activeGame) : row.mode}</span>
             </div>
             <h1 class="dash-hero-rank-name v0-heading">${rankName}</h1>
             <p class="dash-hero-rank-sub">${rankSub}</p>
@@ -222,11 +221,12 @@ function renderDashHero(games, goals, rows, activeRow) {
           </div>
         </div>
         <div class="dash-stat-card">
-          <div class="dash-stat-label">${state.session.active ? '● Session' : 'Session'}</div>
+          <div class="dash-stat-label">This Week</div>
           <div class="dash-stat-row">
-            <span class="dash-stat-value">${sessionGames}</span>
-            ${state.session.active ? `<span class="dash-stat-success">+${sessionNet >= 0 ? sessionNet : sessionNet} ${diffLabel}</span>` : '<span class="dash-stat-muted">not active</span>'}
+            <span class="dash-stat-value">${weekGames}</span>
+            <span class="dash-stat-muted">${isVal ? 'matches' : 'games'}</span>
           </div>
+          <div class="dash-stat-hint">${weeklyGain >= 0 ? '+' : ''}${weeklyGain} ${diffLabel} net</div>
         </div>
       </div>
     </div>`;
@@ -240,8 +240,10 @@ function renderDashRankProgress(activeRow, goals, games) {
 
   if (!activeRow) {
     el.innerHTML = '';
+    el.classList.add('hidden');
     return;
   }
+  el.classList.remove('hidden');
 
   const progress = getRankProgressInfo(activeRow, state.activeGame, games);
   const target = goals?.mmrTarget || 0;
@@ -250,16 +252,13 @@ function renderDashRankProgress(activeRow, goals, games) {
     : '';
 
   el.innerHTML = `
-    <div class="dash-section-head">
+    <div class="dash-section-head dash-rank-head">
       <h2 class="dash-section-title"><span class="dash-section-icon">🎯</span> Rank Progress</h2>
-      <button type="button" class="section-link" data-goto="analytics">History →</button>
-    </div>
-    <div class="dash-rank-top">
-      <div>
-        <span class="dash-rank-current">${progress.current.toLocaleString()}<span>${progress.label}</span></span>
-      </div>
-      <div class="dash-rank-next">
-        ${progress.toNext > 0 ? `<strong>+${progress.toNext}</strong> to ${progress.nextRank}` : 'At peak tier'}
+      <div class="dash-rank-head-actions">
+        <span class="dash-rank-next">
+          ${progress.toNext > 0 ? `<strong>+${progress.toNext}</strong> ${progress.label} to ${progress.nextRank}` : 'At peak tier'}
+        </span>
+        <button type="button" class="section-link" data-goto="analytics">History →</button>
       </div>
     </div>
     <div class="dash-rank-bar-track">
@@ -279,18 +278,21 @@ function renderDashQuickActions() {
   const el = document.getElementById('dash-quick-actions');
   if (!el) return;
 
+  const sessionLabel = state.session.active ? 'End Session' : 'Start Session';
+  const sessionIcon = state.session.active ? '⏹' : '▶';
+
   el.innerHTML = `
+    <button type="button" class="dash-action-btn primary" data-dash-action="session">
+      <span class="dash-action-icon">${sessionIcon}</span>
+      <span><span class="dash-action-label">${sessionLabel}</span><span class="dash-action-desc">Track your grind</span></span>
+    </button>
     <button type="button" class="dash-action-btn" data-dash-action="log">
       <span class="dash-action-icon">📋</span>
       <span><span class="dash-action-label">Log Match</span><span class="dash-action-desc">Add a result</span></span>
     </button>
-    <button type="button" class="dash-action-btn primary" data-dash-action="session">
-      <span class="dash-action-icon">▶</span>
-      <span><span class="dash-action-label">Start Session</span><span class="dash-action-desc">Track your grind</span></span>
-    </button>
     <button type="button" class="dash-action-btn" data-dash-action="review">
-      <span class="dash-action-icon">🔍</span>
-      <span><span class="dash-action-label">Review Games</span><span class="dash-action-desc">Find mistakes</span></span>
+      <span class="dash-action-icon">🎯</span>
+      <span><span class="dash-action-label">Focus</span><span class="dash-action-desc">Coaching tips</span></span>
     </button>`;
 
   wireQuickActions(el);
@@ -305,7 +307,6 @@ function renderDashPerfStats(games) {
     return;
   }
 
-  const stats = calcStats(games, state.activeGame);
   const isVal = state.activeGame === GAME_IDS.VALORANT;
   const kdaLabel = isVal ? 'K/D/A' : 'Avg Score';
 
@@ -332,14 +333,10 @@ function renderDashPerfStats(games) {
     ];
 
   el.innerHTML = `
-    <div class="dash-perf-stat">
-      <p class="dash-stat-label">Win Rate</p>
-      <p class="dash-stat-value">${stats.winRate}%</p>
-    </div>
-    <div class="dash-perf-stat">
+    <div class="dash-perf-stat dash-perf-stat-featured">
       <p class="dash-stat-label">${kdaLabel}</p>
       <p class="dash-stat-value">${kdaVal}</p>
-      <p class="dash-stat-hint">Per match avg</p>
+      <p class="dash-stat-hint">Per match avg · ${games.length} logged</p>
     </div>
     ${primary.map(s => `
       <div class="dash-perf-stat">
@@ -354,6 +351,7 @@ function renderDashSessionPanel(games) {
 
   const meta = getGameMeta(state.activeGame);
   const diffLabel = meta.diffLabel;
+  const isVal = state.activeGame === GAME_IDS.VALORANT;
 
   if (state.session.active) {
     const sessionNum = getLoggingSessionNum();
@@ -387,7 +385,8 @@ function renderDashSessionPanel(games) {
   if (weekRows.length) {
     const parts = weekRows.map(r => {
       const cls = r.weekGain >= 0 ? 'up' : 'down';
-      return `${r.mode} <span class="${cls}">${r.weekGain >= 0 ? '+' : ''}${r.weekGain} ${diffLabel}</span>`;
+      const modeLabel = isVal ? getQueueLabel(r.mode, state.activeGame) : r.mode;
+      return `${modeLabel} <span class="${cls}">${r.weekGain >= 0 ? '+' : ''}${r.weekGain} ${diffLabel}</span>`;
     }).join(' · ');
     el.innerHTML = `
       <div class="dash-section-head">
@@ -404,7 +403,7 @@ function renderDashSessionPanel(games) {
       <div class="dash-section-head">
         <h2 class="dash-section-title"><span class="dash-section-icon">⏱</span> Session</h2>
       </div>
-      <div class="dash-session-body">Start a session from the dock or quick action above.</div>`;
+      <div class="dash-session-body">Start a session from the quick action above or the dock below.</div>`;
     return;
   }
 
@@ -515,12 +514,12 @@ export function renderHomeActivity(games, limit = 10) {
           <li class="val-match-card dash-activity-item">
             <div class="val-match-result dash-activity-badge ${g.result}">${g.result}</div>
             <div class="dash-activity-main">
-              <div class="dash-activity-mode">${g.mode}</div>
-              <div class="dash-activity-sub">${agent} · ${map} · ${k}/${d}/${a}</div>
+              <div class="val-match-queue dash-activity-mode">${getQueueLabel(g.mode, GAME_IDS.VALORANT)}</div>
+              <div class="dash-activity-sub val-match-kda">${agent} · ${map} · ${k}/${d}/${a}</div>
             </div>
             <div class="dash-activity-side">
-              <div class="dash-activity-mmr ${diffCls}">${diff >= 0 ? '+' : ''}${diff}</div>
-              <div class="dash-activity-date">${g.date}</div>
+              <div class="val-match-rr dash-activity-mmr ${diffCls}">${formatRRDelta(diff)}</div>
+              <div class="val-match-date dash-activity-date">${g.date}</div>
             </div>
           </li>`;
         }).join('')}
@@ -559,20 +558,28 @@ export function getHomeChartGames(games) {
   return getGamesForMode(games, mode);
 }
 
+function updateDashPerfModeLabel(mode) {
+  const el = document.getElementById('dash-perf-mode-label');
+  if (!el) return;
+  el.textContent = mode ? `${mode} playlist` : 'Current playlist';
+}
+
 export function renderHome(games, goals) {
   const allRows = getPlaylistMMRRows(games, state.activeGame);
   const isVal = state.activeGame === GAME_IDS.VALORANT;
   const rows = isVal ? allRows.filter(r => r.mode === 'Competitive') : allRows;
   const chartMode = ensureHomeChartMode(games);
   const activeRow = rows.find(r => r.mode === chartMode) ?? rows[0];
+  const chartGames = getHomeChartGames(games);
 
   renderHomeSummary(games, goals);
   renderDashHero(games, goals, rows, activeRow);
+  renderDashQuickActions();
+  renderDashRankProgress(activeRow, goals, games);
   renderHomeContext(games);
   renderHomeFocus(games);
-  renderDashRankProgress(activeRow, goals, games);
-  renderDashQuickActions();
-  renderDashPerfStats(getHomeChartGames(games));
+  updateDashPerfModeLabel(chartMode);
+  renderDashPerfStats(chartGames);
   renderHomeActivity(games);
 }
 

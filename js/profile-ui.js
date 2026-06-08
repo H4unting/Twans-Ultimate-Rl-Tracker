@@ -5,7 +5,8 @@ import { getRlDisplayName, saveRlDisplayName } from './rl-live.js';
 import { savePrefs, loadPrefs } from './quicklog.js';
 import { showToast } from './ui.js';
 import { formatApiError } from './supabase.js';
-import { GAME_IDS, getGameMeta, getGameModule, filterGamesByTitle } from './games.js';
+import { GAME_IDS, getGameMeta, getGameModule, filterGamesByTitle, getQueueLabel } from './games.js';
+import { formatRankDisplay } from './games/valorant/rank-ladder.js';
 import { state } from './state.js';
 import { sanitizeImageUrl } from './core/dom-safe.js';
 
@@ -38,13 +39,15 @@ function resolvePrimaryRankHtml(rows, stats, rankMod, meta, isVal) {
   if (rows.length) {
     const r = rows[0];
     if (isVal) {
-      return `<div class="profile-primary-rank">${escapeHtml(r.mmr)} ${escapeHtml(meta.rankLabel)}<span class="profile-rank-mode-inline">${escapeHtml(r.mode)}</span></div>`;
+      const rank = rankMod.getRank({ endRank: r.endRank, endRR: r.mmr });
+      return `<div class="profile-primary-rank">${rankMod.rankIconHTML(rank, 28)}<span class="profile-primary-rank-name">${escapeHtml(rank.name)}</span><span class="profile-rank-rr-inline">${escapeHtml(formatRankDisplay(rank.name, rank.rr))}</span><span class="profile-rank-mode-inline">${escapeHtml(getQueueLabel(r.mode, GAME_IDS.VALORANT))}</span></div>`;
     }
     const rank = rankMod.getRank(r.mmr, r.mode);
     return `<div class="profile-primary-rank">${rankMod.rankIconHTML(rank, 28)}<span class="profile-primary-rank-name">${escapeHtml(rank.name)}</span><span class="profile-rank-mode-inline">${escapeHtml(r.mode)}</span></div>`;
   }
   if (stats.currentRankDisplay?.endRank) {
-    return `<div class="profile-primary-rank"><span class="profile-primary-rank-name">${escapeHtml(stats.currentRankDisplay.endRank)}</span></div>`;
+    const rank = rankMod.getRank(stats.currentRankDisplay);
+    return `<div class="profile-primary-rank">${rankMod.rankIconHTML(rank, 28)}<span class="profile-primary-rank-name">${escapeHtml(rank.name)}</span><span class="profile-rank-rr-inline">${escapeHtml(formatRankDisplay(rank.name, rank.rr))}</span></div>`;
   }
   return '<div class="profile-primary-rank profile-primary-rank-empty">Unranked</div>';
 }
@@ -104,13 +107,14 @@ export function renderProfilePage({
     ? rows.map(r => {
       const wkCls = r.weekGain >= 0 ? 'up' : 'down';
       if (isVal) {
+        const rank = rankMod.getRank({ endRank: r.endRank, endRR: r.mmr });
         return `
         <div class="profile-rank-card profile-val-rank-card">
-          <div class="profile-val-rr">${r.mmr}</div>
+          ${rankMod.rankIconHTML(rank, 40)}
           <div class="profile-rank-meta">
-            <span class="profile-rank-mode">${escapeHtml(r.mode)}</span>
-            <span class="profile-rank-name">${meta.rankLabel}</span>
-            <span class="profile-rank-mmr">${r.mmr} ${meta.rankLabel} <span class="profile-rank-week ${wkCls}">${r.weekGain >= 0 ? '+' : ''}${r.weekGain} wk</span></span>
+            <span class="profile-rank-mode">${escapeHtml(getQueueLabel(r.mode, gameId))}</span>
+            <span class="profile-rank-name">${escapeHtml(rank.name)}</span>
+            <span class="profile-rank-mmr">${escapeHtml(formatRankDisplay(rank.name, rank.rr))} <span class="profile-rank-week ${wkCls}">${r.weekGain >= 0 ? '+' : ''}${r.weekGain} wk</span></span>
           </div>
         </div>`;
       }

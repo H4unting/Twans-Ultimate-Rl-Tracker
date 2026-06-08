@@ -10,7 +10,8 @@ import {
   getRankBaselinesForUI,
   needsRankSetup,
 } from './rank-baselines.js';
-import { RANK_LADDER, parseValorantBaseline, serializeValorantBaseline } from './games/valorant/rank-ladder.js';
+import { rankLadderSelectHTML, parseValorantBaseline, serializeValorantBaseline } from './games/valorant/rank-ladder.js';
+import { getQueueLabel } from './games.js';
 
 let onCompleteCallback = null;
 let modalWired = false;
@@ -25,7 +26,7 @@ function renderModeFields(gameId) {
   const modes = getRankSetupModes(gameId);
   const stored = getRankBaselinesForUI()?.[gameId] ?? {};
   const isVal = gameId === GAME_IDS.VALORANT;
-  const rankOpts = RANK_LADDER.map(r => `<option value="${escapeAttr(r)}">${r}</option>`).join('');
+  const rankOpts = rankLadderSelectHTML();
 
   return `
     <section class="rank-setup-game" data-rank-game="${gameId}">
@@ -44,13 +45,13 @@ function renderModeFields(gameId) {
           if (isVal) {
             return `
           <div class="rank-setup-field rank-setup-field-val">
-            <span class="rank-setup-field-label">${mode}</span>
+            <span class="rank-setup-field-label">${isVal ? getQueueLabel(mode, gameId) : mode}</span>
             <select
               id="rank-baseline-rank-${gameId}-${slug}"
               class="setup-input rank-setup-rank-select"
               data-game="${gameId}"
               data-mode="${escapeAttr(mode)}"
-              aria-label="${mode} rank"
+              aria-label="${isVal ? getQueueLabel(mode, gameId) : mode} rank"
             >${rankOpts}</select>
             <input
               type="number"
