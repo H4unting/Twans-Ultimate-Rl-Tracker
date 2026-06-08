@@ -4,6 +4,22 @@ Planning doc only. **Do not start a phase until the previous gate is done.**
 
 Current version: **1.0.0-rc1** → target: **v1.0.0 tag**
 
+Maintained by **Product Owner**. Implementation order follows [`TEAM-WORKFLOW.md`](TEAM-WORKFLOW.md) — one owning role per task.
+
+---
+
+## Current priorities (now)
+
+Ship-quality polish before v1.0.0 tag. **In order — finish each before starting the next.**
+
+| # | Priority | Owner | Status |
+|---|----------|-------|--------|
+| 1 | **Profile card redesign** — compact gamer card, stats hierarchy, dark neon theme | Frontend Lead | Done |
+| 2 | **Dashboard hierarchy cleanup** — focus order, dead space, primary actions | Frontend Lead | Planned |
+| 3 | **Valorant rank UX polish** — rank display, queue labels, theme consistency | Frontend Lead | Planned |
+| 4 | **Complete smoke test** — full matrix per `RELEASE-CHECKLIST.md` | QA Lead | Planned |
+| 5 | **Ship v1.0.0** — tag, push, announce | Release Manager | Blocked on 1–4 |
+
 ---
 
 ## Sprint: V1.0 Release (now)

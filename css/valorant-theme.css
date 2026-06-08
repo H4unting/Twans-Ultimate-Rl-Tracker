@@ -408,6 +408,21 @@ body[data-active-game="valorant"] .home-focus-card-featured {
   box-shadow: 0 0 28px #ff465522;
 }
 
+body[data-active-game="valorant"] .profile-card-accent {
+  background: linear-gradient(90deg, var(--val-red), #1a1028) !important;
+}
+body[data-active-game="valorant"] .profile-level-pill {
+  background: linear-gradient(135deg, var(--val-red), #8b2030);
+  border-color: color-mix(in srgb, var(--val-red) 40%, transparent);
+  box-shadow: 0 0 10px #ff465533;
+}
+body[data-active-game="valorant"] .profile-avatar-wrap {
+  background: linear-gradient(135deg, var(--val-red), #2a1218);
+  box-shadow: 0 0 14px #ff465522;
+}
+body[data-active-game="valorant"] .profile-primary-rank {
+  color: #ece8e1;
+}
 body[data-active-game="valorant"] .profile-rank-card {
   padding: 18px 20px;
   overflow: visible;

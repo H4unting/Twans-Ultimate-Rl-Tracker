@@ -1,6 +1,6 @@
 /** Personal profile page — game-aware stats showcase */
 
-import { calcStats, getPlaylistMMRRows, groupBySession } from './utils.js';
+import { calcStats, getPlaylistMMRRows } from './utils.js';
 import { getRlDisplayName, saveRlDisplayName } from './rl-live.js';
 import { savePrefs, loadPrefs } from './quicklog.js';
 import { showToast } from './ui.js';
@@ -21,11 +21,32 @@ function trackerLevel(totalGames) {
   return Math.max(1, Math.min(999, Math.floor(totalGames / 10) + 1));
 }
 
-function formatMemberSince(iso) {
-  if (!iso) return 'New grinder';
+function formatMemberSinceShort(iso) {
+  if (!iso) return '—';
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return 'Member';
-  return `Member since ${d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}`;
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+}
+
+function formatStreak(streak) {
+  const count = streak?.count || 0;
+  if (!count) return '—';
+  return `${count}${streak.type || ''}`;
+}
+
+function resolvePrimaryRankHtml(rows, stats, rankMod, meta, isVal) {
+  if (rows.length) {
+    const r = rows[0];
+    if (isVal) {
+      return `<div class="profile-primary-rank">${escapeHtml(r.mmr)} ${escapeHtml(meta.rankLabel)}<span class="profile-rank-mode-inline">${escapeHtml(r.mode)}</span></div>`;
+    }
+    const rank = rankMod.getRank(r.mmr, r.mode);
+    return `<div class="profile-primary-rank">${rankMod.rankIconHTML(rank, 28)}<span class="profile-primary-rank-name">${escapeHtml(rank.name)}</span><span class="profile-rank-mode-inline">${escapeHtml(r.mode)}</span></div>`;
+  }
+  if (stats.currentRankDisplay?.endRank) {
+    return `<div class="profile-primary-rank"><span class="profile-primary-rank-name">${escapeHtml(stats.currentRankDisplay.endRank)}</span></div>`;
+  }
+  return '<div class="profile-primary-rank profile-primary-rank-empty">Unranked</div>';
 }
 
 function bannerGradient(primary, secondary) {
@@ -64,7 +85,6 @@ export function renderProfilePage({
   const gameGames = filterGamesByTitle(games, gameId);
   const stats = calcStats(gameGames, gameId);
   const rows = getPlaylistMMRRows(gameGames, gameId);
-  const sessions = groupBySession(gameGames, gameId).length;
   const level = trackerLevel(stats.totalGames);
   const rlName = getRlDisplayName() || '';
   const riotId = loadPrefs().riotId ?? '';
@@ -107,44 +127,60 @@ export function renderProfilePage({
     }).join('')
     : `<p class="profile-empty">Log ranked ${isVal ? 'matches' : 'games'} to show your ${isVal ? 'queue' : 'playlist'} ranks here.</p>`;
 
+  const primaryRankHtml = resolvePrimaryRankHtml(rows, stats, rankMod, meta, isVal);
+  const matchesLabel = isVal ? 'Matches logged' : 'Games logged';
+
   el.innerHTML = `
     <div class="profile-page" data-profile-game="${escapeAttr(gameId)}" style="--profile-primary:${escapeAttr(primary)};--profile-secondary:${escapeAttr(secondary)}">
-      <div class="profile-hero">
-        <div class="profile-banner" id="profile-banner-preview" style="background:${bannerGradient(primary, secondary)}"></div>
-        <div class="profile-hero-inner">
-          <div class="profile-hero-head">
+      <div class="profile-card">
+        <div class="profile-card-accent" id="profile-banner-preview" style="background:${bannerGradient(primary, secondary)}"></div>
+        <div class="profile-card-body">
+          <div class="profile-card-header">
             <div class="profile-avatar-wrap">
               ${renderAvatarHtml(display, primary)}
+            </div>
+            <div class="profile-card-identity">
+              <div class="profile-card-name-row">
+                <h1 class="profile-display-name" id="profile-display-heading">${escapeHtml(display.name)}</h1>
+                <span class="profile-level-pill" title="${stats.totalGames} ${isVal ? 'matches' : 'games'} logged">Lv ${level}</span>
+              </div>
+              ${primaryRankHtml}
+              <div class="profile-subline">
+                ${uidLabel ? `<span class="profile-uid-tag">${escapeHtml(uidLabel)}</span><span class="profile-dot">·</span>` : ''}
+                ${identityTag}
+              </div>
+            </div>
+          </div>
+
+          <div class="profile-stats-bar">
+            <div class="profile-stat">
+              <strong>${stats.totalGames}</strong>
+              <span>${matchesLabel}</span>
+            </div>
+            <div class="profile-stat">
+              <strong>${stats.winRate}%</strong>
+              <span>Win rate</span>
+            </div>
+            <div class="profile-stat">
+              <strong>${formatStreak(stats.streak)}</strong>
+              <span>Current streak</span>
+            </div>
+            <div class="profile-stat">
+              <strong>${escapeHtml(formatMemberSinceShort(profile?.created_at))}</strong>
+              <span>Member since</span>
+            </div>
+          </div>
+
+          <div class="profile-card-footer">
+            ${bio ? `<p class="profile-bio" id="profile-bio-display">${escapeHtml(bio)}</p>` : '<p class="profile-bio profile-bio-empty hidden" id="profile-bio-display"></p>'}
+            <details class="profile-edit-dropdown" id="profile-edit-island">
+            <summary class="profile-edit-trigger btn btn-secondary profile-edit-btn"><span>Edit profile</span></summary>
+            <div class="profile-edit-form">
               <label class="profile-avatar-change" for="profile-avatar-input">
                 <input type="file" id="profile-avatar-input" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
                 Change photo
               </label>
               <p class="profile-avatar-legal form-hint">Only upload images you have the right to use. Stored per our <a href="legal/privacy.html" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.</p>
-            </div>
-            <div class="profile-hero-title">
-              <h1 class="profile-display-name" id="profile-display-heading">${escapeHtml(display.name)}</h1>
-              <p class="profile-level-hint profile-level-hint-inline">${stats.totalGames} ${isVal ? 'matches' : 'games'} logged</p>
-              <div class="profile-meta">
-                <div class="profile-subline">
-                  ${uidLabel ? `<span class="profile-uid-tag">${escapeHtml(uidLabel)}</span><span class="profile-dot">·</span>` : ''}
-                  ${identityTag}
-                  <span class="profile-dot">·</span>
-                  <span>${formatMemberSince(profile?.created_at)}</span>
-                </div>
-                ${bio ? `<p class="profile-bio" id="profile-bio-display">${escapeHtml(bio)}</p>` : '<p class="profile-bio profile-bio-empty hidden" id="profile-bio-display"></p>'}
-              </div>
-            </div>
-            <div class="profile-hero-right">
-              <div class="profile-level-block">
-                <span class="profile-level-label">Level</span>
-                <span class="profile-level-badge" title="${stats.totalGames} ${isVal ? 'matches' : 'games'} logged">${level}</span>
-              </div>
-            </div>
-          </div>
-
-          <details class="profile-edit-dropdown" id="profile-edit-island">
-            <summary class="profile-edit-trigger"><span>Edit profile</span></summary>
-            <div class="profile-edit-form">
               <div class="profile-edit-grid">
                 <div class="form-group">
                   <label for="profile-display-input">Display name</label>
@@ -193,29 +229,7 @@ export function renderProfilePage({
               </div>
             </div>
           </details>
-        </div>
-      </div>
-
-      <div class="profile-stats-bar">
-        <div class="profile-stat">
-          <strong>${stats.totalGames}</strong>
-          <span>${isVal ? 'Matches' : 'Games'}</span>
-        </div>
-        <div class="profile-stat">
-          <strong>${stats.winRate}%</strong>
-          <span>Win rate</span>
-        </div>
-        <div class="profile-stat">
-          <strong class="${stats.totalMMRGain >= 0 ? 'pos' : 'neg'}">${stats.totalMMRGain >= 0 ? '+' : ''}${stats.totalMMRGain}</strong>
-          <span>Net ${meta.rankLabel}</span>
-        </div>
-        <div class="profile-stat">
-          <strong>${sessions}</strong>
-          <span>${isVal ? 'Grind blocks' : 'Sessions'}</span>
-        </div>
-        <div class="profile-stat">
-          <strong>${stats.streak.count || 0}${stats.streak.type ? stats.streak.type : ''}</strong>
-          <span>Streak</span>
+          </div>
         </div>
       </div>
 
@@ -236,10 +250,10 @@ export function renderProfilePage({
       </div>
     </div>`;
 
-  wireProfilePage({ onSave, primary, secondary, isVal, display });
+  wireProfilePage({ onSave, onDeleteAccount, authUser, primary, secondary, isVal, display });
 }
 
-function wireProfilePage({ onSave, primary, secondary, isVal, display }) {
+function wireProfilePage({ onSave, onDeleteAccount, authUser, primary, secondary, isVal, display }) {
   const primaryInput = document.getElementById('profile-primary-input');
   const secondaryInput = document.getElementById('profile-secondary-input');
   const banner = document.getElementById('profile-banner-preview');
