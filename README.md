@@ -14,6 +14,8 @@ Rocket League + Valorant grind tracker with local auto-log and Supabase sync.
 
 Developer / owner setup: **[docs/SETUP.md](docs/SETUP.md)**
 
+**Production use:** open **`Rocket League Tracker.bat`** or **`Valorant Tracker.bat`** — not `npm run dev`. The Next.js scaffold in `app/` is not the shipped tracker; `npm run dev` is for optional UI experiments only.
+
 ## Quick start
 
 | What | File |

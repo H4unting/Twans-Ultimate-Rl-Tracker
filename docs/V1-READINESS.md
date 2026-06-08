@@ -10,6 +10,8 @@
 
 Twans Ultimate Tracker is suitable for a **tagged public beta** with documented operator setup and manual smoke testing. It is **not V1 READY** until production Supabase migrations are verified, critical UX gaps for non-localhost users are addressed or explicitly accepted, and the Product Owner completes the release checklist.
 
+**Operator steps:** see [`docs/V1-OPERATOR-CHECKLIST.md`](V1-OPERATOR-CHECKLIST.md) (Supabase MCP verification June 7, 2026 — schema/RLS/RPCs look applied; dashboard toggles + smoke tests still required).
+
 ---
 
 ## Dimension scores
@@ -70,15 +72,13 @@ Twans Ultimate Tracker is suitable for a **tagged public beta** with documented 
 
 ## Top 5 quick wins (low effort, high value)
 
-1. **Add host-aware banner** when `!isLocalTrackerHost()` — link to `USER-SETUP.md` and explain `.bat` launchers (UX-C1; doc-only spec in UX-AUDIT).
-
-2. **Toast on `loadSettings` fallback** after authenticated load — prevents silent goal/riot ID reset (L-S2).
-
-3. **Enable leaked-password protection** in Supabase Auth dashboard — 2-minute operator task (SEC-M4).
-
-4. **Remove debug `console.log` Review/Squad** — CL-04 in CLEANUP-PLAN; trivial diff.
-
-5. **README clarification** — "Production app = open `Rocket League Tracker.bat`, not `npm run dev`" — reduces dual-stack confusion (CL-07 doc option).
+| # | Item | Status |
+|---|------|--------|
+| 1 | Host-aware banner when `!isLocalTrackerHost()` + USER-SETUP link | **Done** (June 7, 2026) |
+| 2 | Toast on `loadSettings` fallback | **Done** |
+| 3 | Enable leaked-password protection (Supabase Auth dashboard) | **Operator** — see V1-OPERATOR-CHECKLIST |
+| 4 | Remove debug `[REVIEW]` / `[SQUAD]` console.log | **Done** |
+| 5 | README: production = `.bat` launchers, not `npm run dev` | **Done** |
 
 ---
 
@@ -131,4 +131,4 @@ Document explicit acceptance in `docs/V1-ACCEPTED-RISKS.md` for:
 
 ---
 
-*Phase 7 complete. No code modified.*
+*Phase 7 score unchanged. Code quick wins applied June 7, 2026 — see V1-OPERATOR-CHECKLIST.*

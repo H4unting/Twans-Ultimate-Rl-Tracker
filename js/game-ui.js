@@ -9,7 +9,7 @@ import { refreshBridgeStatusUI } from './bridge-ui.js';
 import { DESKTOP_APP, LOCAL_TRACKER_URL, getDesktopLauncher } from './config.js';
 import { APP_NAME } from './core/app-config.js';
 import { isBridgeUp } from './bridge-client.js';
-import { needsLocalTrackerForAutoLog } from './env.js';
+import { needsLocalTrackerForAutoLog, getWebOnlyHostBannerHtml } from './env.js';
 import { refreshValorantStatus } from './valorant-live.js';
 import { updateNavUI } from './nav.js';
 import { restoreSessionFromStorage, refreshSessionUI } from './sessions.js';
@@ -104,14 +104,12 @@ export function applyGameShell(gameId = state.activeGame) {
   const banner = document.getElementById('bridge-hint-banner');
   if (banner && !isBridgeUp()) {
     const badge = banner.querySelector('.bridge-hint-badge');
-    if (badge) badge.textContent = needsLocalTrackerForAutoLog() ? 'Use local tracker' : 'Auto-log off';
+    if (badge) badge.textContent = needsLocalTrackerForAutoLog() ? 'Manual log only' : 'Auto-log off';
     const p = banner.querySelector('p');
     if (p) {
       const launcher = getDesktopLauncher(gameId);
       if (needsLocalTrackerForAutoLog()) {
-        p.innerHTML = `Auto-log can't connect from this bookmark. On your gaming PC open `
-          + `<a href="${LOCAL_TRACKER_URL}" class="btn-link">${LOCAL_TRACKER_URL}</a> `
-          + `with <code>${launcher}</code> running.`;
+        p.innerHTML = getWebOnlyHostBannerHtml(launcher);
       } else {
         p.innerHTML = gameId === GAME_IDS.VALORANT
           ? `Run <code>${launcher}</code> on this PC while playing for Valorant auto-log. Set Riot ID in <button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>`

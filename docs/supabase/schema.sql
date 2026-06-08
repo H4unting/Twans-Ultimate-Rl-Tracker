@@ -1,4 +1,10 @@
--- Twans Ultimate Tracker — Supabase schema
+-- ╔══════════════════════════════════════════════════════════════════════════╗
+-- ║  DEPRECATED — DO NOT RUN ON PRODUCTION                                 ║
+-- ║  Contains unsafe anon read/write RLS on matches (SEC-H1).                ║
+-- ║  Use docs/supabase/v1-full-setup.sql instead.                            ║
+-- ╚══════════════════════════════════════════════════════════════════════════╝
+--
+-- Twans Ultimate Tracker — legacy Supabase schema (historical reference only)
 -- Run this entire file once in Supabase → SQL Editor.
 -- The app auto-detects the matches table and migrates data from Tracker.
 
