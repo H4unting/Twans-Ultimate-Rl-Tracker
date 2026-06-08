@@ -12,8 +12,9 @@ import { getUniqueSessions } from './filters.js';
 import { state, getActiveGames } from './state.js';
 import {
   GAME_IDS, getPlaylists, getTagGroups, getTagColors, getTagCat, getGameMeta, getDefaultMode,
-  getTagDefinitions, getRankDiff, getRankValue, getGameRankStart,
+  getTagDefinitions, getRankDiff, getRankValue, getGameRankStart, getQueueLabel,
 } from './games.js';
+import { formatRRDelta } from './games/valorant/ranks.js';
 
 export function showToast(msg, type = 'success') {
   const t = document.getElementById('toast');
@@ -138,12 +139,12 @@ export function renderLog(tableId, games, limit, editable = false, gameId = stat
       <tr>
         <td style="color:#555">${g.match}</td>
         <td style="color:#777;white-space:nowrap">${g.date}</td>
-        <td style="color:#777">${g.mode}${g.agent ? `<br><span style="font-size:11px;color:#888">${g.agent}</span>` : ''}</td>
+        <td style="color:#777">${getQueueLabel(g.mode, gameId)}${g.agent ? `<br><span style="font-size:11px;color:#888">${g.agent}</span>` : ''}</td>
         <td><span class="badge ${g.result}">${g.result === 'W' ? 'WIN' : 'LOSS'}</span></td>
         <td>${g.kills ?? g.goals ?? 0}</td><td>${g.deaths ?? 0}</td><td>${g.valAssists ?? g.assists ?? 0}</td>
         <td class="val-rank-col val-rank-col--start">${startCell}</td>
         <td class="val-rank-col val-rank-col--end">${endCell}</td>
-        <td class="${diff >= 0 ? 'pos' : 'neg'}">${diff >= 0 ? '+' : ''}${diff}</td>
+        <td class="${diff >= 0 ? 'pos' : 'neg'}">${formatRRDelta(diff)}</td>
         <td class="log-table-cell-notes">${renderInlineTags(g.tags, gameId)}${noteHtml}</td>
         <td style="white-space:nowrap">${editable ? `
           <button class="action-btn edit" data-match="${g.match}" title="Edit" aria-label="Edit match ${g.match}">✏️</button>

@@ -22,6 +22,15 @@ Skills live in `.cursor/skills/`. Invoke by name in chat (e.g. *"Run the Securit
 
 Orchestrator: `review-agents` — routes multi-domain release gates.
 
+## Development workflow
+
+Role-based implementation and priority order live in:
+
+- [`docs/TEAM-WORKFLOW.md`](docs/TEAM-WORKFLOW.md) — roles, ownership, Audit→Verify workflow
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) — Product Owner priorities
+
+Review agents document only; feature work goes through the owning role in TEAM-WORKFLOW.
+
 ## Recommended release gate order
 
 1. **Security Auditor** → P0/RLS/XSS
@@ -31,6 +40,8 @@ Orchestrator: `review-agents` — routes multi-domain release gates.
 
 ## Related docs
 
+- [`docs/TEAM-WORKFLOW.md`](docs/TEAM-WORKFLOW.md)
+- [`docs/ROADMAP.md`](docs/ROADMAP.md)
 - [`docs/RELEASE-RISKS.md`](docs/RELEASE-RISKS.md)
 - [`docs/PRODUCTION-READINESS.md`](docs/PRODUCTION-READINESS.md)
 - [`docs/QA-TOOLS.md`](docs/QA-TOOLS.md)

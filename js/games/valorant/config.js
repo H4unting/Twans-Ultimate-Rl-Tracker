@@ -86,6 +86,16 @@ export const META = {
   formStartField: 'startRR',
 };
 
+/** Human-readable queue label — maps internal ids/keys to display names */
+export function getQueueLabel(mode) {
+  if (!mode) return PLAYLISTS[0]?.label ?? 'Competitive';
+  const byMode = PLAYLISTS.find(p => p.mode === mode);
+  if (byMode) return byMode.label;
+  const byId = PLAYLISTS.find(p => p.id === mode);
+  if (byId) return byId.label;
+  return String(mode);
+}
+
 export function filterByPlaylist(games, playlist) {
   const competitive = games.filter(g => g.mode === 'Competitive');
   if (!playlist || playlist === 'all') return competitive;

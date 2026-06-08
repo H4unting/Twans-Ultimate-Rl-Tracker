@@ -12,7 +12,8 @@ import {
 import { getActiveGames } from './state.js';
 import { getLoggingSessionNum } from './sessions.js';
 import { state } from './state.js';
-import { GAME_IDS, getGameMeta, getRankDiff } from './games.js';
+import { GAME_IDS, getGameMeta, getRankDiff, getQueueLabel } from './games.js';
+import { formatRRDelta } from './games/valorant/ranks.js';
 import { escapeHtml, escapeAttr } from './core/dom-safe.js';
 
 export const QUICK_FILTERS = [
@@ -135,8 +136,8 @@ function matchRowHTML(g, gameNum, editable, gameId) {
       <summary class="match-log-summary">
         <span class="match-log-game-num">${isVal ? 'Match' : 'Game'} ${gameNum}</span>
         <span class="badge ${g.result}">${g.result === 'W' ? 'W' : 'L'}</span>
-        <span class="match-log-mmr ${diffCls}">${diffStr} ${diffLabel}</span>
-        <span class="match-log-mode">${escapeHtml(g.mode)}</span>
+        <span class="match-log-mmr ${diffCls}">${isVal ? formatRRDelta(diff) : `${diffStr} ${diffLabel}`}</span>
+        <span class="match-log-mode">${escapeHtml(isVal ? getQueueLabel(g.mode, gameId) : g.mode)}</span>
         ${agent}${map}
         ${renderInlineTags(g.tags, gameId)}
       </summary>

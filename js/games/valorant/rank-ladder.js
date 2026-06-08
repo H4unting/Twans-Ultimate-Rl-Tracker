@@ -170,3 +170,18 @@ export function parseValorantBaseline(raw) {
 export function serializeValorantBaseline({ rank, rr }) {
   return { rank: normalizeRankName(rank) || 'Iron 1', rr: Math.max(0, Number(rr) || 0) };
 }
+
+/** Grouped &lt;option&gt;s for rank ladder selects — tier optgroups reduce picker confusion */
+export function rankLadderSelectHTML(selected = 'Iron 1') {
+  const tiers = new Map();
+  for (const rank of RANK_LADDER) {
+    const tier = rank === 'Radiant' ? 'Radiant' : rank.split(' ')[0];
+    if (!tiers.has(tier)) tiers.set(tier, []);
+    tiers.get(tier).push(rank);
+  }
+  return [...tiers.entries()].map(([tier, ranks]) =>
+    `<optgroup label="${tier}">${
+      ranks.map(r => `<option value="${r}"${r === selected ? ' selected' : ''}>${r}</option>`).join('')
+    }</optgroup>`,
+  ).join('');
+}

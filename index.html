@@ -115,6 +115,10 @@
   <div id="page-dashboard" class="page active dash-page">
     <section id="dash-hero" class="dash-hero v0-glass" aria-label="Overview"></section>
 
+    <section id="dash-quick-actions" class="dash-quick-actions dash-quick-actions-compact" aria-label="Quick actions"></section>
+
+    <section id="dash-rank-progress" class="dash-section v0-glass dash-rank-featured" aria-label="Rank progress"></section>
+
     <section class="dash-priority-row" aria-label="Session and focus">
       <section id="dash-session-panel" class="dash-section v0-glass dash-session-featured"></section>
       <div id="home-focus" class="dash-focus-slot"></div>
@@ -122,11 +126,10 @@
 
     <div class="dash-grid">
       <div class="dash-col-main">
-        <section id="dash-rank-progress" class="dash-section v0-glass"></section>
         <section id="dash-performance" class="dash-section v0-glass dash-performance-secondary">
           <div class="dash-section-head">
             <h2 class="dash-section-title"><span class="dash-section-icon">📈</span> Recent Performance</h2>
-            <span class="dash-stat-label">Last stretch</span>
+            <span class="dash-stat-label" id="dash-perf-mode-label">Current playlist</span>
           </div>
           <div class="dash-perf-grid" id="dash-perf-stats"></div>
           <div class="dash-perf-charts">
@@ -149,10 +152,9 @@
       </div>
 
       <div class="dash-col-side">
-        <section id="dash-quick-actions" class="dash-quick-actions dash-quick-actions-compact"></section>
-        <section id="dash-activity" class="dash-section v0-glass dash-activity-secondary">
+        <section id="dash-activity" class="dash-section v0-glass dash-activity-secondary" aria-label="Recent matches">
           <div class="dash-recent-head">
-            <p class="section-title">Match History</p>
+            <h2 class="dash-section-title"><span class="dash-section-icon">🕹</span> Recent Matches</h2>
             <button type="button" class="section-link" id="dash-view-all-logs">View all →</button>
           </div>
           <div id="val-match-feed" class="val-match-feed"></div>

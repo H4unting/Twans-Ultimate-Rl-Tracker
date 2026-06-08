@@ -109,6 +109,12 @@ export function getRankForPlaylist(value) {
   return getRank(value);
 }
 
+/** Signed RR swing for feeds and match cards — e.g. "+18 RR" */
+export function formatRRDelta(diff) {
+  const n = Number(diff) || 0;
+  return `${n >= 0 ? '+' : ''}${n} RR`;
+}
+
 export function formatGameRankDisplay(game) {
   if (!game) return '—';
   const rank = game.endRank ?? game.startRank;
