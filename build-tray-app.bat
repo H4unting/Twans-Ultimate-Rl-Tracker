@@ -1,4 +1,4 @@
 @echo off
-title Build Twans Auto-Log tray app
+title Build Twans Ultimate Tracker
 cd /d "%~dp0tools\launcher"
 call build-bridge.bat

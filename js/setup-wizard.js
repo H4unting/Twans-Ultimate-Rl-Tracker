@@ -173,7 +173,7 @@ function renderBridgeStep(bridge, stepNum = 1, gameId = GAME_IDS.ROCKET_LEAGUE) 
         <pre class="setup-code setup-code-highlight" id="setup-bridge-cmd">${launcher}</pre>
         ${isVal
     ? `<p class="setup-hint">Open <code>${trackerUrl}</code> in the tab the .bat opens — not Live Server, not GitHub Pages.</p>`
-    : '<p class="setup-hint">Optional: run <code>launcher\\build-bridge.bat</code> once to build <code>' + DESKTOP_APP.exe + '</code> (tray icon, no black window).</p>'}
+    : '<p class="setup-hint">Or double-click <code>' + DESKTOP_APP.exe + '</code> — no console window (build once with <code>build-tray-app.bat</code>).</p>'}
         ${wrongTab ? `
         <p class="setup-callout setup-callout-important">Bridge is running, but this tab is not served by <code>${launcher}</code>. Close Live Server on port 8080, restart the .bat, then use the tab it opens.</p>
         <a href="${trackerUrl}" class="btn btn-secondary" id="setup-open-tracker-tab" target="_blank" rel="noopener">Open correct tracker tab</a>

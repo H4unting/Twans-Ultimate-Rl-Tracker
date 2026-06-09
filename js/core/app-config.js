@@ -14,19 +14,32 @@ export const LEGAL_CONTACT = {
 };
 
 export const DESKTOP_APP = {
-  name: 'Twans Auto-Log',
-  launcher: 'Rocket League Tracker.bat',
-  launcherRl: 'Rocket League Tracker.bat',
-  launcherVal: 'Valorant Tracker.bat',
-  exe: 'Twans Auto-Log.exe',
-  legacyExe: 'Twans-Tracker-Bridge.exe',
-  shortName: 'auto-log app',
+  name: 'Twans Ultimate Tracker',
+  launcher: 'Twans Ultimate Tracker.exe',
+  launcherRl: 'Twans Ultimate Tracker.exe',
+  launcherVal: 'Twans Ultimate Tracker.exe',
+  launcherBatRl: 'Rocket League Tracker.bat',
+  launcherBatVal: 'Valorant Tracker.bat',
+  exe: 'Twans Ultimate Tracker.exe',
+  legacyExe: 'Twans Auto-Log.exe',
+  legacyExe2: 'Twans-Tracker-Bridge.exe',
+  shortName: 'desktop app',
   whatItDoes: 'Runs on your PC while you play and sends match stats to the tracker',
 };
 
+/** Primary launcher for UI — exe when on localhost, .bat as dev fallback label */
+export function getPrimaryLauncher() {
+  return DESKTOP_APP.exe;
+}
+
 /** Game-specific launcher filename for UI copy */
 export function getDesktopLauncher(gameId) {
-  return gameId === 'valorant' ? DESKTOP_APP.launcherVal : DESKTOP_APP.launcherRl;
+  return getPrimaryLauncher();
+}
+
+/** Dev fallback .bat for the active game */
+export function getDesktopLauncherBat(gameId) {
+  return gameId === 'valorant' ? DESKTOP_APP.launcherBatVal : DESKTOP_APP.launcherBatRl;
 }
 
 export const LOCAL_TRACKER_URL = 'http://localhost:8080';

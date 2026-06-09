@@ -20,6 +20,8 @@ import {
   sendRateLimited,
   validateSetupApply,
 } from './bridge-security.mjs';
+import { launchRocketLeague, launchValorant } from './game-launch.mjs';
+import { getGameProcessState, startProcessWatcher } from './process-watcher.mjs';
 
 const RL_PORT = 49123;
 const DEFAULT_HTTP_PORT = 49200;
@@ -285,7 +287,29 @@ export function startBridge(options = {}) {
     if (!requireBridgeAuth(req, res, urlPath)) return;
 
     try {
+      if (urlPath === '/launch/rocket-league' && req.method === 'POST') {
+        const result = await launchRocketLeague();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result));
+        return;
+      }
+
+      if (urlPath === '/launch/valorant' && req.method === 'POST') {
+        const result = await launchValorant();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result));
+        return;
+      }
+
+      if (urlPath === '/processes') {
+        const processes = await getGameProcessState();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(processes));
+        return;
+      }
+
       if (urlPath === '/status') {
+        const processes = await getGameProcessState();
         const payload = {
           rlConnected,
           inMatch,
@@ -294,6 +318,8 @@ export function startBridge(options = {}) {
           playlist: currentPlaylist.name,
           isRanked: currentPlaylist.isRanked,
           authRequired: true,
+          rocketLeagueRunning: processes.rocketLeagueRunning,
+          valorantProcessRunning: processes.valorantProcessRunning,
         };
         const origin = req.headers.origin;
         if (!origin || ALLOWED_ORIGINS.has(origin) || isLocalDevOrigin(origin)) {
@@ -404,6 +430,7 @@ export function startBridge(options = {}) {
           launcherMode: valLauncherMode,
         });
       });
+      startProcessWatcher(4000);
       resolve(server);
     });
   });

@@ -19,6 +19,7 @@ import { exec } from 'child_process';
 import { fileURLToPath } from 'url';
 import { startBridge } from './rl-bridge.mjs';
 import { loadGrindConfig } from './local-setup.mjs';
+import { launchRocketLeague, launchValorant } from './game-launch.mjs';
 import {
   checkRateLimit,
   getBridgeAuthToken,
@@ -340,62 +341,20 @@ function printLauncherBanner() {
   log('  Connecting services...');
 }
 
-function launchRocketLeague() {
-  if (process.platform !== 'win32') {
-    log('  Launch Rocket League manually (auto-launch is Windows-only).');
-    return;
+async function launchGameIfRequested() {
+  if (launchRl && !valOnly) {
+    log('');
+    log('  Launching Rocket League...');
+    const result = await launchRocketLeague(log);
+    if (!result.ok) console.warn(`  ${result.error}`);
+  } else if (launchVal && valOnly) {
+    log('');
+    log('  Launching Valorant...');
+    valLauncherLog('Executing Valorant launch command...');
+    const result = await launchValorant(valLauncherLog);
+    if (!result.ok) console.warn(`  [valorant-launcher] ${result.error}`);
+    else valLauncherLog('Launch method:', result.method);
   }
-  log('');
-  log('  Launching Rocket League...');
-  exec('start "" "steam://rungameid/252950"', (err) => {
-    if (err) {
-      console.warn('  Could not open Steam. Start Rocket League manually (Steam app ID 252950).');
-      console.warn('  Epic players: open Rocket League from the Epic Games launcher.');
-    }
-  });
-}
-
-function launchValorantViaUri() {
-  const riotUri = 'riotclient://launch-product=valorant&patchline=live';
-  valLauncherLog('Method: riotclient URI —', riotUri);
-  exec(`start "" "${riotUri}"`, (err) => {
-    if (err) {
-      console.warn('  [valorant-launcher] Could not start Valorant via URI. Open Valorant manually.');
-    }
-  });
-}
-
-function launchValorant() {
-  if (process.platform !== 'win32') {
-    log('  Launch Valorant manually (auto-launch is Windows-only).');
-    return;
-  }
-  log('');
-  log('  Launching Valorant...');
-  valLauncherLog('Executing Valorant launch command...');
-  const candidates = [
-    path.join(process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', 'Riot Games', 'Riot Client', 'RiotClientServices.exe'),
-    path.join(process.env.LOCALAPPDATA || '', 'Riot Games', 'Riot Client', 'RiotClientServices.exe'),
-  ];
-  for (const exe of candidates) {
-    if (fs.existsSync(exe)) {
-      valLauncherLog('Method: RiotClientServices.exe —', exe);
-      exec(`"${exe}" --launch-product=valorant --launch-patchline=live`, (err) => {
-        if (err) {
-          valLauncherLog('RiotClientServices.exe failed — trying riotclient:// URI fallback');
-          launchValorantViaUri();
-        }
-      });
-      return;
-    }
-  }
-  valLauncherLog('RiotClientServices.exe not found — trying riotclient:// URI fallback');
-  launchValorantViaUri();
-}
-
-function launchGameIfRequested() {
-  if (launchRl && !valOnly) launchRocketLeague();
-  else if (launchVal && valOnly) launchValorant();
 }
 
 function printReadyMessage() {
@@ -492,7 +451,7 @@ if (!quiet) {
 }
 openBrowser(LOCAL_TRACKER_URL);
 
-launchGameIfRequested();
+await launchGameIfRequested();
 printReadyMessage();
 
 if (!quiet && !launchRl && !launchVal) {

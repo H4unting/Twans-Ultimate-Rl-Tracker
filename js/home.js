@@ -10,6 +10,7 @@ import { getActionFocusTips, getGameMeta, GAME_IDS, getTagCat, getRankDiff, getQ
 import { formatRankDisplay } from './games/valorant/rank-ladder.js';
 import { formatRRDelta } from './games/valorant/ranks.js';
 import { state } from './state.js';
+import { launchGame } from './game-launcher.js';
 import { getLoggingSessionNum } from './core/logging-session.js';
 import { weekRankGain } from './goals.js';
 import { rankIndex, RANK_LADDER } from './games/valorant/rank-ladder.js';
@@ -59,7 +60,8 @@ function wireQuickActions(container) {
   container.querySelectorAll('[data-dash-action]').forEach(btn => {
     btn.addEventListener('click', () => {
       const action = btn.dataset.dashAction;
-      if (action === 'log') window.__navigate?.('log', 'home');
+      if (action === 'play') void launchGame(state.activeGame);
+      else if (action === 'log') window.__navigate?.('log', 'home');
       else if (action === 'review') window.__navigate?.('focus', 'review');
       else if (action === 'session') {
         document.getElementById('session-start-btn')?.click();
@@ -281,8 +283,14 @@ function renderDashQuickActions() {
   const sessionLabel = state.session.active ? 'End Session' : 'Start Session';
   const sessionIcon = state.session.active ? '⏹' : '▶';
 
+  const playLabel = state.activeGame === GAME_IDS.VALORANT ? 'Play Valorant' : 'Play Rocket League';
+
   el.innerHTML = `
-    <button type="button" class="dash-action-btn primary" data-dash-action="session">
+    <button type="button" class="dash-action-btn primary" data-dash-action="play">
+      <span class="dash-action-icon">🎮</span>
+      <span><span class="dash-action-label">${playLabel}</span><span class="dash-action-desc">Launch &amp; track</span></span>
+    </button>
+    <button type="button" class="dash-action-btn" data-dash-action="session">
       <span class="dash-action-icon">${sessionIcon}</span>
       <span><span class="dash-action-label">${sessionLabel}</span><span class="dash-action-desc">Track your grind</span></span>
     </button>

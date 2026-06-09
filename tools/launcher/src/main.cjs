@@ -1,6 +1,6 @@
 /**
- * Twans Auto-Log — Windows tray app
- * Stats scripts are bundled inside the app; config lives next to the exe.
+ * Twans Ultimate Tracker — Windows desktop launcher (tray)
+ * Starts local tracker (:8080) + bridge (:49200), opens browser, auto-restarts on crash.
  */
 
 const {
@@ -11,14 +11,28 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.2.0';
+const APP_TITLE = 'Twans Ultimate Tracker';
 const BRIDGE_STATUS_URL = 'http://127.0.0.1:49200/status';
+const TRACKER_STATUS_URL = 'http://127.0.0.1:8080/api/bridge/status';
 const DEFAULT_TRACKER_URL = 'http://localhost:8080';
+const MAX_RESTARTS = 8;
+const RESTART_BASE_MS = 2500;
 
 let tray = null;
 let bridgeProc = null;
 let statusTimer = null;
-let bridgeState = { running: false, rlConnected: false, playerName: null, error: null };
+let restartAttempts = 0;
+let appQuitting = false;
+let bridgeState = {
+  running: false,
+  trackerUp: false,
+  rlConnected: false,
+  gameRunning: false,
+  playerName: null,
+  error: null,
+  phase: 'connecting',
+};
 let launcherConfig = { trackerUrl: DEFAULT_TRACKER_URL, openTrackerOnStart: true };
 
 const gotLock = app.requestSingleInstanceLock();
@@ -55,7 +69,6 @@ function uniqueDirs(candidates) {
   return out;
 }
 
-/** Folder where grind-config.json / bridge.log live — next to the exe or in config/. */
 function resolveConfigDir(root) {
   const nested = path.join(root, 'config');
   if (fs.existsSync(nested)) return nested;
@@ -86,7 +99,6 @@ function findDataRoot() {
   return path.dirname(process.execPath);
 }
 
-/** Bundled bridge scripts (inside the exe) or local scripts/ folder. */
 function findBridgeScriptsDir(dataRoot) {
   const bundled = path.join(process.resourcesPath, 'bridge-scripts');
   if (fs.existsSync(path.join(bundled, 'start-grind.mjs'))) {
@@ -151,12 +163,37 @@ function appendBridgeLog(dataRoot, chunk) {
   fs.appendFile(logPath, chunk, () => {});
 }
 
-function createTrayIcon(connected) {
+function fetchJson(url) {
+  return new Promise((resolve) => {
+    const req = http.get(url, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        try {
+          resolve({ ok: res.statusCode >= 200 && res.statusCode < 300, json: JSON.parse(data) });
+        } catch {
+          resolve({ ok: false, json: null });
+        }
+      });
+    });
+    req.on('error', () => resolve({ ok: false, json: null }));
+    req.setTimeout(2000, () => {
+      req.destroy();
+      resolve({ ok: false, json: null });
+    });
+  });
+}
+
+function createTrayIcon(phase) {
   const size = 16;
   const buf = Buffer.alloc(size * size * 4);
-  const r = connected ? 56 : 230;
-  const g = connected ? 180 : 92;
-  const b = connected ? 90 : 0;
+  const colors = {
+    tracking: [56, 180, 90],
+    waiting: [230, 170, 40],
+    connecting: [100, 140, 220],
+    error: [230, 70, 70],
+  };
+  const [r, g, b] = colors[phase] || colors.connecting;
 
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
@@ -174,32 +211,12 @@ function createTrayIcon(connected) {
   return nativeImage.createFromBuffer(buf, { width: size, height: size });
 }
 
-function fetchBridgeStatus() {
-  return new Promise((resolve) => {
-    const req = http.get(BRIDGE_STATUS_URL, (res) => {
-      let data = '';
-      res.on('data', (chunk) => { data += chunk; });
-      res.on('end', () => {
-        try {
-          resolve(JSON.parse(data));
-        } catch {
-          resolve(null);
-        }
-      });
-    });
-    req.on('error', () => resolve(null));
-    req.setTimeout(1500, () => {
-      req.destroy();
-      resolve(null);
-    });
-  });
-}
-
 function statusLine() {
   if (bridgeState.error) return bridgeState.error;
-  if (!bridgeState.running) return 'Starting…';
-  if (bridgeState.rlConnected) return 'RL connected — auto-log on';
-  return 'Running — waiting for Rocket League';
+  if (bridgeState.phase === 'tracking') return 'Tracking — game connected';
+  if (bridgeState.phase === 'waiting') return 'Waiting — launch your game';
+  if (bridgeState.phase === 'connecting') return 'Starting services…';
+  return 'Error — check bridge.log';
 }
 
 function buildMenu() {
@@ -208,7 +225,7 @@ function buildMenu() {
     : 'Player: set name in tracker setup';
 
   return Menu.buildFromTemplate([
-    { label: `Twans Auto-Log v${APP_VERSION}`, enabled: false },
+    { label: `${APP_TITLE} v${APP_VERSION}`, enabled: false },
     { label: statusLine(), enabled: false },
     { label: player, enabled: false },
     { type: 'separator' },
@@ -217,8 +234,9 @@ function buildMenu() {
       click: () => shell.openExternal(launcherConfig.trackerUrl),
     },
     {
-      label: 'Restart auto-log',
+      label: 'Restart tracker',
       click: () => {
+        restartAttempts = 0;
         stopBridge();
         startBridge(app.dataRoot, app.scriptsDir, app.nodePath);
       },
@@ -233,24 +251,51 @@ function buildMenu() {
 
 function refreshTray() {
   if (!tray) return;
-  tray.setImage(createTrayIcon(bridgeState.rlConnected));
-  tray.setToolTip(`Twans Auto-Log — ${statusLine()}`);
+  tray.setImage(createTrayIcon(bridgeState.phase));
+  tray.setToolTip(`${APP_TITLE} — ${statusLine()}`);
   tray.setContextMenu(buildMenu());
 }
 
 async function pollStatus() {
-  const status = await fetchBridgeStatus();
-  if (status) {
+  const [bridge, tracker] = await Promise.all([
+    fetchJson(BRIDGE_STATUS_URL),
+    fetchJson(TRACKER_STATUS_URL),
+  ]);
+
+  bridgeState.trackerUp = tracker.ok;
+  if (bridge.ok && bridge.json) {
     bridgeState.running = true;
-    bridgeState.rlConnected = Boolean(status.rlConnected);
-    bridgeState.playerName = status.playerName || bridgeState.playerName;
+    bridgeState.rlConnected = Boolean(bridge.json.rlConnected);
+    bridgeState.gameRunning = Boolean(
+      bridge.json.inMatch
+      || bridge.json.rocketLeagueRunning
+      || bridge.json.valorantProcessRunning,
+    );
+    bridgeState.playerName = bridge.json.playerName || bridgeState.playerName;
+    bridgeState.error = null;
+    restartAttempts = 0;
+
+    if (bridgeState.gameRunning || bridge.json.inMatch) {
+      bridgeState.phase = 'tracking';
+    } else if (bridgeState.rlConnected || bridgeState.trackerUp) {
+      bridgeState.phase = 'waiting';
+    } else {
+      bridgeState.phase = 'waiting';
+    }
+  } else if (tracker.ok) {
+    bridgeState.running = true;
+    bridgeState.rlConnected = false;
+    bridgeState.gameRunning = false;
+    bridgeState.phase = 'waiting';
     bridgeState.error = null;
   } else if (bridgeProc && !bridgeProc.killed) {
     bridgeState.running = true;
-    bridgeState.rlConnected = false;
+    bridgeState.phase = 'connecting';
   } else {
     bridgeState.running = false;
     bridgeState.rlConnected = false;
+    bridgeState.gameRunning = false;
+    bridgeState.phase = 'error';
   }
   refreshTray();
 }
@@ -266,13 +311,33 @@ function stopBridge() {
   bridgeProc = null;
   bridgeState.running = false;
   bridgeState.rlConnected = false;
+  bridgeState.gameRunning = false;
+}
+
+function scheduleBridgeRestart(dataRoot, scriptsDir, nodePath) {
+  if (appQuitting || restartAttempts >= MAX_RESTARTS) {
+    bridgeState.error = restartAttempts >= MAX_RESTARTS
+      ? 'Tracker stopped — use Restart from tray menu'
+      : null;
+    bridgeState.phase = 'error';
+    refreshTray();
+    return;
+  }
+  restartAttempts += 1;
+  const delay = Math.min(RESTART_BASE_MS * restartAttempts, 15000);
+  bridgeState.error = `Restarting… (${restartAttempts}/${MAX_RESTARTS})`;
+  bridgeState.phase = 'connecting';
+  refreshTray();
+  setTimeout(() => {
+    if (!appQuitting) startBridge(dataRoot, scriptsDir, nodePath);
+  }, delay);
 }
 
 function startBridge(dataRoot, scriptsDir, nodePath) {
   stopBridge();
 
   const scriptPath = path.join(scriptsDir, 'start-grind.mjs');
-  appendBridgeLog(dataRoot, `\n--- Bridge start v${APP_VERSION} ---\n`);
+  appendBridgeLog(dataRoot, `\n--- ${APP_TITLE} start v${APP_VERSION} ---\n`);
   appendBridgeLog(dataRoot, `dataRoot=${dataRoot}\nscriptsDir=${scriptsDir}\n`);
 
   bridgeProc = spawn(nodePath, [scriptPath], {
@@ -292,22 +357,27 @@ function startBridge(dataRoot, scriptsDir, nodePath) {
   bridgeProc.stderr?.on('data', (chunk) => appendBridgeLog(dataRoot, chunk));
 
   bridgeProc.on('exit', (code) => {
-    if (code && code !== 0) {
-      bridgeState.error = `Auto-log exited (${code}) — see bridge.log`;
-    }
     bridgeProc = null;
     bridgeState.running = false;
     bridgeState.rlConnected = false;
-    refreshTray();
+    bridgeState.gameRunning = false;
+    if (appQuitting) return;
+    if (code === 0) {
+      void pollStatus();
+      return;
+    }
+    appendBridgeLog(dataRoot, `\n[exit code ${code}]\n`);
+    scheduleBridgeRestart(dataRoot, scriptsDir, nodePath);
   });
 
   bridgeState.error = null;
+  bridgeState.phase = 'connecting';
   bridgeState.running = true;
   refreshTray();
 }
 
 function showSetupError(message) {
-  dialog.showErrorBox(`Twans Auto-Log v${APP_VERSION}`, message);
+  dialog.showErrorBox(`${APP_TITLE} v${APP_VERSION}`, message);
 }
 
 app.whenReady().then(() => {
@@ -316,8 +386,8 @@ app.whenReady().then(() => {
 
   if (!scriptsDir) {
     showSetupError(
-      'Stats scripts are missing from this build.\n\n'
-      + 'Run build-tray-app.bat again to rebuild Twans Auto-Log.exe.',
+      'Tracker scripts are missing from this build.\n\n'
+      + 'Run build-tray-app.bat from the tracker folder to rebuild Twans Ultimate Tracker.exe.',
     );
     app.quit();
     return;
@@ -326,9 +396,9 @@ app.whenReady().then(() => {
   const nodePath = findNodeExecutable(dataRoot);
   if (!nodePath) {
     showSetupError(
-      'Node.js is required to run auto-log.\n\n'
+      'Node.js is required to run the tracker.\n\n'
       + 'Install Node.js LTS from https://nodejs.org\n'
-      + 'Or use start-grind.bat until Node is installed.',
+      + 'Or use Rocket League Tracker.bat until Node is installed.',
     );
     app.quit();
     return;
@@ -339,15 +409,15 @@ app.whenReady().then(() => {
   app.nodePath = nodePath;
   loadLauncherConfig(dataRoot);
 
-  tray = new Tray(createTrayIcon(false));
-  tray.setToolTip('Twans Auto-Log');
+  tray = new Tray(createTrayIcon('connecting'));
+  tray.setToolTip(APP_TITLE);
   tray.on('double-click', () => shell.openExternal(launcherConfig.trackerUrl));
   refreshTray();
 
   startBridge(dataRoot, scriptsDir, nodePath);
 
   if (launcherConfig.openTrackerOnStart) {
-    shell.openExternal(launcherConfig.trackerUrl);
+    setTimeout(() => shell.openExternal(launcherConfig.trackerUrl), 1200);
   }
 
   statusTimer = setInterval(pollStatus, 2500);
@@ -355,6 +425,7 @@ app.whenReady().then(() => {
 });
 
 app.on('before-quit', () => {
+  appQuitting = true;
   if (statusTimer) clearInterval(statusTimer);
   stopBridge();
 });

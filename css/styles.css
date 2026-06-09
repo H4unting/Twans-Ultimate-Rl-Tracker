@@ -641,6 +641,30 @@ body.logged-out.has-quick-dock { padding-bottom: 0; }
 .session-btn.end { background: #ff444418; color: var(--red); border: 1px solid #ff444440; }
 .session-btn.end:hover { background: #ff444430; }
 
+.session-play-btn {
+  padding: 6px 12px; border-radius: 999px; font-size: 11px; font-weight: 700;
+  cursor: pointer; border: 1px solid #00c85155; background: #00c85122; color: #6ee7a0;
+  transition: all var(--transition); white-space: nowrap; flex-shrink: 0;
+}
+.session-play-btn:hover { background: #00c85138; transform: scale(1.02); }
+
+.live-bridge-status[data-status-phase="tracking"] { border-color: #00c85166; color: #6ee7a0; background: #00c85118; }
+.live-bridge-status[data-status-phase="waiting"] { border-color: #f59e0b55; color: #fcd34d; background: #f59e0b14; }
+.live-bridge-status[data-status-phase="connecting"] { border-color: #60a5fa55; color: #93c5fd; background: #3b82f614; }
+.live-bridge-status[data-status-phase="error"] { border-color: #ef444466; color: #fca5a5; background: #ef444418; }
+
+.onboarding-game-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin: 16px 0;
+}
+.onboarding-game-card {
+  display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px;
+  border: 1px solid var(--border); border-radius: 12px; cursor: pointer; transition: border-color 0.2s;
+}
+.onboarding-game-card.selected { border-color: var(--accent); background: #e65c0010; }
+.onboarding-game-card input { position: absolute; opacity: 0; pointer-events: none; }
+.onboarding-game-emoji { font-size: 28px; }
+.onboarding-intro { margin: 0 0 8px; color: var(--dim); }
+
 /* Live floating panel */
 .live-session-panel {
   position: fixed; bottom: 20px; right: 20px; z-index: 90;
