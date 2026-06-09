@@ -2236,22 +2236,53 @@ body[data-active-game="rocket_league"] .setup-game-panel-rl { box-shadow: 0 0 20
   border: 1px solid var(--border);
   background: var(--surface);
   margin-bottom: 20px;
+  box-shadow: 0 4px 24px #00000044;
 }
-.profile-card-accent {
-  height: 4px;
-  background: linear-gradient(90deg, var(--profile-primary, #e65c00), var(--profile-secondary, #4a2060));
+.profile-card-hero {
+  position: relative;
+  overflow: hidden;
+  min-height: 132px;
+}
+.profile-card-banner {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--profile-primary, #e65c00) 30%, #0d1117) 0%,
+    color-mix(in srgb, var(--profile-secondary, #4a2060) 24%, #101820) 44%,
+    #0a0e14 100%
+  );
+}
+.profile-card-banner-overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, #0a0e1433 0%, #0a0e1466 45%, #0a0e14bb 100%),
+    linear-gradient(90deg, #0a0e14aa 0%, transparent 38%, transparent 62%, #0a0e1499 100%);
+  pointer-events: none;
+}
+.profile-card-hero-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 14px 18px;
+  padding: 20px 18px 16px;
+  min-height: 132px;
+}
+.profile-card-identity-group {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1 1 260px;
+  min-width: 0;
 }
 .profile-card-body {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 16px 18px 18px;
-}
-.profile-card-header {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  min-width: 0;
+  gap: 12px;
+  padding: 0 18px 18px;
 }
 .profile-card-identity {
   min-width: 0;
@@ -2310,7 +2341,7 @@ body[data-active-game="rocket_league"] .setup-game-panel-rl { box-shadow: 0 0 20
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding-top: 4px;
+  padding-top: 14px;
   border-top: 1px solid #ffffff0d;
 }
 .profile-card-footer .profile-bio {
@@ -2409,8 +2440,8 @@ textarea:focus-visible {
 }
 .profile-avatar {
   display: block;
-  width: 56px;
-  height: 56px;
+  width: 64px;
+  height: 64px;
   object-fit: cover;
   border-radius: 50%;
   background: #111;
@@ -2453,12 +2484,41 @@ textarea:focus-visible {
   grid-template-columns: repeat(4, 1fr);
   gap: 8px;
 }
+.profile-stats-bar--hero {
+  flex: 1 1 300px;
+  max-width: 440px;
+  gap: 6px;
+}
+.profile-stats-bar--hero .profile-stat {
+  min-height: 58px;
+  padding: 8px 6px;
+  background: #00000055;
+  backdrop-filter: blur(6px);
+  border-color: #ffffff14;
+}
+.profile-stats-bar--hero .profile-stat strong {
+  font-size: 17px;
+}
+@media (max-width: 720px) {
+  .profile-card-hero-content {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 16px 14px 14px;
+  }
+  .profile-stats-bar--hero {
+    max-width: none;
+    flex-basis: auto;
+  }
+}
 @media (max-width: 560px) {
-  .profile-stats-bar {
+  .profile-stats-bar,
+  .profile-stats-bar--hero {
     grid-template-columns: repeat(2, 1fr);
   }
-  .profile-card-body { padding: 14px 14px 16px; }
+  .profile-card-body { padding: 0 14px 16px; }
   .profile-display-name { font-size: 20px; }
+  .profile-card-hero { min-height: auto; }
+  .profile-card-hero-content { min-height: auto; }
 }
 .profile-stat {
   background: var(--surface-2);
