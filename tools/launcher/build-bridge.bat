@@ -1,5 +1,5 @@
 @echo off
-title Build Twans Auto-Log
+title Build Twans Ultimate Tracker
 cd /d "%~dp0"
 
 where node >nul 2>&1
@@ -10,7 +10,7 @@ if errorlevel 1 (
 )
 
 echo.
-echo  Building Twans Auto-Log tray app...
+echo  Building Twans Ultimate Tracker desktop app...
 echo.
 
 if not exist "node_modules" (
@@ -24,7 +24,7 @@ if errorlevel 1 goto fail
 
 echo.
 echo  Done! Run this from your tracker folder:
-echo    Twans Auto-Log.exe
+echo    Twans Ultimate Tracker.exe
 echo.
 echo  Or double-click the copy in the tracker root.
 echo.

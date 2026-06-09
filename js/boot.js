@@ -10,6 +10,7 @@ import {
   applyRankBaselinesFromSettings, inferRankBaselinesFromGames, rankBaselinesForSettings,
 } from './rank-baselines.js';
 import { showRankSetupIfNeeded } from './rank-setup-ui.js';
+import { showOnboardingIfNeeded } from './onboarding-wizard.js';
 import { purgeGhostValorantMatches, collapseDuplicateValorantMatchesInState } from './matches.js';
 import { normalizeGoalsStorage } from './goals.js';
 import { loadPrefs, savePrefs, showQuickDock } from './quicklog.js';
@@ -163,13 +164,17 @@ export async function bootApp() {
       await saveSettings(ctx.getSettingsPayload(rankBaselinesForSettings()));
     };
 
-    showRankSetupIfNeeded({
-      games: allGames,
-      onComplete: () => {
-        ctx.renderAll('core');
-        refreshSetupWizard(ctx.getDisplay().name);
-      },
-    });
+    const afterRankSetup = () => {
+      ctx.renderAll('core');
+      refreshSetupWizard(ctx.getDisplay().name);
+    };
+
+    if (!showOnboardingIfNeeded({ games: allGames, onComplete: afterRankSetup })) {
+      showRankSetupIfNeeded({
+        games: allGames,
+        onComplete: afterRankSetup,
+      });
+    }
 
     import('./qa/qa-panel.js').then(({ initQaToolsIfEnabled }) => {
       initQaToolsIfEnabled({

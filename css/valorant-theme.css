@@ -408,8 +408,18 @@ body[data-active-game="valorant"] .home-focus-card-featured {
   box-shadow: 0 0 28px #ff465522;
 }
 
-body[data-active-game="valorant"] .profile-card-accent {
-  background: linear-gradient(90deg, var(--val-red), #1a1028) !important;
+body[data-active-game="valorant"] .profile-card-banner {
+  background: linear-gradient(
+    135deg,
+    #141820 0%,
+    color-mix(in srgb, var(--val-red) 22%, #101820) 42%,
+    #0a0e12 100%
+  ) !important;
+}
+body[data-active-game="valorant"] .profile-card-banner-overlay {
+  background:
+    linear-gradient(180deg, #0a0e1222 0%, #0a0e1266 50%, #0a0e12cc 100%),
+    linear-gradient(90deg, #0a0e12aa 0%, transparent 40%, transparent 60%, #0a0e1299 100%);
 }
 body[data-active-game="valorant"] .profile-level-pill {
   background: linear-gradient(135deg, var(--val-red), #8b2030);

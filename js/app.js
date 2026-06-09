@@ -31,6 +31,8 @@ import {
   bridgeFetch,
 } from './bridge-client.js';
 import { wireBridgeStatusClick, refreshBridgeStatusUI } from './bridge-ui.js';
+import { wirePlayButtons } from './game-launcher.js';
+import { startProcessSessionWatcher, stopProcessSessionWatcher } from './process-session.js';
 import { initGameSwitcher, restoreActiveGameFromPrefs, applyGameShell, applyPageCopy, syncEditModal } from './game-ui.js';
 import { renderSetupWizard, refreshSetupWizard, onBridgeStatusChange, renderLogSetupNudge } from './setup-wizard.js';
 import { rankBaselinesForSettings } from './rank-baselines.js';
@@ -100,6 +102,8 @@ let bridgeServicesStarted = false;
 
 function ensureBridgeServices() {
   startBridgeHeartbeat();
+  wirePlayButtons();
+  startProcessSessionWatcher();
   if (bridgeServicesStarted) return;
   bridgeServicesStarted = true;
   initRlLive(applyLiveStats, onBridgeStatusChange, handleAutoLog);
@@ -108,6 +112,7 @@ function ensureBridgeServices() {
 
 function stopBridgeServices() {
   bridgeServicesStarted = false;
+  stopProcessSessionWatcher();
   stopRlLive();
   stopValorantLive();
 }

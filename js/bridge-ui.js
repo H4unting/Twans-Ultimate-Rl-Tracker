@@ -2,7 +2,10 @@
 
 import { state } from './state.js';
 import { GAME_IDS, getGameMeta } from './games.js';
-import { isBridgeUp, isBridgeProbeDone, getBridgeUrl, getLastBridgeFailure, isBridgeProcessDetected } from './bridge-client.js';
+import {
+  isBridgeUp, isBridgeProbeDone, getBridgeUrl, getLastBridgeFailure,
+  isBridgeProcessDetected, getBridgeStatusPhase, getBridgeConnectAttempts,
+} from './bridge-client.js';
 import { isAutoLogEnabled, loadPrefs, syncAutoLogToggleUI } from './quicklog.js';
 import {
   setBridgeHintVisible, needsLocalTrackerForAutoLog, getLocalTrackerUrl,
@@ -40,6 +43,18 @@ export function setCachedRlInMatch(inMatch) {
   cachedRlInMatch = Boolean(inMatch);
 }
 
+function applyUnifiedStatusLabel(el, phase, detailTitle) {
+  const labels = {
+    connecting: 'Connecting…',
+    waiting: 'Waiting',
+    tracking: 'Tracking',
+    error: 'Error',
+  };
+  el.textContent = labels[phase] || 'Waiting';
+  el.dataset.statusPhase = phase;
+  if (detailTitle) el.title = detailTitle;
+}
+
 export function refreshBridgeStatusUI() {
   const el = document.getElementById('live-bridge-status');
   if (!el) return;
@@ -47,6 +62,7 @@ export function refreshBridgeStatusUI() {
   const isVal = state.activeGame === GAME_IDS.VALORANT;
   const meta = getGameMeta(state.activeGame);
   const up = isBridgeUp();
+  const phase = getBridgeStatusPhase();
   const loggedOut = document.body.classList.contains('logged-out');
 
   el.classList.remove('connected', 'in-match', 'bridge-needs-setup', 'bridge-error');
@@ -55,16 +71,21 @@ export function refreshBridgeStatusUI() {
   const launcher = getDesktopLauncher(isVal ? GAME_IDS.VALORANT : GAME_IDS.ROCKET_LEAGUE);
 
   if (!up) {
-    if (!isBridgeProbeDone() && (isLocalTrackerHost() || isWrongLocalPort())) {
-      el.textContent = 'Connecting…';
-      el.title = `Looking for ${DESKTOP_APP.name} on this PC…`;
+    if (phase === 'connecting' && (isLocalTrackerHost() || isWrongLocalPort())) {
+      const attempt = getBridgeConnectAttempts();
+      applyUnifiedStatusLabel(el, 'connecting',
+        attempt > 2
+          ? `Still connecting to ${DESKTOP_APP.name}… (attempt ${attempt})`
+          : `Looking for ${DESKTOP_APP.name} on this PC…`);
       el.dataset.bridgeState = 'connecting';
       setBridgeHintVisible(false);
       syncAutoLogToggleUI();
       return;
     }
     const failure = getLastBridgeFailure();
-    el.textContent = failure === 'wrong_tracker_alive' ? 'Wrong server' : 'Auto-log off';
+    applyUnifiedStatusLabel(el, 'error',
+      failure === 'wrong_tracker_alive' ? 'Wrong app on port 8080' : 'Bridge not connected');
+    el.classList.add('bridge-error');
     if (failure === 'wrong_tracker_alive') {
       el.title = `Port 8080 is the wrong app — close Live Server, restart ${launcher}, open ${getLocalTrackerUrl()}`;
     } else if (isWrongLocalPort()) {
@@ -155,17 +176,17 @@ function renderValorantPill(el, valStatus, meta) {
   }
 
   if (valStatus.valorantRunning && isAutoLogEnabled()) {
-    el.textContent = '● Auto-log ON';
-    el.title = 'Ready — when Henrik sees a new finished match, it saves automatically (1–3 min delay)';
+    applyUnifiedStatusLabel(el, 'tracking', 'Auto-log ON — finished matches save in 1–3 min');
+    el.textContent = '● Tracking';
   } else if (valStatus.valorantRunning) {
-    el.textContent = '● Valorant live';
-    el.title = 'Valorant is running — turn on auto-log or tap LOG after the match';
+    applyUnifiedStatusLabel(el, 'tracking', 'Valorant is running — turn on auto-log or tap LOG after the match');
+    el.textContent = '● Tracking';
   } else if (isAutoLogEnabled()) {
-    el.textContent = '● Waiting for Val';
-    el.title = 'Bridge ready — open Valorant; auto-log saves after each finished match';
+    applyUnifiedStatusLabel(el, 'waiting', 'Bridge ready — launch Valorant to start tracking');
+    el.textContent = '● Waiting';
   } else {
-    el.textContent = '● Connected';
-    el.title = `${DESKTOP_APP.name} is running — enable auto-log in the dock or log manually`;
+    applyUnifiedStatusLabel(el, 'waiting', `${DESKTOP_APP.name} is running — enable auto-log or tap Play`);
+    el.textContent = '● Waiting';
   }
   el.dataset.bridgeState = 'ready';
 }
@@ -174,14 +195,14 @@ function renderRocketLeaguePill(el, inMatch, meta) {
   el.classList.toggle('in-match', inMatch);
 
   if (inMatch) {
-    el.textContent = '● Live match';
-    el.title = `Reading stats from ${meta.label}`;
+    applyUnifiedStatusLabel(el, 'tracking', `Live match — reading stats from ${meta.label}`);
+    el.textContent = '● Tracking';
   } else if (isAutoLogEnabled()) {
-    el.textContent = '● Auto-log ON';
-    el.title = 'Games log automatically when a match ends';
+    applyUnifiedStatusLabel(el, 'tracking', 'Auto-log ON — matches save when they end');
+    el.textContent = '● Tracking';
   } else {
-    el.textContent = '● Stats ready';
-    el.title = `${DESKTOP_APP.name} is running — stats fill in; you tap LOG`;
+    applyUnifiedStatusLabel(el, 'waiting', `${DESKTOP_APP.name} is ready — launch your game or tap Play`);
+    el.textContent = '● Waiting';
   }
   el.dataset.bridgeState = inMatch ? 'in-match' : 'ready';
 }

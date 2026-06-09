@@ -19,6 +19,7 @@ import { exec } from 'child_process';
 import { fileURLToPath } from 'url';
 import { startBridge } from './rl-bridge.mjs';
 import { loadGrindConfig } from './local-setup.mjs';
+import { launchRocketLeague, launchValorant } from './game-launch.mjs';
 import {
   checkRateLimit,
   getBridgeAuthToken,
@@ -126,33 +127,43 @@ async function probePort8080Occupant() {
   }
 }
 
+function printPort8080AlreadyRunningHelp() {
+  console.log('');
+  console.log(`  Port ${TRACKER_PORT} is already serving Twans Ultimate Tracker.`);
+  console.log('');
+  console.log('  You do NOT need to start again:');
+  console.log(`    • Use your existing tab at ${LOCAL_TRACKER_URL}`);
+  console.log('    • Or close the OTHER Rocket League / Valorant Tracker console window, then run this .bat again');
+  console.log('');
+  console.log('  Opening the tracker in your browser...');
+  console.log('');
+}
+
 function printPort8080BlockedError(occupant = 'unknown') {
   console.error('');
   console.error(`  ERROR: Port ${TRACKER_PORT} is already in use.`);
   if (occupant === 'wrong_server') {
-    console.error('  Another app (often Live Server or npx serve) is on port 8080 WITHOUT the auto-log bridge.');
-  } else if (occupant === 'tracker_already_running') {
-    console.error('  Another tracker window may already be running on port 8080.');
+    console.error('  Something else is on port 8080 (often VS Code Live Server, Live Preview, or npx serve).');
+    console.error('  That app does NOT include the auto-log bridge — close it, then run this launcher again.');
   } else {
-    console.error('  Another app (often Live Server, VS Code Live Preview, or npx serve) is blocking the tracker.');
+    console.error('  Another program is blocking port 8080 (often Live Server, Live Preview, or npx serve).');
+    console.error('  If a tracker console is already open, use http://localhost:8080 there instead of starting twice.');
   }
   console.error('');
-  console.error('  Fix:');
-  console.error('    1. Close Live Server / other dev servers using port 8080');
-  console.error('    2. Close other Valorant Tracker / Rocket League Tracker console windows');
+  console.error('  Fix (no admin needed):');
+  console.error('    1. Close VS Code Live Server / Live Preview (status bar Port: 8080 → stop)');
+  console.error('    2. Close other Valorant / Rocket League Tracker console windows');
   if (process.platform === 'win32') {
-    console.error(`    3. Find the process:  netstat -ano | findstr :${TRACKER_PORT}`);
-    console.error('       Then kill it:      taskkill /PID <pid> /F');
-    console.error('       Or run:            Kill-Port-8080.bat');
+    console.error(`    3. See what owns the port:  netstat -ano | findstr :${TRACKER_PORT}`);
+    console.error('       End the app in Task Manager (Details → PID). Player guide: docs\\USER-SETUP.md');
+    console.error('       Avoid Kill-Port-8080.bat unless you know you can kill that process.');
   } else {
-    console.error(`    3. Find and kill the process using port ${TRACKER_PORT} (lsof / fuser)`);
+    console.error(`    3. Find and stop the process using port ${TRACKER_PORT} (lsof / fuser)`);
   }
   console.error('');
-  console.error(`  Then run the .bat again — auto-log requires THIS launcher on ${LOCAL_TRACKER_URL}`);
+  console.error(`  Auto-log requires THIS launcher on ${LOCAL_TRACKER_URL}`);
   console.error('');
 }
-
-
 
 function isLocalTrackerUrl(url) {
 
@@ -330,62 +341,20 @@ function printLauncherBanner() {
   log('  Connecting services...');
 }
 
-function launchRocketLeague() {
-  if (process.platform !== 'win32') {
-    log('  Launch Rocket League manually (auto-launch is Windows-only).');
-    return;
+async function launchGameIfRequested() {
+  if (launchRl && !valOnly) {
+    log('');
+    log('  Launching Rocket League...');
+    const result = await launchRocketLeague(log);
+    if (!result.ok) console.warn(`  ${result.error}`);
+  } else if (launchVal && valOnly) {
+    log('');
+    log('  Launching Valorant...');
+    valLauncherLog('Executing Valorant launch command...');
+    const result = await launchValorant(valLauncherLog);
+    if (!result.ok) console.warn(`  [valorant-launcher] ${result.error}`);
+    else valLauncherLog('Launch method:', result.method);
   }
-  log('');
-  log('  Launching Rocket League...');
-  exec('start "" "steam://rungameid/252950"', (err) => {
-    if (err) {
-      console.warn('  Could not open Steam. Start Rocket League manually (Steam app ID 252950).');
-      console.warn('  Epic players: open Rocket League from the Epic Games launcher.');
-    }
-  });
-}
-
-function launchValorantViaUri() {
-  const riotUri = 'riotclient://launch-product=valorant&patchline=live';
-  valLauncherLog('Method: riotclient URI —', riotUri);
-  exec(`start "" "${riotUri}"`, (err) => {
-    if (err) {
-      console.warn('  [valorant-launcher] Could not start Valorant via URI. Open Valorant manually.');
-    }
-  });
-}
-
-function launchValorant() {
-  if (process.platform !== 'win32') {
-    log('  Launch Valorant manually (auto-launch is Windows-only).');
-    return;
-  }
-  log('');
-  log('  Launching Valorant...');
-  valLauncherLog('Executing Valorant launch command...');
-  const candidates = [
-    path.join(process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', 'Riot Games', 'Riot Client', 'RiotClientServices.exe'),
-    path.join(process.env.LOCALAPPDATA || '', 'Riot Games', 'Riot Client', 'RiotClientServices.exe'),
-  ];
-  for (const exe of candidates) {
-    if (fs.existsSync(exe)) {
-      valLauncherLog('Method: RiotClientServices.exe —', exe);
-      exec(`"${exe}" --launch-product=valorant --launch-patchline=live`, (err) => {
-        if (err) {
-          valLauncherLog('RiotClientServices.exe failed — trying riotclient:// URI fallback');
-          launchValorantViaUri();
-        }
-      });
-      return;
-    }
-  }
-  valLauncherLog('RiotClientServices.exe not found — trying riotclient:// URI fallback');
-  launchValorantViaUri();
-}
-
-function launchGameIfRequested() {
-  if (launchRl && !valOnly) launchRocketLeague();
-  else if (launchVal && valOnly) launchValorant();
 }
 
 function printReadyMessage() {
@@ -428,6 +397,11 @@ if (valLauncherMode) valLauncherLog('Launcher started');
 
 if (await isPortInUse(TRACKER_PORT)) {
   const occupant = await probePort8080Occupant();
+  if (occupant === 'tracker_already_running') {
+    printPort8080AlreadyRunningHelp();
+    openBrowser(LOCAL_TRACKER_URL);
+    process.exit(0);
+  }
   printPort8080BlockedError(occupant);
   process.exit(1);
 }
@@ -477,7 +451,7 @@ if (!quiet) {
 }
 openBrowser(LOCAL_TRACKER_URL);
 
-launchGameIfRequested();
+await launchGameIfRequested();
 printReadyMessage();
 
 if (!quiet && !launchRl && !launchVal) {

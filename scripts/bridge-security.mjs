@@ -24,6 +24,9 @@ export const PROXY_BRIDGE_ALLOWLIST = [
   '/live',
   '/last-match',
   '/last-match/consume',
+  '/processes',
+  '/launch/rocket-league',
+  '/launch/valorant',
   '/valorant/reset-baseline',
   '/valorant/arm',
   '/valorant/overwolf/ping',
@@ -37,6 +40,8 @@ export const PROXY_BRIDGE_ALLOWLIST = [
 export const AUTH_REQUIRED_POST = new Set([
   '/setup/apply',
   '/last-match/consume',
+  '/launch/rocket-league',
+  '/launch/valorant',
   '/valorant/reset-baseline',
   '/valorant/arm',
   '/valorant/last-match/consume',

@@ -23,6 +23,9 @@ let bridgeAuthToken = null;
 const listeners = new Set();
 const reachableListeners = new Set();
 let lastReachableEmitted = false;
+let connectAttempts = 0;
+
+/** @typedef {'connecting'|'tracking'|'waiting'|'error'} BridgeStatusPhase */
 
 export function subscribeBridgeOnline(fn) {
   listeners.add(fn);
@@ -123,6 +126,24 @@ export function isBridgeProbeDone() {
   return bridgeProbeDone;
 }
 
+export function getBridgeConnectAttempts() {
+  return connectAttempts;
+}
+
+/** High-level status for UI pills — Tracking / Waiting / Error */
+export function getBridgeStatusPhase() {
+  if (!bridgeProbeDone && (isOnTrackerPort() || window.location.hostname === 'localhost')) {
+    return 'connecting';
+  }
+  if (!isBridgeReachable()) {
+    return 'error';
+  }
+  if (!bridgeOnline) {
+    return connectAttempts > 3 ? 'error' : 'connecting';
+  }
+  return 'waiting';
+}
+
 async function pingBridgeOnce() {
   const res = await fetch(`${bridgeBase()}/status`, { signal: AbortSignal.timeout(PING_TIMEOUT_MS) });
   if (res.status === 404 && bridgeBase().includes('/api/bridge')) {
@@ -169,8 +190,10 @@ async function heartbeatTick() {
       await pingBridgeOnce();
       lastSuccessAt = Date.now();
       failStreak = 0;
+      connectAttempts = 0;
       setBridgeOnline(true);
     } catch {
+      connectAttempts += 1;
       const hidden = document.visibilityState === 'hidden';
       if (!hidden) failStreak += 1;
       if (!lastBridgeFailure) {

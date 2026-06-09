@@ -55,7 +55,7 @@ function resolvePrimaryRankHtml(rows, stats, rankMod, meta, isVal) {
 function bannerGradient(primary, secondary) {
   const p = primary || '#e65c00';
   const s = secondary || '#4a2060';
-  return `linear-gradient(135deg, ${p}cc 0%, ${s} 48%, #1a1028 100%)`;
+  return `linear-gradient(135deg, color-mix(in srgb, ${p} 30%, #0d1117) 0%, color-mix(in srgb, ${s} 24%, #101820) 44%, #0a0e14 100%)`;
 }
 
 function profileUidLabel(profileNumber) {
@@ -137,44 +137,47 @@ export function renderProfilePage({
   el.innerHTML = `
     <div class="profile-page" data-profile-game="${escapeAttr(gameId)}" style="--profile-primary:${escapeAttr(primary)};--profile-secondary:${escapeAttr(secondary)}">
       <div class="profile-card">
-        <div class="profile-card-accent" id="profile-banner-preview" style="background:${bannerGradient(primary, secondary)}"></div>
+        <div class="profile-card-hero">
+          <div class="profile-card-banner" id="profile-banner-preview" style="background:${bannerGradient(primary, secondary)}"></div>
+          <div class="profile-card-banner-overlay" aria-hidden="true"></div>
+          <div class="profile-card-hero-content">
+            <div class="profile-card-identity-group">
+              <div class="profile-avatar-wrap">
+                ${renderAvatarHtml(display, primary)}
+              </div>
+              <div class="profile-card-identity">
+                <div class="profile-card-name-row">
+                  <h1 class="profile-display-name" id="profile-display-heading">${escapeHtml(display.name)}</h1>
+                  <span class="profile-level-pill" title="${stats.totalGames} ${isVal ? 'matches' : 'games'} logged">Lv ${level}</span>
+                </div>
+                ${primaryRankHtml}
+                <div class="profile-subline">
+                  ${uidLabel ? `<span class="profile-uid-tag">${escapeHtml(uidLabel)}</span><span class="profile-dot">·</span>` : ''}
+                  ${identityTag}
+                </div>
+              </div>
+            </div>
+            <div class="profile-stats-bar profile-stats-bar--hero">
+              <div class="profile-stat">
+                <strong>${stats.totalGames}</strong>
+                <span>${matchesLabel}</span>
+              </div>
+              <div class="profile-stat">
+                <strong>${stats.winRate}%</strong>
+                <span>Win rate</span>
+              </div>
+              <div class="profile-stat">
+                <strong>${formatStreak(stats.streak)}</strong>
+                <span>Current streak</span>
+              </div>
+              <div class="profile-stat">
+                <strong>${escapeHtml(formatMemberSinceShort(profile?.created_at))}</strong>
+                <span>Member since</span>
+              </div>
+            </div>
+          </div>
+        </div>
         <div class="profile-card-body">
-          <div class="profile-card-header">
-            <div class="profile-avatar-wrap">
-              ${renderAvatarHtml(display, primary)}
-            </div>
-            <div class="profile-card-identity">
-              <div class="profile-card-name-row">
-                <h1 class="profile-display-name" id="profile-display-heading">${escapeHtml(display.name)}</h1>
-                <span class="profile-level-pill" title="${stats.totalGames} ${isVal ? 'matches' : 'games'} logged">Lv ${level}</span>
-              </div>
-              ${primaryRankHtml}
-              <div class="profile-subline">
-                ${uidLabel ? `<span class="profile-uid-tag">${escapeHtml(uidLabel)}</span><span class="profile-dot">·</span>` : ''}
-                ${identityTag}
-              </div>
-            </div>
-          </div>
-
-          <div class="profile-stats-bar">
-            <div class="profile-stat">
-              <strong>${stats.totalGames}</strong>
-              <span>${matchesLabel}</span>
-            </div>
-            <div class="profile-stat">
-              <strong>${stats.winRate}%</strong>
-              <span>Win rate</span>
-            </div>
-            <div class="profile-stat">
-              <strong>${formatStreak(stats.streak)}</strong>
-              <span>Current streak</span>
-            </div>
-            <div class="profile-stat">
-              <strong>${escapeHtml(formatMemberSinceShort(profile?.created_at))}</strong>
-              <span>Member since</span>
-            </div>
-          </div>
-
           <div class="profile-card-footer">
             ${bio ? `<p class="profile-bio" id="profile-bio-display">${escapeHtml(bio)}</p>` : '<p class="profile-bio profile-bio-empty hidden" id="profile-bio-display"></p>'}
             <details class="profile-edit-dropdown" id="profile-edit-island">
