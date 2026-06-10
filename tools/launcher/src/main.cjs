@@ -23,6 +23,11 @@ const BRIDGE_STATUS_URL = 'http://127.0.0.1:49200/status';
 const TRACKER_STATUS_URL = `${INTERNAL_TRACKER_ORIGIN}/api/bridge/status`;
 const MAX_RESTARTS = 8;
 const RESTART_BASE_MS = 2500;
+const TRACKER_READY_ATTEMPTS = 3;
+const APP_LOAD_ATTEMPTS = 3;
+const APP_LOAD_RETRY_MS = 1500;
+/** Chromium: navigation replaced (splash → app, blocked localhost redirect) */
+const ERR_ABORTED = -3;
 const IS_DEV = !app.isPackaged;
 
 protocol.registerSchemesAsPrivileged([{
@@ -54,6 +59,9 @@ let bridgeState = {
   phase: 'connecting',
 };
 let launcherConfig = { openTrackerOnStart: true };
+let appLoadInFlight = false;
+let trackerLoadFailures = 0;
+let trackerErrorShown = false;
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
@@ -162,17 +170,24 @@ function loadLauncherConfig(root) {
   };
 }
 
+function isPathUnderRoot(root, filePath) {
+  const rel = path.relative(path.resolve(root), path.resolve(filePath));
+  return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+}
+
 function registerAppProtocol(root) {
+  const appRoot = path.resolve(root);
   protocol.handle(APP_PROTOCOL, async (request) => {
     try {
       const reqUrl = new URL(request.url);
       let rel = decodeURIComponent(reqUrl.pathname);
       if (rel === '/' || rel === '') rel = '/index.html';
-      const filePath = path.normalize(path.join(root, rel.replace(/^\//, '').split('/').join(path.sep)));
-      if (!filePath.startsWith(root)) {
+      const filePath = path.resolve(appRoot, rel.replace(/^\//, '').split('/').join(path.sep));
+      if (!isPathUnderRoot(appRoot, filePath)) {
         return new Response('Forbidden', { status: 403 });
       }
       if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+        appendBridgeLog(app.dataRoot, `[protocol] missing ${filePath}\n`);
         return new Response('Not found', { status: 404 });
       }
       return net.fetch(pathToFileURL(filePath).href);
@@ -406,13 +421,34 @@ function showTrackerWindow() {
 }
 
 function openTrackerFallback() {
-  appendBridgeLog(app.dataRoot, '[window] tracker failed to load\n');
+  if (trackerErrorShown || appQuitting) return;
+  trackerErrorShown = true;
+  appendBridgeLog(app.dataRoot, '[window] tracker failed to load after retries\n');
   dialog.showMessageBox({
-    type: 'error',
+    type: 'warning',
     title: APP_TITLE,
-    message: 'Could not open the tracker window.',
-    detail: 'Check bridge.log in your config folder, or quit and reopen from the tray.',
+    message: 'Connection issue — the app is retrying.',
+    detail: 'If this keeps happening, quit from the tray icon and open Twans Ultimate Tracker again.',
+  }).finally(() => {
+    trackerErrorShown = false;
   });
+}
+
+function scheduleAppLoadRetry(reason) {
+  if (appQuitting || trackerLoadFailures >= APP_LOAD_ATTEMPTS) {
+    openTrackerFallback();
+    return;
+  }
+  trackerLoadFailures += 1;
+  appendBridgeLog(app.dataRoot, `[window] ${reason}; retry ${trackerLoadFailures}/${APP_LOAD_ATTEMPTS}\n`);
+  setTimeout(() => {
+    if (!appQuitting) void retryOpenTracker();
+  }, APP_LOAD_RETRY_MS * trackerLoadFailures);
+}
+
+async function retryOpenTracker() {
+  await waitForTrackerReady(15000);
+  await loadAppIntoWindow();
 }
 
 function createMainWindow() {
@@ -444,44 +480,65 @@ function createMainWindow() {
       }
     });
 
-    mainWindow.webContents.on('did-fail-load', (_event, code, desc, _url, isMainFrame) => {
+    mainWindow.webContents.on('did-finish-load', () => {
+      const url = mainWindow.webContents.getURL();
+      if (url.startsWith(`${APP_PROTOCOL}://`)) {
+        trackerLoadFailures = 0;
+      }
+    });
+
+    mainWindow.webContents.on('did-fail-load', (_event, code, desc, url, isMainFrame) => {
       if (!isMainFrame || appQuitting) return;
-      appendBridgeLog(app.dataRoot, `[window load failed] ${code} ${desc}\n`);
-      openTrackerFallback();
+      if (code === ERR_ABORTED) return;
+      if (String(url || '').startsWith('data:')) return;
+      appendBridgeLog(app.dataRoot, `[window load failed] ${code} ${desc} ${url}\n`);
+      scheduleAppLoadRetry(`load failed (${code})`);
     });
 
     void mainWindow.loadURL(getSplashDataUrl());
     return mainWindow;
   } catch (err) {
     appendBridgeLog(app.dataRoot, `[window create failed] ${err}\n`);
-    openTrackerFallback();
+    scheduleAppLoadRetry('window create failed');
     return null;
   }
 }
 
 async function loadAppIntoWindow() {
-  if (!mainWindow || mainWindow.isDestroyed()) {
-    if (!createMainWindow()) return;
-  }
-  logStartup('loading app via twans://');
+  if (appLoadInFlight) return;
+  appLoadInFlight = true;
   try {
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      if (!createMainWindow()) return;
+    }
+    logStartup(`loading app via twans:// (attempt ${trackerLoadFailures + 1})`);
     await mainWindow.loadURL(APP_URL);
     logStartup('app window ready');
+    trackerLoadFailures = 0;
   } catch (err) {
     appendBridgeLog(app.dataRoot, `[app load failed] ${err}\n`);
-    openTrackerFallback();
+    scheduleAppLoadRetry('app load threw');
+  } finally {
+    appLoadInFlight = false;
   }
 }
 
 async function openTrackerOnStart() {
   logStartup('waiting for backend services');
-  const ready = await waitForTrackerReady();
+  let ready = false;
+  for (let attempt = 1; attempt <= TRACKER_READY_ATTEMPTS; attempt += 1) {
+    const budgetMs = attempt === 1 ? 45000 : 15000;
+    ready = await waitForTrackerReady(budgetMs);
+    if (ready) break;
+    appendBridgeLog(app.dataRoot, `[window] backend not ready (attempt ${attempt}/${TRACKER_READY_ATTEMPTS})\n`);
+    if (attempt < TRACKER_READY_ATTEMPTS) await sleep(2000);
+  }
   if (!ready) {
-    appendBridgeLog(app.dataRoot, '[window] tracker not ready in time\n');
-    openTrackerFallback();
+    scheduleAppLoadRetry('backend not ready in time');
     return;
   }
   logStartup('backend services ready');
+  trackerLoadFailures = 0;
   await loadAppIntoWindow();
 }
 
@@ -652,7 +709,7 @@ app.whenReady().then(async () => {
   loadLauncherConfig(dataRoot);
 
   registerAppProtocol(trackerRoot);
-  logStartup(`protocol registered (root=${trackerRoot})`);
+  logStartup(`protocol registered (root=${trackerRoot}, index=${fs.existsSync(path.join(trackerRoot, 'index.html'))})`);
 
   tray = new Tray(createTrayIcon('connecting'));
   tray.setToolTip(APP_TITLE);
