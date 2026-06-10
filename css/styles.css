@@ -87,8 +87,9 @@ body:not(.is-loading) .loading-overlay { opacity: 0; visibility: hidden; pointer
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
 }
 .top-bar-head .top-bar-meta { margin-left: auto; }
-.logo { font-size: 17px; font-weight: 700; color: var(--accent); letter-spacing: 0.3px; line-height: 1.2; }
+.logo { font-size: 17px; font-weight: 700; color: var(--accent); letter-spacing: 0.3px; line-height: 1.2; display: flex; align-items: center; gap: 12px; justify-content: center; }
 .logo span { color: #fff; }
+.login-logo-img { border-radius: 14px; flex-shrink: 0; box-shadow: 0 0 24px -6px rgba(230, 92, 0, 0.45); }
 .logo-home-btn {
   background: none;
   border: none;
@@ -1893,6 +1894,30 @@ body[data-active-game="rocket_league"] .setup-game-panel-rl { box-shadow: 0 0 20
   background: #ef444428;
 }
 .profile-delete-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.profile-diagnostics { margin-top: 28px; max-width: 32rem; }
+.diag-card {
+  background: var(--surface-2, rgba(255,255,255,.04));
+  border: 1px solid var(--border-subtle, rgba(255,255,255,.08));
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+.diag-overall { margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,.08)); }
+.diag-overall-label { font-size: 1.05rem; font-weight: 600; display: block; }
+.diag-overall-hint { font-size: 0.82rem; color: var(--text-muted, #8888a0); margin: 6px 0 0; line-height: 1.45; }
+.diag-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 0; font-size: 0.88rem; }
+.diag-row + .diag-row { border-top: 1px solid rgba(255,255,255,.05); }
+.diag-row-name { color: var(--text-muted, #8888a0); }
+.diag-row-status { font-weight: 600; text-align: right; }
+.diag-status-ok { color: #38b45a; }
+.diag-status-pending { color: #e6aa28; }
+.diag-status-warn { color: #e65757; }
+.diag-status-off { color: #8888a0; }
+.diag-overall.diag-status-ok .diag-overall-label { color: #38b45a; }
+.diag-overall.diag-status-pending .diag-overall-label { color: #e6aa28; }
+.diag-overall.diag-status-warn .diag-overall-label { color: #e65757; }
+.diag-overall.diag-status-off .diag-overall-label { color: #8888a0; }
+
 .setup-wizard {
   background: linear-gradient(135deg, #111128ee, #0d1a28ee);
   border: 1px solid #00e5ff55; border-radius: var(--radius);

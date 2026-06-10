@@ -1,23 +1,45 @@
 /**
  * Twans Ultimate Tracker — Windows desktop launcher (tray + embedded window)
  * Starts local tracker (:8080) + bridge (:49200), auto-restarts on crash.
+ * UI loads via twans:// custom protocol — no visible localhost URL.
  */
 
 const {
-  app, Tray, Menu, shell, nativeImage, dialog, BrowserWindow,
+  app, Tray, Menu, shell, nativeImage, dialog, BrowserWindow, protocol, net,
 } = require('electron');
 const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
+const { pathToFileURL } = require('url');
 
 const APP_VERSION = '1.3.0';
 const APP_TITLE = 'Twans Ultimate Tracker';
+const APP_PROTOCOL = 'twans';
+const APP_HOST = 'app';
+const APP_URL = `${APP_PROTOCOL}://${APP_HOST}/index.html`;
+const INTERNAL_TRACKER_ORIGIN = 'http://127.0.0.1:8080';
 const BRIDGE_STATUS_URL = 'http://127.0.0.1:49200/status';
-const TRACKER_STATUS_URL = 'http://127.0.0.1:8080/api/bridge/status';
-const DEFAULT_TRACKER_URL = 'http://127.0.0.1:8080';
+const TRACKER_STATUS_URL = `${INTERNAL_TRACKER_ORIGIN}/api/bridge/status`;
 const MAX_RESTARTS = 8;
 const RESTART_BASE_MS = 2500;
+const TRACKER_READY_ATTEMPTS = 3;
+const APP_LOAD_ATTEMPTS = 3;
+const APP_LOAD_RETRY_MS = 1500;
+/** Chromium: navigation replaced (splash → app, blocked localhost redirect) */
+const ERR_ABORTED = -3;
+const IS_DEV = !app.isPackaged;
+
+protocol.registerSchemesAsPrivileged([{
+  scheme: APP_PROTOCOL,
+  privileges: {
+    standard: true,
+    secure: true,
+    supportFetchAPI: true,
+    corsEnabled: true,
+    stream: true,
+  },
+}]);
 
 let tray = null;
 let mainWindow = null;
@@ -25,6 +47,8 @@ let bridgeProc = null;
 let statusTimer = null;
 let restartAttempts = 0;
 let appQuitting = false;
+let trackerRoot = null;
+let startupT0 = 0;
 let bridgeState = {
   running: false,
   trackerUp: false,
@@ -34,7 +58,10 @@ let bridgeState = {
   error: null,
   phase: 'connecting',
 };
-let launcherConfig = { trackerUrl: DEFAULT_TRACKER_URL, openTrackerOnStart: true };
+let launcherConfig = { openTrackerOnStart: true };
+let appLoadInFlight = false;
+let trackerLoadFailures = 0;
+let trackerErrorShown = false;
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
@@ -46,6 +73,13 @@ if (!gotLock) {
 }
 
 app.disableHardwareAcceleration();
+
+function logStartup(message) {
+  const elapsed = startupT0 ? Date.now() - startupT0 : 0;
+  const line = `[startup +${elapsed}ms] ${message}`;
+  if (IS_DEV) console.log(line);
+  if (app.dataRoot) appendBridgeLog(app.dataRoot, `${line}\n`);
+}
 
 function readJson(filePath, fallback) {
   try {
@@ -98,6 +132,13 @@ function findDataRoot() {
   return path.dirname(process.execPath);
 }
 
+function findTrackerRoot(dataRoot) {
+  const bundled = path.join(process.resourcesPath, 'tracker-app');
+  if (fs.existsSync(path.join(bundled, 'index.html'))) return bundled;
+  if (fs.existsSync(path.join(dataRoot, 'index.html'))) return dataRoot;
+  return dataRoot;
+}
+
 function findBridgeScriptsDir(dataRoot) {
   const bundled = path.join(process.resourcesPath, 'bridge-scripts');
   if (fs.existsSync(path.join(bundled, 'start-grind.mjs'))) {
@@ -124,12 +165,75 @@ function findBridgeScriptsDir(dataRoot) {
 
 function loadLauncherConfig(root) {
   const fromRoot = readConfigJson(root, 'bridge-launcher.json', {});
-  const fromGrind = readConfigJson(root, 'grind-config.json', {});
-  const trackerUrl = fromRoot.trackerUrl || fromGrind.trackerUrl || DEFAULT_TRACKER_URL;
   launcherConfig = {
-    trackerUrl: trackerUrl.replace('localhost', '127.0.0.1'),
     openTrackerOnStart: fromRoot.openTrackerOnStart !== false,
   };
+}
+
+function isPathUnderRoot(root, filePath) {
+  const rel = path.relative(path.resolve(root), path.resolve(filePath));
+  return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+}
+
+function registerAppProtocol(root) {
+  const appRoot = path.resolve(root);
+  protocol.handle(APP_PROTOCOL, async (request) => {
+    try {
+      const reqUrl = new URL(request.url);
+      let rel = decodeURIComponent(reqUrl.pathname);
+      if (rel === '/' || rel === '') rel = '/index.html';
+      const filePath = path.resolve(appRoot, rel.replace(/^\//, '').split('/').join(path.sep));
+      if (!isPathUnderRoot(appRoot, filePath)) {
+        return new Response('Forbidden', { status: 403 });
+      }
+      if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+        appendBridgeLog(app.dataRoot, `[protocol] missing ${filePath}\n`);
+        return new Response('Not found', { status: 404 });
+      }
+      return net.fetch(pathToFileURL(filePath).href);
+    } catch (err) {
+      appendBridgeLog(app.dataRoot, `[protocol] ${err}\n`);
+      return new Response('Server error', { status: 500 });
+    }
+  });
+}
+
+function getWindowIcon() {
+  const iconPath = path.join(__dirname, '..', 'assets', 'icon.png');
+  if (fs.existsSync(iconPath)) return iconPath;
+  return undefined;
+}
+
+function getSplashDataUrl() {
+  const iconPath = getWindowIcon();
+  let iconSrc = '';
+  if (iconPath) {
+    try {
+      const b64 = fs.readFileSync(iconPath).toString('base64');
+      iconSrc = `data:image/png;base64,${b64}`;
+    } catch { /* text-only splash */ }
+  }
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{min-height:100vh;display:flex;align-items:center;justify-content:center;
+      background:#0a0a0f;color:#e8e8ef;font-family:Segoe UI,system-ui,sans-serif}
+    .wrap{text-align:center;padding:32px}
+    img{width:72px;height:72px;border-radius:16px;margin-bottom:20px;
+      box-shadow:0 0 32px -8px rgba(230,92,0,.55)}
+    h1{font-size:18px;font-weight:700;letter-spacing:.04em;margin-bottom:8px}
+    h1 span{color:#e65c00}
+    p{font-size:13px;color:#8888a0}
+    .spin{width:28px;height:28px;border:3px solid rgba(230,92,0,.25);
+      border-top-color:#e65c00;border-radius:50%;margin:20px auto 0;
+      animation:spin .8s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+  </style></head><body><div class="wrap">
+    ${iconSrc ? `<img src="${iconSrc}" alt="">` : ''}
+    <h1>TWANS <span>ULTIMATE</span></h1>
+    <p>Starting tracker…</p>
+    <div class="spin" aria-hidden="true"></div>
+  </div></body></html>`;
+  return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
 }
 
 function findNodeExecutable(dataRoot) {
@@ -193,9 +297,57 @@ async function waitForTrackerReady(maxMs = 45000) {
   while (Date.now() - start < maxMs) {
     const tracker = await fetchJson(TRACKER_STATUS_URL);
     if (tracker.ok) return true;
-    await sleep(600);
+    await sleep(400);
   }
   return false;
+}
+
+function isOAuthCallbackUrl(url) {
+  try {
+    const u = new URL(url);
+    const hostOk = u.hostname === '127.0.0.1' || u.hostname === 'localhost';
+    const portOk = u.port === '8080' || u.port === '';
+    if (!hostOk || !portOk) return false;
+    return u.hash.includes('access_token=')
+      || u.hash.includes('error=')
+      || u.search.includes('code=');
+  } catch {
+    return false;
+  }
+}
+
+function appUrlFromOAuthCallback(url) {
+  const u = new URL(url);
+  return `${APP_URL}${u.search}${u.hash}`;
+}
+
+function wireWindowNavigation(win) {
+  const handleRedirect = (event, url) => {
+    if (isOAuthCallbackUrl(url)) {
+      event.preventDefault();
+      void win.loadURL(appUrlFromOAuthCallback(url));
+      return;
+    }
+    if (url.startsWith(INTERNAL_TRACKER_ORIGIN) || url.startsWith('http://localhost:8080')) {
+      event.preventDefault();
+    }
+  };
+
+  win.webContents.on('will-navigate', handleRedirect);
+  win.webContents.on('will-redirect', handleRedirect);
+
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      shell.openExternal(url);
+    }
+    return { action: 'deny' };
+  });
+
+  if (!IS_DEV) {
+    win.webContents.on('devtools-opened', () => {
+      win.webContents.closeDevTools();
+    });
+  }
 }
 
 function createTrayIcon(phase) {
@@ -263,12 +415,40 @@ function showTrackerWindow() {
     mainWindow.focus();
     return mainWindow;
   }
-  return createMainWindow();
+  createMainWindow();
+  void openTrackerOnStart();
+  return mainWindow;
 }
 
 function openTrackerFallback() {
-  appendBridgeLog(app.dataRoot, '[window] falling back to external browser\n');
-  shell.openExternal(launcherConfig.trackerUrl);
+  if (trackerErrorShown || appQuitting) return;
+  trackerErrorShown = true;
+  appendBridgeLog(app.dataRoot, '[window] tracker failed to load after retries\n');
+  dialog.showMessageBox({
+    type: 'warning',
+    title: APP_TITLE,
+    message: 'Connection issue — the app is retrying.',
+    detail: 'If this keeps happening, quit from the tray icon and open Twans Ultimate Tracker again.',
+  }).finally(() => {
+    trackerErrorShown = false;
+  });
+}
+
+function scheduleAppLoadRetry(reason) {
+  if (appQuitting || trackerLoadFailures >= APP_LOAD_ATTEMPTS) {
+    openTrackerFallback();
+    return;
+  }
+  trackerLoadFailures += 1;
+  appendBridgeLog(app.dataRoot, `[window] ${reason}; retry ${trackerLoadFailures}/${APP_LOAD_ATTEMPTS}\n`);
+  setTimeout(() => {
+    if (!appQuitting) void retryOpenTracker();
+  }, APP_LOAD_RETRY_MS * trackerLoadFailures);
+}
+
+async function retryOpenTracker() {
+  await waitForTrackerReady(15000);
+  await loadAppIntoWindow();
 }
 
 function createMainWindow() {
@@ -279,14 +459,19 @@ function createMainWindow() {
       minWidth: 900,
       minHeight: 640,
       title: APP_TITLE,
+      icon: getWindowIcon(),
       autoHideMenuBar: true,
-      show: false,
+      show: true,
+      backgroundColor: '#0a0a0f',
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
         sandbox: true,
+        devTools: IS_DEV,
       },
     });
+
+    wireWindowNavigation(mainWindow);
 
     mainWindow.on('close', (e) => {
       if (!appQuitting) {
@@ -295,32 +480,66 @@ function createMainWindow() {
       }
     });
 
-    mainWindow.once('ready-to-show', () => {
-      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.show();
+    mainWindow.webContents.on('did-finish-load', () => {
+      const url = mainWindow.webContents.getURL();
+      if (url.startsWith(`${APP_PROTOCOL}://`)) {
+        trackerLoadFailures = 0;
+      }
     });
 
-    mainWindow.webContents.on('did-fail-load', (_event, code, desc) => {
-      appendBridgeLog(app.dataRoot, `[window load failed] ${code} ${desc}\n`);
-      if (!appQuitting) openTrackerFallback();
+    mainWindow.webContents.on('did-fail-load', (_event, code, desc, url, isMainFrame) => {
+      if (!isMainFrame || appQuitting) return;
+      if (code === ERR_ABORTED) return;
+      if (String(url || '').startsWith('data:')) return;
+      appendBridgeLog(app.dataRoot, `[window load failed] ${code} ${desc} ${url}\n`);
+      scheduleAppLoadRetry(`load failed (${code})`);
     });
 
-    void mainWindow.loadURL(launcherConfig.trackerUrl);
+    void mainWindow.loadURL(getSplashDataUrl());
     return mainWindow;
   } catch (err) {
     appendBridgeLog(app.dataRoot, `[window create failed] ${err}\n`);
-    openTrackerFallback();
+    scheduleAppLoadRetry('window create failed');
     return null;
   }
 }
 
+async function loadAppIntoWindow() {
+  if (appLoadInFlight) return;
+  appLoadInFlight = true;
+  try {
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      if (!createMainWindow()) return;
+    }
+    logStartup(`loading app via twans:// (attempt ${trackerLoadFailures + 1})`);
+    await mainWindow.loadURL(APP_URL);
+    logStartup('app window ready');
+    trackerLoadFailures = 0;
+  } catch (err) {
+    appendBridgeLog(app.dataRoot, `[app load failed] ${err}\n`);
+    scheduleAppLoadRetry('app load threw');
+  } finally {
+    appLoadInFlight = false;
+  }
+}
+
 async function openTrackerOnStart() {
-  const ready = await waitForTrackerReady();
+  logStartup('waiting for backend services');
+  let ready = false;
+  for (let attempt = 1; attempt <= TRACKER_READY_ATTEMPTS; attempt += 1) {
+    const budgetMs = attempt === 1 ? 45000 : 15000;
+    ready = await waitForTrackerReady(budgetMs);
+    if (ready) break;
+    appendBridgeLog(app.dataRoot, `[window] backend not ready (attempt ${attempt}/${TRACKER_READY_ATTEMPTS})\n`);
+    if (attempt < TRACKER_READY_ATTEMPTS) await sleep(2000);
+  }
   if (!ready) {
-    appendBridgeLog(app.dataRoot, '[window] tracker not ready in time — browser fallback\n');
-    openTrackerFallback();
+    scheduleAppLoadRetry('backend not ready in time');
     return;
   }
-  if (!createMainWindow()) openTrackerFallback();
+  logStartup('backend services ready');
+  trackerLoadFailures = 0;
+  await loadAppIntoWindow();
 }
 
 async function pollStatus() {
@@ -405,14 +624,14 @@ function startBridge(dataRoot, scriptsDir, nodePath) {
 
   const scriptPath = path.join(scriptsDir, 'start-grind.mjs');
   appendBridgeLog(dataRoot, `\n--- ${APP_TITLE} start v${APP_VERSION} ---\n`);
-  appendBridgeLog(dataRoot, `dataRoot=${dataRoot}\nscriptsDir=${scriptsDir}\n`);
+  appendBridgeLog(dataRoot, `dataRoot=${dataRoot}\ntrackerRoot=${trackerRoot}\nscriptsDir=${scriptsDir}\n`);
 
   bridgeProc = spawn(nodePath, [scriptPath], {
     cwd: dataRoot,
     env: {
       ...process.env,
       TWANS_TRACKER_ROOT: dataRoot,
-      TRACKER_URL: launcherConfig.trackerUrl,
+      TRACKER_URL: INTERNAL_TRACKER_ORIGIN,
       BRIDGE_NO_BROWSER: '1',
       BRIDGE_QUIET: '1',
     },
@@ -447,9 +666,22 @@ function showSetupError(message) {
   dialog.showErrorBox(`${APP_TITLE} v${APP_VERSION}`, message);
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  startupT0 = Date.now();
+  logStartup('app ready');
+
   const dataRoot = findDataRoot();
+  trackerRoot = findTrackerRoot(dataRoot);
   const scriptsDir = findBridgeScriptsDir(dataRoot);
+
+  if (!fs.existsSync(path.join(trackerRoot, 'index.html'))) {
+    showSetupError(
+      'Tracker files are missing from this build.\n\n'
+      + 'Run build-tray-app.bat from the tracker folder to rebuild Twans Ultimate Tracker.exe.',
+    );
+    app.quit();
+    return;
+  }
 
   if (!scriptsDir) {
     showSetupError(
@@ -476,15 +708,24 @@ app.whenReady().then(() => {
   app.nodePath = nodePath;
   loadLauncherConfig(dataRoot);
 
+  registerAppProtocol(trackerRoot);
+  logStartup(`protocol registered (root=${trackerRoot}, index=${fs.existsSync(path.join(trackerRoot, 'index.html'))})`);
+
   tray = new Tray(createTrayIcon('connecting'));
   tray.setToolTip(APP_TITLE);
   tray.on('double-click', () => showTrackerWindow());
   refreshTray();
 
+  if (launcherConfig.openTrackerOnStart) {
+    createMainWindow();
+    logStartup('splash window shown');
+  }
+
   startBridge(dataRoot, scriptsDir, nodePath);
+  logStartup('bridge process spawned');
 
   if (launcherConfig.openTrackerOnStart) {
-    setTimeout(() => { void openTrackerOnStart(); }, 1200);
+    void openTrackerOnStart();
   }
 
   statusTimer = setInterval(pollStatus, 2500);

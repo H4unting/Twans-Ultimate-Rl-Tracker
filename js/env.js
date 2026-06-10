@@ -2,9 +2,21 @@
 
 import { LOCAL_TRACKER_URL, USER_SETUP_DOC_URL } from './config.js';
 
+/** Internal HTTP origin for bridge proxy — never shown in the UI */
+export const INTERNAL_TRACKER_API = 'http://127.0.0.1:8080';
+
 /** Embedded Electron window (Twans Ultimate Tracker.exe) — not dev browser tab */
 export function isDesktopHost() {
   return typeof navigator !== 'undefined' && /Electron/i.test(navigator.userAgent);
+}
+
+/** Desktop shell loads UI via twans:// — backend stays on 127.0.0.1:8080 */
+export function isTwansAppHost() {
+  return typeof window !== 'undefined' && window.location.protocol === 'twans:';
+}
+
+export function getInternalTrackerApiOrigin() {
+  return INTERNAL_TRACKER_API;
 }
 
 export function applyAppMode() {
@@ -18,6 +30,7 @@ export function setBridgeHintVisible(show) {
 
 /** Tracker page is served from this PC on the launcher port (required for /api/bridge proxy) */
 export function isLocalTrackerHost() {
+  if (isTwansAppHost()) return true;
   const h = window.location.hostname;
   const p = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
   return (h === 'localhost' || h === '127.0.0.1') && p === '8080';

@@ -1,6 +1,7 @@
 /** Supabase Auth — Google OAuth + session management */
 
 import { SUPABASE_URL, SUPABASE_KEY, DESKTOP_APP } from './config.js';
+import { getInternalTrackerApiOrigin, isDesktopHost } from './env.js';
 
 const SUPABASE_SOURCES = [
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/+esm',
@@ -129,6 +130,9 @@ export function clearPendingAuthHash() {
 }
 
 export function getRedirectUrl() {
+  if (isDesktopHost()) {
+    return `${getInternalTrackerApiOrigin()}/`;
+  }
   const path = window.location.pathname.replace(/index\.html$/, '');
   const base = path.endsWith('/') ? path : `${path}/`;
   return `${window.location.origin}${base}`;

@@ -102,11 +102,24 @@ body:not(.logged-out) .top-bar.v0-topbar {
   justify-content: center;
   width: 36px;
   height: 36px;
-  border-radius: 12px;
-  background: var(--v0-primary);
-  color: var(--v0-primary-foreground);
-  box-shadow: 0 0 20px -4px var(--v0-primary);
+  border-radius: 10px;
+  overflow: hidden;
   flex-shrink: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.v0-brand-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+@media (max-width: 639px) {
+  .v0-brand-mark { width: 32px; height: 32px; border-radius: 8px; }
+  .v0-brand-title { font-size: 12px; }
+  .v0-brand-sub { font-size: 9px; letter-spacing: 0.16em; }
 }
 
 .v0-brand-mark svg { width: 20px; height: 20px; }
