@@ -1,25 +1,26 @@
 /**
- * Twans Ultimate Tracker — Windows desktop launcher (tray)
- * Starts local tracker (:8080) + bridge (:49200), opens browser, auto-restarts on crash.
+ * Twans Ultimate Tracker — Windows desktop launcher (tray + embedded window)
+ * Starts local tracker (:8080) + bridge (:49200), auto-restarts on crash.
  */
 
 const {
-  app, Tray, Menu, shell, nativeImage, dialog,
+  app, Tray, Menu, shell, nativeImage, dialog, BrowserWindow,
 } = require('electron');
 const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
 
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.3.0';
 const APP_TITLE = 'Twans Ultimate Tracker';
 const BRIDGE_STATUS_URL = 'http://127.0.0.1:49200/status';
 const TRACKER_STATUS_URL = 'http://127.0.0.1:8080/api/bridge/status';
-const DEFAULT_TRACKER_URL = 'http://localhost:8080';
+const DEFAULT_TRACKER_URL = 'http://127.0.0.1:8080';
 const MAX_RESTARTS = 8;
 const RESTART_BASE_MS = 2500;
 
 let tray = null;
+let mainWindow = null;
 let bridgeProc = null;
 let statusTimer = null;
 let restartAttempts = 0;
@@ -40,9 +41,7 @@ if (!gotLock) {
   app.quit();
 } else {
   app.on('second-instance', () => {
-    if (launcherConfig.trackerUrl) {
-      shell.openExternal(launcherConfig.trackerUrl);
-    }
+    showTrackerWindow();
   });
 }
 
@@ -126,8 +125,9 @@ function findBridgeScriptsDir(dataRoot) {
 function loadLauncherConfig(root) {
   const fromRoot = readConfigJson(root, 'bridge-launcher.json', {});
   const fromGrind = readConfigJson(root, 'grind-config.json', {});
+  const trackerUrl = fromRoot.trackerUrl || fromGrind.trackerUrl || DEFAULT_TRACKER_URL;
   launcherConfig = {
-    trackerUrl: fromRoot.trackerUrl || fromGrind.trackerUrl || DEFAULT_TRACKER_URL,
+    trackerUrl: trackerUrl.replace('localhost', '127.0.0.1'),
     openTrackerOnStart: fromRoot.openTrackerOnStart !== false,
   };
 }
@@ -184,6 +184,20 @@ function fetchJson(url) {
   });
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => { setTimeout(resolve, ms); });
+}
+
+async function waitForTrackerReady(maxMs = 45000) {
+  const start = Date.now();
+  while (Date.now() - start < maxMs) {
+    const tracker = await fetchJson(TRACKER_STATUS_URL);
+    if (tracker.ok) return true;
+    await sleep(600);
+  }
+  return false;
+}
+
 function createTrayIcon(phase) {
   const size = 16;
   const buf = Buffer.alloc(size * size * 4);
@@ -212,36 +226,22 @@ function createTrayIcon(phase) {
 }
 
 function statusLine() {
-  if (bridgeState.error) return bridgeState.error;
-  if (bridgeState.phase === 'tracking') return 'Tracking — game connected';
-  if (bridgeState.phase === 'waiting') return 'Waiting — launch your game';
-  if (bridgeState.phase === 'connecting') return 'Starting services…';
-  return 'Error — check bridge.log';
+  if (bridgeState.error && bridgeState.phase === 'error') return 'Connection issue';
+  if (bridgeState.phase === 'tracking') return 'Tracking';
+  if (bridgeState.phase === 'waiting') return 'Waiting for game';
+  if (bridgeState.phase === 'connecting') return 'Starting…';
+  return 'Connection issue';
 }
 
 function buildMenu() {
-  const player = bridgeState.playerName
-    ? `Player: ${bridgeState.playerName}`
-    : 'Player: set name in tracker setup';
-
   return Menu.buildFromTemplate([
     { label: `${APP_TITLE} v${APP_VERSION}`, enabled: false },
     { label: statusLine(), enabled: false },
-    { label: player, enabled: false },
     { type: 'separator' },
     {
-      label: 'Open tracker',
-      click: () => shell.openExternal(launcherConfig.trackerUrl),
+      label: 'Open',
+      click: () => showTrackerWindow(),
     },
-    {
-      label: 'Restart tracker',
-      click: () => {
-        restartAttempts = 0;
-        stopBridge();
-        startBridge(app.dataRoot, app.scriptsDir, app.nodePath);
-      },
-    },
-    { type: 'separator' },
     {
       label: 'Quit',
       click: () => app.quit(),
@@ -254,6 +254,73 @@ function refreshTray() {
   tray.setImage(createTrayIcon(bridgeState.phase));
   tray.setToolTip(`${APP_TITLE} — ${statusLine()}`);
   tray.setContextMenu(buildMenu());
+}
+
+function showTrackerWindow() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+    return mainWindow;
+  }
+  return createMainWindow();
+}
+
+function openTrackerFallback() {
+  appendBridgeLog(app.dataRoot, '[window] falling back to external browser\n');
+  shell.openExternal(launcherConfig.trackerUrl);
+}
+
+function createMainWindow() {
+  try {
+    mainWindow = new BrowserWindow({
+      width: 1280,
+      height: 860,
+      minWidth: 900,
+      minHeight: 640,
+      title: APP_TITLE,
+      autoHideMenuBar: true,
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        sandbox: true,
+      },
+    });
+
+    mainWindow.on('close', (e) => {
+      if (!appQuitting) {
+        e.preventDefault();
+        mainWindow.hide();
+      }
+    });
+
+    mainWindow.once('ready-to-show', () => {
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.show();
+    });
+
+    mainWindow.webContents.on('did-fail-load', (_event, code, desc) => {
+      appendBridgeLog(app.dataRoot, `[window load failed] ${code} ${desc}\n`);
+      if (!appQuitting) openTrackerFallback();
+    });
+
+    void mainWindow.loadURL(launcherConfig.trackerUrl);
+    return mainWindow;
+  } catch (err) {
+    appendBridgeLog(app.dataRoot, `[window create failed] ${err}\n`);
+    openTrackerFallback();
+    return null;
+  }
+}
+
+async function openTrackerOnStart() {
+  const ready = await waitForTrackerReady();
+  if (!ready) {
+    appendBridgeLog(app.dataRoot, '[window] tracker not ready in time — browser fallback\n');
+    openTrackerFallback();
+    return;
+  }
+  if (!createMainWindow()) openTrackerFallback();
 }
 
 async function pollStatus() {
@@ -317,7 +384,7 @@ function stopBridge() {
 function scheduleBridgeRestart(dataRoot, scriptsDir, nodePath) {
   if (appQuitting || restartAttempts >= MAX_RESTARTS) {
     bridgeState.error = restartAttempts >= MAX_RESTARTS
-      ? 'Tracker stopped — use Restart from tray menu'
+      ? 'Tracker stopped — quit and reopen the app'
       : null;
     bridgeState.phase = 'error';
     refreshTray();
@@ -398,7 +465,7 @@ app.whenReady().then(() => {
     showSetupError(
       'Node.js is required to run the tracker.\n\n'
       + 'Install Node.js LTS from https://nodejs.org\n'
-      + 'Or use Rocket League Tracker.bat until Node is installed.',
+      + 'Or use the installer build when bundled Node is available.',
     );
     app.quit();
     return;
@@ -411,13 +478,13 @@ app.whenReady().then(() => {
 
   tray = new Tray(createTrayIcon('connecting'));
   tray.setToolTip(APP_TITLE);
-  tray.on('double-click', () => shell.openExternal(launcherConfig.trackerUrl));
+  tray.on('double-click', () => showTrackerWindow());
   refreshTray();
 
   startBridge(dataRoot, scriptsDir, nodePath);
 
   if (launcherConfig.openTrackerOnStart) {
-    setTimeout(() => shell.openExternal(launcherConfig.trackerUrl), 1200);
+    setTimeout(() => { void openTrackerOnStart(); }, 1200);
   }
 
   statusTimer = setInterval(pollStatus, 2500);
@@ -427,6 +494,10 @@ app.whenReady().then(() => {
 app.on('before-quit', () => {
   appQuitting = true;
   if (statusTimer) clearInterval(statusTimer);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.removeAllListeners('close');
+    mainWindow.close();
+  }
   stopBridge();
 });
 

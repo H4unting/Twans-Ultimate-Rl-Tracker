@@ -9,7 +9,8 @@ import { refreshBridgeStatusUI } from './bridge-ui.js';
 import { DESKTOP_APP, LOCAL_TRACKER_URL, getDesktopLauncher } from './config.js';
 import { APP_NAME } from './core/app-config.js';
 import { isBridgeUp } from './bridge-client.js';
-import { needsLocalTrackerForAutoLog, getWebOnlyHostBannerHtml } from './env.js';
+import { needsLocalTrackerForAutoLog } from './env.js';
+import { waitingForGameLabel } from './status-copy.js';
 import { refreshValorantStatus } from './valorant-live.js';
 import { updateNavUI } from './nav.js';
 import { restoreSessionFromStorage, refreshSessionUI } from './sessions.js';
@@ -107,13 +108,15 @@ export function applyGameShell(gameId = state.activeGame) {
     if (badge) badge.textContent = needsLocalTrackerForAutoLog() ? 'Manual log only' : 'Auto-log off';
     const p = banner.querySelector('p');
     if (p) {
-      const launcher = getDesktopLauncher(gameId);
       if (needsLocalTrackerForAutoLog()) {
-        p.innerHTML = getWebOnlyHostBannerHtml(launcher);
+        p.innerHTML = `Install <strong>${DESKTOP_APP.name}</strong> on your gaming PC for automatic match tracking. `
+          + '<button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>';
       } else {
         p.innerHTML = gameId === GAME_IDS.VALORANT
-          ? `Run <code>${launcher}</code> on this PC while playing for Valorant auto-log. Set Riot ID in <button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>`
-          : `Run <code>${launcher}</code> on this PC while playing for Rocket League auto-log. <button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>`;
+          ? `${waitingForGameLabel(GAME_IDS.VALORANT)} — finish Auto-Log Setup (Riot ID + Henrik key). `
+            + '<button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>'
+          : `${waitingForGameLabel(GAME_IDS.ROCKET_LEAGUE)} — set your in-game name in `
+            + '<button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>';
       }
     }
   }

@@ -1,4 +1,7 @@
 @echo off
+REM =============================================================================
+REM DEVELOPER ONLY — Players use Twans Ultimate Tracker.exe or TwansUltimateTrackerSetup.exe
+REM =============================================================================
 title Twans Ultimate Tracker - Rocket League
 cd /d "%~dp0"
 

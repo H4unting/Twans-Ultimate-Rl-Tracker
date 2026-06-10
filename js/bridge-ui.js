@@ -3,15 +3,20 @@
 import { state } from './state.js';
 import { GAME_IDS, getGameMeta } from './games.js';
 import {
-  isBridgeUp, isBridgeProbeDone, getBridgeUrl, getLastBridgeFailure,
-  isBridgeProcessDetected, getBridgeStatusPhase, getBridgeConnectAttempts,
+  isBridgeUp, isBridgeProbeDone, getLastBridgeFailure, getBridgeStatusPhase, getBridgeConnectAttempts,
 } from './bridge-client.js';
 import { isAutoLogEnabled, loadPrefs, syncAutoLogToggleUI } from './quicklog.js';
 import {
-  setBridgeHintVisible, needsLocalTrackerForAutoLog, getLocalTrackerUrl,
-  isLocalTrackerHost, isWrongLocalPort, getWebOnlyHostBannerHtml,
+  setBridgeHintVisible, needsLocalTrackerForAutoLog,
+  isLocalTrackerHost, isWrongLocalPort,
 } from './env.js';
-import { DESKTOP_APP, getDesktopLauncher } from './config.js';
+import { DESKTOP_APP } from './config.js';
+import {
+  STATUS,
+  waitingForGameLabel,
+  formatStatusPill,
+  logStatusDebug,
+} from './status-copy.js';
 
 let cachedValStatus = null;
 let cachedRlInMatch = false;
@@ -44,15 +49,21 @@ export function setCachedRlInMatch(inMatch) {
 }
 
 function applyUnifiedStatusLabel(el, phase, detailTitle) {
+  const gameId = state.activeGame;
   const labels = {
-    connecting: 'Connecting…',
-    waiting: 'Waiting',
-    tracking: 'Tracking',
-    error: 'Error',
+    connecting: STATUS.starting,
+    waiting: waitingForGameLabel(gameId),
+    tracking: STATUS.tracking,
+    error: STATUS.connectionIssue,
   };
-  el.textContent = labels[phase] || 'Waiting';
+  el.textContent = labels[phase] || waitingForGameLabel(gameId);
   el.dataset.statusPhase = phase;
-  if (detailTitle) el.title = detailTitle;
+  if (detailTitle) {
+    logStatusDebug('status-title', detailTitle);
+    el.title = detailTitle.includes('localhost') || detailTitle.includes('bridge') || detailTitle.includes('8080')
+      ? `${DESKTOP_APP.name} — ${labels[phase] || waitingForGameLabel(gameId)}`
+      : detailTitle;
+  }
 }
 
 export function refreshBridgeStatusUI() {
@@ -68,35 +79,19 @@ export function refreshBridgeStatusUI() {
   el.classList.remove('connected', 'in-match', 'bridge-needs-setup', 'bridge-error');
   el.dataset.bridgeState = up ? 'online' : 'offline';
 
-  const launcher = getDesktopLauncher(isVal ? GAME_IDS.VALORANT : GAME_IDS.ROCKET_LEAGUE);
-
   if (!up) {
     if (phase === 'connecting' && (isLocalTrackerHost() || isWrongLocalPort())) {
-      const attempt = getBridgeConnectAttempts();
-      applyUnifiedStatusLabel(el, 'connecting',
-        attempt > 2
-          ? `Still connecting to ${DESKTOP_APP.name}… (attempt ${attempt})`
-          : `Looking for ${DESKTOP_APP.name} on this PC…`);
+      applyUnifiedStatusLabel(el, 'connecting', `Starting ${DESKTOP_APP.name}…`);
       el.dataset.bridgeState = 'connecting';
       setBridgeHintVisible(false);
       syncAutoLogToggleUI();
       return;
     }
     const failure = getLastBridgeFailure();
-    applyUnifiedStatusLabel(el, 'error',
-      failure === 'wrong_tracker_alive' ? 'Wrong app on port 8080' : 'Bridge not connected');
+    logStatusDebug('bridge-offline', { failure, phase, attempt: getBridgeConnectAttempts() });
+    applyUnifiedStatusLabel(el, 'error', STATUS.connectionIssue);
     el.classList.add('bridge-error');
-    if (failure === 'wrong_tracker_alive') {
-      el.title = `Port 8080 is the wrong app — close Live Server, restart ${launcher}, open ${getLocalTrackerUrl()}`;
-    } else if (isWrongLocalPort()) {
-      el.title = `Open ${getLocalTrackerUrl()} — auto-log does not work from this port`;
-    } else if (needsLocalTrackerForAutoLog()) {
-      el.title = `Auto-log only works on this PC — open ${getLocalTrackerUrl()} while ${launcher} is running`;
-    } else {
-      el.title = isVal
-        ? `Click for setup — run ${launcher} on this PC and add Riot ID + Henrik key`
-        : `Click for setup — run ${launcher} on this PC and set your RL name`;
-    }
+    el.title = `${DESKTOP_APP.name} — ${STATUS.connectionIssue}. Open Auto-Log Setup if this persists.`;
     setBridgeHintVisible(!loggedOut);
     updateDesktopAppBanner(isVal, false);
     syncAutoLogToggleUI();
@@ -120,8 +115,8 @@ function renderValorantPill(el, valStatus, meta) {
   el.classList.toggle('in-match', Boolean(valStatus?.valorantRunning));
 
   if (!valStatus) {
-    el.textContent = '● Connecting…';
-    el.title = `${DESKTOP_APP.name} — checking Valorant link`;
+    applyUnifiedStatusLabel(el, 'connecting', `${DESKTOP_APP.name} — checking Valorant link`);
+    el.textContent = formatStatusPill('connecting');
     el.dataset.bridgeState = 'syncing';
     return;
   }
@@ -162,8 +157,8 @@ function renderValorantPill(el, valStatus, meta) {
   }
 
   if (valStatus.pollingArmed === false) {
-    el.textContent = '● Waiting…';
-    el.title = 'Open http://localhost:8080 to arm auto-log (or wait ~45s — it auto-arms)';
+    applyUnifiedStatusLabel(el, 'waiting', waitingForGameLabel(GAME_IDS.VALORANT));
+    el.textContent = formatStatusPill('waiting', GAME_IDS.VALORANT);
     el.dataset.bridgeState = 'syncing';
     return;
   }
@@ -177,16 +172,16 @@ function renderValorantPill(el, valStatus, meta) {
 
   if (valStatus.valorantRunning && isAutoLogEnabled()) {
     applyUnifiedStatusLabel(el, 'tracking', 'Auto-log ON — finished matches save in 1–3 min');
-    el.textContent = '● Tracking';
+    el.textContent = formatStatusPill('tracking');
   } else if (valStatus.valorantRunning) {
     applyUnifiedStatusLabel(el, 'tracking', 'Valorant is running — turn on auto-log or tap LOG after the match');
-    el.textContent = '● Tracking';
+    el.textContent = formatStatusPill('tracking');
   } else if (isAutoLogEnabled()) {
-    applyUnifiedStatusLabel(el, 'waiting', 'Bridge ready — launch Valorant to start tracking');
-    el.textContent = '● Waiting';
+    applyUnifiedStatusLabel(el, 'waiting', waitingForGameLabel(GAME_IDS.VALORANT));
+    el.textContent = formatStatusPill('waiting', GAME_IDS.VALORANT);
   } else {
-    applyUnifiedStatusLabel(el, 'waiting', `${DESKTOP_APP.name} is running — enable auto-log or tap Play`);
-    el.textContent = '● Waiting';
+    applyUnifiedStatusLabel(el, 'waiting', waitingForGameLabel(GAME_IDS.VALORANT));
+    el.textContent = formatStatusPill('waiting', GAME_IDS.VALORANT);
   }
   el.dataset.bridgeState = 'ready';
 }
@@ -196,13 +191,13 @@ function renderRocketLeaguePill(el, inMatch, meta) {
 
   if (inMatch) {
     applyUnifiedStatusLabel(el, 'tracking', `Live match — reading stats from ${meta.label}`);
-    el.textContent = '● Tracking';
+    el.textContent = formatStatusPill('tracking');
   } else if (isAutoLogEnabled()) {
     applyUnifiedStatusLabel(el, 'tracking', 'Auto-log ON — matches save when they end');
-    el.textContent = '● Tracking';
+    el.textContent = formatStatusPill('tracking');
   } else {
-    applyUnifiedStatusLabel(el, 'waiting', `${DESKTOP_APP.name} is ready — launch your game or tap Play`);
-    el.textContent = '● Waiting';
+    applyUnifiedStatusLabel(el, 'waiting', waitingForGameLabel(GAME_IDS.ROCKET_LEAGUE));
+    el.textContent = formatStatusPill('waiting', GAME_IDS.ROCKET_LEAGUE);
   }
   el.dataset.bridgeState = inMatch ? 'in-match' : 'ready';
 }
@@ -215,7 +210,7 @@ function updateDesktopAppBanner(isVal, appUp, valStatus) {
   const p = banner.querySelector('p');
   if (!badge || !p) return;
 
-  const launcher = getDesktopLauncher(isVal ? GAME_IDS.VALORANT : GAME_IDS.ROCKET_LEAGUE);
+  const setupLink = '<button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>';
 
   if (!appUp) {
     if (!isBridgeProbeDone() && (isLocalTrackerHost() || isWrongLocalPort())) {
@@ -223,89 +218,48 @@ function updateDesktopAppBanner(isVal, appUp, valStatus) {
       return;
     }
     banner.classList.remove('hidden');
-    badge.textContent = 'Auto-log off';
-    const setupLink = '<button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>';
-    const localUrl = getLocalTrackerUrl();
-
-    if (isWrongLocalPort()) {
-      p.innerHTML = `Wrong tab — auto-log only works at `
-        + `<a href="${localUrl}" class="btn-link">${localUrl}</a>. `
-        + `Run <code>${launcher}</code>, use the tab it opens (or click the link), not Live Server / another port. `
-        + setupLink;
-      return;
-    }
+    badge.textContent = STATUS.connectionIssue;
+    logStatusDebug('banner-offline', {
+      failure: getLastBridgeFailure(),
+      wrongPort: isWrongLocalPort(),
+      webOnly: needsLocalTrackerForAutoLog(),
+    });
 
     if (needsLocalTrackerForAutoLog()) {
       badge.textContent = 'Manual log only';
-      p.innerHTML = getWebOnlyHostBannerHtml(launcher);
+      p.innerHTML = `This bookmark is for manual logging. Install <strong>${DESKTOP_APP.name}</strong> on your gaming PC for automatic match tracking. ${setupLink}`;
       return;
     }
 
-    const failure = getLastBridgeFailure();
-    if (failure === 'wrong_tracker_alive' || (failure === 'wrong_server' && isBridgeProcessDetected())) {
-      p.innerHTML = `<strong>Wrong app on port 8080.</strong> The auto-log bridge is running, but this tab is not `
-        + `served by <code>${launcher}</code> — close Live Server, <code>npx serve</code>, or anything else on port 8080, `
-        + `restart <code>${launcher}</code>, then open `
-        + `<a href="${localUrl}" class="btn-link">${localUrl}</a> in the tab it opens. `
-        + setupLink;
-      return;
-    }
-    if (failure === 'wrong_server') {
-      p.innerHTML = `Port 8080 is serving files without the auto-log bridge — close Live Server, `
-        + `<code>npx serve</code>, or other apps on port 8080, then restart <code>${launcher}</code>. `
-        + setupLink;
-      return;
-    }
-    if (failure === 'bridge_down') {
-      p.innerHTML = `Tracker page loaded but the bridge on port 49200 is not running — check the `
-        + `<code>${launcher}</code> console for errors (often a stale bridge window). `
-        + `<a href="${localUrl}/api/bridge/status" class="btn-link" target="_blank" rel="noopener">test bridge</a> · `
-        + setupLink;
-      return;
-    }
-
-    p.innerHTML = isLocalTrackerHost()
-      ? `Bridge not connected — double-click <code>${launcher}</code>, leave that console open, then open `
-        + `<a href="${localUrl}" class="btn-link">${localUrl}</a> `
-        + `(test: <a href="${localUrl}/api/bridge/status" class="btn-link" target="_blank" rel="noopener">/api/bridge/status</a> `
-        + `should show JSON, not 404). Hard refresh (Ctrl+F5). `
-        + setupLink
-      : `Run <code>${launcher}</code> on this PC while playing. `
-        + setupLink;
+    p.innerHTML = `${DESKTOP_APP.name} is not connected — reopen the app from the system tray, or finish ${setupLink}.`;
     return;
   }
 
   if (appUp && isVal && valStatus && !valStatus.configured) {
     banner.classList.remove('hidden');
     badge.textContent = 'Setup needed';
-    p.innerHTML = `${DESKTOP_APP.name} is running — add Riot ID + free Henrik key in `
-      + '<button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button> '
-      + 'and click <strong>Apply &amp; Go</strong>.';
+    p.innerHTML = `Add Riot ID and your free Henrik key in ${setupLink}, then click <strong>Apply &amp; Go</strong>.`;
     return;
   }
 
   if (appUp && isVal && valStatus?.lastError) {
     banner.classList.remove('hidden');
-    badge.textContent = 'Val auto-log';
-    p.innerHTML = `${formatValApiErrorForUser(valStatus.lastError)} `
-      + '<button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>';
+    badge.textContent = 'Valorant auto-log';
+    p.innerHTML = `${formatValApiErrorForUser(valStatus.lastError)} ${setupLink}`;
     return;
   }
 
   if (appUp && isVal && valStatus?.configured && valStatus?.pollingArmed === false) {
     banner.classList.remove('hidden');
-    badge.textContent = 'Safe mode';
-    p.innerHTML = `${DESKTOP_APP.name} is waiting — open `
-      + `<a href="${getLocalTrackerUrl()}" class="btn-link">${getLocalTrackerUrl()}</a> `
-      + 'to arm auto-log, or wait ~45 seconds (it auto-arms). Auto-log runs <strong>after</strong> a match ends, not when Val opens.';
+    badge.textContent = waitingForGameLabel(GAME_IDS.VALORANT);
+    p.innerHTML = `${DESKTOP_APP.name} is ready — launch Valorant or tap <strong>Play</strong>. Matches auto-log after each round ends.`;
     return;
   }
 
   if (appUp && isVal && valStatus?.configured && !valStatus.seeded) {
     banner.classList.remove('hidden');
     badge.textContent = 'Almost ready';
-    p.textContent = `${DESKTOP_APP.name} is connected — syncing your match baseline. Play one game if needed; the next finished match auto-logs.`;
-    return;
+    p.textContent = `${DESKTOP_APP.name} is connected — play one full match to finish setup; the next finished match auto-logs.`;
   }
 }
 

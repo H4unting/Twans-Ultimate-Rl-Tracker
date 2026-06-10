@@ -9,6 +9,11 @@ import { DEFAULT_GOALS } from './goals.js';
 import { getAccessToken, getAuthUser } from './auth.js';
 import { DEFAULT_GAME, GAME_IDS } from './games.js';
 import { logError } from './core/error-log.js';
+import {
+  enqueueOfflineWrite,
+  flushOfflineQueue,
+  shouldQueueSyncError,
+} from './offline-queue.js';
 
 /** Set from loadProfile — avoids PATCHing columns that are not in Supabase yet */
 let profileSchemaExtended = false;
@@ -254,13 +259,13 @@ async function syncGameSlice(userId, gameId, slice) {
   }
 }
 
-export async function saveGames(games, gameId = null) {
+export async function saveGames(games, gameId = null, { fromQueue = false } = {}) {
   const user = getAuthUser();
   if (!user) throw new Error('Not signed in');
+  const targetGame = gameId ?? null;
   setSyncStatus('saving');
   try {
     const normalized = normalizePlayerGames(games);
-    const targetGame = gameId ?? null;
 
     const runSlice = async (gid, slice) => {
       try {
@@ -286,7 +291,16 @@ export async function saveGames(games, gameId = null) {
       }
     }
     setSyncStatus('live');
+    if (!fromQueue) void flushOfflineQueue({ saveGames, saveSettings });
   } catch (e) {
+    if (!fromQueue && shouldQueueSyncError(e)) {
+      enqueueOfflineWrite({ type: 'games', games, gameId: targetGame });
+      setSyncStatus('error');
+      import('./ui.js').then(({ showToast }) => {
+        showToast('Saved offline — will sync when connection returns', 'error');
+      }).catch(() => {});
+      return;
+    }
     setSyncStatus('error');
     throw e;
   }
@@ -346,7 +360,7 @@ export async function loadSettings() {
   };
 }
 
-export async function saveSettings(settings) {
+export async function saveSettings(settings, { fromQueue = false } = {}) {
   const user = getAuthUser();
   if (!user) return;
   setSyncStatus('saving');
@@ -356,13 +370,20 @@ export async function saveSettings(settings) {
       Prefer: 'resolution=merge-duplicates,return=minimal',
     });
     setSyncStatus('live');
+    if (!fromQueue) void flushOfflineQueue({ saveGames, saveSettings });
   } catch (e) {
+    if (!fromQueue && shouldQueueSyncError(e)) {
+      enqueueOfflineWrite({ type: 'settings', settings });
+      setSyncStatus('error');
+      import('./ui.js').then(({ showToast }) => {
+        showToast('Settings saved offline — will sync when connection returns', 'error');
+      }).catch(() => {});
+      return;
+    }
     setSyncStatus('error');
     throw e;
   }
 }
-
-function buildProfilePatch(updates, extended) {
   const payload = {};
   if (updates.display_name != null) payload.display_name = updates.display_name;
   if (updates.avatar_url != null) payload.avatar_url = updates.avatar_url;
@@ -602,6 +623,7 @@ export async function loadUserData() {
     const settings = await loadSettings();
     const groups = await loadUserGroups();
     setSyncStatus('live');
+    void flushOfflineQueue({ saveGames, saveSettings });
     return {
       profile, games, goals: settings.goals, groups, bio: settings.bio,
       rlDisplayName: settings.rlDisplayName, primaryColor: settings.primaryColor,

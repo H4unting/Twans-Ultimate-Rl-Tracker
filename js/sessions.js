@@ -15,6 +15,8 @@ import {
 } from './core/logging-session.js';
 import { isBridgeUp } from './bridge-client.js';
 import { getCachedValorantStatus } from './bridge-ui.js';
+import { DESKTOP_APP } from './config.js';
+import { STATUS } from './status-copy.js';
 
 export { getLoggingSessionNum, getMaxSessionNum, getNextSessionNum };
 
@@ -243,13 +245,47 @@ export function startSession({ silent = false, sessionNum } = {}) {
   activateSession(num, { silent });
 }
 
-export function endSession(onComplete) {
+export function endSession(onCompleteOrOptions, maybeOnComplete) {
+  let options = {};
+  let onComplete = null;
+  if (typeof onCompleteOrOptions === 'function') {
+    onComplete = onCompleteOrOptions;
+  } else if (onCompleteOrOptions && typeof onCompleteOrOptions === 'object') {
+    options = onCompleteOrOptions;
+    onComplete = maybeOnComplete ?? null;
+  }
+  const { auto = false } = options;
+
   const copy = sessionCopy();
   const sessionNum = state.session.sessionNum || getLoggingSessionNum();
   const sg = getActiveGames().filter(g => parseInt(g.session, 10) === sessionNum);
 
   if (!sg.length) {
-    showToast(`No ${copy.matchLabel} in this ${copy.blockLabel.toLowerCase()} yet`, 'error');
+    if (!auto && !state.session.active) {
+      showToast(`No ${copy.matchLabel} in this ${copy.blockLabel.toLowerCase()} yet`, 'error');
+      return;
+    }
+    if (state.session.timerId) {
+      clearInterval(state.session.timerId);
+      state.session.timerId = null;
+    }
+    const nextSession = sessionNum + 1;
+    state.session.active = false;
+    state.session.startTime = null;
+    state.session.sessionNum = nextSession;
+    syncSessionField(nextSession);
+    saveStoredSession({
+      active: false,
+      lastEndedSession: sessionNum,
+      nextSessionNum: nextSession,
+      history: loadStoredSession()?.history ?? {},
+    });
+    notify();
+    updateSessionBar();
+    if (auto) {
+      showToast(copy.isVal ? 'Grind block ended — Valorant closed' : 'Session ended — Rocket League closed');
+    }
+    onComplete?.(nextSession);
     return;
   }
 
@@ -369,7 +405,7 @@ export function updateSessionBar() {
     if (stats) {
       if (copy.isVal && isAutoLogEnabled()) {
         if (!isBridgeUp()) {
-          stats.innerHTML = '<span class="slive-item neutral">Bridge disconnected — keep your game tracker launcher open, then Ctrl+F5</span>';
+          stats.innerHTML = `<span class="slive-item neutral">${STATUS.connectionIssue} — reopen ${DESKTOP_APP.name} from the tray</span>`;
         } else {
         const vs = getCachedValorantStatus();
         if (vs?.configured && vs?.seeded) {
