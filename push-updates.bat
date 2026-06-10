@@ -1,4 +1,7 @@
 @echo off
+REM =============================================================================
+REM DEVELOPER ONLY — GitHub deploy script for maintainers
+REM =============================================================================
 title Push Twans Ultimate Tracker to GitHub
 setlocal EnableDelayedExpansion
 

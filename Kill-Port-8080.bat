@@ -1,4 +1,7 @@
 @echo off
+REM =============================================================================
+REM DEVELOPER ONLY — Players use Twans Ultimate Tracker.exe or TwansUltimateTrackerSetup.exe
+REM =============================================================================
 title Free port 8080 for Twans Ultimate Tracker
 cd /d "%~dp0"
 
