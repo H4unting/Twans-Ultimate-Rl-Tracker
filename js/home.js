@@ -16,6 +16,7 @@ import { shouldHideManualSessionControls } from './env.js';
 import { getLoggingSessionNum } from './core/logging-session.js';
 import { weekRankGain } from './goals.js';
 import { rankIndex, RANK_LADDER } from './games/valorant/rank-ladder.js';
+import { isDashboardIdle } from './dash-context.js';
 
 const DASH_PERF = typeof window !== 'undefined'
   && (window.__DASH_PERF || localStorage?.getItem('dash-perf') === '1');
@@ -69,6 +70,13 @@ function wireHomeLinksOnce() {
   if (homeLinksWired) return;
   homeLinksWired = true;
   document.getElementById('page-dashboard')?.addEventListener('click', (e) => {
+    const modeBtn = e.target.closest('[data-home-mode]');
+    if (modeBtn) {
+      state.homeChartMode = modeBtn.dataset.homeMode;
+      window.__allowImmediateDashRender?.();
+      window.__refreshHome?.();
+      return;
+    }
     const link = e.target.closest('[data-goto], .home-link[data-goto]');
     if (!link) return;
     e.preventDefault();
@@ -82,13 +90,8 @@ function wireHomeLinks(el) {
   wireHomeLinksOnce();
 }
 
-function wireQueuePicker(container, games) {
-  container.querySelectorAll('[data-home-mode]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      state.homeChartMode = btn.dataset.homeMode;
-      window.__refreshHome?.();
-    });
-  });
+function wireQueuePicker(_container, _games) {
+  /* queue clicks delegated on #page-dashboard — see wireHomeLinksOnce */
 }
 
 function wireQuickActions(container) {
@@ -991,10 +994,17 @@ function updateDashPerfModeLabel(mode) {
 }
 
 let homeDeferredIdleId = null;
+const FOCUS_IDLE_MIN_MS = 30000;
+let lastFocusIdleRender = 0;
 
 function runHomeDeferred(games, goals, allRows, chartMode, chartGames) {
   homeDeferredIdleId = null;
-  renderHomeFocus(games);
+  const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  const focusDue = !isDashboardIdle() || now - lastFocusIdleRender >= FOCUS_IDLE_MIN_MS;
+  if (focusDue) {
+    renderHomeFocus(games);
+    if (isDashboardIdle()) lastFocusIdleRender = now;
+  }
   updateDashPerfModeLabel(chartMode);
   renderDashPerfStats(chartGames);
   renderHomeActivity(games);
@@ -1010,10 +1020,17 @@ function scheduleHomeDeferred(games, goals, allRows, chartMode, chartGames) {
   }
 }
 
+/** Invalidate MMR row cache — call on game switch or explicit data reset only. */
+export function invalidateHomeMmrCache() {
+  resetMmrRowsRenderCache();
+}
+
 /** @param {{ criticalOnly?: boolean, skipDeferred?: boolean }} [opts] */
 export function renderHome(games, goals, opts = {}) {
   const t0 = DASH_PERF ? performance.now() : 0;
-  resetMmrRowsRenderCache();
+  if (typeof window !== 'undefined') {
+    window.__DASH_RENDER_COUNT = (window.__DASH_RENDER_COUNT || 0) + 1;
+  }
   wireHomeLinksOnce();
   const allRows = getCachedPlaylistMMRRows(games, state.activeGame);
   const isVal = state.activeGame === GAME_IDS.VALORANT;

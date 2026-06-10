@@ -19,6 +19,7 @@ import { applyDockForGame } from './dock-ui.js';
 import { routeActiveGame } from './games/router.js';
 import { DEFAULT_FILTERS } from './filters.js';
 import { resetQuickFilter } from './match-logs-ui.js';
+import { invalidateHomeMmrCache } from './home.js';
 
 let onGameChange = null;
 let getSettingsPayloadFn = null;
@@ -50,6 +51,8 @@ async function onGameSwitchClick(e) {
     if (!GAMES[next]) return;
 
     setActiveGame(next);
+    invalidateHomeMmrCache();
+    window.__allowImmediateDashRender?.();
     routeActiveGame(next);
     savePrefs({ activeGame: next });
     state.playlist = next === GAME_IDS.VALORANT ? 'comp' : 'all';

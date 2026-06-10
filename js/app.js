@@ -2,7 +2,7 @@
  * Twans Ultimate Tracker — auth-first personal dashboard
  */
 
-import { isDashboardPage } from './dash-context.js';
+import { isDashboardPage, isDashboardIdle } from './dash-context.js';
 import { DESKTOP_APP, getDesktopLauncherBat } from './config.js';
 import { state, subscribe, setGames, setSyncStatus, setGoals, setProfile, getUserDisplay, getActiveGames, resetAppState } from './state.js';
 import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, sendPasswordReset, signOut, onAuthChange, getAuthUser, hasPendingAuthHash, clearAuthHashFromUrl } from './auth.js';
@@ -50,7 +50,9 @@ import { initPostMatch, showPostMatchCard } from './post-match.js';
 import { renderSessionsPage } from './sessions-ui.js';
 import { exportGamesCSV } from './export.js';
 import { wireNavigation as wireSectionNav, updateNavUI, mountDock, getSectionForPage } from './nav.js';
-import { renderHome, getHomeChartGames, getHomeChartModeLabel, refreshDashSessionWidgets } from './home.js';
+import {
+  renderHome, getHomeChartGames, getHomeChartModeLabel, refreshDashSessionWidgets, invalidateHomeMmrCache,
+} from './home.js';
 import {
   renderQuickFilters, applyQuickFilter,
   getActiveQuickFilter, getQuickFilterSessionNum, resetQuickFilter,
@@ -77,6 +79,12 @@ let homeChartTimer = null;
 let homeChartSig = '';
 
 const HOME_CHART_MIN_MS = 1000;
+const DASH_RENDER_MIN_MS = 500;
+
+let lastDashRenderAt = 0;
+let dashRenderThrottleTimer = null;
+let dashRenderBypass = false;
+let trackerDataListenerWired = false;
 
 async function getReportsModule() {
   if (!reportsModule) {
@@ -124,7 +132,8 @@ function getAnalyticsGames() {
   );
 }
 window.__endSession = () => endSession();
-window.__refreshHome = () => renderHomePage();
+window.__refreshHome = () => renderHomePage({ userAction: true });
+window.__allowImmediateDashRender = () => { dashRenderBypass = true; };
 window.__navigate = (pageId, section) => navigate(pageId, section);
 window.showPage = (id) => navigate(id);
 window.startNextSession = () => closeSessionModalAndContinue();
@@ -416,10 +425,22 @@ function renderHomeCharts(force = false) {
   lastHomeChartUpdate = now;
 }
 
+function shouldDeferDashRender(userAction = false) {
+  if (userAction || dashRenderBypass) return false;
+  const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  return isDashboardPage() && now - lastDashRenderAt < DASH_RENDER_MIN_MS;
+}
+
 function renderHomePage(options = {}) {
   const criticalOnly = Boolean(options.criticalOnly);
+  const userAction = Boolean(options.userAction);
   const games = getActiveGames();
   const goals = getActiveGoals();
+
+  if (shouldDeferDashRender(userAction)) return;
+
+  dashRenderBypass = false;
+  lastDashRenderAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
 
   if (dashScrollPaused && isDashboardPage()) {
     renderHome(games, goals, { criticalOnly: true });
@@ -432,10 +453,14 @@ function renderHomePage(options = {}) {
   renderHome(games, goals, criticalOnly ? { criticalOnly: true } : {});
 
   if (!criticalOnly) {
-    if (typeof requestIdleCallback === 'function') {
-      requestIdleCallback(() => renderHomeCharts(), { timeout: 800 });
-    } else {
-      requestAnimationFrame(() => renderHomeCharts());
+    const chartSig = homeChartDataSig(games);
+    const chartsDue = !isDashboardIdle() || chartSig !== homeChartSig || userAction;
+    if (chartsDue) {
+      if (typeof requestIdleCallback === 'function') {
+        requestIdleCallback(() => renderHomeCharts(), { timeout: 800 });
+      } else {
+        requestAnimationFrame(() => renderHomeCharts());
+      }
     }
   }
 }
@@ -524,12 +549,26 @@ function renderAllInner(scope = 'full') {
   mountDock();
 }
 
-function scheduleRenderAll(scope = 'full') {
+function scheduleRenderAll(scope = 'full', opts = {}) {
   if (scope === 'full') pendingRenderScope = 'full';
   else if (pendingRenderScope !== 'full') pendingRenderScope = 'core';
 
+  if (opts.userAction) dashRenderBypass = true;
+
   if (dashScrollPaused && isDashboardPage()) {
     deferredRenderScope = scope === 'full' || deferredRenderScope === 'full' ? 'full' : 'core';
+    return;
+  }
+
+  const touchDashboard = pendingRenderScope === 'core' || isDashboardPage();
+  if (!dashRenderBypass && touchDashboard && shouldDeferDashRender(false)) {
+    if (!dashRenderThrottleTimer) {
+      const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+      dashRenderThrottleTimer = setTimeout(() => {
+        dashRenderThrottleTimer = null;
+        scheduleRenderAll(scope);
+      }, DASH_RENDER_MIN_MS - (now - lastDashRenderAt));
+    }
     return;
   }
 
@@ -779,11 +818,12 @@ function renderActivePageContent(pageId) {
 }
 
 function navigate(pageId, section) {
+  dashRenderBypass = true;
   state.activePage = pageId;
   showPage(pageId);
   updateNavUI(pageId);
   mountDock();
-  if (pageId === 'dashboard') renderDashboard();
+  if (pageId === 'dashboard') renderHomePage({ userAction: true });
   else if (pageId === 'log') renderMatchLogs();
   renderActivePageContent(pageId);
 }
@@ -917,6 +957,7 @@ async function submitGameLog(source = 'form') {
       state.ui.autoLogNote = '';
       resetQuickAfterLog();
     });
+    dashRenderBypass = true;
     renderAll(source === 'auto' || source === 'quick' ? 'core' : 'full');
     if (saved) {
       state.homeChartMode = saved.mode;
@@ -1216,15 +1257,20 @@ async function init() {
       onOpen: () => refreshSessionUI(),
       onClose: () => refreshSessionUI(),
     });
-    document.addEventListener('rl-session-ui-refresh', () => {
-      if (insideRenderAll) return;
-      if ((state.activePage || 'dashboard') === 'dashboard') {
-        refreshDashSessionWidgets(getActiveGames());
-      }
-    });
-    document.addEventListener('tracker-data-changed', () => {
-      scheduleRenderAll('core');
-    });
+    if (!trackerDataListenerWired) {
+      trackerDataListenerWired = true;
+      document.addEventListener('rl-session-ui-refresh', () => {
+        if (insideRenderAll) return;
+        dashRenderBypass = true;
+        if ((state.activePage || 'dashboard') === 'dashboard') {
+          refreshDashSessionWidgets(getActiveGames());
+        }
+      });
+      document.addEventListener('tracker-data-changed', () => {
+        dashRenderBypass = true;
+        scheduleRenderAll('core', { userAction: true });
+      });
+    }
     ensureBridgeServices();
     if (appT0 && typeof performance !== 'undefined') {
       console.info(`[boot +${Math.round(performance.now() - appT0)}ms] bridge-services-started`);

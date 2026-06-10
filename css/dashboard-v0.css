@@ -288,6 +288,16 @@ body:not(.logged-out) .top-bar > .review-sub-nav:not(.v0-sidebar-sub) { display:
   contain: content;
 }
 
+/* Below-fold sections skip paint until near viewport */
+#dash-rank-progress,
+#dash-session-panel,
+#home-focus,
+#dash-performance,
+#dash-activity {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 280px;
+}
+
 .dash-hero {
   position: relative;
   overflow: hidden;

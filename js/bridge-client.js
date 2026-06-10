@@ -36,6 +36,7 @@ let wasEverOnline = false;
 let reconnecting = false;
 let inStartupPhase = true;
 let startupPhaseTimer = null;
+let lastBridgeStatusSig = '';
 
 export function endBridgeStartupPhase() {
   inStartupPhase = false;
@@ -184,6 +185,28 @@ export function getBridgeStatusPhase() {
   return 'waiting';
 }
 
+/** Stable signature for bridge /status JSON — skip UI work when unchanged. */
+export function bridgeStatusSig(json) {
+  if (!json || typeof json !== 'object') return '';
+  return [
+    json.inMatch ? 1 : 0,
+    json.version ?? '',
+    json.bridgeVersion ?? '',
+    json.valorantRunning ? 1 : 0,
+  ].join(':');
+}
+
+export function noteBridgeStatus(json) {
+  const sig = bridgeStatusSig(json);
+  const changed = sig !== lastBridgeStatusSig;
+  lastBridgeStatusSig = sig;
+  return changed;
+}
+
+export function resetBridgeStatusSig() {
+  lastBridgeStatusSig = '';
+}
+
 async function pingBridgeOnce() {
   const res = await fetch(`${bridgeBase()}/status`, { signal: AbortSignal.timeout(PING_TIMEOUT_MS) });
   if (res.status === 404 && bridgeBase().includes('/api/bridge')) {
@@ -203,6 +226,7 @@ async function pingBridgeOnce() {
   }
   const json = await res.json();
   if (json.authToken) bridgeAuthToken = json.authToken;
+  noteBridgeStatus(json);
   lastBridgeFailure = null;
   bridgeProcessOnDirectPort = false;
   return json;
@@ -308,6 +332,7 @@ export function stopBridgeHeartbeat() {
   lastReachableEmitted = false;
   reconnecting = false;
   wasEverOnline = false;
+  resetBridgeStatusSig();
   setBridgeOnline(false);
   emitReachableIfChanged();
 }

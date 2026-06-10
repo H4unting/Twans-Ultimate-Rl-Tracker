@@ -28,6 +28,12 @@ const baseScales = {
   y: { ticks: { color: '#555', font: { size: 10 } }, grid: { color: '#1a1a2e' } },
 };
 
+const perfChartOptions = {
+  animation: false,
+  responsiveAnimationDuration: 0,
+  transitions: { active: { animation: { duration: 0 } } },
+};
+
 function updateLineChart(chart, labels, data, color) {
   chart.data.labels = labels;
   chart.data.datasets[0].data = data;
@@ -62,10 +68,16 @@ export function mmrChart(id, games, color, label = 'MMR', rankField = 'endMMR') 
       labels,
       datasets: [{
         label, data, borderColor: color, backgroundColor: color + '18',
-        borderWidth: 2, pointRadius: 3, pointBackgroundColor: color, fill: true, tension: 0.3,
+        borderWidth: 2, pointRadius: 2, pointBackgroundColor: color, fill: true, tension: 0.3,
       }],
     },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: baseScales },
+    options: {
+      ...perfChartOptions,
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: baseScales,
+    },
   });
   charts[id].$sig = sig;
 }
@@ -97,7 +109,10 @@ export function wlChart(id, stats) {
       datasets: [{ data: [wins, losses], backgroundColor: ['#00c851', '#ff4444'], borderWidth: 0 }],
     },
     options: {
-      responsive: true, maintainAspectRatio: false, cutout: '65%',
+      ...perfChartOptions,
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '65%',
       plugins: { legend: { display: true, position: 'bottom', labels: { color: '#888', font: { size: 11 }, padding: 12 } } },
     },
   });
@@ -144,7 +159,9 @@ export function rollingChart(id, games, primaryColor = '#e65c00') {
       ],
     },
     options: {
-      responsive: true, maintainAspectRatio: false,
+      ...perfChartOptions,
+      responsive: true,
+      maintainAspectRatio: false,
       plugins: {
         legend: { display: true, position: 'top', labels: { color: '#888', font: { size: 11 }, usePointStyle: true, padding: 14 } },
         tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y}%` } },
@@ -203,7 +220,9 @@ export function trendChart(id, buckets, gameId = 'rocket_league') {
       })),
     },
     options: {
-      responsive: true, maintainAspectRatio: false,
+      ...perfChartOptions,
+      responsive: true,
+      maintainAspectRatio: false,
       plugins: { legend: { display: true, position: 'top', labels: { color: '#888', font: { size: 11 }, padding: 12 } } },
       scales: { x: { ...baseScales.x, stacked: true }, y: { ...baseScales.y, stacked: true } },
     },
