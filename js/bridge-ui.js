@@ -48,6 +48,10 @@ export function setCachedRlInMatch(inMatch) {
   cachedRlInMatch = Boolean(inMatch);
 }
 
+export function getCachedRlInMatch() {
+  return cachedRlInMatch;
+}
+
 function applyUnifiedStatusLabel(el, phase, detailTitle) {
   const gameId = state.activeGame;
   const labels = {

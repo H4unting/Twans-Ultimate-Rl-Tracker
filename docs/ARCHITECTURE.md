@@ -2,7 +2,19 @@
 
 Single source of truth for how the desktop product works. Read this file first before changing runtime behavior, sync, or auto-log.
 
-Related: [`DESKTOP-VISION.md`](DESKTOP-VISION.md) (product goals), [`ROADMAP.md`](ROADMAP.md) (priorities), [`TECH-AUDIT-DESKTOP.md`](TECH-AUDIT-DESKTOP.md) (dead files / safe cleanup).
+Related: [`DESKTOP-VISION.md`](DESKTOP-VISION.md) (product goals), [`ROADMAP.md`](ROADMAP.md) (priorities), [`TECH-AUDIT-DESKTOP.md`](TECH-AUDIT-DESKTOP.md) (dead files / safe cleanup), [`BAN-SAFETY-AUDIT.md`](BAN-SAFETY-AUDIT.md) (ban safety), [`EXTERNAL-INTERACTIONS.md`](EXTERNAL-INTERACTIONS.md) (RL/Val touchpoints).
+
+---
+
+## Passive tracking principle
+
+Twans Ultimate Tracker is a **passive tracker**. It must not inject into games, read or write protected game memory, hook rendering, simulate input, bypass anti-cheat, patch game binaries, or ship kernel components.
+
+**Allowed:** launch games via official Steam/Riot URIs; read **approved** exported data (BakkesMod Stats API TCP, Henrik match history, optional Overwolf GEP); read local config/logs where documented; store stats and sync Supabase.
+
+**Player-facing rule:** show human status (`Tracking`, `Waiting for game`, `Connection issue`) — not ports, bridge paths, or recovery scripts. See Profile → **Connection** for diagnostics.
+
+Full technique matrix and per-game maps: [`BAN-SAFETY-AUDIT.md`](BAN-SAFETY-AUDIT.md).
 
 ---
 
@@ -286,7 +298,7 @@ Players install **`TwansUltimateTrackerSetup.exe`** only.
 | Electron | `tools/launcher/src/main.cjs`, `tools/launcher/package.json` |
 | HTTP + proxy | `scripts/start-grind.mjs`, `scripts/bridge-security.mjs` |
 | Bridge | `scripts/rl-bridge.mjs`, `scripts/valorant-bridge.mjs`, `scripts/process-watcher.mjs` |
-| Client bridge | `js/bridge-client.js`, `js/bridge-ui.js` |
+| Client bridge | `js/bridge-client.js`, `js/bridge-ui.js`, `js/diagnostics-ui.js` |
 | Boot | `js/app.js`, `js/boot.js`, `js/env.js` |
 | Sessions | `js/sessions.js`, `js/process-session.js` |
 | Onboarding | `js/onboarding-wizard.js`, `js/rank-baselines.js` |
