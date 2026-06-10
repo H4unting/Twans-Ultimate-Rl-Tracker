@@ -29,6 +29,11 @@ function gamesTailKey(games) {
   return `${games.length}:${last?.match}:${last?.result}`;
 }
 
+function resetMmrRowsRenderCache() {
+  mmrRowsRenderKey = '';
+  mmrRowsRenderCache = null;
+}
+
 function getCachedPlaylistMMRRows(games, gameId) {
   const key = `${getGamesVersion()}|${gameId}|${gamesTailKey(games)}`;
   if (mmrRowsRenderKey === key && mmrRowsRenderCache) return mmrRowsRenderCache;
@@ -1008,6 +1013,7 @@ function scheduleHomeDeferred(games, goals, allRows, chartMode, chartGames) {
 /** @param {{ criticalOnly?: boolean, skipDeferred?: boolean }} [opts] */
 export function renderHome(games, goals, opts = {}) {
   const t0 = DASH_PERF ? performance.now() : 0;
+  resetMmrRowsRenderCache();
   wireHomeLinksOnce();
   const allRows = getCachedPlaylistMMRRows(games, state.activeGame);
   const isVal = state.activeGame === GAME_IDS.VALORANT;
