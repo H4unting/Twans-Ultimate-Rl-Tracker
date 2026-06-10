@@ -45,11 +45,8 @@ import { wireAutoLogHandlers, handleAutoLog, handleValorantAutoLog } from './aut
 import { GAME_IDS, getTagGroups, getGameMeta } from './games.js';
 import { mmrChart, wlChart, destroyAllCharts } from './charts.js';
 import { renderAnalytics } from './analytics.js';
-import { renderReportsPage } from './reports-ui.js';
 import { normalizeGoalsStorage, getActiveGoals } from './goals.js';
-import { renderFocusPage } from './focus.js';
 import { initPostMatch, showPostMatchCard } from './post-match.js';
-import { renderGroupsPage, resetGroupsUI } from './groups.js';
 import { renderSessionsPage } from './sessions-ui.js';
 import { exportGamesCSV } from './export.js';
 import { wireNavigation as wireSectionNav, updateNavUI, mountDock, getSectionForPage } from './nav.js';
@@ -65,6 +62,30 @@ import {
   showPage, renderTagChips, showLoading, showLoginScreen, renderAuthBar,
 } from './ui.js';
 
+let reportsModule = null;
+let focusModule = null;
+let groupsModule = null;
+
+async function getReportsModule() {
+  if (!reportsModule) {
+    reportsModule = await import('./reports-ui.js');
+  }
+  return reportsModule;
+}
+
+async function getFocusModule() {
+  if (!focusModule) {
+    focusModule = await import('./focus.js');
+  }
+  return focusModule;
+}
+
+async function getGroupsModule() {
+  if (!groupsModule) {
+    groupsModule = await import('./groups.js');
+  }
+  return groupsModule;
+}
 window.__endSession = () => endSession();
 window.__refreshHome = () => renderHomePage();
 window.__navigate = (pageId, section) => navigate(pageId, section);
@@ -281,7 +302,8 @@ async function handleSignOut() {
   clearSessionTimer();
   await signOut();
   resetAppState();
-  resetGroupsUI();
+  if (groupsModule) groupsModule.resetGroupsUI();
+  else (await getGroupsModule()).resetGroupsUI();
   hideQuickDock();
   stopBridgeHeartbeat();
   stopBridgeServices();
@@ -334,6 +356,7 @@ function renderAnalyticsPage() {
 function renderAll(scope = 'full') {
   const games = getActiveGames();
   const display = getDisplay();
+  const page = state.activePage || 'dashboard';
 
   renderHomePage();
 
@@ -342,18 +365,11 @@ function renderAll(scope = 'full') {
     refreshSessionUI();
     wireLogTableActions();
     rerenderQuickTags();
-    renderActivePageContent(state.activePage || 'dashboard');
-    updateNavUI(state.activePage || 'dashboard');
+    renderActivePageContent(page);
+    updateNavUI(page);
     mountDock();
     return;
   }
-
-  renderPlaylistTabs('pl-tabs', state.playlist, (pl, btn) => {
-    state.playlist = pl;
-    document.querySelectorAll('#pl-tabs .pl-tab').forEach(b => b.classList.remove('active'));
-    btn?.classList.add('active');
-    renderAnalyticsPage();
-  }, state.activeGame);
 
   renderMatchLogs();
 
@@ -362,27 +378,39 @@ function renderAll(scope = 'full') {
   const fStart = document.getElementById('f-startmmr');
   if (fStart) fStart.value = lastMMR !== '' ? lastMMR : '';
 
-  renderFilterBar('analytics-filters', games, state.filters, filters => {
-    state.filters = { ...state.filters, ...filters };
-    renderAnalyticsPage();
-  }, state.activeGame);
-  renderAnalyticsPage();
+  if (page === 'analytics' || page === 'dashboard') {
+    renderPlaylistTabs('pl-tabs', state.playlist, (pl, btn) => {
+      state.playlist = pl;
+      document.querySelectorAll('#pl-tabs .pl-tab').forEach(b => b.classList.remove('active'));
+      btn?.classList.add('active');
+      renderAnalyticsPage();
+    }, state.activeGame);
 
-  renderReportsPageContent();
-  renderFocusPage(games, getActiveGoals(), display);
-  void renderGroupsPage(getGroupsCtx()).catch((err) => {
-    console.error('[squad] renderGroupsPage failed', err);
-  });
-  renderSessionsPageContent();
-  renderProfilePageContent();
+    renderFilterBar('analytics-filters', games, state.filters, filters => {
+      state.filters = { ...state.filters, ...filters };
+      renderAnalyticsPage();
+    }, state.activeGame);
+    renderAnalyticsPage();
+  }
+
+  if (page === 'reports') void renderReportsPageContent();
+  if (page === 'focus') void renderFocusPageContent();
+  if (page === 'group') {
+    void renderGroupsPage(getGroupsCtx())
+      .catch((err) => {
+        console.error('[squad] renderGroupsPage failed', err);
+      });
+  }
+  if (page === 'sessions') renderSessionsPageContent();
+  if (page === 'profile') renderProfilePageContent();
 
   refreshSessionUI();
   wireLogTableActions();
   applyPageCopy(state.activeGame);
   refreshLogTagChips();
   rerenderQuickTags();
-  renderActivePageContent(state.activePage || 'dashboard');
-  updateNavUI(state.activePage || 'dashboard');
+  renderActivePageContent(page);
+  updateNavUI(page);
   mountDock();
 }
 
@@ -473,19 +501,32 @@ function renderSessionsPageContent() {
 }
 
 function renderReportsPageContent() {
-  renderReportsPage(
-    getActiveGames(),
-    getDisplay().name,
-    state.reportsWeekOffset,
-    offset => { state.reportsWeekOffset = offset; renderReportsPageContent(); },
-    async nextGoals => {
-      setGoals(nextGoals);
-      await saveSettings(getSettingsPayload({ goals: nextGoals }));
-      renderHomePage();
-      renderFocusPage(getActiveGames(), getActiveGoals(), getDisplay());
-      showToast('Goals saved!');
-    },
-  );
+  return getReportsModule().then(({ renderReportsPage }) => {
+    renderReportsPage(
+      getActiveGames(),
+      getDisplay().name,
+      state.reportsWeekOffset,
+      offset => { state.reportsWeekOffset = offset; renderReportsPageContent(); },
+      async nextGoals => {
+        setGoals(nextGoals);
+        await saveSettings(getSettingsPayload({ goals: nextGoals }));
+        renderHomePage();
+        void renderFocusPageContent();
+        showToast('Goals saved!');
+      },
+    );
+  });
+}
+
+function renderFocusPageContent() {
+  return getFocusModule().then(({ renderFocusPage }) => {
+    renderFocusPage(getActiveGames(), getActiveGoals(), getDisplay());
+  });
+}
+
+async function renderGroupsPage(ctx) {
+  const { renderGroupsPage: render } = await getGroupsModule();
+  return render(ctx);
 }
 
 function renderProfilePageContent() {
@@ -591,8 +632,8 @@ function renderActivePageContent(pageId) {
     if (pageId === 'setup') refreshSetupWizard(getDisplay().name);
     if (pageId === 'profile') renderProfilePageContent();
     if (pageId === 'analytics') renderAnalyticsPage();
-    if (pageId === 'reports') renderReportsPageContent();
-    if (pageId === 'focus') renderFocusPage(getActiveGames(), getActiveGoals(), getDisplay());
+    if (pageId === 'reports') void renderReportsPageContent();
+    if (pageId === 'focus') void renderFocusPageContent();
     if (pageId === 'group') {
       void renderGroupsPage(getGroupsCtx())
         .catch((err) => {

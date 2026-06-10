@@ -287,9 +287,18 @@ function renderDashQuickActions() {
   const sessionDesc = hideManualSession
     ? ''
     : (state.session.active ? 'End early if needed' : 'Track your grind');
-
   const playLabel = state.activeGame === GAME_IDS.VALORANT ? 'Play Valorant' : 'Play Rocket League';
 
+  const sessionBtn = el.querySelector('[data-dash-action="session"]');
+  if (el.dataset.wired === '1' && sessionBtn && !hideManualSession) {
+    sessionBtn.querySelector('.dash-action-icon').textContent = sessionIcon;
+    sessionBtn.querySelector('.dash-action-label').textContent = sessionLabel;
+    const desc = sessionBtn.querySelector('.dash-action-desc');
+    if (desc) desc.textContent = sessionDesc;
+    return;
+  }
+
+  el.dataset.wired = '1';
   el.innerHTML = `
     <button type="button" class="dash-action-btn primary" data-dash-action="play">
       <span class="dash-action-icon">🎮</span>

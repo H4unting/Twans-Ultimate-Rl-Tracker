@@ -23,8 +23,11 @@ let visibilityWired = false;
 let bridgeAuthToken = null;
 const listeners = new Set();
 const reachableListeners = new Set();
+const resumedListeners = new Set();
 let lastReachableEmitted = false;
 let connectAttempts = 0;
+let wasEverOnline = false;
+let reconnecting = false;
 
 /** @typedef {'connecting'|'tracking'|'waiting'|'error'} BridgeStatusPhase */
 
@@ -37,6 +40,17 @@ export function subscribeBridgeReachable(fn) {
   reachableListeners.add(fn);
   fn(isBridgeReachable());
   return () => reachableListeners.delete(fn);
+}
+
+export function subscribeBridgeResumed(fn) {
+  resumedListeners.add(fn);
+  return () => resumedListeners.delete(fn);
+}
+
+function notifyBridgeResumed() {
+  resumedListeners.forEach(fn => {
+    try { fn(); } catch { /* ignore */ }
+  });
 }
 
 /** @typedef {'ok'|'wrong_port'|'wrong_server'|'bridge_down'|'unreachable'|'wrong_tracker_alive'} BridgeFailureKind */
@@ -135,8 +149,13 @@ export function getBridgeConnectAttempts() {
   return connectAttempts;
 }
 
-/** High-level status for UI pills — Tracking / Waiting / Error */
+export function isBridgeReconnecting() {
+  return reconnecting;
+}
+
+/** High-level status for UI pills — Tracking / Waiting / Error / Reconnecting */
 export function getBridgeStatusPhase() {
+  if (reconnecting) return 'reconnecting';
   if (!bridgeProbeDone && (isOnTrackerPort() || window.location.hostname === 'localhost')) {
     return 'connecting';
   }
@@ -196,9 +215,15 @@ async function heartbeatTick() {
       lastSuccessAt = Date.now();
       failStreak = 0;
       connectAttempts = 0;
+      if (reconnecting) {
+        reconnecting = false;
+        notifyBridgeResumed();
+      }
+      wasEverOnline = true;
       setBridgeOnline(true);
     } catch {
       connectAttempts += 1;
+      if (wasEverOnline && !bridgeOnline) reconnecting = true;
       const hidden = document.visibilityState === 'hidden';
       if (!hidden) failStreak += 1;
       if (!lastBridgeFailure) {
@@ -244,6 +269,8 @@ export function stopBridgeHeartbeat() {
   lastSuccessAt = 0;
   bridgeProcessOnDirectPort = false;
   lastReachableEmitted = false;
+  reconnecting = false;
+  wasEverOnline = false;
   setBridgeOnline(false);
   emitReachableIfChanged();
 }

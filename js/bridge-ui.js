@@ -4,6 +4,7 @@ import { state } from './state.js';
 import { GAME_IDS, getGameMeta } from './games.js';
 import {
   isBridgeUp, isBridgeProbeDone, getLastBridgeFailure, getBridgeStatusPhase, getBridgeConnectAttempts,
+  subscribeBridgeResumed,
 } from './bridge-client.js';
 import { isAutoLogEnabled, loadPrefs, syncAutoLogToggleUI } from './quicklog.js';
 import {
@@ -21,6 +22,7 @@ import {
 let cachedValStatus = null;
 let cachedRlInMatch = false;
 let clickWired = false;
+let resumeWired = false;
 
 function formatValApiErrorForUser(message) {
   const raw = String(message ?? '');
@@ -56,6 +58,7 @@ function applyUnifiedStatusLabel(el, phase, detailTitle) {
   const gameId = state.activeGame;
   const labels = {
     connecting: STATUS.starting,
+    reconnecting: STATUS.reconnecting,
     waiting: waitingForGameLabel(gameId),
     tracking: STATUS.tracking,
     error: STATUS.connectionIssue,
@@ -87,6 +90,13 @@ export function refreshBridgeStatusUI() {
     if (phase === 'connecting' && (isLocalTrackerHost() || isWrongLocalPort())) {
       applyUnifiedStatusLabel(el, 'connecting', `Starting ${DESKTOP_APP.name}…`);
       el.dataset.bridgeState = 'connecting';
+      setBridgeHintVisible(false);
+      syncAutoLogToggleUI();
+      return;
+    }
+    if (phase === 'reconnecting') {
+      applyUnifiedStatusLabel(el, 'reconnecting', STATUS.reconnecting);
+      el.dataset.bridgeState = 'reconnecting';
       setBridgeHintVisible(false);
       syncAutoLogToggleUI();
       return;
@@ -281,4 +291,14 @@ export function wireBridgeStatusClick(onOpenSetup) {
   document.getElementById('bridge-hint-banner')?.addEventListener('click', (e) => {
     if (e.target.closest('#bridge-hint-setup-link')) onOpenSetup?.();
   });
+
+  if (!resumeWired) {
+    resumeWired = true;
+    subscribeBridgeResumed(() => {
+      import('./ui.js').then(({ showToast }) => {
+        showToast(STATUS.trackingResumed);
+      }).catch(() => {});
+      refreshBridgeStatusUI();
+    });
+  }
 }
