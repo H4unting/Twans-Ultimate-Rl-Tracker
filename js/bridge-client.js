@@ -1,11 +1,15 @@
 /** Shared local bridge online state (RL + Valorant) — one heartbeat, debounced */
 
 import { getInternalTrackerApiOrigin, isTwansAppHost } from './env.js';
+import { isDashboardIdle } from './dash-context.js';
 
 const BRIDGE_PORT = 49200;
 const HEARTBEAT_ACTIVE_MS = 2500;
 const HEARTBEAT_IDLE_MS = 4000;
 const HEARTBEAT_HIDDEN_MS = 5000;
+const HEARTBEAT_STARTUP_MS = 400;
+const HEARTBEAT_DASH_IDLE_MS = 6000;
+const STARTUP_PHASE_MAX_MS = 8000;
 const PING_TIMEOUT_MS = 4000;
 /** Consecutive failed pings before going offline (after grace expires) */
 const OFFLINE_AFTER_MISSES = 20;
@@ -30,6 +34,16 @@ let lastReachableEmitted = false;
 let connectAttempts = 0;
 let wasEverOnline = false;
 let reconnecting = false;
+let inStartupPhase = true;
+let startupPhaseTimer = null;
+
+export function endBridgeStartupPhase() {
+  inStartupPhase = false;
+  if (startupPhaseTimer) {
+    clearTimeout(startupPhaseTimer);
+    startupPhaseTimer = null;
+  }
+}
 
 /** @typedef {'connecting'|'tracking'|'waiting'|'error'} BridgeStatusPhase */
 
@@ -248,7 +262,9 @@ async function heartbeatTick() {
 
 function getHeartbeatMs() {
   if (document.visibilityState === 'hidden') return HEARTBEAT_HIDDEN_MS;
+  if (inStartupPhase) return HEARTBEAT_STARTUP_MS;
   if (reconnecting || !bridgeOnline) return HEARTBEAT_ACTIVE_MS;
+  if (isDashboardIdle()) return HEARTBEAT_DASH_IDLE_MS;
   return HEARTBEAT_IDLE_MS;
 }
 
@@ -275,6 +291,9 @@ function wireVisibilityRefresh() {
 export function startBridgeHeartbeat() {
   if (heartbeatTimer !== null) return;
   failStreak = 0;
+  inStartupPhase = true;
+  if (startupPhaseTimer) clearTimeout(startupPhaseTimer);
+  startupPhaseTimer = setTimeout(endBridgeStartupPhase, STARTUP_PHASE_MAX_MS);
   wireVisibilityRefresh();
   void heartbeatTick();
   scheduleHeartbeat();

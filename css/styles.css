@@ -87,9 +87,8 @@ body:not(.is-loading) .loading-overlay { opacity: 0; visibility: hidden; pointer
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
 }
 .top-bar-head .top-bar-meta { margin-left: auto; }
-.logo { font-size: 17px; font-weight: 700; color: var(--accent); letter-spacing: 0.3px; line-height: 1.2; display: flex; align-items: center; gap: 12px; justify-content: center; }
+.logo { font-size: 17px; font-weight: 700; color: var(--accent); letter-spacing: 0.3px; line-height: 1.2; }
 .logo span { color: #fff; }
-.login-logo-img { border-radius: 14px; flex-shrink: 0; box-shadow: 0 0 24px -6px rgba(230, 92, 0, 0.45); }
 .logo-home-btn {
   background: none;
   border: none;
@@ -411,7 +410,7 @@ body.logged-out.has-quick-dock { padding-bottom: 0; }
   background: #0d0d22; color: var(--dim); font-weight: 600;
   padding: 9px 10px; text-align: left; border-bottom: 1px solid #1e1e3a;
   font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;
-  position: sticky; top: 0;
+  position: sticky; top: 0; z-index: 1;
 }
 .log-table td { padding: 8px 10px; border-bottom: 1px solid #131325; color: #ccc; vertical-align: middle; }
 .log-table tr { transition: background 0.15s; }
@@ -1291,6 +1290,15 @@ body.has-quick-dock.quick-dock-collapsed .mobile-nav { bottom: 52px; }
 .log-history-table-wrap {
   margin-top: 12px;
   max-width: 100%;
+}
+.log-history-table-wrap.virtual-scroll-host {
+  max-height: min(70vh, 720px);
+  overflow-y: auto;
+}
+.log-table .virtual-spacer td {
+  padding: 0;
+  border: none;
+  background: transparent;
 }
 
 .full-log-details {

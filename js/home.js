@@ -10,11 +10,32 @@ import { getActionFocusTips, getGameMeta, GAME_IDS, getTagCat, getRankDiff, getQ
 import { formatRankDisplay } from './games/valorant/rank-ladder.js';
 import { formatRRDelta } from './games/valorant/ranks.js';
 import { state } from './state.js';
+import { getGamesVersion } from './perf-cache.js';
 import { launchGame } from './game-launcher.js';
 import { shouldHideManualSessionControls } from './env.js';
 import { getLoggingSessionNum } from './core/logging-session.js';
 import { weekRankGain } from './goals.js';
 import { rankIndex, RANK_LADDER } from './games/valorant/rank-ladder.js';
+
+const DASH_PERF = typeof window !== 'undefined'
+  && (window.__DASH_PERF || localStorage?.getItem('dash-perf') === '1');
+
+let mmrRowsRenderKey = '';
+let mmrRowsRenderCache = null;
+
+function gamesTailKey(games) {
+  if (!games?.length) return '0';
+  const last = games[games.length - 1];
+  return `${games.length}:${last?.match}:${last?.result}`;
+}
+
+function getCachedPlaylistMMRRows(games, gameId) {
+  const key = `${getGamesVersion()}|${gameId}|${gamesTailKey(games)}`;
+  if (mmrRowsRenderKey === key && mmrRowsRenderCache) return mmrRowsRenderCache;
+  mmrRowsRenderCache = getPlaylistMMRRows(games, gameId);
+  mmrRowsRenderKey = key;
+  return mmrRowsRenderCache;
+}
 
 function avgField(games, field, fallbackField) {
   if (!games.length) return 0;
@@ -26,7 +47,7 @@ function ensureHomeChartMode(games) {
     state.homeChartMode = 'Competitive';
     return 'Competitive';
   }
-  const rows = getPlaylistMMRRows(games, state.activeGame);
+  const rows = getCachedPlaylistMMRRows(games, state.activeGame);
   if (!rows.length) {
     state.homeChartMode = null;
     return null;
@@ -143,20 +164,11 @@ function getSessionNetMmr(games) {
   return sg.reduce((sum, g) => sum + (g.mmrDiff || 0), 0);
 }
 
-function renderDashHero(games, goals, rows, activeRow) {
-  const el = document.getElementById('dash-hero');
-  if (!el) return;
-
+function computeDashHeroData(games, rows, activeRow) {
   const meta = getGameMeta(state.activeGame);
   const isVal = state.activeGame === GAME_IDS.VALORANT;
-  const gameLabel = meta.label;
   const displayRows = isVal ? rows.filter(r => r.mode === 'Competitive') : rows;
-
-  if (!displayRows.length) {
-    el.innerHTML = `
-      <div class="dash-empty">Log a ${gameLabel} ${isVal ? 'match' : 'game'} to see your dashboard overview.</div>`;
-    return;
-  }
+  if (!displayRows.length) return null;
 
   const chartMode = ensureHomeChartMode(games);
   const row = activeRow ?? displayRows.find(r => r.mode === chartMode) ?? displayRows[0];
@@ -170,10 +182,133 @@ function renderDashHero(games, goals, rows, activeRow) {
   const weeklyGain = row.weekGain ?? 0;
   const streak = stats.streak?.type === 'W' ? stats.streak.count : 0;
   const weekGames = displayRows.reduce((sum, r) => sum + (r.weekGameCount || 0), 0);
-  const rankName = rank.name ?? 'Unranked';
-  const rankSub = isVal
-    ? `${formatRankDisplay(rank.name, rank.rr)} · ${getQueueLabel(row.mode, state.activeGame)}`
-    : `${row.mmr} ${meta.rankLabel} · ${row.mode}`;
+
+  return {
+    meta, isVal, displayRows, chartMode, row, lastGame, rank, stats, wr,
+    diffLabel, weeklyGain, streak, weekGames,
+    rankName: rank.name ?? 'Unranked',
+    rankSub: isVal
+      ? `${formatRankDisplay(rank.name, rank.rr)} · ${getQueueLabel(row.mode, state.activeGame)}`
+      : `${row.mmr} ${meta.rankLabel} · ${row.mode}`,
+    queueModesKey: displayRows.map(r => r.mode).join(','),
+  };
+}
+
+function dashHeroSig(data) {
+  if (!data) return 'empty';
+  const { row, wr, streak, weekGames, weeklyGain, stats, rankName, chartMode, queueModesKey } = data;
+  return [
+    state.activeGame, chartMode, row.mode, row.mmr, rankName, wr, streak,
+    weekGames, weeklyGain, stats.totalGames, queueModesKey,
+    data.displayRows.map(r => `${r.mode}:${r.weekGain}`).join('|'),
+  ].join(':');
+}
+
+function patchDashHeroQueueRow(el, displayRows, chartMode) {
+  const row = el.querySelector('.dash-queue-row');
+  if (!row) return false;
+  const btns = row.querySelectorAll('[data-home-mode]');
+  const btnModes = [...btns].map(b => b.dataset.homeMode);
+  const modes = displayRows.map(r => r.mode);
+  if (modes.join(',') !== btnModes.join(',') || btns.length !== modes.length) return false;
+  btns.forEach(btn => {
+    const r = displayRows.find(x => x.mode === btn.dataset.homeMode);
+    if (!r) return;
+    btn.classList.toggle('active', r.mode === chartMode);
+    const wk = btn.querySelector('.dash-queue-week');
+    if (wk) {
+      const wkCls = r.weekGain >= 0 ? 'up' : 'down';
+      wk.className = `dash-queue-week ${wkCls}`;
+      wk.textContent = `${r.weekGain >= 0 ? '+' : ''}${r.weekGain} wk`;
+    }
+  });
+  return true;
+}
+
+function patchDashHero(el, data) {
+  const {
+    isVal, row, lastGame, rank, wr, streak, weekGames, weeklyGain, meta, diffLabel,
+    rankName, rankSub, chartMode, displayRows,
+  } = data;
+
+  const emblem = el.querySelector('.dash-hero-emblem');
+  if (emblem) {
+    emblem.innerHTML = rankBadgeHTML(
+      isVal && lastGame ? { endRank: lastGame.endRank, endRR: lastGame.endRR ?? row.mmr } : row.mmr,
+      isVal ? 56 : 48,
+      row.mode,
+      state.activeGame,
+    );
+  }
+  const rankNameEl = el.querySelector('.dash-hero-rank-name');
+  if (rankNameEl) rankNameEl.textContent = rankName;
+  const rankSubEl = el.querySelector('.dash-hero-rank-sub');
+  if (rankSubEl) rankSubEl.textContent = rankSub;
+  const playlistEl = el.querySelector('.dash-hero-playlist');
+  if (playlistEl) playlistEl.textContent = isVal ? getQueueLabel(row.mode, state.activeGame) : row.mode;
+
+  const cards = el.querySelectorAll('.dash-hero-stats .dash-stat-card');
+  if (cards[0]) {
+    cards[0].querySelector('.dash-stat-value').textContent = row.mmr.toLocaleString();
+    cards[0].querySelector('.dash-stat-hint').textContent =
+      `${weeklyGain >= 0 ? '+' : ''}${weeklyGain} ${diffLabel} this week`;
+  }
+  if (cards[1]) {
+    cards[1].querySelector('.dash-stat-value').innerHTML =
+      `${wr}<span style="font-size:14px;color:var(--v0-muted-foreground)">%</span>`;
+    cards[1].querySelector('.dash-stat-hint').textContent =
+      `${data.stats.totalGames} ${isVal ? 'matches' : 'games'} logged`;
+  }
+  if (cards[2]) {
+    cards[2].querySelector('.dash-stat-value').textContent = String(streak);
+  }
+  if (cards[3]) {
+    cards[3].querySelector('.dash-stat-value').textContent = String(weekGames);
+    cards[3].querySelector('.dash-stat-hint').textContent =
+      `${weeklyGain >= 0 ? '+' : ''}${weeklyGain} ${diffLabel} net`;
+  }
+
+  if (!isVal) patchDashHeroQueueRow(el, displayRows, chartMode);
+}
+
+function renderDashHero(games, goals, rows, activeRow) {
+  const el = document.getElementById('dash-hero');
+  if (!el) return;
+
+  const meta = getGameMeta(state.activeGame);
+  const isVal = state.activeGame === GAME_IDS.VALORANT;
+  const gameLabel = meta.label;
+  const displayRows = isVal ? rows.filter(r => r.mode === 'Competitive') : rows;
+
+  if (el.dataset.heroGame !== state.activeGame) {
+    el.dataset.wired = '';
+    el.dataset.heroSig = '';
+    el.dataset.heroGame = state.activeGame;
+  }
+
+  if (!displayRows.length) {
+    el.dataset.wired = '';
+    el.dataset.heroSig = 'empty';
+    el.innerHTML = `
+      <div class="dash-empty">Log a ${gameLabel} ${isVal ? 'match' : 'game'} to see your dashboard overview.</div>`;
+    return;
+  }
+
+  const data = computeDashHeroData(games, rows, activeRow);
+  const sig = dashHeroSig(data);
+  if (el.dataset.wired === '1' && el.dataset.heroSig === sig) return;
+
+  if (el.dataset.wired === '1') {
+    if (!isVal && !patchDashHeroQueueRow(el, data.displayRows, data.chartMode)) {
+      el.dataset.wired = '';
+    } else {
+      patchDashHero(el, data);
+      el.dataset.heroSig = sig;
+      return;
+    }
+  }
+
+  const { chartMode, row, lastGame, rank, stats, wr, diffLabel, weeklyGain, streak, weekGames, rankName, rankSub } = data;
 
   const queueHTML = isVal
     ? `<span class="dash-queue-static">Competitive</span>`
@@ -242,7 +377,52 @@ function renderDashHero(games, goals, rows, activeRow) {
       </div>
     </div>`;
 
+  el.dataset.wired = '1';
+  el.dataset.heroSig = sig;
   wireQueuePicker(el, games);
+}
+
+function rankProgressSig(activeRow, goals, games) {
+  if (!activeRow) return 'none';
+  const progress = getRankProgressInfo(activeRow, state.activeGame, games);
+  const target = goals?.mmrTarget || 0;
+  return `${activeRow.mode}:${activeRow.mmr}:${progress.pct}:${progress.toNext}:${progress.currentRank}:${progress.nextRank}:${target}`;
+}
+
+function patchDashRankProgress(el, progress, goals) {
+  const target = goals?.mmrTarget || 0;
+  const fill = el.querySelector('.dash-rank-bar-fill');
+  const marker = el.querySelector('.dash-rank-bar-marker');
+  if (fill) fill.style.width = `${progress.pct}%`;
+  if (marker) marker.style.left = `${progress.pct}%`;
+
+  const nextEl = el.querySelector('.dash-rank-next');
+  if (nextEl) {
+    nextEl.innerHTML = progress.toNext > 0
+      ? `<strong>+${progress.toNext}</strong> ${progress.label} to ${progress.nextRank}`
+      : 'At peak tier';
+  }
+
+  const metaSpans = el.querySelectorAll('.dash-rank-meta span');
+  if (metaSpans[0]) metaSpans[0].textContent = progress.currentRank;
+  if (metaSpans[1]) metaSpans[1].textContent = progress.nextRank;
+
+  let goalEl = el.querySelector('[data-rank-goal]');
+  if (target > 0) {
+    const diffLabel = getGameMeta(state.activeGame).diffLabel;
+    const html = `Weekly goal: +${target} ${diffLabel}`;
+    if (goalEl) goalEl.textContent = html;
+    else {
+      goalEl = document.createElement('p');
+      goalEl.className = 'dash-stat-hint';
+      goalEl.style.marginTop = '12px';
+      goalEl.dataset.rankGoal = '1';
+      goalEl.textContent = html;
+      el.appendChild(goalEl);
+    }
+  } else if (goalEl) {
+    goalEl.remove();
+  }
 }
 
 function renderDashRankProgress(activeRow, goals, games) {
@@ -252,14 +432,25 @@ function renderDashRankProgress(activeRow, goals, games) {
   if (!activeRow) {
     el.innerHTML = '';
     el.classList.add('hidden');
+    el.dataset.wired = '';
+    el.dataset.rankSig = '';
     return;
   }
   el.classList.remove('hidden');
 
   const progress = getRankProgressInfo(activeRow, state.activeGame, games);
+  const sig = rankProgressSig(activeRow, goals, games);
+  if (el.dataset.wired === '1' && el.dataset.rankSig === sig) return;
+
+  if (el.dataset.wired === '1') {
+    patchDashRankProgress(el, progress, goals);
+    el.dataset.rankSig = sig;
+    return;
+  }
+
   const target = goals?.mmrTarget || 0;
   const goalNote = target > 0
-    ? `<p class="dash-stat-hint" style="margin-top:12px">Weekly goal: +${target} ${getGameMeta(state.activeGame).diffLabel}</p>`
+    ? `<p class="dash-stat-hint" style="margin-top:12px" data-rank-goal="1">Weekly goal: +${target} ${getGameMeta(state.activeGame).diffLabel}</p>`
     : '';
 
   el.innerHTML = `
@@ -282,6 +473,8 @@ function renderDashRankProgress(activeRow, goals, games) {
     </div>
     ${goalNote}`;
 
+  el.dataset.wired = '1';
+  el.dataset.rankSig = sig;
   wireHomeLinks(el);
 }
 
@@ -407,43 +600,120 @@ function renderDashPerfStats(games) {
   el.dataset.perfSig = sig;
 }
 
-function renderDashSessionPanel(games) {
-  const el = document.getElementById('dash-session-panel');
-  if (!el) return;
-
-  const meta = getGameMeta(state.activeGame);
-  const diffLabel = meta.diffLabel;
-  const isVal = state.activeGame === GAME_IDS.VALORANT;
-
+function sessionPanelSig(games, allRows) {
   if (state.session.active) {
     const sessionNum = getLoggingSessionNum();
     const sg = games.filter(g => parseInt(g.session, 10) === sessionNum);
     const wins = sg.filter(g => g.result === 'W').length;
     const losses = sg.filter(g => g.result === 'L').length;
     const net = getSessionNetMmr(games);
-    const elapsed = formatDuration(Date.now() - (state.session.startTime || Date.now()));
+    return `live:${sessionNum}:${sg.length}:${wins}:${losses}:${net}`;
+  }
+  const weekRows = allRows.filter(r => r.weekGameCount > 0);
+  if (weekRows.length) {
+    return `week:${weekRows.map(r => `${r.mode}:${r.weekGain}`).join('|')}`;
+  }
+  if (!games.length) return 'empty';
+  return `recent:${games[games.length - 1].date}`;
+}
+
+function patchLiveSessionPanel(el, games, diffLabel) {
+  const sessionNum = getLoggingSessionNum();
+  const sg = games.filter(g => parseInt(g.session, 10) === sessionNum);
+  const wins = sg.filter(g => g.result === 'W').length;
+  const losses = sg.filter(g => g.result === 'L').length;
+  const net = getSessionNetMmr(games);
+
+  const body = el.querySelector('.dash-session-body');
+  if (body) {
+    let strong = body.querySelector('strong');
+    if (!strong) {
+      body.textContent = '';
+      strong = document.createElement('strong');
+      body.appendChild(strong);
+      body.appendChild(document.createTextNode(' · '));
+      const wl = document.createElement('span');
+      wl.dataset.sessionWl = '1';
+      body.appendChild(wl);
+      body.appendChild(document.createTextNode(' · '));
+      const elapsed = document.createElement('span');
+      elapsed.dataset.sessionElapsed = '';
+      body.appendChild(elapsed);
+    }
+    strong.textContent = `Session ${sessionNum}`;
+    const wlEl = body.querySelector('[data-session-wl]');
+    if (wlEl) wlEl.textContent = `${wins}W ${losses}L`;
+  }
+  const elapsedEl = el.querySelector('[data-session-elapsed]');
+  if (elapsedEl) {
+    elapsedEl.textContent = formatDuration(Date.now() - (state.session.startTime || Date.now()));
+  }
+
+  const grid = el.querySelector('.dash-session-stat-grid');
+  if (grid) {
+    const stats = grid.querySelectorAll('.dash-session-stat');
+    if (stats[0]) stats[0].querySelector('.dash-session-stat-val').textContent = String(sg.length);
+    if (stats[1]) {
+      const val = stats[1].querySelector('.dash-session-stat-val');
+      if (val) {
+        val.textContent = `${net >= 0 ? '+' : ''}${net}`;
+        val.classList.toggle('dash-stat-success', net >= 0);
+      }
+      const label = stats[1].querySelector('.dash-stat-label');
+      if (label) label.textContent = `Net ${diffLabel}`;
+    }
+  }
+}
+
+function renderDashSessionPanel(games, allRows) {
+  const el = document.getElementById('dash-session-panel');
+  if (!el) return;
+
+  const meta = getGameMeta(state.activeGame);
+  const diffLabel = meta.diffLabel;
+  const isVal = state.activeGame === GAME_IDS.VALORANT;
+  const sig = sessionPanelSig(games, allRows);
+
+  if (el.dataset.sessionSig === sig && el.dataset.sessionGame === state.activeGame) {
+    if (state.session.active && el.dataset.sessionMode === 'live') return;
+    if (!state.session.active) return;
+  }
+
+  if (state.session.active) {
+    if (el.dataset.wired === '1' && el.dataset.sessionMode === 'live') {
+      patchLiveSessionPanel(el, games, diffLabel);
+      el.dataset.sessionSig = sig;
+      el.dataset.sessionGame = state.activeGame;
+      return;
+    }
+    el.dataset.wired = '1';
+    el.dataset.sessionMode = 'live';
+    el.dataset.sessionSig = sig;
+    el.dataset.sessionGame = state.activeGame;
     el.innerHTML = `
       <div class="dash-section-head">
         <h2 class="dash-section-title"><span class="dash-section-icon">⏱</span> Session</h2>
         <span class="dash-session-live">Live</span>
       </div>
       <div class="dash-session-body">
-        <strong>Session ${sessionNum}</strong> · ${wins}W ${losses}L · ${elapsed}
+        <strong>Session ${getLoggingSessionNum()}</strong> · 0W 0L · <span data-session-elapsed></span>
       </div>
       <div class="dash-session-stat-grid">
         <div class="dash-session-stat">
           <div class="dash-stat-label">Games</div>
-          <div class="dash-session-stat-val">${sg.length}</div>
+          <div class="dash-session-stat-val">0</div>
         </div>
         <div class="dash-session-stat">
           <div class="dash-stat-label">Net ${diffLabel}</div>
-          <div class="dash-session-stat-val ${net >= 0 ? 'dash-stat-success' : ''}">${net >= 0 ? '+' : ''}${net}</div>
+          <div class="dash-session-stat-val">0</div>
         </div>
       </div>`;
+    patchLiveSessionPanel(el, games, diffLabel);
     return;
   }
 
-  const weekRows = getPlaylistMMRRows(games, state.activeGame).filter(r => r.weekGameCount > 0);
+  el.dataset.sessionMode = '';
+  const weekRows = allRows.filter(r => r.weekGameCount > 0);
   if (weekRows.length) {
     const parts = weekRows.map(r => {
       const cls = r.weekGain >= 0 ? 'up' : 'down';
@@ -456,6 +726,9 @@ function renderDashSessionPanel(games) {
       </div>
       <div class="dash-session-body">${parts}</div>
       <p class="dash-stat-hint" style="margin-top:12px"><a href="#" class="home-link" data-goto="analytics">Open analytics →</a></p>`;
+    el.dataset.wired = '1';
+    el.dataset.sessionSig = sig;
+    el.dataset.sessionGame = state.activeGame;
     wireHomeLinks(el);
     return;
   }
@@ -466,6 +739,9 @@ function renderDashSessionPanel(games) {
         <h2 class="dash-section-title"><span class="dash-section-icon">⏱</span> Session</h2>
       </div>
       <div class="dash-session-body">Start a session from the quick action above or the dock below.</div>`;
+    el.dataset.wired = '1';
+    el.dataset.sessionSig = sig;
+    el.dataset.sessionGame = state.activeGame;
     return;
   }
 
@@ -477,6 +753,9 @@ function renderDashSessionPanel(games) {
       No games this week · last played ${games[games.length - 1].date}
       · <a href="#" class="home-link" data-goto="log">Match history</a>
     </div>`;
+  el.dataset.wired = '1';
+  el.dataset.sessionSig = sig;
+  el.dataset.sessionGame = state.activeGame;
   wireHomeLinks(el);
 }
 
@@ -488,10 +767,41 @@ export function renderHomeSummary(games, goals) {
   if (valDash) valDash.innerHTML = '';
 }
 
-export function renderHomeContext(games) {
+export function renderHomeContext(games, allRows) {
   const el = document.getElementById('home-context');
   if (el) el.innerHTML = '';
-  renderDashSessionPanel(games);
+  renderDashSessionPanel(games, allRows);
+}
+
+/** Lightweight session/quick-action refresh — avoids full dashboard rebuild. */
+export function refreshDashSessionWidgets(games) {
+  const allRows = getCachedPlaylistMMRRows(games, state.activeGame);
+  renderDashQuickActions();
+  renderDashSessionPanel(games, allRows);
+}
+
+function focusSig(games, gameId) {
+  if (games.length < 2) return `${gameId}:empty:${games.length}`;
+  const correlations = getTagLossCorrelations(games);
+  const top = correlations.find(c => c.inLosses >= 1) ?? null;
+  if (!top) return `${gameId}:notag:${games.length}`;
+  const losses = games.filter(g => g.result === 'L').length;
+  return `${gameId}:${top.tag}:${top.inLosses}:${losses}:${games.length}`;
+}
+
+function patchHomeFocus(el, { focusLabel, featuredClass, tagName, lossNote, tip }) {
+  el.querySelector('.home-focus-label')?.replaceChildren(document.createTextNode(focusLabel));
+  const tagEl = el.querySelector('.home-focus-tag-name');
+  const statEl = el.querySelector('.home-focus-stat');
+  const tipEl = el.querySelector('.home-focus-tip');
+  const emptyEl = el.querySelector('.home-focus-empty-text');
+  if (emptyEl) {
+    emptyEl.textContent = tagName || lossNote;
+    return;
+  }
+  if (tagEl) tagEl.textContent = tagName;
+  if (statEl) statEl.textContent = lossNote;
+  if (tipEl) tipEl.textContent = tip;
 }
 
 export function renderHomeFocus(games) {
@@ -499,6 +809,9 @@ export function renderHomeFocus(games) {
   if (!el) return;
 
   const isVal = state.activeGame === GAME_IDS.VALORANT;
+  const sig = focusSig(games, state.activeGame);
+  if (el.dataset.focusSig === sig && el.dataset.focusGame === state.activeGame) return;
+
   const focusLabel = isVal ? "Today's Mission" : "Today's Focus";
   const featuredClass = ' home-focus-card-featured';
   const emptyHint = isVal
@@ -509,22 +822,38 @@ export function renderHomeFocus(games) {
     : 'Tag mistakes after losses to unlock your focus area.';
 
   if (games.length < 2) {
-    el.innerHTML = `
-      <div class="home-focus-card home-focus-card-empty dash-section v0-glass${featuredClass}">
-        <span class="home-focus-label">${focusLabel}</span>
-        <p class="home-focus-empty-text">${emptyHint}</p>
-      </div>`;
+    if (el.dataset.wired === '1' && el.dataset.focusMode === 'empty') {
+      patchHomeFocus(el, { focusLabel, featuredClass, tagName: '', lossNote: emptyHint, tip: '' });
+    } else {
+      el.innerHTML = `
+        <div class="home-focus-card home-focus-card-empty dash-section v0-glass${featuredClass}">
+          <span class="home-focus-label">${focusLabel}</span>
+          <p class="home-focus-empty-text">${emptyHint}</p>
+        </div>`;
+      el.dataset.wired = '1';
+      el.dataset.focusMode = 'empty';
+    }
+    el.dataset.focusSig = sig;
+    el.dataset.focusGame = state.activeGame;
     return;
   }
 
   const correlations = getTagLossCorrelations(games);
   const top = correlations.find(c => c.inLosses >= 1) ?? null;
   if (!top) {
-    el.innerHTML = `
-      <div class="home-focus-card home-focus-card-empty dash-section v0-glass${featuredClass}">
-        <span class="home-focus-label">${focusLabel}</span>
-        <p class="home-focus-empty-text">${tagEmpty}</p>
-      </div>`;
+    if (el.dataset.wired === '1' && el.dataset.focusMode === 'empty') {
+      patchHomeFocus(el, { focusLabel, featuredClass, tagName: '', lossNote: tagEmpty, tip: '' });
+    } else {
+      el.innerHTML = `
+        <div class="home-focus-card home-focus-card-empty dash-section v0-glass${featuredClass}">
+          <span class="home-focus-label">${focusLabel}</span>
+          <p class="home-focus-empty-text">${tagEmpty}</p>
+        </div>`;
+      el.dataset.wired = '1';
+      el.dataset.focusMode = 'empty';
+    }
+    el.dataset.focusSig = sig;
+    el.dataset.focusGame = state.activeGame;
     return;
   }
 
@@ -534,17 +863,25 @@ export function renderHomeFocus(games) {
     : `${top.inLosses}× tagged`;
   const tip = getActionFocusTips(state.activeGame)[top.tag] ?? 'Slow down and review before you queue again.';
 
-  el.innerHTML = `
-    <div class="home-focus-card dash-section v0-glass${featuredClass}">
-      <div class="home-focus-card-head">
-        <span class="home-focus-label">${focusLabel}</span>
-        <a href="#" class="home-focus-more" data-goto="focus">Details →</a>
-      </div>
-      <div class="home-focus-tag-name">${top.tag}</div>
-      <p class="home-focus-stat">${lossNote}</p>
-      <p class="home-focus-tip">${tip}</p>
-    </div>`;
-  wireHomeLinks(el);
+  if (el.dataset.wired === '1' && el.dataset.focusMode === 'filled') {
+    patchHomeFocus(el, { focusLabel, featuredClass, tagName: top.tag, lossNote, tip });
+  } else {
+    el.innerHTML = `
+      <div class="home-focus-card dash-section v0-glass${featuredClass}">
+        <div class="home-focus-card-head">
+          <span class="home-focus-label">${focusLabel}</span>
+          <a href="#" class="home-focus-more" data-goto="focus">Details →</a>
+        </div>
+        <div class="home-focus-tag-name">${top.tag}</div>
+        <p class="home-focus-stat">${lossNote}</p>
+        <p class="home-focus-tip">${tip}</p>
+      </div>`;
+    el.dataset.wired = '1';
+    el.dataset.focusMode = 'filled';
+    wireHomeLinks(el);
+  }
+  el.dataset.focusSig = sig;
+  el.dataset.focusGame = state.activeGame;
 }
 
 function activitySig(games, limit, gameId) {
@@ -610,15 +947,13 @@ export function renderHomeActivity(games, limit = 10) {
     valFeed.dataset.activitySig = '';
   }
 
-  el.innerHTML = `
-    <ul class="dash-activity-list">
-      ${recent.map(g => {
-        const diff = getRankDiff(g, state.activeGame);
-        const diffCls = diff >= 0 ? 'up' : 'down';
-        const tags = (g.tags || []).slice(0, 2).map(t =>
-          `<span class="home-activity-tag ${getTagCat(t, state.activeGame)}">${t}</span>`,
-        ).join('');
-        return `
+  const listHtml = recent.map(g => {
+    const diff = getRankDiff(g, state.activeGame);
+    const diffCls = diff >= 0 ? 'up' : 'down';
+    const tags = (g.tags || []).slice(0, 2).map(t =>
+      `<span class="home-activity-tag ${getTagCat(t, state.activeGame)}">${t}</span>`,
+    ).join('');
+    return `
         <li class="dash-activity-item">
           <span class="dash-activity-badge ${g.result}">${g.result}</span>
           <div class="dash-activity-main">
@@ -630,8 +965,12 @@ export function renderHomeActivity(games, limit = 10) {
             <div class="dash-activity-date">${g.date}</div>
           </div>
         </li>`;
-      }).join('')}
-    </ul>`;
+  }).join('');
+
+  const frag = document.createRange().createContextualFragment(
+    `<ul class="dash-activity-list">${listHtml}</ul>`,
+  );
+  el.replaceChildren(frag);
   el.dataset.activitySig = sig;
 }
 
@@ -646,9 +985,31 @@ function updateDashPerfModeLabel(mode) {
   el.textContent = mode ? `${mode} playlist` : 'Current playlist';
 }
 
-export function renderHome(games, goals) {
+let homeDeferredIdleId = null;
+
+function runHomeDeferred(games, goals, allRows, chartMode, chartGames) {
+  homeDeferredIdleId = null;
+  renderHomeFocus(games);
+  updateDashPerfModeLabel(chartMode);
+  renderDashPerfStats(chartGames);
+  renderHomeActivity(games);
+}
+
+function scheduleHomeDeferred(games, goals, allRows, chartMode, chartGames) {
+  const run = () => runHomeDeferred(games, goals, allRows, chartMode, chartGames);
+  if (typeof requestIdleCallback === 'function') {
+    if (homeDeferredIdleId !== null) cancelIdleCallback(homeDeferredIdleId);
+    homeDeferredIdleId = requestIdleCallback(run, { timeout: 600 });
+  } else {
+    requestAnimationFrame(run);
+  }
+}
+
+/** @param {{ criticalOnly?: boolean, skipDeferred?: boolean }} [opts] */
+export function renderHome(games, goals, opts = {}) {
+  const t0 = DASH_PERF ? performance.now() : 0;
   wireHomeLinksOnce();
-  const allRows = getPlaylistMMRRows(games, state.activeGame);
+  const allRows = getCachedPlaylistMMRRows(games, state.activeGame);
   const isVal = state.activeGame === GAME_IDS.VALORANT;
   const rows = isVal ? allRows.filter(r => r.mode === 'Competitive') : allRows;
   const chartMode = ensureHomeChartMode(games);
@@ -659,11 +1020,31 @@ export function renderHome(games, goals) {
   renderDashHero(games, goals, rows, activeRow);
   renderDashQuickActions();
   renderDashRankProgress(activeRow, goals, games);
-  renderHomeContext(games);
-  renderHomeFocus(games);
-  updateDashPerfModeLabel(chartMode);
-  renderDashPerfStats(chartGames);
-  renderHomeActivity(games);
+  renderHomeContext(games, allRows);
+
+  if (opts.criticalOnly || opts.skipDeferred) {
+    if (DASH_PERF) {
+      console.info(`[dash +${Math.round(performance.now() - t0)}ms] renderHome (critical)`);
+    }
+    return;
+  }
+
+  scheduleHomeDeferred(games, goals, allRows, chartMode, chartGames);
+
+  if (DASH_PERF) {
+    console.info(`[dash +${Math.round(performance.now() - t0)}ms] renderHome`);
+  }
+}
+
+/** Flush deferred dashboard sections synchronously (e.g. before navigation away). */
+export function flushHomeDeferred(games, goals) {
+  if (homeDeferredIdleId !== null) {
+    cancelIdleCallback(homeDeferredIdleId);
+    homeDeferredIdleId = null;
+  }
+  const allRows = getCachedPlaylistMMRRows(games, state.activeGame);
+  const chartMode = ensureHomeChartMode(games);
+  runHomeDeferred(games, goals, allRows, chartMode, getHomeChartGames(games));
 }
 
 export function getHomeChartModeLabel(games) {

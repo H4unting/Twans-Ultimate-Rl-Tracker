@@ -174,34 +174,116 @@ Full static audit of startup, render, polling, memory, and chart hot paths. Impl
 
 ---
 
+## Dashboard & Startup Sprint (2026-06-10)
+
+Second performance pass focused on **dashboard scroll smoothness** and **cold/warm startup**. Builds on prior memoization, chart patching, and lazy modules — no new features.
+
+### Root causes still present (before this sprint)
+
+| Issue | Impact |
+|-------|--------|
+| `resetMmrRowsRenderCache()` at top of every `renderHome` | Recomputed `getPlaylistMMRRows` on every poll/tick despite sig cache |
+| Charts ran synchronously inside `renderHomePage` on every `renderAll` | Chart.js layout thrash during live updates |
+| `renderHomeFocus` full `innerHTML` every refresh | Expensive tag-correlation re-parse + DOM rebuild |
+| Live session panel `body.innerHTML` on patch | Layout invalidation every session stat change |
+| No scroll-aware deferral | Dashboard DOM work competed with scroll compositor |
+| Boot blocked on `Promise.all([waitForDesktopServices(30s), loadUserData])` | First paint delayed by bridge probe even when Supabase was fast |
+| Ghost/dupe maintenance inline before first render | Extra 100–400ms before interactive dashboard |
+| Pollers at 1.5–5s on idle dashboard (no session) | Background CPU + status UI churn while browsing dashboard |
+
+### Fixes applied
+
+| # | Area | Change |
+|---|------|--------|
+| 1 | `home.js` | Removed per-render MMR cache reset; `getCachedPlaylistMMRRows` now effective across ticks |
+| 2 | `home.js` | Split `renderHome`: critical path (hero, rank, session, quick actions) sync; focus/perf/activity via `requestIdleCallback` |
+| 3 | `home.js` | `renderHomeFocus` sig + text-node patches; live session panel patches without `innerHTML` |
+| 4 | `app.js` | Chart updates throttled to **1s max** with data sig skip; deferred via `requestIdleCallback` |
+| 5 | `app.js` | Scroll pause (150ms debounce) defers full dashboard refresh while scrolling |
+| 6 | `app.js` | `scheduleRenderAll` respects scroll pause; flushes pending scope when scroll stops |
+| 7 | `dash-context.js` | Shared `isDashboardIdle()` for pollers |
+| 8 | `rl-live.js` / `valorant-live.js` | **8s** poll interval on idle dashboard (no active session) |
+| 9 | `bridge-client.js` | **400ms** heartbeat during startup window (8s cap); **6s** on idle dashboard |
+| 10 | `boot.js` | Shell-first: hide loading → first paint → then `loadUserData`; bridge probe background (4s cap) |
+| 11 | `boot.js` | Ghost/dupe purge moved to `requestIdleCallback` after first render |
+| 12 | `boot.js` | Extended `[boot +Nms]` marks: first-paint, load-user-data, hydrate, deferred-maintenance |
+| 13 | `main.cjs` | More `[startup +Nms]` logs; splash/app load events; faster load retry (400ms) |
+| 14 | `dashboard-v0.css` | `contain: content` on dashboard sections for layout isolation |
+
+### Measured / estimated timings
+
+| Milestone | Before sprint | After sprint (estimate) | How to verify |
+|-----------|---------------|-------------------------|---------------|
+| Electron splash visible | ~50–150ms | **&lt;100ms** | `[startup +Nms] splash loaded` in bridge.log |
+| `twans://` SPA load | 0.1–0.3s | **0.1–0.25s** | `[startup +Nms] tracker SPA loaded` |
+| SPA shell first paint | blocked on data+bridge | **200–500ms** | `[boot +Nms] first-paint` |
+| Dashboard with data | 1.5–2.5s cold | **0.8–1.5s cold** | `[boot +Nms] first-render-complete` |
+| Fully interactive | 2–3s | **1.2–2s** | `[boot +Nms] boot-finished` |
+| Warm (cached auth/modules) | 0.7–1.2s | **0.5–0.9s** | Reload with session |
+
+Live numbers require signed-in Electron session — use DevTools console filter `[boot` / `[startup`.
+
+### What the user should feel
+
+- **Startup:** Window + splash almost instant; login shell and nav appear before match data finishes loading; loading overlay shorter.
+- **Dashboard scroll:** Smooth 60fps scroll — updates pause while scrolling and catch up 150ms after stop.
+- **Idle dashboard:** Less fan/CPU; status pill still updates but pollers run ~3× slower when not in a live session.
+- **Live session:** Hero/session widgets still update every second via lightweight text patches (timer + stats), not full rebuilds.
+- **Charts:** Fade in shortly after hero paints; don't stutter on every bridge ping.
+
+### Verification
+
+```text
+node --check js/dash-context.js js/home.js js/app.js js/boot.js
+node --check js/bridge-client.js js/rl-live.js js/valorant-live.js
+node --check tools/launcher/src/main.cjs
+```
+
+---
+
 ## Remaining bottlenecks (Phase 2)
 
 | Item | File | Impact | Effort |
 |------|------|--------|--------|
-| `renderDashHero` full `innerHTML` | `home.js:138-237` | High on every log | Medium |
 | `renderLog` full table rebuild | `ui.js` | High on log page | Medium |
-| `renderDashRankProgress` full rebuild | `home.js:240-277` | Medium | Low |
-| `renderHomeFocus` full rebuild | `home.js:457-507` | Medium | Low |
-| `getPlaylistMMRRows` in hot path | `home.js:590` | Medium CPU | Medium |
+| `getPlaylistMMRRows` cold compute | `utils.js` | Medium CPU on game switch | Medium |
 | Analytics insights recompute | `analytics.js` | On analytics nav | Low |
 | Nav/dock micro-animations | CSS | UX only | Medium |
-| `requestIdleCallback` module precache | `app.js` | Warm nav | Low |
+| Valorant activity feed `innerHTML` | `home.js` | Medium on VAL dashboard | Low |
 
 ---
 
 ## Verification
 
 ```text
-node --check js/perf-cache.js charts.js app.js home.js rl-live.js
-node --check bridge-client.js process-session.js valorant-live.js
-node --check game-ui.js boot.js core/state.js
+node --check js/dash-context.js js/home.js js/app.js js/boot.js
+node --check js/bridge-client.js js/rl-live.js js/valorant-live.js
+node --check tools/launcher/src/main.cjs
+node --check js/perf-cache.js js/charts.js js/game-ui.js js/core/state.js
 ```
 
 All edited files pass `node --check`.
 
 ---
 
-## Files changed (this sprint)
+## Files changed (Dashboard & Startup sprint)
+
+| File | Summary |
+|------|---------|
+| `js/dash-context.js` | New — `isDashboardPage` / `isDashboardIdle` helpers |
+| `js/home.js` | Deferred sections, focus/session patches, MMR cache fix |
+| `js/app.js` | Chart throttle, scroll pause, idle chart deferral |
+| `js/boot.js` | Shell-first paint, capped bridge wait, deferred maintenance |
+| `js/bridge-client.js` | Startup + dashboard-idle heartbeat intervals |
+| `js/rl-live.js` | 8s dashboard-idle poll |
+| `js/valorant-live.js` | 8s dashboard-idle poll |
+| `css/dashboard-v0.css` | `contain: content` on dashboard sections |
+| `tools/launcher/src/main.cjs` | Extra startup logs, faster load retry |
+| `docs/PERFORMANCE-OPTIMIZATION-REPORT.md` | Dashboard & Startup Sprint section |
+
+---
+
+## Files changed (prior sprint)
 
 | File | Summary |
 |------|---------|

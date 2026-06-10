@@ -25,7 +25,7 @@ const MAX_RESTARTS = 8;
 const RESTART_BASE_MS = 2500;
 const TRACKER_READY_ATTEMPTS = 3;
 const APP_LOAD_ATTEMPTS = 3;
-const APP_LOAD_RETRY_MS = 1500;
+const APP_LOAD_RETRY_MS = 400;
 /** Chromium: navigation replaced (splash → app, blocked localhost redirect) */
 const ERR_ABORTED = -3;
 const IS_DEV = !app.isPackaged;
@@ -484,6 +484,7 @@ async function retryOpenTracker() {
 
 function createMainWindow() {
   try {
+    logStartup('creating main window');
     mainWindow = new BrowserWindow({
       width: 1280,
       height: 860,
@@ -515,6 +516,9 @@ function createMainWindow() {
       const url = mainWindow.webContents.getURL();
       if (url.startsWith(`${APP_PROTOCOL}://`)) {
         trackerLoadFailures = 0;
+        logStartup('tracker SPA loaded');
+      } else if (String(url).startsWith('data:')) {
+        logStartup('splash paint complete');
       }
     });
 
@@ -527,6 +531,7 @@ function createMainWindow() {
     });
 
     void mainWindow.loadURL(getSplashDataUrl());
+    logStartup('splash loaded');
     return mainWindow;
   } catch (err) {
     appendBridgeLog(app.dataRoot, `[window create failed] ${err}\n`);
@@ -760,6 +765,7 @@ app.whenReady().then(async () => {
   logStartup('bridge process spawned');
 
   if (launcherConfig.openTrackerOnStart) {
+    logStartup('loading twans:// immediately');
     void openTrackerOnStart();
   }
 

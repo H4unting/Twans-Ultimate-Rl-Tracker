@@ -1,7 +1,7 @@
 /** App boot — load user data, repair chains, first-run rank setup */
 
 import { applyAppMode, isDesktopHost, isLocalTrackerHost } from './env.js';
-import { isBridgeReachable } from './bridge-client.js';
+import { isBridgeReachable, endBridgeStartupPhase } from './bridge-client.js';
 import { STATUS } from './status-copy.js';
 import { state, setGames, setSyncStatus, setGoals, setProfile, getActiveGames } from './state.js';
 import { loadUserData, saveSettings, saveGames } from './supabase.js';
@@ -66,8 +66,14 @@ function withTimeout(promise, ms, message = 'Timed out') {
   ]);
 }
 
-/** Desktop exe: keep loading overlay until local services respond (no login-before-ready flash). */
-async function waitForDesktopServices(maxMs = 30000) {
+function waitForFirstPaint() {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(resolve));
+  });
+}
+
+/** Desktop: probe bridge in background — never blocks first paint. */
+async function waitForDesktopServices(maxMs = 4000, intervalMs = 400) {
   if (!isDesktopHost() || !isLocalTrackerHost()) return;
 
   const label = document.querySelector('#loading-overlay span');
@@ -77,12 +83,35 @@ async function waitForDesktopServices(maxMs = 30000) {
   const start = Date.now();
   while (Date.now() - start < maxMs) {
     if (isBridgeReachable()) {
+      markBoot('bridge-reachable');
       if (label && prior) label.textContent = prior;
       return;
     }
-    await new Promise((r) => { setTimeout(r, 400); });
+    await new Promise((r) => { setTimeout(r, intervalMs); });
   }
+  markBoot('bridge-wait-capped');
   if (label && prior) label.textContent = prior;
+}
+
+function runDeferredMaintenance() {
+  const run = async () => {
+    markBoot('deferred-maintenance-start');
+    const ghostRemoved = await purgeGhostValorantMatches({ silent: true });
+    if (ghostRemoved > 0) {
+      showToast(`Removed ${ghostRemoved} invalid auto-log ${ghostRemoved === 1 ? 'match' : 'matches'}`);
+    }
+    const dupesRemoved = await collapseDuplicateValorantMatchesInState({ silent: true });
+    if (dupesRemoved > 0) {
+      showToast(`Removed ${dupesRemoved} duplicate ${dupesRemoved === 1 ? 'match' : 'matches'}`);
+      ctx.renderAll?.('core');
+    }
+    markBoot('deferred-maintenance-done');
+  };
+  if (typeof requestIdleCallback === 'function') {
+    requestIdleCallback(() => { void run(); }, { timeout: 3000 });
+  } else {
+    setTimeout(() => { void run(); }, 500);
+  }
 }
 
 function bootErrorMessage(msg) {
@@ -106,15 +135,23 @@ export async function bootApp() {
   applyAppMode();
   renderAuthBar(ctx.getDisplay(), ctx.handleSignOut, () => ctx.navigate('profile', 'home'));
   showQuickDock();
-  showLoading(true);
+  state.activePage = 'dashboard';
   ctx.ensureBridgeServices?.();
 
+  showLoading(false);
+  await waitForFirstPaint();
+  markBoot('first-paint');
+
+  showLoading(true);
+  void waitForDesktopServices();
+
   try {
-    markBoot('parallel-load-start');
-    const [, userData] = await Promise.all([
-      waitForDesktopServices(),
-      withTimeout(loadUserData(), 30000, 'Loading timed out — check your connection'),
-    ]);
+    markBoot('load-user-data-start');
+    const userData = await withTimeout(
+      loadUserData(),
+      30000,
+      'Loading timed out — check your connection',
+    );
     markBoot('data-loaded');
 
     const {
@@ -129,6 +166,7 @@ export async function bootApp() {
       secondary_color: profile?.secondary_color || secondaryColor || '#4a2060',
     });
 
+    markBoot('repair-chains-start');
     const { games: repaired, changed } = RL.repairPlaylistMMRChain(
       games.filter(g => (g.game ?? GAME_IDS.ROCKET_LEAGUE) === GAME_IDS.ROCKET_LEAGUE),
     );
@@ -151,21 +189,13 @@ export async function bootApp() {
       await saveGames(valRepaired, GAME_IDS.VALORANT);
     }
     setGames(allGames);
+    markBoot('hydrate-state');
 
     applyRankBaselinesFromSettings({ rankBaselines, rankBaselinesComplete });
     if (allGames.length > 0 && !rankBaselinesComplete) {
       const inferred = inferRankBaselinesFromGames(allGames);
       applyRankBaselinesFromSettings({ rankBaselines: inferred, rankBaselinesComplete: true });
       await saveSettings(ctx.getSettingsPayload(rankBaselinesForSettings()));
-    }
-
-    const ghostRemoved = await purgeGhostValorantMatches({ silent: true });
-    if (ghostRemoved > 0) {
-      showToast(`Removed ${ghostRemoved} invalid auto-log ${ghostRemoved === 1 ? 'match' : 'matches'}`);
-    }
-    const dupesRemoved = await collapseDuplicateValorantMatchesInState({ silent: true });
-    if (dupesRemoved > 0) {
-      showToast(`Removed ${dupesRemoved} duplicate ${dupesRemoved === 1 ? 'match' : 'matches'}`);
     }
 
     setGoals(normalizeGoalsStorage(goals));
@@ -200,6 +230,8 @@ export async function bootApp() {
     ctx.ensureBridgeServices();
     ctx.renderAll();
     markBoot('first-render-complete');
+
+    runDeferredMaintenance();
 
     window.__saveRankBaselines = async () => {
       await saveSettings(ctx.getSettingsPayload(rankBaselinesForSettings()));
@@ -239,6 +271,7 @@ export async function bootApp() {
   } finally {
     showLoading(false);
     initialBootDone = true;
+    endBridgeStartupPhase();
     markBoot('boot-finished');
   }
 }

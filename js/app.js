@@ -2,7 +2,7 @@
  * Twans Ultimate Tracker — auth-first personal dashboard
  */
 
-import { applyAppMode, isDesktopHost } from './env.js';
+import { isDashboardPage } from './dash-context.js';
 import { DESKTOP_APP, getDesktopLauncherBat } from './config.js';
 import { state, subscribe, setGames, setSyncStatus, setGoals, setProfile, getUserDisplay, getActiveGames, resetAppState } from './state.js';
 import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, sendPasswordReset, signOut, onAuthChange, getAuthUser, hasPendingAuthHash, clearAuthHashFromUrl } from './auth.js';
@@ -50,7 +50,7 @@ import { initPostMatch, showPostMatchCard } from './post-match.js';
 import { renderSessionsPage } from './sessions-ui.js';
 import { exportGamesCSV } from './export.js';
 import { wireNavigation as wireSectionNav, updateNavUI, mountDock, getSectionForPage } from './nav.js';
-import { renderHome, getHomeChartGames, getHomeChartModeLabel } from './home.js';
+import { renderHome, getHomeChartGames, getHomeChartModeLabel, refreshDashSessionWidgets } from './home.js';
 import {
   renderQuickFilters, applyQuickFilter,
   getActiveQuickFilter, getQuickFilterSessionNum, resetQuickFilter,
@@ -67,6 +67,16 @@ let focusModule = null;
 let groupsModule = null;
 let analyticsModule = null;
 let renderAllFrame = null;
+let pendingRenderScope = 'full';
+let insideRenderAll = false;
+let dashScrollPaused = false;
+let dashScrollTimer = null;
+let deferredRenderScope = null;
+let lastHomeChartUpdate = 0;
+let homeChartTimer = null;
+let homeChartSig = '';
+
+const HOME_CHART_MIN_MS = 1000;
 
 async function getReportsModule() {
   if (!reportsModule) {
@@ -326,19 +336,65 @@ async function handleSignOut() {
   showLoginScreen(true);
 }
 
-function renderHomePage() {
-  renderHome(getActiveGames(), getActiveGoals());
+function wireDashboardScrollPause() {
+  const page = document.getElementById('page-dashboard');
+  if (!page || page.dataset.scrollWired) return;
+  page.dataset.scrollWired = '1';
+  page.addEventListener('scroll', () => {
+    dashScrollPaused = true;
+    clearTimeout(dashScrollTimer);
+    dashScrollTimer = setTimeout(() => {
+      dashScrollPaused = false;
+      if (deferredRenderScope) {
+        const scope = deferredRenderScope;
+        deferredRenderScope = null;
+        scheduleRenderAll(scope);
+      }
+    }, 150);
+  }, { passive: true });
+}
+
+function homeChartDataSig(games) {
+  const modeGames = getHomeChartGames(games);
+  if (!modeGames.length) return '0';
+  const last = modeGames[modeGames.length - 1];
+  const rankField = getGameMeta(state.activeGame).rankField;
+  const stats = cachedCalcStats(modeGames, state.activeGame, calcStats);
+  return `${state.activeGame}:${modeGames.length}:${last?.match}:${last?.[rankField] ?? last?.endRR}:${stats.wins}:${stats.losses}`;
+}
+
+function renderHomeCharts(force = false) {
+  const page = state.activePage || 'dashboard';
+  if (page !== 'dashboard' || document.visibilityState === 'hidden') return;
+
   const games = getActiveGames();
+  const sig = homeChartDataSig(games);
+  if (!force && sig === homeChartSig) return;
+
+  const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  if (!force && now - lastHomeChartUpdate < HOME_CHART_MIN_MS) {
+    if (!homeChartTimer) {
+      homeChartTimer = setTimeout(() => {
+        homeChartTimer = null;
+        renderHomeCharts(true);
+      }, HOME_CHART_MIN_MS - (now - lastHomeChartUpdate));
+    }
+    return;
+  }
+  if (homeChartTimer) {
+    clearTimeout(homeChartTimer);
+    homeChartTimer = null;
+  }
+
   const modeGames = getHomeChartGames(games);
   const isVal = state.activeGame === GAME_IDS.VALORANT;
   const chartColor = isVal ? '#ff4655' : getDisplay().color;
-
-  const rlLabel = document.getElementById('home-charts-label');
-  const valLabel = document.getElementById('val-charts-label');
   const chartCaption = modeGames.length
     ? `${getHomeChartModeLabel(games)} — tap a queue above to switch`
     : '';
 
+  const rlLabel = document.getElementById('home-charts-label');
+  const valLabel = document.getElementById('val-charts-label');
   if (rlLabel) rlLabel.textContent = !isVal ? chartCaption : '';
   if (valLabel) valLabel.textContent = isVal ? chartCaption : '';
 
@@ -355,6 +411,33 @@ function renderHomePage() {
   } else {
     destroyAllCharts();
   }
+
+  homeChartSig = sig;
+  lastHomeChartUpdate = now;
+}
+
+function renderHomePage(options = {}) {
+  const criticalOnly = Boolean(options.criticalOnly);
+  const games = getActiveGames();
+  const goals = getActiveGoals();
+
+  if (dashScrollPaused && isDashboardPage()) {
+    renderHome(games, goals, { criticalOnly: true });
+    if (!criticalOnly) {
+      deferredRenderScope = deferredRenderScope === 'full' ? 'full' : 'core';
+    }
+    return;
+  }
+
+  renderHome(games, goals, criticalOnly ? { criticalOnly: true } : {});
+
+  if (!criticalOnly) {
+    if (typeof requestIdleCallback === 'function') {
+      requestIdleCallback(() => renderHomeCharts(), { timeout: 800 });
+    } else {
+      requestAnimationFrame(() => renderHomeCharts());
+    }
+  }
 }
 
 function renderAnalyticsPage() {
@@ -369,6 +452,15 @@ function renderAnalyticsPage() {
 }
 
 function renderAll(scope = 'full') {
+  insideRenderAll = true;
+  try {
+    renderAllInner(scope);
+  } finally {
+    insideRenderAll = false;
+  }
+}
+
+function renderAllInner(scope = 'full') {
   const games = getActiveGames();
   const page = state.activePage || 'dashboard';
   const touchDashboard = scope === 'core' || page === 'dashboard';
@@ -433,10 +525,20 @@ function renderAll(scope = 'full') {
 }
 
 function scheduleRenderAll(scope = 'full') {
+  if (scope === 'full') pendingRenderScope = 'full';
+  else if (pendingRenderScope !== 'full') pendingRenderScope = 'core';
+
+  if (dashScrollPaused && isDashboardPage()) {
+    deferredRenderScope = scope === 'full' || deferredRenderScope === 'full' ? 'full' : 'core';
+    return;
+  }
+
   if (renderAllFrame) cancelAnimationFrame(renderAllFrame);
   renderAllFrame = requestAnimationFrame(() => {
     renderAllFrame = null;
-    renderAll(scope);
+    const nextScope = pendingRenderScope;
+    pendingRenderScope = 'full';
+    renderAll(nextScope);
   });
 }
 
@@ -988,14 +1090,22 @@ async function handleSaveEdit() {
 }
 
 function wireLogTableActions() {
-  document.querySelectorAll('.action-btn.edit').forEach(btn => {
-    btn.onclick = () => openEditModal(parseInt(btn.dataset.match, 10));
-  });
-  document.querySelectorAll('.action-btn.del').forEach(btn => {
-    btn.onclick = async () => {
-      const ok = await deleteGame(parseInt(btn.dataset.match, 10));
-      if (ok) renderAll('core');
-    };
+  const wrap = document.querySelector('.log-history-table-wrap');
+  if (!wrap || wrap.dataset.actionsWired) return;
+  wrap.dataset.actionsWired = '1';
+  wrap.addEventListener('click', (e) => {
+    const editBtn = e.target.closest('.action-btn.edit');
+    if (editBtn) {
+      openEditModal(parseInt(editBtn.dataset.match, 10));
+      return;
+    }
+    const delBtn = e.target.closest('.action-btn.del');
+    if (delBtn) {
+      void (async () => {
+        const ok = await deleteGame(parseInt(delBtn.dataset.match, 10));
+        if (ok) renderAll('core');
+      })();
+    }
   });
 }
 
@@ -1025,6 +1135,9 @@ async function init() {
       })).catch(() => {});
     });
     applyAppMode();
+    if (appT0 && typeof performance !== 'undefined') {
+      console.info(`[boot +${Math.round(performance.now() - appT0)}ms] dom-ready`);
+    }
     wireLoginScreen();
     if (hasPendingAuthHash()) {
       showLoading(true);
@@ -1053,6 +1166,7 @@ async function init() {
     wireAutoLogHandlers({ submitGameLog });
 
     wireNavigation();
+    wireDashboardScrollPause();
     document.getElementById('logo-home-btn')?.addEventListener('click', () => navigate('dashboard', 'home'));
     wireBridgeStatusClick(() => navigate('setup', 'home'));
     subscribeBridgeOnline((online) => {
@@ -1103,12 +1217,18 @@ async function init() {
       onClose: () => refreshSessionUI(),
     });
     document.addEventListener('rl-session-ui-refresh', () => {
-      renderHomePage();
+      if (insideRenderAll) return;
+      if ((state.activePage || 'dashboard') === 'dashboard') {
+        refreshDashSessionWidgets(getActiveGames());
+      }
     });
     document.addEventListener('tracker-data-changed', () => {
-      scheduleRenderAll();
+      scheduleRenderAll('core');
     });
     ensureBridgeServices();
+    if (appT0 && typeof performance !== 'undefined') {
+      console.info(`[boot +${Math.round(performance.now() - appT0)}ms] bridge-services-started`);
+    }
     onAuthChange(async (session) => {
       if (session) {
         if (!isInitialBootDone() && !getBootPromise()) {
