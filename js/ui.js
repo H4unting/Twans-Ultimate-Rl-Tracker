@@ -15,6 +15,9 @@ import {
   getTagDefinitions, getRankDiff, getRankValue, getGameRankStart, getQueueLabel,
 } from './games.js';
 import { formatRRDelta } from './games/valorant/ranks.js';
+import { mountVirtualList, shouldVirtualize } from './list-virtualizer.js';
+
+const logTableVirtualizers = new WeakMap();
 
 export function showToast(msg, type = 'success') {
   const t = document.getElementById('toast');
@@ -109,33 +112,36 @@ export function renderStats(containerId, stats, playlist = 'all', gameId = state
     </div>`).join('');
 }
 
-export function renderLog(tableId, games, limit, editable = false, gameId = state.activeGame) {
-  const t = document.getElementById(tableId);
-  if (!t) return;
-  const meta = getGameMeta(gameId);
-  const isVal = gameId === GAME_IDS.VALORANT;
-  const rows = limit ? [...games].reverse().slice(0, limit) : [...games].reverse();
-  if (!rows.length) {
-    t.innerHTML = `<tr><td colspan="12" class="empty">No ${isVal ? 'matches' : 'games'} logged yet. Start grinding!</td></tr>`;
-    return;
-  }
+function logTableHeadHTML(isVal) {
   if (isVal) {
-    t.innerHTML = `
-    <thead><tr>
+    return `<thead><tr>
       <th>#</th><th>Date</th><th>Mode</th><th>Result</th>
       <th>K</th><th>D</th><th>A</th><th class="val-rank-col val-rank-col--start">Start</th><th class="val-rank-col val-rank-col--end">End</th><th>+/-</th>
       <th class="log-table-col-notes">Tags / Notes</th><th></th>
-    </tr></thead>
-    <tbody>${rows.map(g => {
-      const diff = getRankDiff(g, gameId);
-      const chainGames = getActiveGames();
-      const d = resolveValorantMatchDisplayRanks(chainGames, g);
-      const startCell = valRankStartCellHTML(d.startRank, d.startRR);
-      const endCell = valRankEndCellHTML(d.endRank, d.endRR, d.startRank);
-      const noteHtml = g.notes
-        ? `<div class="note-cell" title="${escapeAttr(g.notes)}">${escapeHtml(g.notes)}</div>`
-        : '';
-      return `
+    </tr></thead>`;
+  }
+  return `<thead><tr>
+      <th>#</th><th>Date</th><th>Mode</th><th>Result</th>
+      <th>G</th><th>S</th><th>Start</th><th>End</th><th>+/-</th>
+      <th class="log-table-col-notes">Tags / Notes</th><th></th>
+    </tr></thead>`;
+}
+
+function logTableRowHTML(g, editable, gameId, isVal) {
+  const diff = getRankDiff(g, gameId);
+  const noteHtml = g.notes
+    ? `<div class="note-cell" title="${escapeAttr(g.notes)}">${escapeHtml(g.notes)}</div>`
+    : '';
+  const actions = editable ? `
+          <button class="action-btn edit" data-match="${g.match}" title="Edit" aria-label="Edit ${isVal ? 'match' : 'game'} ${g.match}">✏️</button>
+          <button class="action-btn del" data-match="${g.match}" title="Delete" aria-label="Delete ${isVal ? 'match' : 'game'} ${g.match}">🗑️</button>` : '';
+
+  if (isVal) {
+    const chainGames = getActiveGames();
+    const d = resolveValorantMatchDisplayRanks(chainGames, g);
+    const startCell = valRankStartCellHTML(d.startRank, d.startRR);
+    const endCell = valRankEndCellHTML(d.endRank, d.endRR, d.startRank);
+    return `
       <tr>
         <td style="color:#555">${g.match}</td>
         <td style="color:#777;white-space:nowrap">${g.date}</td>
@@ -146,27 +152,13 @@ export function renderLog(tableId, games, limit, editable = false, gameId = stat
         <td class="val-rank-col val-rank-col--end">${endCell}</td>
         <td class="${diff >= 0 ? 'pos' : 'neg'}">${formatRRDelta(diff)}</td>
         <td class="log-table-cell-notes">${renderInlineTags(g.tags, gameId)}${noteHtml}</td>
-        <td style="white-space:nowrap">${editable ? `
-          <button class="action-btn edit" data-match="${g.match}" title="Edit" aria-label="Edit match ${g.match}">✏️</button>
-          <button class="action-btn del" data-match="${g.match}" title="Delete" aria-label="Delete match ${g.match}">🗑️</button>` : ''}</td>
+        <td style="white-space:nowrap">${actions}</td>
       </tr>`;
-    }).join('')}</tbody>`;
-    return;
   }
-  t.innerHTML = `
-    <thead><tr>
-      <th>#</th><th>Date</th><th>Mode</th><th>Result</th>
-      <th>G</th><th>S</th><th>Start</th><th>End</th><th>+/-</th>
-      <th class="log-table-col-notes">Tags / Notes</th><th></th>
-    </tr></thead>
-    <tbody>${rows.map(g => {
-      const diff = getRankDiff(g, gameId);
-      const startRank = getGameRankStart(g, gameId);
-      const endRank = getRankValue(g, gameId);
-      const noteHtml = g.notes
-        ? `<div class="note-cell" title="${escapeAttr(g.notes)}">${escapeHtml(g.notes)}</div>`
-        : '';
-      return `
+
+  const startRank = getGameRankStart(g, gameId);
+  const endRank = getRankValue(g, gameId);
+  return `
       <tr>
         <td style="color:#555">${g.match}</td>
         <td style="color:#777;white-space:nowrap">${g.date}</td>
@@ -177,11 +169,45 @@ export function renderLog(tableId, games, limit, editable = false, gameId = stat
         <td><span style="margin-right:4px">${endRank}</span>${rankIconHTML(getRank(endRank, g.mode), 22)}</td>
         <td class="${diff >= 0 ? 'pos' : 'neg'}">${diff >= 0 ? '+' : ''}${diff}</td>
         <td class="log-table-cell-notes">${renderInlineTags(g.tags, gameId)}${noteHtml}</td>
-        <td style="white-space:nowrap">${editable ? `
-          <button class="action-btn edit" data-match="${g.match}" title="Edit" aria-label="Edit game ${g.match}">✏️</button>
-          <button class="action-btn del" data-match="${g.match}" title="Delete" aria-label="Delete game ${g.match}">🗑️</button>` : ''}</td>
+        <td style="white-space:nowrap">${actions}</td>
       </tr>`;
-    }).join('')}</tbody>`;
+}
+
+export function renderLog(tableId, games, limit, editable = false, gameId = state.activeGame) {
+  const t = document.getElementById(tableId);
+  if (!t) return;
+  const isVal = gameId === GAME_IDS.VALORANT;
+  const colspan = isVal ? 12 : 11;
+  const rows = limit ? [...games].reverse().slice(0, limit) : [...games].reverse();
+  const wrap = t.closest('.table-wrap');
+
+  logTableVirtualizers.get(t)?.destroy();
+  logTableVirtualizers.delete(t);
+  if (wrap) wrap.scrollTop = 0;
+
+  if (!rows.length) {
+    t.innerHTML = `<tr><td colspan="${colspan}" class="empty">No ${isVal ? 'matches' : 'games'} logged yet. Start grinding!</td></tr>`;
+    return;
+  }
+
+  const renderRow = g => logTableRowHTML(g, editable, gameId, isVal);
+
+  if (shouldVirtualize(rows.length) && wrap) {
+    t.innerHTML = `${logTableHeadHTML(isVal)}<tbody></tbody>`;
+    const tbody = t.querySelector('tbody');
+    const vl = mountVirtualList({
+      scrollEl: wrap,
+      mountEl: tbody,
+      items: rows,
+      renderItem: g => renderRow(g),
+      mode: 'table',
+      colspan,
+    });
+    logTableVirtualizers.set(t, vl);
+    return;
+  }
+
+  t.innerHTML = `${logTableHeadHTML(isVal)}<tbody>${rows.map(g => renderRow(g)).join('')}</tbody>`;
 }
 
 export function renderAuthBar(display, onSignOut, onProfileClick) {

@@ -354,8 +354,10 @@ function tickSessionTimer() {
   const text = formatDuration(elapsed);
   const el = document.getElementById('session-timer');
   const panelTimer = document.getElementById('live-panel-timer');
+  const dashElapsed = document.querySelector('#dash-session-panel [data-session-elapsed]');
   if (el) el.textContent = text;
   if (panelTimer) panelTimer.textContent = text;
+  if (dashElapsed) dashElapsed.textContent = text;
 }
 
 function getLiveSessionStats() {

@@ -50,7 +50,7 @@ import { initPostMatch, showPostMatchCard } from './post-match.js';
 import { renderSessionsPage } from './sessions-ui.js';
 import { exportGamesCSV } from './export.js';
 import { wireNavigation as wireSectionNav, updateNavUI, mountDock, getSectionForPage } from './nav.js';
-import { renderHome, getHomeChartGames, getHomeChartModeLabel } from './home.js';
+import { renderHome, getHomeChartGames, getHomeChartModeLabel, refreshDashSessionWidgets } from './home.js';
 import {
   renderQuickFilters, applyQuickFilter,
   getActiveQuickFilter, getQuickFilterSessionNum, resetQuickFilter,
@@ -67,6 +67,8 @@ let focusModule = null;
 let groupsModule = null;
 let analyticsModule = null;
 let renderAllFrame = null;
+let pendingRenderScope = 'full';
+let insideRenderAll = false;
 
 async function getReportsModule() {
   if (!reportsModule) {
@@ -328,6 +330,10 @@ async function handleSignOut() {
 
 function renderHomePage() {
   renderHome(getActiveGames(), getActiveGoals());
+
+  const page = state.activePage || 'dashboard';
+  if (page !== 'dashboard' || document.visibilityState === 'hidden') return;
+
   const games = getActiveGames();
   const modeGames = getHomeChartGames(games);
   const isVal = state.activeGame === GAME_IDS.VALORANT;
@@ -369,6 +375,15 @@ function renderAnalyticsPage() {
 }
 
 function renderAll(scope = 'full') {
+  insideRenderAll = true;
+  try {
+    renderAllInner(scope);
+  } finally {
+    insideRenderAll = false;
+  }
+}
+
+function renderAllInner(scope = 'full') {
   const games = getActiveGames();
   const page = state.activePage || 'dashboard';
   const touchDashboard = scope === 'core' || page === 'dashboard';
@@ -433,10 +448,15 @@ function renderAll(scope = 'full') {
 }
 
 function scheduleRenderAll(scope = 'full') {
+  if (scope === 'full') pendingRenderScope = 'full';
+  else if (pendingRenderScope !== 'full') pendingRenderScope = 'core';
+
   if (renderAllFrame) cancelAnimationFrame(renderAllFrame);
   renderAllFrame = requestAnimationFrame(() => {
     renderAllFrame = null;
-    renderAll(scope);
+    const nextScope = pendingRenderScope;
+    pendingRenderScope = 'full';
+    renderAll(nextScope);
   });
 }
 
@@ -988,14 +1008,22 @@ async function handleSaveEdit() {
 }
 
 function wireLogTableActions() {
-  document.querySelectorAll('.action-btn.edit').forEach(btn => {
-    btn.onclick = () => openEditModal(parseInt(btn.dataset.match, 10));
-  });
-  document.querySelectorAll('.action-btn.del').forEach(btn => {
-    btn.onclick = async () => {
-      const ok = await deleteGame(parseInt(btn.dataset.match, 10));
-      if (ok) renderAll('core');
-    };
+  const wrap = document.querySelector('.log-history-table-wrap');
+  if (!wrap || wrap.dataset.actionsWired) return;
+  wrap.dataset.actionsWired = '1';
+  wrap.addEventListener('click', (e) => {
+    const editBtn = e.target.closest('.action-btn.edit');
+    if (editBtn) {
+      openEditModal(parseInt(editBtn.dataset.match, 10));
+      return;
+    }
+    const delBtn = e.target.closest('.action-btn.del');
+    if (delBtn) {
+      void (async () => {
+        const ok = await deleteGame(parseInt(delBtn.dataset.match, 10));
+        if (ok) renderAll('core');
+      })();
+    }
   });
 }
 
@@ -1103,10 +1131,13 @@ async function init() {
       onClose: () => refreshSessionUI(),
     });
     document.addEventListener('rl-session-ui-refresh', () => {
-      renderHomePage();
+      if (insideRenderAll) return;
+      if ((state.activePage || 'dashboard') === 'dashboard') {
+        refreshDashSessionWidgets(getActiveGames());
+      }
     });
     document.addEventListener('tracker-data-changed', () => {
-      scheduleRenderAll();
+      scheduleRenderAll('core');
     });
     ensureBridgeServices();
     onAuthChange(async (session) => {
