@@ -3,7 +3,9 @@
 import { getInternalTrackerApiOrigin, isTwansAppHost } from './env.js';
 
 const BRIDGE_PORT = 49200;
-const HEARTBEAT_MS = 2500;
+const HEARTBEAT_ACTIVE_MS = 2500;
+const HEARTBEAT_IDLE_MS = 4000;
+const HEARTBEAT_HIDDEN_MS = 5000;
 const PING_TIMEOUT_MS = 4000;
 /** Consecutive failed pings before going offline (after grace expires) */
 const OFFLINE_AFTER_MISSES = 20;
@@ -16,7 +18,7 @@ let bridgeOnline = false;
 let failStreak = 0;
 let lastSuccessAt = 0;
 let bridgeProbeDone = false;
-let heartbeatId = null;
+let heartbeatTimer = null;
 let heartbeatPromise = null;
 let visibilityWired = false;
 /** Session token injected by tracker proxy — required for mutating bridge POSTs. */
@@ -244,27 +246,43 @@ async function heartbeatTick() {
   return heartbeatPromise;
 }
 
+function getHeartbeatMs() {
+  if (document.visibilityState === 'hidden') return HEARTBEAT_HIDDEN_MS;
+  if (reconnecting || !bridgeOnline) return HEARTBEAT_ACTIVE_MS;
+  return HEARTBEAT_IDLE_MS;
+}
+
+function scheduleHeartbeat() {
+  if (heartbeatTimer) clearTimeout(heartbeatTimer);
+  heartbeatTimer = setTimeout(async () => {
+    await heartbeatTick();
+    if (heartbeatTimer !== null) scheduleHeartbeat();
+  }, getHeartbeatMs());
+}
+
 function wireVisibilityRefresh() {
   if (visibilityWired) return;
   visibilityWired = true;
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && heartbeatId) {
+    if (heartbeatTimer === null) return;
+    if (document.visibilityState === 'visible') {
       heartbeatTick();
     }
+    scheduleHeartbeat();
   });
 }
 
 export function startBridgeHeartbeat() {
-  if (heartbeatId) return;
+  if (heartbeatTimer !== null) return;
   failStreak = 0;
   wireVisibilityRefresh();
-  heartbeatTick();
-  heartbeatId = setInterval(heartbeatTick, HEARTBEAT_MS);
+  void heartbeatTick();
+  scheduleHeartbeat();
 }
 
 export function stopBridgeHeartbeat() {
-  if (heartbeatId) clearInterval(heartbeatId);
-  heartbeatId = null;
+  if (heartbeatTimer) clearTimeout(heartbeatTimer);
+  heartbeatTimer = null;
   failStreak = 0;
   lastSuccessAt = 0;
   bridgeProcessOnDirectPort = false;

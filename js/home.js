@@ -37,15 +37,23 @@ function ensureHomeChartMode(games) {
   return state.homeChartMode;
 }
 
-function wireHomeLinks(el) {
-  el.querySelectorAll('[data-goto]').forEach(link => {
-    link.addEventListener('click', e => {
-      e.preventDefault();
-      const page = link.dataset.goto;
-      const section = ['analytics', 'reports', 'focus'].includes(page) ? 'review' : 'home';
-      window.__navigate?.(page, section);
-    });
+let homeLinksWired = false;
+
+function wireHomeLinksOnce() {
+  if (homeLinksWired) return;
+  homeLinksWired = true;
+  document.getElementById('page-dashboard')?.addEventListener('click', (e) => {
+    const link = e.target.closest('[data-goto], .home-link[data-goto]');
+    if (!link) return;
+    e.preventDefault();
+    const page = link.dataset.goto;
+    const section = ['analytics', 'reports', 'focus'].includes(page) ? 'review' : 'home';
+    window.__navigate?.(page, section);
   });
+}
+
+function wireHomeLinks(el) {
+  wireHomeLinksOnce();
 }
 
 function wireQueuePicker(container, games) {
@@ -320,16 +328,30 @@ function renderDashQuickActions() {
   wireQuickActions(el);
 }
 
+function perfStatsSig(games, isVal) {
+  if (!games.length) return '0';
+  const last = games[games.length - 1];
+  return `${games.length}:${last?.match}:${isVal ? 'v' : 'r'}`;
+}
+
 function renderDashPerfStats(games) {
   const el = document.getElementById('dash-perf-stats');
   if (!el) return;
 
   if (!games.length) {
     el.innerHTML = '';
+    el.dataset.perfSig = '';
     return;
   }
 
   const isVal = state.activeGame === GAME_IDS.VALORANT;
+  const sig = perfStatsSig(games, isVal);
+  if (el.dataset.perfGame !== state.activeGame) {
+    el.dataset.wired = '';
+    el.dataset.perfGame = state.activeGame;
+  }
+  if (el.dataset.perfSig === sig) return;
+
   const kdaLabel = isVal ? 'K/D/A' : 'Avg Score';
 
   const avgG = avgField(games, 'goals');
@@ -354,6 +376,23 @@ function renderDashPerfStats(games) {
       { label: 'Saves', value: avgS.toFixed(1) },
     ];
 
+  if (el.dataset.wired === '1') {
+    const featured = el.querySelector('.dash-perf-stat-featured');
+    if (featured) {
+      featured.querySelector('.dash-stat-label').textContent = kdaLabel;
+      featured.querySelector('.dash-stat-value').textContent = kdaVal;
+      featured.querySelector('.dash-stat-hint').textContent = `Per match avg · ${games.length} logged`;
+    }
+    el.querySelectorAll('.dash-perf-stat:not(.dash-perf-stat-featured)').forEach((node, i) => {
+      if (!primary[i]) return;
+      node.querySelector('.dash-stat-label').textContent = primary[i].label;
+      node.querySelector('.dash-stat-value').textContent = primary[i].value;
+    });
+    el.dataset.perfSig = sig;
+    return;
+  }
+
+  el.dataset.wired = '1';
   el.innerHTML = `
     <div class="dash-perf-stat dash-perf-stat-featured">
       <p class="dash-stat-label">${kdaLabel}</p>
@@ -365,6 +404,7 @@ function renderDashPerfStats(games) {
         <p class="dash-stat-label">${s.label}</p>
         <p class="dash-stat-value" style="font-size:1.25rem">${s.value}</p>
       </div>`).join('')}`;
+  el.dataset.perfSig = sig;
 }
 
 function renderDashSessionPanel(games) {
@@ -507,16 +547,31 @@ export function renderHomeFocus(games) {
   wireHomeLinks(el);
 }
 
+function activitySig(games, limit, gameId) {
+  if (!games.length) return '0';
+  const tail = games.slice(-limit);
+  const last = tail[tail.length - 1];
+  return `${gameId}:${games.length}:${last?.match}:${last?.result}`;
+}
+
 export function renderHomeActivity(games, limit = 10) {
   const el = document.getElementById('home-activity');
   const valFeed = document.getElementById('val-match-feed');
   if (!el) return;
 
+  const sig = activitySig(games, limit, state.activeGame);
+  const host = state.activeGame === GAME_IDS.VALORANT && valFeed ? valFeed : el;
+  if (host.dataset.activitySig === sig) return;
+
   const recent = [...games].reverse().slice(0, limit);
   if (!recent.length) {
     const empty = `<div class="dash-empty">Your recent matches will show up here.</div>`;
     el.innerHTML = empty;
-    if (valFeed) valFeed.innerHTML = '';
+    if (valFeed) {
+      valFeed.innerHTML = '';
+      valFeed.dataset.activitySig = sig;
+    }
+    el.dataset.activitySig = sig;
     return;
   }
 
@@ -546,10 +601,14 @@ export function renderHomeActivity(games, limit = 10) {
           </li>`;
         }).join('')}
       </ul>`;
+    valFeed.dataset.activitySig = sig;
     return;
   }
 
-  if (valFeed) valFeed.innerHTML = '';
+  if (valFeed) {
+    valFeed.innerHTML = '';
+    valFeed.dataset.activitySig = '';
+  }
 
   el.innerHTML = `
     <ul class="dash-activity-list">
@@ -573,6 +632,7 @@ export function renderHomeActivity(games, limit = 10) {
         </li>`;
       }).join('')}
     </ul>`;
+  el.dataset.activitySig = sig;
 }
 
 export function getHomeChartGames(games) {
@@ -587,6 +647,7 @@ function updateDashPerfModeLabel(mode) {
 }
 
 export function renderHome(games, goals) {
+  wireHomeLinksOnce();
   const allRows = getPlaylistMMRRows(games, state.activeGame);
   const isVal = state.activeGame === GAME_IDS.VALORANT;
   const rows = isVal ? allRows.filter(r => r.mode === 'Competitive') : allRows;

@@ -4,18 +4,22 @@
 **Scope:** Twans Ultimate Tracker desktop (Electron + SPA)  
 **Goal:** Commercial desktop feel without tracking regressions.
 
+**Full optimization report:** [PERFORMANCE-OPTIMIZATION-REPORT.md](./PERFORMANCE-OPTIMIZATION-REPORT.md) — startup/render/CPU/memory before-after, all fixes with file refs.
+
 ---
 
 ## Executive summary
 
-Audited timers, listeners, and full-DOM rebuilds across `js/`. Implemented **5 low-risk fixes** this session. Deferred heavier work (animations, images, nav precache, native OS notifications) to Phase 2.
+Audited timers, listeners, and full-DOM rebuilds across `js/`. Two sprint passes: **5 fixes** (shell-first, lazy pages) + **13 additional fixes** (caches, chart patch, adaptive polls, dashboard DOM patches). Deferred heavier work (hero diff, log table patch, animations) to Phase 2.
 
-| Category | Finding count | Fixed this session |
-|----------|---------------|-------------------|
-| `setInterval` without hide cleanup | 6 | 1 (diagnostics) |
-| Eager page renders in `renderAll` | 1 | 1 |
-| Eager module imports in `app.js` | 3 | 3 |
-| Full `innerHTML` dashboard rebuilds | Many in `home.js` | 1 (quick actions patch) |
+| Category | Finding count | Fixed |
+|----------|---------------|-------|
+| `setInterval` without hide cleanup | 6 | 5 (diagnostics, rl, val, process, bridge→timeout) |
+| Eager page renders in `renderAll` | 1 | 1 (scoped + rAF coalesce) |
+| Eager module imports in `app.js` | 4 | 4 (+ analytics lazy) |
+| Full `innerHTML` dashboard rebuilds | Many in `home.js` | 3 (quick actions, perf stats, activity sig) |
+| Chart destroy/recreate every update | 4 chart fns | 1 (in-place update) |
+| Repeated calcStats/filter in hot path | Many | 1 (`perf-cache.js`) |
 | Electron security | 0 issues | Verified |
 
 ---
@@ -24,10 +28,10 @@ Audited timers, listeners, and full-DOM rebuilds across `js/`. Implemented **5 l
 
 | File | Interval | Cleanup | Action |
 |------|----------|---------|--------|
-| `js/bridge-client.js` | 2500ms heartbeat | `stopBridgeHeartbeat()` | **Kept** — visibility refresh on tab show |
-| `js/rl-live.js` | 1500ms poll | `stopRlLive()` | Phase 2 — consider backoff when idle |
-| `js/valorant-live.js` | dynamic poll | `stopValorantLive()` + visibility | **Kept** |
-| `js/process-session.js` | POLL_MS | `stopProcessSessionWatcher()` | **Kept** |
+| `js/bridge-client.js` | 2.5–5s adaptive | `stopBridgeHeartbeat()` | **Fixed** — idle/hidden backoff |
+| `js/rl-live.js` | 1.5–10s adaptive | `stopRlLive()` + hidden pause | **Fixed** |
+| `js/valorant-live.js` | 3–10s adaptive | `stopValorantLive()` + hidden pause | **Fixed** |
+| `js/process-session.js` | 5s / 15s hidden | `stopProcessSessionWatcher()` + hidden pause | **Fixed** |
 | `js/sessions.js` | 1000ms session timer | `clearSessionTimer()` | **Kept** |
 | `js/diagnostics-ui.js` | 4000ms | `stopDiagnosticsPanel()` | **Fixed** — pauses when tab hidden |
 | `tools/launcher/src/main.cjs` | 3000ms status | `before-quit` clear | **Adjusted** from 2500ms |
@@ -39,7 +43,7 @@ Audited timers, listeners, and full-DOM rebuilds across `js/`. Implemented **5 l
 | Pattern | Files | Risk | Action |
 |---------|-------|------|--------|
 | `document.addEventListener` without remove | `app.js` (keydown), `quicklog.js`, `bridge-client.js` | Low — single init | **Kept** (guarded by `wired` flags where needed) |
-| Per-render listeners on `innerHTML` | `home.js` `wireHomeLinks`, `ui.js` filter bars | Medium | Phase 2 — delegate clicks on stable parent |
+| Per-render listeners on `innerHTML` | `home.js` `wireHomeLinks`, `ui.js` filter bars | Medium | **Fixed** home links — delegate on `#page-dashboard` |
 | Duplicate wiring | `setup-wizard.js`, `game-ui.js` | Low | Already uses `dataset.wired` guards |
 
 ---
@@ -164,21 +168,22 @@ No additional hook required.
 
 ---
 
-## Files changed this sprint
+## Files changed (both sprints)
+
+See [PERFORMANCE-OPTIMIZATION-REPORT.md](./PERFORMANCE-OPTIMIZATION-REPORT.md) for the complete list. Key additions this pass:
 
 | File | Change |
 |------|--------|
-| `tools/launcher/package.json` | `icon.ico`, `png-to-ico`, `prebuild` |
-| `tools/launcher/scripts/generate-icon.mjs` | New — ICO generator |
-| `tools/launcher/assets/icon.ico` | Generated |
-| `tools/launcher/src/main.cjs` | Icon, startup, reload block, poll interval |
-| `js/boot.js` | Shell-first, parallel load |
-| `js/app.js` | Lazy imports, scoped renderAll |
-| `js/home.js` | Quick-actions patch |
-| `js/bridge-client.js` | Reconnecting state |
-| `js/bridge-ui.js` | Reconnecting/resumed UX |
-| `js/status-copy.js` | New labels |
-| `js/diagnostics-ui.js` | Visibility poll pause |
-| `docs/ARCHITECTURE.md` | Startup + icon note |
+| `js/perf-cache.js` | Stats/filter memoization |
+| `js/charts.js` | In-place Chart.js updates |
+| `js/app.js` | Lazy analytics, rAF coalesce, scoped render |
+| `js/home.js` | Perf stats + activity sig + link delegation |
+| `js/rl-live.js` | Adaptive poll + hidden pause |
+| `js/valorant-live.js` | Adaptive poll + hidden pause |
+| `js/process-session.js` | Hidden pause |
+| `js/bridge-client.js` | Adaptive heartbeat |
+| `js/game-ui.js` | Switcher on game change only |
+| `js/boot.js` | Boot timing marks |
+| `js/core/state.js` | Cache invalidation |
+| `docs/PERFORMANCE-OPTIMIZATION-REPORT.md` | Full audit deliverable |
 | `docs/DESKTOP-PERFORMANCE-AUDIT.md` | This file |
-| `docs/DESKTOP-PERFORMANCE-SPRINT.md` | Sprint checklist |

@@ -26,6 +26,15 @@ import { getAuthUser } from './auth.js';
 let bootPromise = null;
 let initialBootDone = false;
 let ctx = {};
+let bootT0 = 0;
+
+function markBoot(phase) {
+  if (!bootT0 && typeof performance !== 'undefined') bootT0 = performance.now();
+  const elapsed = bootT0 && typeof performance !== 'undefined'
+    ? Math.round(performance.now() - bootT0)
+    : 0;
+  console.info(`[boot +${elapsed}ms] ${phase}`);
+}
 
 export function wireBootContext(next) {
   ctx = next;
@@ -92,6 +101,7 @@ function bootErrorMessage(msg) {
 export async function bootApp() {
   if (initialBootDone) return;
 
+  markBoot('shell-visible');
   showLoginScreen(false);
   applyAppMode();
   renderAuthBar(ctx.getDisplay(), ctx.handleSignOut, () => ctx.navigate('profile', 'home'));
@@ -100,10 +110,12 @@ export async function bootApp() {
   ctx.ensureBridgeServices?.();
 
   try {
+    markBoot('parallel-load-start');
     const [, userData] = await Promise.all([
       waitForDesktopServices(),
       withTimeout(loadUserData(), 30000, 'Loading timed out — check your connection'),
     ]);
+    markBoot('data-loaded');
 
     const {
       profile, games, goals, groups, bio, rlDisplayName,
@@ -187,6 +199,7 @@ export async function bootApp() {
     });
     ctx.ensureBridgeServices();
     ctx.renderAll();
+    markBoot('first-render-complete');
 
     window.__saveRankBaselines = async () => {
       await saveSettings(ctx.getSettingsPayload(rankBaselinesForSettings()));
@@ -226,5 +239,6 @@ export async function bootApp() {
   } finally {
     showLoading(false);
     initialBootDone = true;
+    markBoot('boot-finished');
   }
 }

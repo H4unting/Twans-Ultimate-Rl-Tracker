@@ -1,5 +1,6 @@
 /** Central app state — auth-first, single-user by default */
 
+import { bumpGamesVersion } from '../perf-cache.js';
 import { DEFAULT_GAME, GAME_IDS, filterGamesByTitle } from '../games/registry.js';
 
 const INITIAL_GOALS = {
@@ -74,6 +75,7 @@ export function setSyncStatus(status) {
 export function setGames(games) {
   state.games = games;
   state.loading = false;
+  bumpGamesVersion();
   notify();
 }
 
@@ -103,6 +105,7 @@ export function mergeActiveGames(activeSlice) {
 }
 
 export function resetAppState() {
+  bumpGamesVersion();
   state.games = [];
   state.profile = null;
   state.profileBio = '';

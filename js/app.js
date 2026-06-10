@@ -9,6 +9,7 @@ import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, sendPassw
 import { saveSettings, createGroup, joinGroup, leaveGroup, loadUserGroups, saveProfile, uploadProfileAvatar, deleteOwnAccount } from './supabase.js';
 import { applyFilters, DEFAULT_FILTERS } from './filters.js';
 import { calcStats } from './utils.js';
+import { cachedCalcStats, cachedApplyFilters } from './perf-cache.js';
 import { getActiveGameModule } from './games/router.js';
 import { addGame, updateGame, deleteGame, getLastMMR, patchLastGame, undoLastGame, isMmrEstimated, purgeGhostValorantMatches, countGhostValorantMatches, clearGameHistory, collapseDuplicateValorantMatchesInState, countDuplicateValorantMatches } from './matches.js';
 import { startSession, endSession, closeSessionModal, closeSessionModalAndContinue, initSessionUI, refreshSessionUI, restoreSessionFromStorage, getLoggingSessionNum, clearSessionTimer } from './sessions.js';
@@ -44,7 +45,6 @@ import {
 import { wireAutoLogHandlers, handleAutoLog, handleValorantAutoLog } from './auto-log-handlers.js';
 import { GAME_IDS, getTagGroups, getGameMeta } from './games.js';
 import { mmrChart, wlChart, destroyAllCharts } from './charts.js';
-import { renderAnalytics } from './analytics.js';
 import { normalizeGoalsStorage, getActiveGoals } from './goals.js';
 import { initPostMatch, showPostMatchCard } from './post-match.js';
 import { renderSessionsPage } from './sessions-ui.js';
@@ -65,6 +65,8 @@ import {
 let reportsModule = null;
 let focusModule = null;
 let groupsModule = null;
+let analyticsModule = null;
+let renderAllFrame = null;
 
 async function getReportsModule() {
   if (!reportsModule) {
@@ -86,6 +88,31 @@ async function getGroupsModule() {
   }
   return groupsModule;
 }
+
+async function getAnalyticsModule() {
+  if (!analyticsModule) {
+    analyticsModule = await import('./analytics.js');
+  }
+  return analyticsModule;
+}
+
+function getMatchLogsGames() {
+  return cachedApplyFilters(
+    getActiveGames(),
+    { ...state.matchLogFilters, playlist: 'all' },
+    state.activeGame,
+    applyFilters,
+  );
+}
+
+function getAnalyticsGames() {
+  return cachedApplyFilters(
+    getActiveGames(),
+    { ...state.filters, playlist: state.playlist ?? 'all' },
+    state.activeGame,
+    applyFilters,
+  );
+}
 window.__endSession = () => endSession();
 window.__refreshHome = () => renderHomePage();
 window.__navigate = (pageId, section) => navigate(pageId, section);
@@ -103,18 +130,6 @@ function withTimeout(promise, ms, message = 'Timed out') {
       setTimeout(() => reject(new Error(message)), ms);
     }),
   ]);
-}
-
-function getDashboardGames() {
-  return applyFilters(getActiveGames(), { ...DEFAULT_FILTERS, playlist: state.playlist ?? 'all' }, state.activeGame);
-}
-
-function getMatchLogsGames() {
-  return applyFilters(getActiveGames(), { ...state.matchLogFilters, playlist: 'all' }, state.activeGame);
-}
-
-function getAnalyticsGames() {
-  return applyFilters(getActiveGames(), { ...state.filters, playlist: state.playlist ?? 'all' }, state.activeGame);
 }
 
 function getDisplay() {
@@ -328,7 +343,7 @@ function renderHomePage() {
   if (valLabel) valLabel.textContent = isVal ? chartCaption : '';
 
   if (modeGames.length >= 1) {
-    const stats = calcStats(modeGames, state.activeGame);
+    const stats = cachedCalcStats(modeGames, state.activeGame, calcStats);
     const rankField = getGameMeta(state.activeGame).rankField;
     if (isVal) {
       mmrChart('valHomeRR', modeGames.slice(-20), chartColor, 'RR', rankField);
@@ -344,26 +359,27 @@ function renderHomePage() {
 
 function renderAnalyticsPage() {
   const filtered = getAnalyticsGames();
-  const stats = calcStats(filtered, state.activeGame);
+  const stats = cachedCalcStats(filtered, state.activeGame, calcStats);
   const display = getDisplay();
   const isVal = state.activeGame === GAME_IDS.VALORANT;
   renderStats('analytics-stats', stats, state.playlist, state.activeGame);
   mmrChart('dashMMR', filtered, isVal ? '#ff4655' : display.color, isVal ? 'RR' : 'MMR');
   wlChart('dashWL', stats);
-  renderAnalytics(filtered);
+  void getAnalyticsModule().then(({ renderAnalytics }) => renderAnalytics(filtered));
 }
 
 function renderAll(scope = 'full') {
   const games = getActiveGames();
-  const display = getDisplay();
   const page = state.activePage || 'dashboard';
+  const touchDashboard = scope === 'core' || page === 'dashboard';
+  const touchLog = scope === 'core' || page === 'log';
 
-  renderHomePage();
+  if (touchDashboard) renderHomePage();
+  if (touchLog) renderMatchLogs();
 
   if (scope === 'core') {
-    renderMatchLogs();
     refreshSessionUI();
-    wireLogTableActions();
+    if (touchLog) wireLogTableActions();
     rerenderQuickTags();
     renderActivePageContent(page);
     updateNavUI(page);
@@ -371,14 +387,14 @@ function renderAll(scope = 'full') {
     return;
   }
 
-  renderMatchLogs();
+  if (page === 'log') {
+    const logMode = getLastModeForGame(state.activeGame);
+    const lastMMR = getLastMMR(logMode);
+    const fStart = document.getElementById('f-startmmr');
+    if (fStart) fStart.value = lastMMR !== '' ? lastMMR : '';
+  }
 
-  const logMode = getLastModeForGame(state.activeGame);
-  const lastMMR = getLastMMR(logMode);
-  const fStart = document.getElementById('f-startmmr');
-  if (fStart) fStart.value = lastMMR !== '' ? lastMMR : '';
-
-  if (page === 'analytics' || page === 'dashboard') {
+  if (page === 'analytics') {
     renderPlaylistTabs('pl-tabs', state.playlist, (pl, btn) => {
       state.playlist = pl;
       document.querySelectorAll('#pl-tabs .pl-tab').forEach(b => b.classList.remove('active'));
@@ -405,13 +421,23 @@ function renderAll(scope = 'full') {
   if (page === 'profile') renderProfilePageContent();
 
   refreshSessionUI();
-  wireLogTableActions();
-  applyPageCopy(state.activeGame);
-  refreshLogTagChips();
+  if (touchLog) wireLogTableActions();
+  if (page === 'log') {
+    applyPageCopy(state.activeGame);
+    refreshLogTagChips();
+  }
   rerenderQuickTags();
   renderActivePageContent(page);
   updateNavUI(page);
   mountDock();
+}
+
+function scheduleRenderAll(scope = 'full') {
+  if (renderAllFrame) cancelAnimationFrame(renderAllFrame);
+  renderAllFrame = requestAnimationFrame(() => {
+    renderAllFrame = null;
+    renderAll(scope);
+  });
 }
 
 function renderDashboard() {
@@ -627,8 +653,6 @@ async function handleProfileSave({
 
 function renderActivePageContent(pageId) {
   try {
-    if (pageId === 'dashboard') renderDashboard();
-    if (pageId === 'log') renderMatchLogs();
     if (pageId === 'setup') refreshSetupWizard(getDisplay().name);
     if (pageId === 'profile') renderProfilePageContent();
     if (pageId === 'analytics') renderAnalyticsPage();
@@ -657,6 +681,8 @@ function navigate(pageId, section) {
   showPage(pageId);
   updateNavUI(pageId);
   mountDock();
+  if (pageId === 'dashboard') renderDashboard();
+  else if (pageId === 'log') renderMatchLogs();
   renderActivePageContent(pageId);
 }
 
@@ -984,6 +1010,7 @@ import { maybeEnableQaFromUrl, wireDevModeShortcut } from './qa/qa-gate.js';
 import { installGlobalErrorHandlers } from './core/error-log.js';
 
 async function init() {
+  const appT0 = typeof performance !== 'undefined' ? performance.now() : 0;
   window.__appBootstrapped = true;
   installGlobalErrorHandlers();
   try {
@@ -1079,7 +1106,7 @@ async function init() {
       renderHomePage();
     });
     document.addEventListener('tracker-data-changed', () => {
-      renderAll();
+      scheduleRenderAll();
     });
     ensureBridgeServices();
     onAuthChange(async (session) => {
@@ -1103,6 +1130,9 @@ async function init() {
     });
 
     await withTimeout(initAuth(), 20000, 'Sign-in check timed out — refresh and try again');
+    if (appT0 && typeof performance !== 'undefined') {
+      console.info(`[boot +${Math.round(performance.now() - appT0)}ms] auth-ready`);
+    }
     window.__appReady = true;
 
     if (getAuthUser()) {

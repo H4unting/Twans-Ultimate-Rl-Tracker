@@ -23,12 +23,18 @@ import { resetQuickFilter } from './match-logs-ui.js';
 let onGameChange = null;
 let getSettingsPayloadFn = null;
 let switcherWired = false;
+let lastSwitcherGame = null;
 
 export function initGameSwitcher({ onChange, getSettingsPayload }) {
   onGameChange = onChange;
   getSettingsPayloadFn = getSettingsPayload;
+  lastSwitcherGame = state.activeGame;
   renderGameSwitcher();
-  subscribe(() => renderGameSwitcher());
+  subscribe(() => {
+    if (state.activeGame === lastSwitcherGame) return;
+    lastSwitcherGame = state.activeGame;
+    renderGameSwitcher();
+  });
 
   if (switcherWired) return;
   switcherWired = true;

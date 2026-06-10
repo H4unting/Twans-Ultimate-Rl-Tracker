@@ -7,10 +7,12 @@ import { getCachedValorantStatus } from './bridge-ui.js';
 import { startSession, endSession } from './sessions.js';
 import { showToast } from './ui.js';
 
-const POLL_MS = 5000;
+const POLL_ACTIVE_MS = 5000;
+const POLL_HIDDEN_MS = 15000;
 const AUTO_SESSION_KEY = 'rl-grind-auto-session';
 
-let pollId = null;
+let pollTimer = null;
+let onVisibilityChange = null;
 let lastRlRunning = false;
 let lastValRunning = false;
 let wiredPrefs = false;
@@ -71,15 +73,43 @@ async function pollGameProcesses() {
   }
 }
 
+function getPollMs() {
+  return document.visibilityState === 'hidden' ? POLL_HIDDEN_MS : POLL_ACTIVE_MS;
+}
+
+function schedulePoll() {
+  if (pollTimer) clearTimeout(pollTimer);
+  pollTimer = setTimeout(() => {
+    void pollGameProcesses().finally(() => {
+      if (pollTimer !== null) schedulePoll();
+    });
+  }, getPollMs());
+}
+
 export function startProcessSessionWatcher() {
-  if (pollId) return;
-  pollId = setInterval(() => { void pollGameProcesses(); }, POLL_MS);
+  if (pollTimer !== null) return;
+  schedulePoll();
   void pollGameProcesses();
+  if (onVisibilityChange) return;
+  onVisibilityChange = () => {
+    if (document.visibilityState === 'hidden') {
+      if (pollTimer) clearTimeout(pollTimer);
+      pollTimer = null;
+      return;
+    }
+    schedulePoll();
+    void pollGameProcesses();
+  };
+  document.addEventListener('visibilitychange', onVisibilityChange);
 }
 
 export function stopProcessSessionWatcher() {
-  if (pollId) clearInterval(pollId);
-  pollId = null;
+  if (pollTimer) clearTimeout(pollTimer);
+  pollTimer = null;
+  if (onVisibilityChange) {
+    document.removeEventListener('visibilitychange', onVisibilityChange);
+    onVisibilityChange = null;
+  }
   lastRlRunning = false;
   lastValRunning = false;
 }

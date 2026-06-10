@@ -7,8 +7,10 @@ import { isAutoLogEnabled } from './quicklog.js';
 import { isBridgeUp, getBridgeUrl, setBridgeOnline, bridgeFetch } from './bridge-client.js';
 import { setCachedValorantStatus, refreshBridgeStatusUI } from './bridge-ui.js';
 
-let pollId = null;
-let pollMs = 5000;
+let pollTimer = null;
+const POLL_ACTIVE_MS = 3000;
+const POLL_IDLE_MS = 5000;
+const POLL_HIDDEN_MS = 10000;
 let wasBridgeUp = false;
 let autoLogInFlight = false;
 let pollingArmSent = false;
@@ -138,20 +140,38 @@ async function poll() {
   }
 }
 
+function getPollMs() {
+  if (document.visibilityState === 'hidden') return POLL_HIDDEN_MS;
+  if (state.activeGame !== GAME_IDS.VALORANT) return POLL_IDLE_MS;
+  if (!isBridgeUp()) return POLL_IDLE_MS;
+  return POLL_ACTIVE_MS;
+}
+
+function schedulePoll() {
+  if (pollTimer) clearTimeout(pollTimer);
+  pollTimer = setTimeout(async () => {
+    await poll();
+    if (pollTimer !== null) schedulePoll();
+  }, getPollMs());
+}
+
 export function initValorantLive(applyStats, statusCb, autoLogCb) {
   onStats = applyStats;
   onStatus = statusCb;
   onAutoLog = autoLogCb;
   stopValorantLive();
   pollingArmSent = false;
-  pollMs = 3000;
-  pollId = setInterval(poll, pollMs);
-  poll();
+  schedulePoll();
+  void poll();
   onVisibilityChange = () => {
-    if (document.visibilityState === 'visible') {
-      ensurePollingArmed();
-      poll();
+    if (document.visibilityState === 'hidden') {
+      if (pollTimer) clearTimeout(pollTimer);
+      pollTimer = null;
+      return;
     }
+    schedulePoll();
+    void ensurePollingArmed();
+    void poll();
   };
   onSessionStart = () => {
     if (state.activeGame === GAME_IDS.VALORANT) void armValorantPolling();
@@ -161,8 +181,8 @@ export function initValorantLive(applyStats, statusCb, autoLogCb) {
 }
 
 export function stopValorantLive() {
-  if (pollId) clearInterval(pollId);
-  pollId = null;
+  if (pollTimer) clearTimeout(pollTimer);
+  pollTimer = null;
   if (onVisibilityChange) {
     document.removeEventListener('visibilitychange', onVisibilityChange);
     onVisibilityChange = null;
