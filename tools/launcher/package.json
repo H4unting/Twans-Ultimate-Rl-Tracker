@@ -33,6 +33,20 @@
         "filter": [
           "*.mjs"
         ]
+      },
+      {
+        "from": "../..",
+        "to": "tracker-app",
+        "filter": [
+          "index.html",
+          "js/**/*",
+          "css/**/*",
+          "public/**/*",
+          "legal/**/*",
+          "config/**/*",
+          "vendor/**/*",
+          "integrations/**/*"
+        ]
       }
     ],
     "win": {

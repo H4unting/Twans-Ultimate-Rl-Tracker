@@ -1,7 +1,8 @@
 /** Shared local bridge online state (RL + Valorant) — one heartbeat, debounced */
 
+import { getInternalTrackerApiOrigin, isTwansAppHost } from './env.js';
+
 const BRIDGE_PORT = 49200;
-const TRACKER_PORT = 8080;
 const HEARTBEAT_MS = 2500;
 const PING_TIMEOUT_MS = 4000;
 /** Consecutive failed pings before going offline (after grace expires) */
@@ -67,6 +68,7 @@ async function probeDirectBridge() {
 }
 
 function isOnTrackerPort() {
+  if (isTwansAppHost()) return true;
   const h = window.location.hostname;
   const p = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
   return (h === 'localhost' || h === '127.0.0.1') && p === '8080';
@@ -75,6 +77,9 @@ function isOnTrackerPort() {
 export function getBridgeUrl() {
   if (bridgeProcessOnDirectPort) {
     return `http://127.0.0.1:${BRIDGE_PORT}`;
+  }
+  if (isTwansAppHost()) {
+    return `${getInternalTrackerApiOrigin()}/api/bridge`;
   }
   const h = window.location.hostname;
   if (isOnTrackerPort()) {

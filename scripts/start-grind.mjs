@@ -192,9 +192,19 @@ function readRequestBody(req) {
   });
 }
 
+const CORS_ALLOW_HEADERS = 'Content-Type, X-Bridge-Token';
+
+function bridgeCorsHeaders() {
+  return {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': CORS_ALLOW_HEADERS,
+  };
+}
+
 async function proxyToBridge(req, res, bridgePath) {
   if (!isProxyBridgePath(bridgePath)) {
-    res.writeHead(403, { 'Content-Type': 'application/json' });
+    res.writeHead(403, { 'Content-Type': 'application/json', ...bridgeCorsHeaders() });
     res.end(JSON.stringify({ ok: false, error: 'Forbidden bridge path' }));
     return;
   }
@@ -230,10 +240,11 @@ async function proxyToBridge(req, res, bridgePath) {
     res.writeHead(upstream.status, {
       'Content-Type': contentType,
       'Cache-Control': 'no-store',
+      ...bridgeCorsHeaders(),
     });
     res.end(body);
   } catch {
-    res.writeHead(502, { 'Content-Type': 'application/json' });
+    res.writeHead(502, { 'Content-Type': 'application/json', ...bridgeCorsHeaders() });
     res.end(JSON.stringify({ error: 'bridge unavailable' }));
   }
 }
@@ -246,6 +257,11 @@ function createTrackerServer() {
     const query = (req.url || '').includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
 
     if (urlPath.startsWith('/api/bridge')) {
+      if (req.method === 'OPTIONS') {
+        res.writeHead(204, bridgeCorsHeaders());
+        res.end();
+        return;
+      }
       const bridgePath = urlPath.slice('/api/bridge'.length) || '/status';
       proxyToBridge(req, res, `${bridgePath}${query}`);
       return;
@@ -449,7 +465,7 @@ if (!quiet) {
   console.log('  >>> Keep that tab + this console open while you play <<<');
   console.log('');
 }
-openBrowser(LOCAL_TRACKER_URL);
+if (!skipBrowser) openBrowser(LOCAL_TRACKER_URL);
 
 await launchGameIfRequested();
 printReadyMessage();
