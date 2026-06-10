@@ -67,6 +67,15 @@ export function getUserSetupDocUrl() {
   return USER_SETUP_DOC_URL;
 }
 
+/** Resolve static asset paths for twans:// and http dev origins */
+export function getAssetUrl(relativePath) {
+  const path = String(relativePath).replace(/^\//, '');
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return new URL(path, `${window.location.origin}/`).href;
+  }
+  return path;
+}
+
 /** Banner copy when opened from GitHub Pages / non-localhost (manual log only). */
 export function getWebOnlyHostBannerHtml(launcher) {
   const localUrl = getLocalTrackerUrl();

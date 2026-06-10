@@ -46,6 +46,10 @@ export function endBridgeStartupPhase() {
   }
 }
 
+export function isBridgeInStartupPhase() {
+  return inStartupPhase;
+}
+
 /** @typedef {'connecting'|'tracking'|'waiting'|'error'} BridgeStatusPhase */
 
 export function subscribeBridgeOnline(fn) {
@@ -173,10 +177,11 @@ export function isBridgeReconnecting() {
 /** High-level status for UI pills — Tracking / Waiting / Error / Reconnecting */
 export function getBridgeStatusPhase() {
   if (reconnecting) return 'reconnecting';
-  if (!bridgeProbeDone && (isOnTrackerPort() || window.location.hostname === 'localhost')) {
-    return 'connecting';
-  }
+  const local = isOnTrackerPort();
+  if (inStartupPhase && local) return 'connecting';
+  if (!bridgeProbeDone && local) return 'connecting';
   if (!isBridgeReachable()) {
+    if (local && connectAttempts <= 5) return 'connecting';
     return 'error';
   }
   if (!bridgeOnline) {

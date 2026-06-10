@@ -79,12 +79,20 @@ let homeChartTimer = null;
 let homeChartSig = '';
 
 const HOME_CHART_MIN_MS = 1000;
+/** Hard cap: max 2 dashboard renders per second (idle proof: __DASH_RENDER_COUNT ≤ +2 / 10s) */
 const DASH_RENDER_MIN_MS = 500;
+
+/** Set false in console to A/B test chart cost: `window.__DASH_CHARTS_ENABLED = false` */
+const DASH_CHARTS_ENABLED = typeof window !== 'undefined'
+  && window.__DASH_CHARTS_ENABLED !== false;
 
 let lastDashRenderAt = 0;
 let dashRenderThrottleTimer = null;
+let dashRenderQueued = null;
 let dashRenderBypass = false;
 let trackerDataListenerWired = false;
+let perfSectionVisible = false;
+let perfSectionObserver = null;
 
 async function getReportsModule() {
   if (!reportsModule) {
@@ -363,6 +371,24 @@ function wireDashboardScrollPause() {
   }, { passive: true });
 }
 
+function wirePerfSectionObserver() {
+  const section = document.getElementById('dash-performance');
+  const root = document.getElementById('page-dashboard');
+  if (!section || perfSectionObserver) return;
+  const onVis = (visible) => {
+    perfSectionVisible = visible;
+    if (visible && isDashboardPage()) renderHomeCharts();
+  };
+  if (typeof IntersectionObserver === 'function') {
+    perfSectionObserver = new IntersectionObserver((entries) => {
+      onVis(entries.some(e => e.isIntersecting));
+    }, { root: root || null, threshold: 0.08, rootMargin: '80px 0px' });
+    perfSectionObserver.observe(section);
+  } else {
+    onVis(true);
+  }
+}
+
 function homeChartDataSig(games) {
   const modeGames = getHomeChartGames(games);
   if (!modeGames.length) return '0';
@@ -373,8 +399,13 @@ function homeChartDataSig(games) {
 }
 
 function renderHomeCharts(force = false) {
+  const chartsOn = DASH_CHARTS_ENABLED
+    && (typeof window === 'undefined' || window.__DASH_CHARTS_ENABLED !== false);
+  if (!chartsOn) return;
+
   const page = state.activePage || 'dashboard';
   if (page !== 'dashboard' || document.visibilityState === 'hidden') return;
+  if (!force && !perfSectionVisible) return;
 
   const games = getActiveGames();
   const sig = homeChartDataSig(games);
@@ -437,7 +468,21 @@ function renderHomePage(options = {}) {
   const games = getActiveGames();
   const goals = getActiveGoals();
 
-  if (shouldDeferDashRender(userAction)) return;
+  if (shouldDeferDashRender(userAction)) {
+    if (!dashRenderQueued) {
+      const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+      dashRenderQueued = setTimeout(() => {
+        dashRenderQueued = null;
+        renderHomePage(options);
+      }, DASH_RENDER_MIN_MS - (now - lastDashRenderAt));
+    }
+    return;
+  }
+
+  if (dashRenderQueued) {
+    clearTimeout(dashRenderQueued);
+    dashRenderQueued = null;
+  }
 
   dashRenderBypass = false;
   lastDashRenderAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
@@ -495,7 +540,7 @@ function renderAllInner(scope = 'full') {
   if (touchLog) renderMatchLogs();
 
   if (scope === 'core') {
-    refreshSessionUI();
+    refreshSessionUI({ quiet: true });
     if (touchLog) wireLogTableActions();
     rerenderQuickTags();
     renderActivePageContent(page);
@@ -537,7 +582,7 @@ function renderAllInner(scope = 'full') {
   if (page === 'sessions') renderSessionsPageContent();
   if (page === 'profile') renderProfilePageContent();
 
-  refreshSessionUI();
+  refreshSessionUI({ quiet: true });
   if (touchLog) wireLogTableActions();
   if (page === 'log') {
     applyPageCopy(state.activeGame);
@@ -1208,6 +1253,7 @@ async function init() {
 
     wireNavigation();
     wireDashboardScrollPause();
+    wirePerfSectionObserver();
     document.getElementById('logo-home-btn')?.addEventListener('click', () => navigate('dashboard', 'home'));
     wireBridgeStatusClick(() => navigate('setup', 'home'));
     subscribeBridgeOnline((online) => {
@@ -1267,8 +1313,7 @@ async function init() {
         }
       });
       document.addEventListener('tracker-data-changed', () => {
-        dashRenderBypass = true;
-        scheduleRenderAll('core', { userAction: true });
+        scheduleRenderAll('core');
       });
     }
     ensureBridgeServices();

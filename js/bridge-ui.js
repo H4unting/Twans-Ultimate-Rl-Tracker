@@ -3,7 +3,8 @@
 import { state } from './state.js';
 import { GAME_IDS, getGameMeta } from './games.js';
 import {
-  isBridgeUp, isBridgeProbeDone, getLastBridgeFailure, getBridgeStatusPhase, getBridgeConnectAttempts,
+  isBridgeUp, isBridgeProbeDone, getLastBridgeFailure, getBridgeStatusPhase,
+  getBridgeConnectAttempts, isBridgeInStartupPhase,
   subscribeBridgeResumed,
 } from './bridge-client.js';
 import { isAutoLogEnabled, loadPrefs, syncAutoLogToggleUI } from './quicklog.js';
@@ -87,7 +88,9 @@ export function refreshBridgeStatusUI() {
   el.dataset.bridgeState = up ? 'online' : 'offline';
 
   if (!up) {
-    if (phase === 'connecting' && (isLocalTrackerHost() || isWrongLocalPort())) {
+    const booting = phase === 'connecting'
+      && (isLocalTrackerHost() || isWrongLocalPort() || isBridgeInStartupPhase());
+    if (booting) {
       applyUnifiedStatusLabel(el, 'connecting', `Starting ${DESKTOP_APP.name}…`);
       el.dataset.bridgeState = 'connecting';
       setBridgeHintVisible(false);
@@ -206,14 +209,16 @@ function renderRocketLeaguePill(el, inMatch, meta) {
   if (inMatch) {
     applyUnifiedStatusLabel(el, 'tracking', `Live match — reading stats from ${meta.label}`);
     el.textContent = formatStatusPill('tracking');
-  } else if (isAutoLogEnabled()) {
-    applyUnifiedStatusLabel(el, 'tracking', 'Auto-log ON — matches save when they end');
-    el.textContent = formatStatusPill('tracking');
-  } else {
-    applyUnifiedStatusLabel(el, 'waiting', waitingForGameLabel(GAME_IDS.ROCKET_LEAGUE));
-    el.textContent = formatStatusPill('waiting', GAME_IDS.ROCKET_LEAGUE);
+    el.dataset.bridgeState = 'in-match';
+    return;
   }
-  el.dataset.bridgeState = inMatch ? 'in-match' : 'ready';
+
+  const waitingHint = isAutoLogEnabled()
+    ? 'Auto-log ON — launch Rocket League to start tracking'
+    : waitingForGameLabel(GAME_IDS.ROCKET_LEAGUE);
+  applyUnifiedStatusLabel(el, 'waiting', waitingHint);
+  el.textContent = formatStatusPill('waiting', GAME_IDS.ROCKET_LEAGUE);
+  el.dataset.bridgeState = 'ready';
 }
 
 function updateDesktopAppBanner(isVal, appUp, valStatus) {
@@ -227,7 +232,7 @@ function updateDesktopAppBanner(isVal, appUp, valStatus) {
   const setupLink = '<button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button>';
 
   if (!appUp) {
-    if (!isBridgeProbeDone() && (isLocalTrackerHost() || isWrongLocalPort())) {
+    if ((isBridgeInStartupPhase() || !isBridgeProbeDone()) && (isLocalTrackerHost() || isWrongLocalPort())) {
       banner.classList.add('hidden');
       return;
     }

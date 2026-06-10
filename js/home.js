@@ -9,7 +9,8 @@ import { getTagLossCorrelations } from './insights.js';
 import { getActionFocusTips, getGameMeta, GAME_IDS, getTagCat, getRankDiff, getQueueLabel } from './games.js';
 import { formatRankDisplay } from './games/valorant/rank-ladder.js';
 import { formatRRDelta } from './games/valorant/ranks.js';
-import { state } from './state.js';
+import { state, getActiveGames } from './state.js';
+import { getActiveGoals } from './goals.js';
 import { getGamesVersion } from './perf-cache.js';
 import { launchGame } from './game-launcher.js';
 import { shouldHideManualSessionControls } from './env.js';
@@ -23,6 +24,12 @@ const DASH_PERF = typeof window !== 'undefined'
 
 let mmrRowsRenderKey = '';
 let mmrRowsRenderCache = null;
+let mmrRowsGamesRef = null;
+
+const DASH_RENDER_HARD_MS = 500;
+let lastHomeRenderExec = 0;
+let homeRenderQueued = null;
+let homeRenderQueuedOpts = null;
 
 function gamesTailKey(games) {
   if (!games?.length) return '0';
@@ -33,13 +40,18 @@ function gamesTailKey(games) {
 function resetMmrRowsRenderCache() {
   mmrRowsRenderKey = '';
   mmrRowsRenderCache = null;
+  mmrRowsGamesRef = null;
 }
 
 function getCachedPlaylistMMRRows(games, gameId) {
+  if (games === mmrRowsGamesRef && mmrRowsRenderCache && mmrRowsRenderKey.startsWith(`${getGamesVersion()}|${gameId}|`)) {
+    return mmrRowsRenderCache;
+  }
   const key = `${getGamesVersion()}|${gameId}|${gamesTailKey(games)}`;
   if (mmrRowsRenderKey === key && mmrRowsRenderCache) return mmrRowsRenderCache;
   mmrRowsRenderCache = getPlaylistMMRRows(games, gameId);
   mmrRowsRenderKey = key;
+  mmrRowsGamesRef = games;
   return mmrRowsRenderCache;
 }
 
@@ -1025,9 +1037,34 @@ export function invalidateHomeMmrCache() {
   resetMmrRowsRenderCache();
 }
 
-/** @param {{ criticalOnly?: boolean, skipDeferred?: boolean }} [opts] */
+function flushQueuedHomeRender() {
+  if (!homeRenderQueuedOpts) return;
+  const queued = { ...homeRenderQueuedOpts, force: true };
+  homeRenderQueuedOpts = null;
+  renderHome(getActiveGames(), getActiveGoals(), queued);
+}
+
+/** @param {{ criticalOnly?: boolean, skipDeferred?: boolean, force?: boolean }} [opts] */
 export function renderHome(games, goals, opts = {}) {
+  const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  if (!opts.force && now - lastHomeRenderExec < DASH_RENDER_HARD_MS) {
+    homeRenderQueuedOpts = opts;
+    if (!homeRenderQueued) {
+      homeRenderQueued = setTimeout(() => {
+        homeRenderQueued = null;
+        flushQueuedHomeRender();
+      }, DASH_RENDER_HARD_MS - (now - lastHomeRenderExec));
+    }
+    return;
+  }
+  if (homeRenderQueued) {
+    clearTimeout(homeRenderQueued);
+    homeRenderQueued = null;
+    homeRenderQueuedOpts = null;
+  }
+
   const t0 = DASH_PERF ? performance.now() : 0;
+  lastHomeRenderExec = now;
   if (typeof window !== 'undefined') {
     window.__DASH_RENDER_COUNT = (window.__DASH_RENDER_COUNT || 0) + 1;
   }
