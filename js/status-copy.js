@@ -13,11 +13,14 @@ export const STATUS = {
   tracking: 'Tracking',
   connectionIssue: 'Connection issue',
   starting: 'Starting…',
+  reconnecting: 'Reconnecting…',
+  trackingResumed: 'Tracking resumed',
 };
 
 export function formatStatusPill(phase, gameId = state.activeGame) {
   if (phase === 'tracking') return `● ${STATUS.tracking}`;
   if (phase === 'error') return `● ${STATUS.connectionIssue}`;
+  if (phase === 'reconnecting') return `● ${STATUS.reconnecting}`;
   if (phase === 'connecting') return `● ${STATUS.starting}`;
   return `● ${waitingForGameLabel(gameId)}`;
 }

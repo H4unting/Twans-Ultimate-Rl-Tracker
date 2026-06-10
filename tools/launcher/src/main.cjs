@@ -198,10 +198,24 @@ function registerAppProtocol(root) {
   });
 }
 
-function getWindowIcon() {
-  const iconPath = path.join(__dirname, '..', 'assets', 'icon.png');
-  if (fs.existsSync(iconPath)) return iconPath;
+function getAppIconPath() {
+  const assetsDir = path.join(__dirname, '..', 'assets');
+  const ico = path.join(assetsDir, 'icon.ico');
+  if (fs.existsSync(ico)) return ico;
+  const png = path.join(assetsDir, 'icon.png');
+  if (fs.existsSync(png)) return png;
   return undefined;
+}
+
+function loadAppIconImage() {
+  const iconPath = getAppIconPath();
+  if (!iconPath) return nativeImage.createEmpty();
+  const img = nativeImage.createFromPath(iconPath);
+  return img.isEmpty() ? nativeImage.createEmpty() : img;
+}
+
+function getWindowIcon() {
+  return getAppIconPath();
 }
 
 function getSplashDataUrl() {
@@ -347,10 +361,27 @@ function wireWindowNavigation(win) {
     win.webContents.on('devtools-opened', () => {
       win.webContents.closeDevTools();
     });
+    win.webContents.on('before-input-event', (event, input) => {
+      if (input.type !== 'keyDown') return;
+      const key = String(input.key || '').toLowerCase();
+      const reload = key === 'f5'
+        || (input.control && key === 'r')
+        || (input.control && input.shift && key === 'r');
+      if (reload) event.preventDefault();
+    });
   }
 }
 
 function createTrayIcon(phase) {
+  const base = loadAppIconImage();
+  if (!base.isEmpty()) {
+    const sized = base.getSize();
+    if (sized.width !== 16 || sized.height !== 16) {
+      return base.resize({ width: 16, height: 16 });
+    }
+    return base;
+  }
+
   const size = 16;
   const buf = Buffer.alloc(size * size * 4);
   const colors = {
@@ -524,22 +555,26 @@ async function loadAppIntoWindow() {
 }
 
 async function openTrackerOnStart() {
-  logStartup('waiting for backend services');
-  let ready = false;
-  for (let attempt = 1; attempt <= TRACKER_READY_ATTEMPTS; attempt += 1) {
-    const budgetMs = attempt === 1 ? 45000 : 15000;
-    ready = await waitForTrackerReady(budgetMs);
-    if (ready) break;
-    appendBridgeLog(app.dataRoot, `[window] backend not ready (attempt ${attempt}/${TRACKER_READY_ATTEMPTS})\n`);
-    if (attempt < TRACKER_READY_ATTEMPTS) await sleep(2000);
-  }
-  if (!ready) {
-    scheduleAppLoadRetry('backend not ready in time');
-    return;
-  }
-  logStartup('backend services ready');
+  logStartup('loading app shell (backend may still be starting)');
   trackerLoadFailures = 0;
   await loadAppIntoWindow();
+
+  void (async () => {
+    logStartup('waiting for backend services');
+    let ready = false;
+    for (let attempt = 1; attempt <= TRACKER_READY_ATTEMPTS; attempt += 1) {
+      const budgetMs = attempt === 1 ? 45000 : 15000;
+      ready = await waitForTrackerReady(budgetMs);
+      if (ready) break;
+      appendBridgeLog(app.dataRoot, `[window] backend not ready (attempt ${attempt}/${TRACKER_READY_ATTEMPTS})\n`);
+      if (attempt < TRACKER_READY_ATTEMPTS) await sleep(2000);
+    }
+    if (ready) {
+      logStartup('backend services ready');
+    } else {
+      appendBridgeLog(app.dataRoot, '[window] backend slow — SPA will retry bridge connection\n');
+    }
+  })();
 }
 
 async function pollStatus() {
@@ -728,8 +763,9 @@ app.whenReady().then(async () => {
     void openTrackerOnStart();
   }
 
-  statusTimer = setInterval(pollStatus, 2500);
+  statusTimer = setInterval(pollStatus, 3000);
   pollStatus();
+  logStartup('startup pipeline complete');
 });
 
 app.on('before-quit', () => {

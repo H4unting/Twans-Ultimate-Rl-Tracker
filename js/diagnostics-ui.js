@@ -181,6 +181,20 @@ export function wireDiagnosticsPanel() {
   }).catch(() => {});
 
   pollId = setInterval(refresh, 4000);
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      if (pollId) {
+        clearInterval(pollId);
+        pollId = null;
+      }
+      return;
+    }
+    if (wired && !pollId) {
+      refresh();
+      pollId = setInterval(refresh, 4000);
+    }
+  });
 }
 
 export function stopDiagnosticsPanel() {

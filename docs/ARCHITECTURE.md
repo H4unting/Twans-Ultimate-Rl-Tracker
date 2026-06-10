@@ -87,19 +87,23 @@ Legacy duplicate: repo root `launcher/` mirrors `tools/launcher/` — **use `too
 Twans Ultimate Tracker.exe
   → Electron main.cjs (app.ready)
   → findDataRoot() + findNodeExecutable() + findBridgeScriptsDir()
-  → spawn: node start-grind.mjs
+  → registerAppProtocol(trackerRoot) — twans:// serves bundled SPA (no visible localhost)
+  → createMainWindow() → dark splash (data: URL) → loadURL twans://app/index.html
+  → spawn: node start-grind.mjs (parallel)
        → startBridge() on :49200 (rl-bridge.mjs)
        → http.createServer static + /api/bridge proxy on :8080
-  → waitForTrackerReady() — GET http://127.0.0.1:8080/api/bridge/status
-  → createMainWindow() → loadURL http://127.0.0.1:8080
+  → [async] waitForTrackerReady() — logged to config/bridge.log, non-blocking for UI
   → SPA: js/app.js init()
        → initAuth()
        → startBridgeHeartbeat() (client polls /api/bridge/status)
        → on auth: boot.js bootApp()
-            → [desktop] waitForDesktopServices() until bridge reachable
-            → loadUserData() from Supabase
+            → shell visible immediately; parallel waitForDesktopServices + loadUserData()
             → repair rank chains, onboarding, render UI
 ```
+
+**Branding:** Canonical icon is `integrations/overwolf/icon.png`. Build copies it to `tools/launcher/assets/icon.ico` (via `npm run generate-icon` in `tools/launcher`) for Windows tray, taskbar, and electron-builder.
+
+**Cold-start timing:** `[startup +Nms]` lines append to `config/bridge.log` from `main.cjs` (`logStartup()`).
 
 **Dev path (DEVELOPER ONLY):** `Rocket League Tracker.bat` / `Valorant Tracker.bat` run `start-grind.mjs` directly and open a browser tab — same ports, no Electron shell.
 

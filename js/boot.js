@@ -93,16 +93,23 @@ export async function bootApp() {
   if (initialBootDone) return;
 
   showLoginScreen(false);
+  applyAppMode();
+  renderAuthBar(ctx.getDisplay(), ctx.handleSignOut, () => ctx.navigate('profile', 'home'));
+  showQuickDock();
   showLoading(true);
   ctx.ensureBridgeServices?.();
-  await waitForDesktopServices();
 
   try {
+    const [, userData] = await Promise.all([
+      waitForDesktopServices(),
+      withTimeout(loadUserData(), 30000, 'Loading timed out — check your connection'),
+    ]);
+
     const {
       profile, games, goals, groups, bio, rlDisplayName,
       primaryColor, secondaryColor, activeGame, riotId, riotRegion,
       rankBaselines, rankBaselinesComplete,
-    } = await withTimeout(loadUserData(), 30000, 'Loading timed out — check your connection');
+    } = userData;
 
     setProfile({
       ...(profile ?? {}),
@@ -171,8 +178,6 @@ export async function bootApp() {
     renderAuthBar(ctx.getDisplay(), ctx.handleSignOut, () => ctx.navigate('profile', 'home'));
     applyAppMode();
     ctx.applyLogPrefs();
-
-    showQuickDock();
     restoreSessionFromStorage(getActiveGames());
     renderSetupWizard(ctx.getDisplay().name);
     renderLogSetupNudge();
