@@ -1,4 +1,7 @@
 @echo off
+REM =============================================================================
+REM DEVELOPER ONLY — Optional Overwolf integration for developers
+REM =============================================================================
 title Load Overwolf Extension — Twans Ultimate Tracker
 cd /d "%~dp0"
 

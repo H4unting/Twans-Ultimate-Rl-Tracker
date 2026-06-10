@@ -44,9 +44,9 @@ export function renderLogSetupNudge() {
     <div class="log-setup-nudge-inner">
       <span class="log-setup-nudge-text">${isVal
         ? (bridge
-          ? 'Bridge is running — add Riot ID + Henrik key in Auto-Log Setup, then Apply & Go.'
-          : `Valorant auto-log: run ${launcher}, open http://localhost:8080, then Apply & Go in setup.`)
-        : `Want auto-log from Rocket League? Run ${launcher} on this PC.`}</span>
+          ? 'Finish Auto-Log Setup (Riot ID + Henrik key), then Apply & Go.'
+          : `${DESKTOP_APP.name} is not connected — reopen it from the tray, then Apply & Go in setup.`)
+        : `Want auto-log from Rocket League? Open ${DESKTOP_APP.name} on this PC.`}</span>
       <button type="button" class="btn-link" id="log-setup-nudge-link">Auto-Log Setup →</button>
     </div>`;
   document.getElementById('log-setup-nudge-link')?.addEventListener('click', () => {

@@ -1,13 +1,15 @@
 {
   "name": "twans-tracker-bridge",
-  "version": "1.1.0",
+  "version": "1.3.0",
   "description": "Desktop launcher — Twans Ultimate Tracker for RL and Valorant",
   "author": "Anthony",
   "main": "src/main.cjs",
   "private": true,
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder --win portable",
+    "build": "electron-builder --win portable nsis",
+    "build:portable": "electron-builder --win portable",
+    "build:installer": "electron-builder --win nsis",
     "postbuild": "node scripts/copy-exe.cjs"
   },
   "devDependencies": {
@@ -40,6 +42,12 @@
           "arch": [
             "x64"
           ]
+        },
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "assets/icon.png",
@@ -47,6 +55,13 @@
     },
     "portable": {
       "artifactName": "Twans Ultimate Tracker.exe"
+    },
+    "nsis": {
+      "artifactName": "TwansUltimateTrackerSetup.${ext}",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
     }
   }
 }

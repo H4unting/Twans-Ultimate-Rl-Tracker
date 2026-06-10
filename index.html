@@ -107,7 +107,7 @@
   <div id="bridge-hint-banner" class="bridge-hint-banner hidden">
     <div class="bridge-hint-inner">
       <span class="bridge-hint-badge">Auto-log off</span>
-      <p>Double-click <code>Twans Ultimate Tracker.exe</code> on this PC while playing for automatic stats. <button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button></p>
+      <p>Double-click <strong>Twans Ultimate Tracker</strong> on this PC while playing for automatic stats. <button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button></p>
     </div>
   </div>
 
@@ -239,7 +239,7 @@
   <div id="page-setup" class="page">
     <div class="log-page-header">
       <h2 class="page-heading">Auto Tracker Setup</h2>
-      <p class="page-desc">One-time setup on your PC — run Twans Auto-Log while playing for automatic stats.</p>
+      <p class="page-desc">One-time setup on your PC — keep Twans Ultimate Tracker running while you play for automatic stats.</p>
     </div>
     <div id="setup-wizard"></div>
   </div>
@@ -332,7 +332,7 @@
             <button type="button" class="session-num-btn" id="session-num-apply">Set</button>
           </div>
         </div>
-        <span class="live-bridge-status" id="live-bridge-status" title="Twans Ultimate Tracker — automatic stats from your game">Connecting…</span>
+        <span class="live-bridge-status" id="live-bridge-status" title="Twans Ultimate Tracker — automatic stats from your game">Starting…</span>
         <button type="button" class="session-play-btn" id="session-play-btn" title="Launch game and start tracking">▶ Play</button>
         <button type="button" class="auto-log-toggle active" id="auto-log-toggle" aria-pressed="true" title="Auto-save games when a match ends">Auto-log</button>
         <button type="button" class="auto-log-sound-toggle active" id="auto-log-sound-toggle" aria-pressed="true" title="Sound on auto-log">🔔</button>
@@ -544,12 +544,19 @@
 <div class="toast" id="toast"></div>
 
 <script>
+  function friendlyBootMessage(raw) {
+    const message = String(raw || '');
+    if (/SyntaxError|Illegal return/i.test(message)) {
+      return 'The tracker could not load its scripts. Hard refresh (Ctrl+F5) or restart Twans Ultimate Tracker from the tray.';
+    }
+    return message || 'The tracker could not start. Hard refresh (Ctrl+F5) or check the browser console (F12).';
+  }
   function showBootFailure(message) {
     document.body.classList.remove('is-loading');
     document.getElementById('login-screen')?.classList.remove('hidden');
     const note = document.getElementById('boot-failure-note');
     if (note) {
-      note.textContent = message || 'The tracker could not start. Hard refresh (Ctrl+F5) or check the browser console (F12).';
+      note.textContent = friendlyBootMessage(message);
       note.classList.remove('hidden');
     }
   }
@@ -564,8 +571,8 @@
   setTimeout(() => {
     if (window.__appReady) return;
     const msg = !window.__appBootstrapped
-      ? 'Script failed to load — hard refresh (Ctrl+F5). If using Brave, allow scripts for localhost:8080.'
-      : 'Loading timed out — hard refresh (Ctrl+F5). If it keeps happening, check your internet or disable Brave Shields for localhost:8080.';
+      ? 'Script failed to load — hard refresh (Ctrl+F5). If using Brave, allow scripts for this app.'
+      : 'Loading timed out — hard refresh (Ctrl+F5). If it keeps happening, check your internet or disable Brave Shields for this app.';
     if (!window.__appBootstrapped || document.body.classList.contains('is-loading')) {
       showBootFailure(msg);
     }

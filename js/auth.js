@@ -1,6 +1,6 @@
 /** Supabase Auth — Google OAuth + session management */
 
-import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
+import { SUPABASE_URL, SUPABASE_KEY, DESKTOP_APP } from './config.js';
 
 const SUPABASE_SOURCES = [
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/+esm',
@@ -34,7 +34,7 @@ async function loadSupabaseModule() {
   }
   throw new Error(
     lastError?.message?.includes('Failed to fetch')
-      ? 'Could not load sign-in library — check internet or disable Brave Shields for localhost:8080'
+      ? `Could not load sign-in library — check internet or disable Brave Shields for ${DESKTOP_APP.name}`
       : `Could not load sign-in library — ${lastError?.message || 'unknown error'}`,
   );
 }

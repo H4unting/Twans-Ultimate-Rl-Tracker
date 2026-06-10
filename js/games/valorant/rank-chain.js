@@ -1,3 +1,5 @@
+/** Valorant competitive rank chain — promotion/demotion via applyRRDelta in rank-ladder.js (>=100 RR promotes with carry; <0 demotes) */
+
 import { DEFAULT_RR_SWING, getPriorEndRankState, GAME_ID } from './config.js';
 import { getStoredValorantBaseline } from '../../rank-baseline-store.js';
 import { applyRRDelta, normalizeRankName } from './rank-ladder.js';

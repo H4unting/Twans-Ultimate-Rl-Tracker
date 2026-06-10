@@ -15,6 +15,9 @@ import {
 } from './core/logging-session.js';
 import { isBridgeUp } from './bridge-client.js';
 import { getCachedValorantStatus } from './bridge-ui.js';
+import { DESKTOP_APP } from './config.js';
+import { STATUS, waitingForGameLabel } from './status-copy.js';
+import { shouldHideManualSessionControls } from './env.js';
 
 export { getLoggingSessionNum, getMaxSessionNum, getNextSessionNum };
 
@@ -243,13 +246,47 @@ export function startSession({ silent = false, sessionNum } = {}) {
   activateSession(num, { silent });
 }
 
-export function endSession(onComplete) {
+export function endSession(onCompleteOrOptions, maybeOnComplete) {
+  let options = {};
+  let onComplete = null;
+  if (typeof onCompleteOrOptions === 'function') {
+    onComplete = onCompleteOrOptions;
+  } else if (onCompleteOrOptions && typeof onCompleteOrOptions === 'object') {
+    options = onCompleteOrOptions;
+    onComplete = maybeOnComplete ?? null;
+  }
+  const { auto = false } = options;
+
   const copy = sessionCopy();
   const sessionNum = state.session.sessionNum || getLoggingSessionNum();
   const sg = getActiveGames().filter(g => parseInt(g.session, 10) === sessionNum);
 
   if (!sg.length) {
-    showToast(`No ${copy.matchLabel} in this ${copy.blockLabel.toLowerCase()} yet`, 'error');
+    if (!auto && !state.session.active) {
+      showToast(`No ${copy.matchLabel} in this ${copy.blockLabel.toLowerCase()} yet`, 'error');
+      return;
+    }
+    if (state.session.timerId) {
+      clearInterval(state.session.timerId);
+      state.session.timerId = null;
+    }
+    const nextSession = sessionNum + 1;
+    state.session.active = false;
+    state.session.startTime = null;
+    state.session.sessionNum = nextSession;
+    syncSessionField(nextSession);
+    saveStoredSession({
+      active: false,
+      lastEndedSession: sessionNum,
+      nextSessionNum: nextSession,
+      history: loadStoredSession()?.history ?? {},
+    });
+    notify();
+    updateSessionBar();
+    if (auto) {
+      showToast(copy.isVal ? 'Grind block ended — Valorant closed' : 'Session ended — Rocket League closed');
+    }
+    onComplete?.(nextSession);
     return;
   }
 
@@ -369,7 +406,7 @@ export function updateSessionBar() {
     if (stats) {
       if (copy.isVal && isAutoLogEnabled()) {
         if (!isBridgeUp()) {
-          stats.innerHTML = '<span class="slive-item neutral">Bridge disconnected — keep your game tracker launcher open, then Ctrl+F5</span>';
+          stats.innerHTML = `<span class="slive-item neutral">${STATUS.connectionIssue} — reopen ${DESKTOP_APP.name} from the tray</span>`;
         } else {
         const vs = getCachedValorantStatus();
         if (vs?.configured && vs?.seeded) {
@@ -377,19 +414,27 @@ export function updateSessionBar() {
         } else if (vs?.configured && !vs?.seeded && vs?.source !== 'overwolf') {
           stats.innerHTML = '<span class="slive-item neutral">Play one full match to finish setup, then auto-log works</span>';
         } else if (vs?.configured) {
-          stats.innerHTML = '<span class="slive-item neutral">Open Valorant — bridge is ready</span>';
+          stats.innerHTML = `<span class="slive-item neutral">${waitingForGameLabel(GAME_IDS.VALORANT)}</span>`;
         } else {
           stats.innerHTML = '<span class="slive-item neutral">Finish Auto-Log Setup (Riot ID + Henrik key)</span>';
         }
         }
+      } else if (shouldHideManualSessionControls()) {
+        stats.innerHTML = '<span class="slive-item neutral">Sessions start automatically when you play</span>';
       } else {
         stats.innerHTML = '<span class="slive-item neutral">Tap ▶ Start when ready</span>';
       }
     }
     if (startBtn) {
-      startBtn.className = 'session-btn start';
-      startBtn.textContent = copy.isVal ? '▶ Start Block' : '▶ Start';
-      startBtn.onclick = () => startSession();
+      if (shouldHideManualSessionControls()) {
+        startBtn.classList.add('hidden');
+        startBtn.onclick = null;
+      } else {
+        startBtn.classList.remove('hidden');
+        startBtn.className = 'session-btn start';
+        startBtn.textContent = copy.isVal ? '▶ Start Block' : '▶ Start';
+        startBtn.onclick = () => startSession();
+      }
     }
     return;
   }
@@ -415,8 +460,9 @@ export function updateSessionBar() {
       </div>`;
   }
   if (startBtn) {
+    startBtn.classList.remove('hidden');
     startBtn.className = 'session-btn end';
-    startBtn.textContent = '■ End';
+    startBtn.textContent = shouldHideManualSessionControls() ? '■ End early' : '■ End';
     startBtn.onclick = () => endSession();
   }
 }

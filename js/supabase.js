@@ -1,6 +1,6 @@
 /** Supabase persistence — auth-scoped user data */
 
-import { SUPABASE_URL, SUPABASE_KEY, LEGAL_CONTACT } from './config.js';
+import { SUPABASE_URL, SUPABASE_KEY, LEGAL_CONTACT, DESKTOP_APP } from './config.js';
 import {
   normalizePlayerGames, normalizeGame, parseDisplayDate, formatDisplayDate,
 } from './utils.js';
@@ -9,6 +9,11 @@ import { DEFAULT_GOALS } from './goals.js';
 import { getAccessToken, getAuthUser } from './auth.js';
 import { DEFAULT_GAME, GAME_IDS } from './games.js';
 import { logError } from './core/error-log.js';
+import {
+  enqueueOfflineWrite,
+  flushOfflineQueue,
+  shouldQueueSyncError,
+} from './offline-queue.js';
 
 /** Set from loadProfile — avoids PATCHing columns that are not in Supabase yet */
 let profileSchemaExtended = false;
@@ -31,7 +36,7 @@ export function formatApiError(e, fallback = 'Something went wrong') {
   try {
     const parsed = JSON.parse(raw);
     if (parsed?.message === 'invalid API key') {
-      return 'Database connection failed — app config may be outdated. Hard-refresh (Ctrl+F5) or use localhost:8080.';
+      return `Database connection failed — app config may be outdated. Hard-refresh (Ctrl+F5) or reopen ${DESKTOP_APP.name}.`;
     }
     if (parsed?.message) return parsed.message;
     if (parsed?.hint) return `${parsed.message || 'Error'}: ${parsed.hint}`;
@@ -39,7 +44,7 @@ export function formatApiError(e, fallback = 'Something went wrong') {
     /* plain text */
   }
   if (raw.includes('invalid API key')) {
-    return 'Database connection failed — hard-refresh (Ctrl+F5) or use localhost:8080.';
+    return `Database connection failed — hard-refresh (Ctrl+F5) or reopen ${DESKTOP_APP.name}.`;
   }
   return raw || fallback;
 }
@@ -254,13 +259,13 @@ async function syncGameSlice(userId, gameId, slice) {
   }
 }
 
-export async function saveGames(games, gameId = null) {
+export async function saveGames(games, gameId = null, { fromQueue = false } = {}) {
   const user = getAuthUser();
   if (!user) throw new Error('Not signed in');
+  const targetGame = gameId ?? null;
   setSyncStatus('saving');
   try {
     const normalized = normalizePlayerGames(games);
-    const targetGame = gameId ?? null;
 
     const runSlice = async (gid, slice) => {
       try {
@@ -286,7 +291,16 @@ export async function saveGames(games, gameId = null) {
       }
     }
     setSyncStatus('live');
+    if (!fromQueue) void flushOfflineQueue({ saveGames, saveSettings });
   } catch (e) {
+    if (!fromQueue && shouldQueueSyncError(e)) {
+      enqueueOfflineWrite({ type: 'games', games, gameId: targetGame });
+      setSyncStatus('error');
+      import('./ui.js').then(({ showToast }) => {
+        showToast('Saved offline — will sync when connection returns', 'error');
+      }).catch(() => {});
+      return;
+    }
     setSyncStatus('error');
     throw e;
   }
@@ -346,7 +360,7 @@ export async function loadSettings() {
   };
 }
 
-export async function saveSettings(settings) {
+export async function saveSettings(settings, { fromQueue = false } = {}) {
   const user = getAuthUser();
   if (!user) return;
   setSyncStatus('saving');
@@ -356,7 +370,16 @@ export async function saveSettings(settings) {
       Prefer: 'resolution=merge-duplicates,return=minimal',
     });
     setSyncStatus('live');
+    if (!fromQueue) void flushOfflineQueue({ saveGames, saveSettings });
   } catch (e) {
+    if (!fromQueue && shouldQueueSyncError(e)) {
+      enqueueOfflineWrite({ type: 'settings', settings });
+      setSyncStatus('error');
+      import('./ui.js').then(({ showToast }) => {
+        showToast('Settings saved offline — will sync when connection returns', 'error');
+      }).catch(() => {});
+      return;
+    }
     setSyncStatus('error');
     throw e;
   }
@@ -602,6 +625,7 @@ export async function loadUserData() {
     const settings = await loadSettings();
     const groups = await loadUserGroups();
     setSyncStatus('live');
+    void flushOfflineQueue({ saveGames, saveSettings });
     return {
       profile, games, goals: settings.goals, groups, bio: settings.bio,
       rlDisplayName: settings.rlDisplayName, primaryColor: settings.primaryColor,

@@ -4,7 +4,7 @@ import { state } from './state.js';
 import { GAME_IDS } from './games.js';
 import { fetchBridgeStatus, isBridgeUp } from './bridge-client.js';
 import { getCachedValorantStatus } from './bridge-ui.js';
-import { startSession } from './sessions.js';
+import { startSession, endSession } from './sessions.js';
 import { showToast } from './ui.js';
 
 const POLL_MS = 5000;
@@ -32,7 +32,7 @@ export function setAutoSessionEnabled(enabled) {
 }
 
 async function pollGameProcesses() {
-  if (!isBridgeUp() || !isAutoSessionEnabled() || state.session.active) return;
+  if (!isBridgeUp() || !isAutoSessionEnabled()) return;
 
   const status = await fetchBridgeStatus();
   if (!status) return;
@@ -43,8 +43,22 @@ async function pollGameProcesses() {
 
   const rlStarted = rlRunning && !lastRlRunning;
   const valStarted = valRunning && !lastValRunning;
+  const rlStopped = lastRlRunning && !rlRunning;
+  const valStopped = lastValRunning && !valRunning;
   lastRlRunning = rlRunning;
   lastValRunning = valRunning;
+
+  if (state.session.active) {
+    if (state.activeGame === GAME_IDS.ROCKET_LEAGUE && rlStopped) {
+      endSession({ auto: true });
+      return;
+    }
+    if (state.activeGame === GAME_IDS.VALORANT && valStopped) {
+      endSession({ auto: true });
+      return;
+    }
+    return;
+  }
 
   if (state.activeGame === GAME_IDS.VALORANT && valStarted) {
     startSession({ silent: true });

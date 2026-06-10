@@ -1,8 +1,12 @@
 # Twans Ultimate Tracker — Roadmap
 
-Planning doc only. **Do not start a phase until the previous gate is done.**
+Planning doc only. **Desktop-first** as of the [`DESKTOP-VISION.md`](DESKTOP-VISION.md) pivot.
 
-Current version: **1.0.0-rc1** → target: **v1.0.0 tag**
+Engineering reference: [`ARCHITECTURE.md`](ARCHITECTURE.md). Desktop regression: [`REGRESSION-CHECKLIST-DESKTOP.md`](REGRESSION-CHECKLIST-DESKTOP.md).
+
+Current version: **1.3.0-desktop** → target: **v1.0.0 tag** (desktop installer GA)
+
+**Product reset rule:** Remove friction only — no new features, no cosmetic redesigns until v1.0 ships.
 
 Maintained by **Product Owner**. Implementation order follows [`TEAM-WORKFLOW.md`](TEAM-WORKFLOW.md) — one owning role per task.
 
@@ -10,76 +14,83 @@ Maintained by **Product Owner**. Implementation order follows [`TEAM-WORKFLOW.md
 
 ## Current priorities (now)
 
-Ship-quality polish before v1.0.0 tag. **In order — finish each before starting the next.**
+**Desktop app is the product.** GitHub Pages remains a manual-log bookmark only.
 
 | # | Priority | Owner | Status |
 |---|----------|-------|--------|
-| 1 | **Profile card redesign** — compact gamer card, stats hierarchy, dark neon theme | Frontend Lead | Done |
-| 2 | **Dashboard hierarchy cleanup** — focus order, dead space, primary actions | Frontend Lead | Done — reordered hero → actions → rank → session/focus → perf/activity; deduped stats |
-| 3 | **Valorant rank UX polish** — rank display, queue labels, theme consistency | Frontend Lead | Done — unified rank/emblem/RR formatting; queue labels; tier-grouped rank selects; Val match feed theme |
-| 4 | **Complete smoke test** — full matrix per `RELEASE-CHECKLIST.md` | QA Lead | In Progress — automated/static PASS (18/18); manual matrix NOT RUN; see [`QA-SMOKE-REPORT.md`](QA-SMOKE-REPORT.md) |
-| 5 | **Ship v1.0.0** — tag, push, announce | Release Manager | Blocked on #4 manual smoke + version bump + sign-off |
+| 1 | **Phase 1 desktop foundation** — embedded window, human status, tray, auto sessions, hide manual Start, boot gate, onboarding, offline queue, ARCHITECTURE.md | Desktop / Frontend | **Done** — [`ARCHITECTURE.md`](ARCHITECTURE.md) |
+| 2 | **Installer smoke test** — fresh Windows VM: Setup.exe → sign in → Play → auto-log one match | QA Lead | **NOT RUN** |
+| 3 | **Complete release smoke** — [`REGRESSION-CHECKLIST-DESKTOP.md`](REGRESSION-CHECKLIST-DESKTOP.md) + `RELEASE-CHECKLIST.md` | QA Lead | Static **PASS** (89/89 `node --check`); manual **NOT RUN** |
+| 4 | **Phase 2 in-app settings** — no JSON / `.bat` for players | Frontend Lead | Planned |
+| 5 | **Ship v1.0.0** — tag, push, announce with **TwansUltimateTrackerSetup.exe** | Release Manager | Blocked on #2–#3 |
 
 ---
 
-## Sprint: V1.0 Release (now)
+## Desktop phases (primary track)
 
-**Goal:** Declare the app done enough to ship. Validation, not features.
+See full detail in [`DESKTOP-VISION.md`](DESKTOP-VISION.md).
 
-1. Expand smoke test → `RELEASE-CHECKLIST.md`
-2. **Feature freeze** until tag lands
-3. Smoke test (you + one friend)
-4. Fix blockers only
-5. `git tag v1.0.0` → push → announce
+| Phase | Goal | Gate |
+|-------|------|------|
+| **1 — Foundation** ✅ | Exe + embedded UI + friendly status + sessions + onboarding | Friend completes loop unaided |
+| **2 — In-app config** | Henrik key, Riot ID, paths in UI; hide grind-config | Zero file editing for new player |
+| **3 — Runtime** | Bundled Node, stronger Val detection | Clean install on fresh VM |
+| **4 — Polish & updates** | Notifications, auto-update like Discord | 5+ daily installer users |
+| **5 — Expansion** | macOS evaluation, optional slim builds | Demand-driven |
+
+---
+
+## Sprint: V1.0 Release (desktop GA)
+
+**Goal:** Ship the **installer** as the default download — not batch files or GitHub Pages auto-log.
+
+1. Phase 1 desktop ✅  
+2. Installer + portable smoke on real hardware  
+3. Feature freeze except blockers (crash, data loss, sync, onboarding)  
+4. Tag `v1.0.0` with **`TwansUltimateTrackerSetup.exe`** artifact  
+5. Announce: Install → Sign in → Play  
 
 ### Feature freeze (until v1.0.0)
 
 Do **not** build:
 
-- Replay analysis / import
-- AI chatbots or AI coaching
-- Public leaderboards
-- Social feeds
-- New game support
-- Coach payments / marketplace
-- Discord economy
-- Native mobile app
+- Replay analysis / import  
+- AI chatbots or AI coaching  
+- Public leaderboards · social feeds  
+- New game support  
+- Coach payments / marketplace · Discord economy  
+- Native mobile app  
 
-OK to fix: crashes, broken workflows, data corruption, sync failures, onboarding blockers.
+OK to fix: crashes, broken workflows, data corruption, sync failures, onboarding blockers, desktop connection issues.
 
 ---
 
-## V1.0 — Stability
-
-**Status:** RC1 built. Awaiting smoke test + tag.
+## V1.0 — Stability (desktop)
 
 Ship:
 
-- Auth (Google + email)
-- Multi-game (RL + Valorant)
-- Manual + auto logging
-- Sessions, goals, focus, reports, analytics
-- Supabase sync
-- GitHub Pages deploy
-- Desktop bridge + tray prototype
+- Auth (Google + email)  
+- Multi-game (RL + Valorant)  
+- Manual + auto logging via **desktop app**  
+- Sessions (auto start/end on process)  
+- Goals, focus, reports, analytics  
+- Supabase sync + offline queue retry  
+- **TwansUltimateTrackerSetup.exe** + portable exe  
+- GitHub Pages — manual log bookmark only  
 
-**Gate:** Full smoke test passes → tag `v1.0.0`.
+**Gate:** Desktop smoke test passes → tag `v1.0.0`.
 
 ---
 
-## V1.1 — Onboarding
+## V1.1 — Onboarding polish
 
-**Goal:** Random player → first logged game in ~5 minutes.
+**Goal:** Random player → first logged game in ~5 minutes (installer path only).
 
-- First-launch wizard (welcome → choose game → set rank → set goal → start tracking)
-- Tiny help center:
-  - How auto-log works
-  - Rocket League setup
-  - Valorant setup
-  - Goals
-  - Focus
+- Refine wizard copy / skip paths  
+- Tiny in-app help: auto-log, RL name, Val Riot ID, goals  
+- Remove remaining technical hints in setup wizard  
 
-**Gate:** Friend with zero context completes onboarding unaided.
+**Gate:** Friend with zero context completes onboarding unaided via **Setup.exe**.
 
 ---
 
@@ -87,8 +98,8 @@ Ship:
 
 **Goal:** Give users a reason to come back.
 
-- In-app weekly summary (games, win rate, MMR/RR delta)
-- Optional email digest (later)
+- In-app weekly summary (games, win rate, MMR/RR delta)  
+- Optional email digest (later)  
 
 **Gate:** Report generates correctly from real match data.
 
@@ -98,23 +109,23 @@ Ship:
 
 **Goal:** Move from stats → insights.
 
-- Primary weakness detection (e.g. tilt patterns in losses)
-- Actionable recommendations
-- Build on existing `insights.js` per game — extend, don't rewrite
+- Primary weakness detection (e.g. tilt patterns in losses)  
+- Actionable recommendations  
+- Extend `insights.js` per game — don't rewrite  
 
 **Gate:** Insights match manual review of same data.
 
 ---
 
-## V2.0 — Desktop Polish
+## V2.0 — Desktop depth (was “Electron polish”)
 
-**Goal:** Adoption on gaming PC, not a rewrite.
+**Goal:** Discord-tier daily driver on gaming PC.
 
-- Electron tray app polish (already prototyped)
-- Reliable auto-start, bridge health, clearer sync status
-- Tauri evaluation **after** Electron proves adoption
+- Phase 2–4 from desktop vision (settings, bundled Node, auto-update)  
+- Tray notifications, single-instance focus  
+- Tauri evaluation **only after** Electron installer proves adoption  
 
-**Gate:** 5+ users run tray app daily without hand-holding.
+**Gate:** 5+ users run **installer** daily without hand-holding.
 
 ---
 
@@ -122,12 +133,10 @@ Ship:
 
 **Goal:** Rocket League depth feature.
 
-Priority order:
-
-1. BakkesMod auto-log (mostly done — maintain)
-2. Replay import → auto-fill result, score, stats
-3. Tracker Network sync (rank / MMR import)
-4. Advanced replay analysis (far future)
+1. BakkesMod auto-log (maintain)  
+2. Replay import → auto-fill result, score, stats  
+3. Tracker Network sync  
+4. Advanced replay analysis (far future)  
 
 **Gate:** Replay import works for common replay formats.
 
@@ -137,30 +146,29 @@ Priority order:
 
 **Goal:** Strangers, not just friends.
 
-- Custom domain (e.g. twanstracker.com)
-- Landing page (analytics, auto-log, coaching, reports)
-- Invite flow
-- 5–10 real users; watch what breaks
+- Custom domain (e.g. twanstracker.com)  
+- Landing page → **Download for Windows**  
+- Invite flow · 5–10 real users  
 
-**Gate:** Non-friend completes full loop without DM support.
+**Gate:** Non-friend completes full **desktop** loop without DM support.
 
 ---
 
 ## What we are not building (distraction list)
 
-Leaderboards · social feeds · AI chat · marketplace · replay AI · mobile app · Discord bots
+Leaderboards · social feeds · AI chat · marketplace · replay AI · mobile app · Discord bots  
 
-Revisit only after V4.0 feedback says users want them.
+Revisit only after V4.0 feedback.
 
 ---
 
-## Recommended 30-day cadence
+## Recommended 30-day cadence (desktop-first)
 
 | Week | Focus |
 |------|-------|
-| 1 | Smoke test · v1.0 tag · blocker fixes |
-| 2 | V1.1 onboarding wizard + help center |
+| 1 | Phase 1 done ✅ · installer smoke · v1.0 tag blockers |
+| 2 | Phase 2 in-app settings · help center |
 | 3 | V1.2 weekly reports · V1.3 coaching start |
-| 4 | V2.0 Electron polish · friend testing |
+| 4 | Phase 3 bundled Node · Phase 4 auto-update pilot |
 
-Feedback from real users beats another feature every time.
+Feedback from real **installer** users beats another feature every time.

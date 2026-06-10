@@ -1,4 +1,7 @@
 @echo off
+REM =============================================================================
+REM DEVELOPER ONLY — Optional Overwolf integration for developers
+REM =============================================================================
 title Twans Val Auto-Log — Overwolf folder
 cd /d "%~dp0"
 

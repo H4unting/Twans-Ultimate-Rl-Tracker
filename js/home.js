@@ -11,6 +11,7 @@ import { formatRankDisplay } from './games/valorant/rank-ladder.js';
 import { formatRRDelta } from './games/valorant/ranks.js';
 import { state } from './state.js';
 import { launchGame } from './game-launcher.js';
+import { shouldHideManualSessionControls } from './env.js';
 import { getLoggingSessionNum } from './core/logging-session.js';
 import { weekRankGain } from './goals.js';
 import { rankIndex, RANK_LADDER } from './games/valorant/rank-ladder.js';
@@ -280,8 +281,12 @@ function renderDashQuickActions() {
   const el = document.getElementById('dash-quick-actions');
   if (!el) return;
 
+  const hideManualSession = shouldHideManualSessionControls() && !state.session.active;
   const sessionLabel = state.session.active ? 'End Session' : 'Start Session';
   const sessionIcon = state.session.active ? '⏹' : '▶';
+  const sessionDesc = hideManualSession
+    ? ''
+    : (state.session.active ? 'End early if needed' : 'Track your grind');
 
   const playLabel = state.activeGame === GAME_IDS.VALORANT ? 'Play Valorant' : 'Play Rocket League';
 
@@ -290,10 +295,10 @@ function renderDashQuickActions() {
       <span class="dash-action-icon">🎮</span>
       <span><span class="dash-action-label">${playLabel}</span><span class="dash-action-desc">Launch &amp; track</span></span>
     </button>
-    <button type="button" class="dash-action-btn" data-dash-action="session">
+    ${hideManualSession ? '' : `<button type="button" class="dash-action-btn" data-dash-action="session">
       <span class="dash-action-icon">${sessionIcon}</span>
-      <span><span class="dash-action-label">${sessionLabel}</span><span class="dash-action-desc">Track your grind</span></span>
-    </button>
+      <span><span class="dash-action-label">${sessionLabel}</span><span class="dash-action-desc">${sessionDesc}</span></span>
+    </button>`}
     <button type="button" class="dash-action-btn" data-dash-action="log">
       <span class="dash-action-icon">📋</span>
       <span><span class="dash-action-label">Log Match</span><span class="dash-action-desc">Add a result</span></span>
