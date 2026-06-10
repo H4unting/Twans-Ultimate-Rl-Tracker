@@ -1,5 +1,6 @@
 /** Valorant live bridge client — polls local bridge for Henrik API auto-log */
 
+import { isDashboardIdle } from './dash-context.js';
 import { state } from './state.js';
 import { GAME_IDS } from './games.js';
 import { showToast } from './ui.js';
@@ -10,6 +11,7 @@ import { setCachedValorantStatus, refreshBridgeStatusUI } from './bridge-ui.js';
 let pollTimer = null;
 const POLL_ACTIVE_MS = 3000;
 const POLL_IDLE_MS = 5000;
+const POLL_DASH_IDLE_MS = 8000;
 const POLL_HIDDEN_MS = 10000;
 let wasBridgeUp = false;
 let autoLogInFlight = false;
@@ -143,6 +145,7 @@ async function poll() {
 function getPollMs() {
   if (document.visibilityState === 'hidden') return POLL_HIDDEN_MS;
   if (state.activeGame !== GAME_IDS.VALORANT) return POLL_IDLE_MS;
+  if (isDashboardIdle()) return POLL_DASH_IDLE_MS;
   if (!isBridgeUp()) return POLL_IDLE_MS;
   return POLL_ACTIVE_MS;
 }

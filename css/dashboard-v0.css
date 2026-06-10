@@ -279,6 +279,15 @@ body:not(.logged-out) .top-bar > .review-sub-nav:not(.v0-sidebar-sub) { display:
 /* ── Dashboard page ── */
 .dash-page { padding-top: 8px !important; }
 
+.dash-hero,
+.dash-priority-row,
+.dash-grid,
+.dash-col-main,
+.dash-col-side,
+.dash-section {
+  contain: content;
+}
+
 .dash-hero {
   position: relative;
   overflow: hidden;

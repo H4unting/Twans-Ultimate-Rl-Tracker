@@ -2,6 +2,7 @@
 
 import { showToast } from './ui.js';
 import { loadPrefs, savePrefs, isAutoLogEnabled } from './quicklog.js';
+import { isDashboardIdle } from './dash-context.js';
 import { state } from './state.js';
 import { GAME_IDS } from './games.js';
 import { isBridgeUp, getBridgeUrl, fetchBridgeStatus, bridgeFetch } from './bridge-client.js';
@@ -10,6 +11,7 @@ import { DESKTOP_APP } from './config.js';
 
 const POLL_ACTIVE_MS = 1500;
 const POLL_IDLE_MS = 5000;
+const POLL_DASH_IDLE_MS = 8000;
 const POLL_HIDDEN_MS = 10000;
 
 let pollTimer = null;
@@ -23,6 +25,7 @@ const callbacks = { onMatchStats: null, onStatusChange: null, onAutoLog: null };
 function getPollIntervalMs() {
   if (document.visibilityState === 'hidden') return POLL_HIDDEN_MS;
   if (state.activeGame !== GAME_IDS.ROCKET_LEAGUE) return POLL_IDLE_MS;
+  if (isDashboardIdle()) return POLL_DASH_IDLE_MS;
   if (!isBridgeUp()) return POLL_IDLE_MS;
   return POLL_ACTIVE_MS;
 }

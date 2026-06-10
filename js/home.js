@@ -631,8 +631,23 @@ function patchLiveSessionPanel(el, games, diffLabel) {
 
   const body = el.querySelector('.dash-session-body');
   if (body) {
-    body.innerHTML =
-      `<strong>Session ${sessionNum}</strong> · ${wins}W ${losses}L · <span data-session-elapsed></span>`;
+    let strong = body.querySelector('strong');
+    if (!strong) {
+      body.textContent = '';
+      strong = document.createElement('strong');
+      body.appendChild(strong);
+      body.appendChild(document.createTextNode(' · '));
+      const wl = document.createElement('span');
+      wl.dataset.sessionWl = '1';
+      body.appendChild(wl);
+      body.appendChild(document.createTextNode(' · '));
+      const elapsed = document.createElement('span');
+      elapsed.dataset.sessionElapsed = '';
+      body.appendChild(elapsed);
+    }
+    strong.textContent = `Session ${sessionNum}`;
+    const wlEl = body.querySelector('[data-session-wl]');
+    if (wlEl) wlEl.textContent = `${wins}W ${losses}L`;
   }
   const elapsedEl = el.querySelector('[data-session-elapsed]');
   if (elapsedEl) {
@@ -770,11 +785,38 @@ export function refreshDashSessionWidgets(games) {
   renderDashSessionPanel(games, allRows);
 }
 
+function focusSig(games, gameId) {
+  if (games.length < 2) return `${gameId}:empty:${games.length}`;
+  const correlations = getTagLossCorrelations(games);
+  const top = correlations.find(c => c.inLosses >= 1) ?? null;
+  if (!top) return `${gameId}:notag:${games.length}`;
+  const losses = games.filter(g => g.result === 'L').length;
+  return `${gameId}:${top.tag}:${top.inLosses}:${losses}:${games.length}`;
+}
+
+function patchHomeFocus(el, { focusLabel, featuredClass, tagName, lossNote, tip }) {
+  el.querySelector('.home-focus-label')?.replaceChildren(document.createTextNode(focusLabel));
+  const tagEl = el.querySelector('.home-focus-tag-name');
+  const statEl = el.querySelector('.home-focus-stat');
+  const tipEl = el.querySelector('.home-focus-tip');
+  const emptyEl = el.querySelector('.home-focus-empty-text');
+  if (emptyEl) {
+    emptyEl.textContent = tagName || lossNote;
+    return;
+  }
+  if (tagEl) tagEl.textContent = tagName;
+  if (statEl) statEl.textContent = lossNote;
+  if (tipEl) tipEl.textContent = tip;
+}
+
 export function renderHomeFocus(games) {
   const el = document.getElementById('home-focus');
   if (!el) return;
 
   const isVal = state.activeGame === GAME_IDS.VALORANT;
+  const sig = focusSig(games, state.activeGame);
+  if (el.dataset.focusSig === sig && el.dataset.focusGame === state.activeGame) return;
+
   const focusLabel = isVal ? "Today's Mission" : "Today's Focus";
   const featuredClass = ' home-focus-card-featured';
   const emptyHint = isVal
@@ -785,22 +827,38 @@ export function renderHomeFocus(games) {
     : 'Tag mistakes after losses to unlock your focus area.';
 
   if (games.length < 2) {
-    el.innerHTML = `
-      <div class="home-focus-card home-focus-card-empty dash-section v0-glass${featuredClass}">
-        <span class="home-focus-label">${focusLabel}</span>
-        <p class="home-focus-empty-text">${emptyHint}</p>
-      </div>`;
+    if (el.dataset.wired === '1' && el.dataset.focusMode === 'empty') {
+      patchHomeFocus(el, { focusLabel, featuredClass, tagName: '', lossNote: emptyHint, tip: '' });
+    } else {
+      el.innerHTML = `
+        <div class="home-focus-card home-focus-card-empty dash-section v0-glass${featuredClass}">
+          <span class="home-focus-label">${focusLabel}</span>
+          <p class="home-focus-empty-text">${emptyHint}</p>
+        </div>`;
+      el.dataset.wired = '1';
+      el.dataset.focusMode = 'empty';
+    }
+    el.dataset.focusSig = sig;
+    el.dataset.focusGame = state.activeGame;
     return;
   }
 
   const correlations = getTagLossCorrelations(games);
   const top = correlations.find(c => c.inLosses >= 1) ?? null;
   if (!top) {
-    el.innerHTML = `
-      <div class="home-focus-card home-focus-card-empty dash-section v0-glass${featuredClass}">
-        <span class="home-focus-label">${focusLabel}</span>
-        <p class="home-focus-empty-text">${tagEmpty}</p>
-      </div>`;
+    if (el.dataset.wired === '1' && el.dataset.focusMode === 'empty') {
+      patchHomeFocus(el, { focusLabel, featuredClass, tagName: '', lossNote: tagEmpty, tip: '' });
+    } else {
+      el.innerHTML = `
+        <div class="home-focus-card home-focus-card-empty dash-section v0-glass${featuredClass}">
+          <span class="home-focus-label">${focusLabel}</span>
+          <p class="home-focus-empty-text">${tagEmpty}</p>
+        </div>`;
+      el.dataset.wired = '1';
+      el.dataset.focusMode = 'empty';
+    }
+    el.dataset.focusSig = sig;
+    el.dataset.focusGame = state.activeGame;
     return;
   }
 
@@ -810,17 +868,25 @@ export function renderHomeFocus(games) {
     : `${top.inLosses}× tagged`;
   const tip = getActionFocusTips(state.activeGame)[top.tag] ?? 'Slow down and review before you queue again.';
 
-  el.innerHTML = `
-    <div class="home-focus-card dash-section v0-glass${featuredClass}">
-      <div class="home-focus-card-head">
-        <span class="home-focus-label">${focusLabel}</span>
-        <a href="#" class="home-focus-more" data-goto="focus">Details →</a>
-      </div>
-      <div class="home-focus-tag-name">${top.tag}</div>
-      <p class="home-focus-stat">${lossNote}</p>
-      <p class="home-focus-tip">${tip}</p>
-    </div>`;
-  wireHomeLinks(el);
+  if (el.dataset.wired === '1' && el.dataset.focusMode === 'filled') {
+    patchHomeFocus(el, { focusLabel, featuredClass, tagName: top.tag, lossNote, tip });
+  } else {
+    el.innerHTML = `
+      <div class="home-focus-card dash-section v0-glass${featuredClass}">
+        <div class="home-focus-card-head">
+          <span class="home-focus-label">${focusLabel}</span>
+          <a href="#" class="home-focus-more" data-goto="focus">Details →</a>
+        </div>
+        <div class="home-focus-tag-name">${top.tag}</div>
+        <p class="home-focus-stat">${lossNote}</p>
+        <p class="home-focus-tip">${tip}</p>
+      </div>`;
+    el.dataset.wired = '1';
+    el.dataset.focusMode = 'filled';
+    wireHomeLinks(el);
+  }
+  el.dataset.focusSig = sig;
+  el.dataset.focusGame = state.activeGame;
 }
 
 function activitySig(games, limit, gameId) {
@@ -924,7 +990,28 @@ function updateDashPerfModeLabel(mode) {
   el.textContent = mode ? `${mode} playlist` : 'Current playlist';
 }
 
-export function renderHome(games, goals) {
+let homeDeferredIdleId = null;
+
+function runHomeDeferred(games, goals, allRows, chartMode, chartGames) {
+  homeDeferredIdleId = null;
+  renderHomeFocus(games);
+  updateDashPerfModeLabel(chartMode);
+  renderDashPerfStats(chartGames);
+  renderHomeActivity(games);
+}
+
+function scheduleHomeDeferred(games, goals, allRows, chartMode, chartGames) {
+  const run = () => runHomeDeferred(games, goals, allRows, chartMode, chartGames);
+  if (typeof requestIdleCallback === 'function') {
+    if (homeDeferredIdleId !== null) cancelIdleCallback(homeDeferredIdleId);
+    homeDeferredIdleId = requestIdleCallback(run, { timeout: 600 });
+  } else {
+    requestAnimationFrame(run);
+  }
+}
+
+/** @param {{ criticalOnly?: boolean, skipDeferred?: boolean }} [opts] */
+export function renderHome(games, goals, opts = {}) {
   const t0 = DASH_PERF ? performance.now() : 0;
   resetMmrRowsRenderCache();
   wireHomeLinksOnce();
@@ -940,14 +1027,30 @@ export function renderHome(games, goals) {
   renderDashQuickActions();
   renderDashRankProgress(activeRow, goals, games);
   renderHomeContext(games, allRows);
-  renderHomeFocus(games);
-  updateDashPerfModeLabel(chartMode);
-  renderDashPerfStats(chartGames);
-  renderHomeActivity(games);
+
+  if (opts.criticalOnly || opts.skipDeferred) {
+    if (DASH_PERF) {
+      console.info(`[dash +${Math.round(performance.now() - t0)}ms] renderHome (critical)`);
+    }
+    return;
+  }
+
+  scheduleHomeDeferred(games, goals, allRows, chartMode, chartGames);
 
   if (DASH_PERF) {
     console.info(`[dash +${Math.round(performance.now() - t0)}ms] renderHome`);
   }
+}
+
+/** Flush deferred dashboard sections synchronously (e.g. before navigation away). */
+export function flushHomeDeferred(games, goals) {
+  if (homeDeferredIdleId !== null) {
+    cancelIdleCallback(homeDeferredIdleId);
+    homeDeferredIdleId = null;
+  }
+  const allRows = getCachedPlaylistMMRRows(games, state.activeGame);
+  const chartMode = ensureHomeChartMode(games);
+  runHomeDeferred(games, goals, allRows, chartMode, getHomeChartGames(games));
 }
 
 export function getHomeChartModeLabel(games) {
