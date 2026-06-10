@@ -149,7 +149,7 @@ function renderValorantPill(el, valStatus, meta) {
   }
 
   if (valStatus.lastError) {
-    el.textContent = '● Val API error';
+    el.textContent = `● ${STATUS.connectionIssue}`;
     el.title = formatValApiErrorForUser(valStatus.lastError);
     el.classList.add('bridge-error');
     el.dataset.bridgeState = 'error';

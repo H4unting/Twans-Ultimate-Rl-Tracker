@@ -2,7 +2,8 @@
  * Twans Ultimate Tracker — auth-first personal dashboard
  */
 
-import { applyAppMode } from './env.js';
+import { applyAppMode, isDesktopHost } from './env.js';
+import { DESKTOP_APP, getDesktopLauncherBat } from './config.js';
 import { state, subscribe, setGames, setSyncStatus, setGoals, setProfile, getUserDisplay, getActiveGames, resetAppState } from './state.js';
 import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, sendPasswordReset, signOut, onAuthChange, getAuthUser, hasPendingAuthHash, clearAuthHashFromUrl } from './auth.js';
 import { saveSettings, createGroup, joinGroup, leaveGroup, loadUserGroups, saveProfile, uploadProfileAvatar, deleteOwnAccount } from './supabase.js';
@@ -1080,7 +1081,9 @@ async function init() {
       wireLoginScreen();
       const note = document.getElementById('boot-failure-note');
       if (note) {
-        note.textContent = 'Sign-in did not finish. Restart Rocket League Tracker.bat, open http://localhost:8080/, and try Google sign-in again.';
+        note.textContent = isDesktopHost()
+          ? `Sign-in did not finish. Quit and reopen ${DESKTOP_APP.name}, then try Google sign-in again.`
+          : `Sign-in did not finish. Restart ${getDesktopLauncherBat(GAME_IDS.ROCKET_LEAGUE)}, then try Google sign-in again.`;
         note.classList.remove('hidden');
       }
     } else {
@@ -1096,7 +1099,9 @@ async function init() {
       const note = document.getElementById('boot-failure-note');
       if (note) {
         note.textContent = e?.message
-          || 'Sign-in failed. Close this tab, restart Rocket League Tracker.bat, open http://localhost:8080/, then sign in again.';
+          || (isDesktopHost()
+            ? `Sign-in failed. Quit and reopen ${DESKTOP_APP.name}, then sign in again.`
+            : `Sign-in failed. Restart ${getDesktopLauncherBat(GAME_IDS.ROCKET_LEAGUE)}, then sign in again.`);
         note.classList.remove('hidden');
       }
     } else {

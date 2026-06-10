@@ -2,7 +2,11 @@
 
 Planning doc only. **Desktop-first** as of the [`DESKTOP-VISION.md`](DESKTOP-VISION.md) pivot.
 
+Engineering reference: [`ARCHITECTURE.md`](ARCHITECTURE.md). Desktop regression: [`REGRESSION-CHECKLIST-DESKTOP.md`](REGRESSION-CHECKLIST-DESKTOP.md).
+
 Current version: **1.3.0-desktop** → target: **v1.0.0 tag** (desktop installer GA)
+
+**Product reset rule:** Remove friction only — no new features, no cosmetic redesigns until v1.0 ships.
 
 Maintained by **Product Owner**. Implementation order follows [`TEAM-WORKFLOW.md`](TEAM-WORKFLOW.md) — one owning role per task.
 
@@ -14,9 +18,9 @@ Maintained by **Product Owner**. Implementation order follows [`TEAM-WORKFLOW.md
 
 | # | Priority | Owner | Status |
 |---|----------|-------|--------|
-| 1 | **Phase 1 desktop foundation** — embedded window, human status, tray, auto session end, stepped onboarding, offline queue stub, NSIS config | Desktop / Frontend | **Done (this session)** — see [`DESKTOP-VISION.md`](DESKTOP-VISION.md) |
-| 2 | **Installer smoke test** — fresh Windows VM: Setup.exe → sign in → Play → auto-log one match | QA Lead | Not run |
-| 3 | **Complete release smoke** — matrix per `RELEASE-CHECKLIST.md` on desktop path | QA Lead | In Progress — automated/static PASS; desktop manual NOT RUN |
+| 1 | **Phase 1 desktop foundation** — embedded window, human status, tray, auto sessions, hide manual Start, boot gate, onboarding, offline queue, ARCHITECTURE.md | Desktop / Frontend | **Done** — [`ARCHITECTURE.md`](ARCHITECTURE.md) |
+| 2 | **Installer smoke test** — fresh Windows VM: Setup.exe → sign in → Play → auto-log one match | QA Lead | **NOT RUN** |
+| 3 | **Complete release smoke** — [`REGRESSION-CHECKLIST-DESKTOP.md`](REGRESSION-CHECKLIST-DESKTOP.md) + `RELEASE-CHECKLIST.md` | QA Lead | Static **PASS** (89/89 `node --check`); manual **NOT RUN** |
 | 4 | **Phase 2 in-app settings** — no JSON / `.bat` for players | Frontend Lead | Planned |
 | 5 | **Ship v1.0.0** — tag, push, announce with **TwansUltimateTrackerSetup.exe** | Release Manager | Blocked on #2–#3 |
 

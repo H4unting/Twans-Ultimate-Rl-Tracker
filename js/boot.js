@@ -1,6 +1,8 @@
 /** App boot — load user data, repair chains, first-run rank setup */
 
-import { applyAppMode } from './env.js';
+import { applyAppMode, isDesktopHost, isLocalTrackerHost } from './env.js';
+import { isBridgeReachable } from './bridge-client.js';
+import { STATUS } from './status-copy.js';
 import { state, setGames, setSyncStatus, setGoals, setProfile, getActiveGames } from './state.js';
 import { loadUserData, saveSettings, saveGames } from './supabase.js';
 import { DEFAULT_FILTERS } from './filters.js';
@@ -55,6 +57,25 @@ function withTimeout(promise, ms, message = 'Timed out') {
   ]);
 }
 
+/** Desktop exe: keep loading overlay until local services respond (no login-before-ready flash). */
+async function waitForDesktopServices(maxMs = 30000) {
+  if (!isDesktopHost() || !isLocalTrackerHost()) return;
+
+  const label = document.querySelector('#loading-overlay span');
+  const prior = label?.textContent;
+  if (label) label.textContent = STATUS.starting;
+
+  const start = Date.now();
+  while (Date.now() - start < maxMs) {
+    if (isBridgeReachable()) {
+      if (label && prior) label.textContent = prior;
+      return;
+    }
+    await new Promise((r) => { setTimeout(r, 400); });
+  }
+  if (label && prior) label.textContent = prior;
+}
+
 function bootErrorMessage(msg) {
   if (msg.includes('PGRST') || msg.includes('game')) {
     return 'Database setup incomplete — run docs/supabase/v1-full-setup.sql in Supabase SQL Editor';
@@ -73,6 +94,8 @@ export async function bootApp() {
 
   showLoginScreen(false);
   showLoading(true);
+  ctx.ensureBridgeServices?.();
+  await waitForDesktopServices();
 
   try {
     const {

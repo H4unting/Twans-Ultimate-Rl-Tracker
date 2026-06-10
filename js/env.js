@@ -2,6 +2,11 @@
 
 import { LOCAL_TRACKER_URL, USER_SETUP_DOC_URL } from './config.js';
 
+/** Embedded Electron window (Twans Ultimate Tracker.exe) — not dev browser tab */
+export function isDesktopHost() {
+  return typeof navigator !== 'undefined' && /Electron/i.test(navigator.userAgent);
+}
+
 export function applyAppMode() {
   document.body.classList.remove('glance-mode', 'grind-mode');
   document.body.classList.add('app-unified');
@@ -28,6 +33,17 @@ export function isWrongLocalPort() {
 /** GitHub Pages / other HTTPS sites cannot talk to the local auto-log app */
 export function needsLocalTrackerForAutoLog() {
   return !isLocalTrackerHost();
+}
+
+/** Hide manual Start Session on desktop — process-session.js handles start/end */
+export function shouldHideManualSessionControls() {
+  if (!isDesktopHost() || !isLocalTrackerHost()) return false;
+  try {
+    const pref = JSON.parse(localStorage.getItem('rl-grind-auto-session') ?? '{"enabled":true}');
+    return pref.enabled !== false;
+  } catch {
+    return true;
+  }
 }
 
 export function getLocalTrackerUrl() {

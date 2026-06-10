@@ -239,7 +239,7 @@
   <div id="page-setup" class="page">
     <div class="log-page-header">
       <h2 class="page-heading">Auto Tracker Setup</h2>
-      <p class="page-desc">One-time setup on your PC — run Twans Auto-Log while playing for automatic stats.</p>
+      <p class="page-desc">One-time setup on your PC — keep Twans Ultimate Tracker running while you play for automatic stats.</p>
     </div>
     <div id="setup-wizard"></div>
   </div>
@@ -571,8 +571,8 @@
   setTimeout(() => {
     if (window.__appReady) return;
     const msg = !window.__appBootstrapped
-      ? 'Script failed to load — hard refresh (Ctrl+F5). If using Brave, allow scripts for localhost:8080.'
-      : 'Loading timed out — hard refresh (Ctrl+F5). If it keeps happening, check your internet or disable Brave Shields for localhost:8080.';
+      ? 'Script failed to load — hard refresh (Ctrl+F5). If using Brave, allow scripts for this app.'
+      : 'Loading timed out — hard refresh (Ctrl+F5). If it keeps happening, check your internet or disable Brave Shields for this app.';
     if (!window.__appBootstrapped || document.body.classList.contains('is-loading')) {
       showBootFailure(msg);
     }

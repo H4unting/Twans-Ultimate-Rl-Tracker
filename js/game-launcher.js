@@ -6,6 +6,7 @@ import { bridgeFetch, isBridgeUp } from './bridge-client.js';
 import { showToast } from './ui.js';
 import { startSession } from './sessions.js';
 import { DESKTOP_APP } from './config.js';
+import { STATUS } from './status-copy.js';
 
 let wired = false;
 
@@ -31,7 +32,7 @@ export async function launchGame(gameId = state.activeGame) {
     if (!state.session.active) startSession({ silent: true });
     return true;
   } catch {
-    showToast('Launch failed — is the bridge running?', 'error');
+    showToast(`${STATUS.connectionIssue} — reopen ${DESKTOP_APP.name} from the tray`, 'error');
     return false;
   }
 }

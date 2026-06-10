@@ -6,7 +6,7 @@ Twans Ultimate Tracker is a **premium Windows desktop app** (Discord / Steam tie
 
 Technical stack (hidden from players): Electron shell + embedded UI + local HTTP services + Supabase sync.
 
-Related: [`DESKTOP-APP-MISSION.md`](DESKTOP-APP-MISSION.md) (Phase 1 audit), [`ROADMAP.md`](ROADMAP.md) (priorities).
+Related: [`ARCHITECTURE.md`](ARCHITECTURE.md) (engineering source of truth), [`DESKTOP-APP-MISSION.md`](DESKTOP-APP-MISSION.md) (Phase 1 audit), [`ROADMAP.md`](ROADMAP.md) (priorities), [`REGRESSION-CHECKLIST-DESKTOP.md`](REGRESSION-CHECKLIST-DESKTOP.md) (smoke matrix).
 
 ---
 
@@ -82,7 +82,9 @@ flowchart TB
 | Play buttons + game launch | ✅ Exists | Dock + dashboard |
 | Auto session **start** on process | ✅ Exists | `process-session.js` |
 | Auto session **end** on process exit | ✅ Phase 1 | Wired to `sessions.js` |
-| Onboarding 5 steps | ✅ Phase 1 | Games → RL MMR → Val rank → Val RR |
+| Onboarding 4 steps (+ sign-in) | ✅ Phase 1 | Games → RL MMR → Val rank → Val RR |
+| Manual session hidden (desktop auto) | ✅ Product reset | `shouldHideManualSessionControls()` |
+| Boot gate (services before UI) | ✅ Product reset | `boot.js` `waitForDesktopServices()` |
 | Val RR promotion (≥100 carry) | ✅ Exists | `rank-ladder.js` `applyRRDelta` |
 | Val demotion (<0) | ✅ Exists | Tier demote + RR carry; Radiant → Immortal 3 |
 | Offline write queue | ✅ Minimal Phase 1 | `js/offline-queue.js` + supabase retry |
@@ -151,17 +153,21 @@ Technical detail (`localhost`, `8080`, `bridge`, `49200`) → **browser devtools
 
 ## Phased roadmap
 
-### Phase 1 — Desktop foundation (this session) ✅
+### Phase 1 — Desktop foundation ✅
 
 - Embedded `BrowserWindow` + tray minimize-on-close  
 - Human status across dock / banners  
-- Auto session end on game exit  
-- Stepped onboarding + baseline persist  
+- Auto session start/end on process  
+- Hide manual Start Session on Electron when auto-session on  
+- Boot gate — loading until bridge reachable on desktop  
+- Stepped onboarding (4 steps) + baseline persist  
 - Offline queue stub for Supabase  
 - NSIS installer artifact name  
 - `.bat` files marked developer-only  
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) + regression checklist  
 
-**Gate:** Friend installs exe → signs in → onboarding → Play → one auto-logged match without editing rank.
+**Gate:** Friend installs exe → signs in → onboarding → Play → one auto-logged match without editing rank.  
+**Status:** Code complete — installer VM smoke **NOT RUN** (see [`REGRESSION-CHECKLIST-DESKTOP.md`](REGRESSION-CHECKLIST-DESKTOP.md)).
 
 ### Phase 2 — In-app configuration
 
@@ -243,7 +249,7 @@ Outputs:
 | Onboarding | `js/onboarding-wizard.js` |
 | Sync | `js/offline-queue.js`, `js/supabase.js` |
 | Val ranks | `js/games/valorant/rank-ladder.js`, `rank-chain.js` (documented) |
-| Docs | `docs/DESKTOP-VISION.md`, `docs/ROADMAP.md`, `README.md` |
+| Docs | `docs/ARCHITECTURE.md`, `docs/DESKTOP-VISION.md`, `docs/ROADMAP.md`, `docs/REGRESSION-CHECKLIST-DESKTOP.md` |
 | Dev markers | Root `*.bat` headers |
 
 ---

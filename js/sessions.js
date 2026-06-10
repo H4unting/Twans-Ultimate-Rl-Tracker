@@ -16,7 +16,8 @@ import {
 import { isBridgeUp } from './bridge-client.js';
 import { getCachedValorantStatus } from './bridge-ui.js';
 import { DESKTOP_APP } from './config.js';
-import { STATUS } from './status-copy.js';
+import { STATUS, waitingForGameLabel } from './status-copy.js';
+import { shouldHideManualSessionControls } from './env.js';
 
 export { getLoggingSessionNum, getMaxSessionNum, getNextSessionNum };
 
@@ -413,19 +414,27 @@ export function updateSessionBar() {
         } else if (vs?.configured && !vs?.seeded && vs?.source !== 'overwolf') {
           stats.innerHTML = '<span class="slive-item neutral">Play one full match to finish setup, then auto-log works</span>';
         } else if (vs?.configured) {
-          stats.innerHTML = '<span class="slive-item neutral">Open Valorant — bridge is ready</span>';
+          stats.innerHTML = `<span class="slive-item neutral">${waitingForGameLabel(GAME_IDS.VALORANT)}</span>`;
         } else {
           stats.innerHTML = '<span class="slive-item neutral">Finish Auto-Log Setup (Riot ID + Henrik key)</span>';
         }
         }
+      } else if (shouldHideManualSessionControls()) {
+        stats.innerHTML = '<span class="slive-item neutral">Sessions start automatically when you play</span>';
       } else {
         stats.innerHTML = '<span class="slive-item neutral">Tap ▶ Start when ready</span>';
       }
     }
     if (startBtn) {
-      startBtn.className = 'session-btn start';
-      startBtn.textContent = copy.isVal ? '▶ Start Block' : '▶ Start';
-      startBtn.onclick = () => startSession();
+      if (shouldHideManualSessionControls()) {
+        startBtn.classList.add('hidden');
+        startBtn.onclick = null;
+      } else {
+        startBtn.classList.remove('hidden');
+        startBtn.className = 'session-btn start';
+        startBtn.textContent = copy.isVal ? '▶ Start Block' : '▶ Start';
+        startBtn.onclick = () => startSession();
+      }
     }
     return;
   }
@@ -451,8 +460,9 @@ export function updateSessionBar() {
       </div>`;
   }
   if (startBtn) {
+    startBtn.classList.remove('hidden');
     startBtn.className = 'session-btn end';
-    startBtn.textContent = '■ End';
+    startBtn.textContent = shouldHideManualSessionControls() ? '■ End early' : '■ End';
     startBtn.onclick = () => endSession();
   }
 }

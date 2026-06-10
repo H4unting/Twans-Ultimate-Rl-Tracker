@@ -1,6 +1,6 @@
 /** Supabase persistence — auth-scoped user data */
 
-import { SUPABASE_URL, SUPABASE_KEY, LEGAL_CONTACT } from './config.js';
+import { SUPABASE_URL, SUPABASE_KEY, LEGAL_CONTACT, DESKTOP_APP } from './config.js';
 import {
   normalizePlayerGames, normalizeGame, parseDisplayDate, formatDisplayDate,
 } from './utils.js';
@@ -36,7 +36,7 @@ export function formatApiError(e, fallback = 'Something went wrong') {
   try {
     const parsed = JSON.parse(raw);
     if (parsed?.message === 'invalid API key') {
-      return 'Database connection failed — app config may be outdated. Hard-refresh (Ctrl+F5) or use localhost:8080.';
+      return `Database connection failed — app config may be outdated. Hard-refresh (Ctrl+F5) or reopen ${DESKTOP_APP.name}.`;
     }
     if (parsed?.message) return parsed.message;
     if (parsed?.hint) return `${parsed.message || 'Error'}: ${parsed.hint}`;
@@ -44,7 +44,7 @@ export function formatApiError(e, fallback = 'Something went wrong') {
     /* plain text */
   }
   if (raw.includes('invalid API key')) {
-    return 'Database connection failed — hard-refresh (Ctrl+F5) or use localhost:8080.';
+    return `Database connection failed — hard-refresh (Ctrl+F5) or reopen ${DESKTOP_APP.name}.`;
   }
   return raw || fallback;
 }
