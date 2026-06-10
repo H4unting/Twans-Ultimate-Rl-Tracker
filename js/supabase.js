@@ -384,6 +384,8 @@ export async function saveSettings(settings, { fromQueue = false } = {}) {
     throw e;
   }
 }
+
+function buildProfilePatch(updates, extended) {
   const payload = {};
   if (updates.display_name != null) payload.display_name = updates.display_name;
   if (updates.avatar_url != null) payload.avatar_url = updates.avatar_url;

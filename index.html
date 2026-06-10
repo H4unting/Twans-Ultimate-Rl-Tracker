@@ -544,12 +544,19 @@
 <div class="toast" id="toast"></div>
 
 <script>
+  function friendlyBootMessage(raw) {
+    const message = String(raw || '');
+    if (/SyntaxError|Illegal return/i.test(message)) {
+      return 'The tracker could not load its scripts. Hard refresh (Ctrl+F5) or restart Twans Ultimate Tracker from the tray.';
+    }
+    return message || 'The tracker could not start. Hard refresh (Ctrl+F5) or check the browser console (F12).';
+  }
   function showBootFailure(message) {
     document.body.classList.remove('is-loading');
     document.getElementById('login-screen')?.classList.remove('hidden');
     const note = document.getElementById('boot-failure-note');
     if (note) {
-      note.textContent = message || 'The tracker could not start. Hard refresh (Ctrl+F5) or check the browser console (F12).';
+      note.textContent = friendlyBootMessage(message);
       note.classList.remove('hidden');
     }
   }
