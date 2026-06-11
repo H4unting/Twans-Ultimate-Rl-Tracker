@@ -35,7 +35,7 @@ import {
   bridgeFetch,
 } from './bridge-client.js';
 import { wireBridgeStatusClick, refreshBridgeStatusUI } from './bridge-ui.js';
-import { wireDiagnosticsPanel, renderDiagnosticsPanel } from './diagnostics-ui.js';
+import { wireDiagnosticsPanel } from './diagnostics-ui.js';
 import { wirePlayButtons } from './game-launcher.js';
 import { startProcessSessionWatcher, stopProcessSessionWatcher } from './process-session.js';
 import { initGameSwitcher, restoreActiveGameFromPrefs, applyGameShell, applyPageCopy, syncEditModal } from './game-ui.js';
@@ -808,7 +808,6 @@ function renderProfilePageContent() {
     onSave: handleProfileSave,
     onDeleteAccount: handleDeleteAccount,
   });
-  renderDiagnosticsPanel();
 }
 
 async function handleDeleteAccount() {

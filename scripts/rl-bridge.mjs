@@ -170,6 +170,15 @@ export function startBridge(options = {}) {
     pendingWinnerTeamNum = null;
   }
 
+  function resetRlAutoLogBaseline() {
+    lastMatch = null;
+    lastFinalizedGuid = null;
+    currentMatchGuid = null;
+    pendingWinnerTeamNum = null;
+    inMatch = false;
+    live = { goals: 0, assists: 0, saves: 0, score: 0 };
+  }
+
   function finalizeMatch(winnerTeamNum) {
     if (winnerTeamNum == null || playerTeamNum == null) return;
 
@@ -373,6 +382,13 @@ export function startBridge(options = {}) {
       if (urlPath === '/last-match') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(lastMatch));
+        return;
+      }
+
+      if (urlPath === '/rocket-league/reset-baseline' && req.method === 'POST') {
+        resetRlAutoLogBaseline();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true }));
         return;
       }
 

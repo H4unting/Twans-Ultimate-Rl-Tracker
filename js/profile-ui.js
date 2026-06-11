@@ -9,7 +9,6 @@ import { GAME_IDS, getGameMeta, getGameModule, filterGamesByTitle, getQueueLabel
 import { formatRankDisplay } from './games/valorant/rank-ladder.js';
 import { state } from './state.js';
 import { sanitizeImageUrl } from './core/dom-safe.js';
-import { mountProfileDiagnosticsSlot } from './diagnostics-ui.js';
 
 function escapeHtml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -243,8 +242,6 @@ export function renderProfilePage({
 
       <p class="section-title">${isVal ? 'Queue ranks' : 'Playlist ranks'}</p>
       <div class="profile-ranks-grid">${ranksHTML}</div>
-
-      ${mountProfileDiagnosticsSlot()}
 
       <div class="profile-danger-zone setup-danger-zone">
         <p class="section-title">Delete account</p>
