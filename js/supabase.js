@@ -17,6 +17,11 @@ import {
 
 /** Set from loadProfile — avoids PATCHing columns that are not in Supabase yet */
 let profileSchemaExtended = false;
+let sbRequestCount = 0;
+
+export function getSupabaseRequestCount() {
+  return sbRequestCount;
+}
 
 export function setProfileSchemaExtended(value) {
   profileSchemaExtended = Boolean(value);
@@ -57,6 +62,8 @@ function fetchTimeout(ms) {
 }
 
 async function sbFetch(path, method = 'GET', body = null, extra = {}) {
+  sbRequestCount += 1;
+  if (typeof window !== 'undefined') window.__SUPABASE_REQUEST_COUNT = sbRequestCount;
   const token = getAccessToken() ?? SUPABASE_KEY;
   const opts = {
     method,

@@ -4,7 +4,7 @@
 
 import { isDashboardPage, isDashboardIdle } from './dash-context.js';
 import { DESKTOP_APP, getDesktopLauncherBat } from './config.js';
-import { applyAppMode } from './env.js';
+import { applyAppMode, isDesktopHost } from './env.js';
 import { state, subscribe, setGames, setSyncStatus, setGoals, setProfile, getUserDisplay, getActiveGames, resetAppState } from './state.js';
 import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, sendPasswordReset, signOut, onAuthChange, getAuthUser, hasPendingAuthHash, clearAuthHashFromUrl } from './auth.js';
 import { saveSettings, createGroup, joinGroup, leaveGroup, loadUserGroups, saveProfile, uploadProfileAvatar, deleteOwnAccount } from './supabase.js';
@@ -514,6 +514,9 @@ function renderHomePage(options = {}) {
 }
 
 function renderAnalyticsPage() {
+  if (typeof window !== 'undefined') {
+    window.__REVIEW_RENDER_COUNT = (window.__REVIEW_RENDER_COUNT || 0) + 1;
+  }
   const filtered = getAnalyticsGames();
   const stats = cachedCalcStats(filtered, state.activeGame, calcStats);
   const display = getDisplay();
@@ -524,6 +527,7 @@ function renderAnalyticsPage() {
   void getAnalyticsModule().then(({ renderAnalytics }) => renderAnalytics(filtered));
 }
 
+// GUARDRAIL: Do not call renderAll() for match-save — use refreshAfterGameDataChange()
 function renderAll(scope = 'full') {
   insideRenderAll = true;
   try {
@@ -752,6 +756,9 @@ function renderSessionsPageContent() {
 }
 
 function renderReportsPageContent() {
+  if (typeof window !== 'undefined') {
+    window.__REVIEW_RENDER_COUNT = (window.__REVIEW_RENDER_COUNT || 0) + 1;
+  }
   return getReportsModule().then(({ renderReportsPage }) => {
     renderReportsPage(
       getActiveGames(),
@@ -770,12 +777,18 @@ function renderReportsPageContent() {
 }
 
 function renderFocusPageContent() {
+  if (typeof window !== 'undefined') {
+    window.__REVIEW_RENDER_COUNT = (window.__REVIEW_RENDER_COUNT || 0) + 1;
+  }
   return getFocusModule().then(({ renderFocusPage }) => {
     renderFocusPage(getActiveGames(), getActiveGoals(), getDisplay());
   });
 }
 
 async function renderGroupsPage(ctx) {
+  if (typeof window !== 'undefined') {
+    window.__SQUAD_RENDER_COUNT = (window.__SQUAD_RENDER_COUNT || 0) + 1;
+  }
   const { renderGroupsPage: render } = await getGroupsModule();
   return render(ctx);
 }
@@ -992,6 +1005,7 @@ async function submitGameLog(source = 'form') {
 
   if (btn) { btn.disabled = true; btn.dataset.label = btn.textContent; btn.textContent = '…'; }
 
+  const saveT0 = typeof performance !== 'undefined' ? performance.now() : 0;
   try {
     const payload = source === 'quick' || source === 'auto' ? getQuickLogPayload() : isVal ? {
       date: document.getElementById('f-date').value,
@@ -1041,6 +1055,9 @@ async function submitGameLog(source = 'form') {
       state.ui.autoLogNote = '';
       resetQuickAfterLog();
     });
+    if (saveT0 && typeof performance !== 'undefined' && typeof window !== 'undefined') {
+      window.__LAST_MATCH_SAVE_MS = Math.round(performance.now() - saveT0);
+    }
     dashRenderBypass = true;
     scheduleRefreshAfterGameDataChange();
     if (saved) {
@@ -1243,6 +1260,7 @@ function wireGoogleSignIn() {
 
 import { maybeEnableQaFromUrl, wireDevModeShortcut } from './qa/qa-gate.js';
 import { installGlobalErrorHandlers } from './core/error-log.js';
+import { initDevOverlay } from './dev-overlay.js';
 
 async function init() {
   const appT0 = typeof performance !== 'undefined' ? performance.now() : 0;
@@ -1261,7 +1279,9 @@ async function init() {
     });
     applyAppMode();
     if (appT0 && typeof performance !== 'undefined') {
-      console.info(`[boot +${Math.round(performance.now() - appT0)}ms] dom-ready`);
+      const ms = Math.round(performance.now() - appT0);
+      console.info(`[boot +${ms}ms] dom-ready`);
+      (window.__BOOT_MARKS ||= []).push({ phase: 'dom-ready', ms });
     }
     wireLoginScreen();
     if (hasPendingAuthHash()) {
@@ -1357,7 +1377,9 @@ async function init() {
     }
     ensureBridgeServices();
     if (appT0 && typeof performance !== 'undefined') {
-      console.info(`[boot +${Math.round(performance.now() - appT0)}ms] bridge-services-started`);
+      const ms = Math.round(performance.now() - appT0);
+      console.info(`[boot +${ms}ms] bridge-services-started`);
+      (window.__BOOT_MARKS ||= []).push({ phase: 'bridge-services-started', ms });
     }
     onAuthChange(async (session) => {
       if (session) {
@@ -1381,9 +1403,12 @@ async function init() {
 
     await withTimeout(initAuth(), 20000, 'Sign-in check timed out — refresh and try again');
     if (appT0 && typeof performance !== 'undefined') {
-      console.info(`[boot +${Math.round(performance.now() - appT0)}ms] auth-ready`);
+      const ms = Math.round(performance.now() - appT0);
+      console.info(`[boot +${ms}ms] auth-ready`);
+      (window.__BOOT_MARKS ||= []).push({ phase: 'auth-ready', ms });
     }
     window.__appReady = true;
+    initDevOverlay();
 
     if (getAuthUser()) {
       if (!getBootPromise()) {
