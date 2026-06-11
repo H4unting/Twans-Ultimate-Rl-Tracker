@@ -42,6 +42,9 @@ import { initGameSwitcher, restoreActiveGameFromPrefs, applyGameShell, applyPage
 import { renderSetupWizard, refreshSetupWizard, onBridgeStatusChange, renderLogSetupNudge } from './setup-wizard.js';
 import { rankBaselinesForSettings } from './rank-baselines.js';
 import {
+  registerTrackerLevelSettingsSaver, getTrackerLevelsForSettings, resetTrackerLevels,
+} from './tracker-level.js';
+import {
   wireBootContext, bootApp, getBootPromise, setBootPromise, isInitialBootDone, resetBootState,
 } from './boot.js';
 import { wireAutoLogHandlers, handleAutoLog, handleValorantAutoLog } from './auto-log-handlers.js';
@@ -347,6 +350,7 @@ async function refreshGroupsPage() {
 async function handleSignOut() {
   clearSessionTimer();
   await signOut();
+  resetTrackerLevels();
   resetAppState();
   if (groupsModule) groupsModule.resetGroupsUI();
   else (await getGroupsModule()).resetGroupsUI();
@@ -554,6 +558,8 @@ function refreshAfterGameDataChange() {
   } else if (page === 'log') {
     renderMatchLogs();
     wireLogTableActions();
+  } else if (page === 'profile') {
+    renderProfilePageContent();
   }
 
   refreshSessionUI({ quiet: true });
@@ -818,6 +824,7 @@ async function handleDeleteAccount() {
     /* session may already be invalid after server-side user delete */
   }
   clearSessionTimer();
+  resetTrackerLevels();
   resetAppState();
   resetGroupsUI();
   hideQuickDock();
@@ -841,6 +848,7 @@ function getSettingsPayload(overrides = {}) {
     primaryColor: state.profile?.primary_color ?? '',
     secondaryColor: state.profile?.secondary_color ?? '',
     ...rankBaselinesForSettings(),
+    ...getTrackerLevelsForSettings(),
     ...overrides,
   };
 }
@@ -1271,6 +1279,9 @@ async function init() {
   window.__appBootstrapped = true;
   installGlobalErrorHandlers();
   try {
+    registerTrackerLevelSettingsSaver(async () => {
+      await saveSettings(getSettingsPayload(getTrackerLevelsForSettings()));
+    });
     maybeEnableQaFromUrl();
     wireDevModeShortcut(() => {
       import('./qa/qa-panel.js').then(m => m.toggleQaPanel({

@@ -50,6 +50,7 @@ export const state = {
     currentResult: 'W',
   },
   goals: { ...INITIAL_GOALS },
+  trackerLevels: {},
   profileBio: '',
   reportsWeekOffset: 0,
   groups: [],
@@ -111,6 +112,7 @@ export function resetAppState() {
   state.profileBio = '';
   state.groups = [];
   state.goals = { ...INITIAL_GOALS };
+  state.trackerLevels = {};
   state.filters = {
     dateFrom: '', dateTo: '', playlist: 'all', session: '', tags: [], result: 'all',
   };

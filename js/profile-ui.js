@@ -9,6 +9,7 @@ import { GAME_IDS, getGameMeta, getGameModule, filterGamesByTitle, getQueueLabel
 import { formatRankDisplay } from './games/valorant/rank-ladder.js';
 import { state } from './state.js';
 import { sanitizeImageUrl } from './core/dom-safe.js';
+import { getDisplayTrackerLevel } from './tracker-level.js';
 
 function escapeHtml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -16,10 +17,6 @@ function escapeHtml(s) {
 
 function escapeAttr(s) {
   return String(s).replace(/"/g, '&quot;').replace(/</g, '&lt;');
-}
-
-function trackerLevel(totalGames) {
-  return Math.max(1, Math.min(999, Math.floor(totalGames / 10) + 1));
 }
 
 function formatMemberSinceShort(iso) {
@@ -88,7 +85,7 @@ export function renderProfilePage({
   const gameGames = filterGamesByTitle(games, gameId);
   const stats = calcStats(gameGames, gameId);
   const rows = getPlaylistMMRRows(gameGames, gameId);
-  const level = trackerLevel(stats.totalGames);
+  const level = getDisplayTrackerLevel(gameId, games);
   const rlName = getRlDisplayName() || '';
   const riotId = loadPrefs().riotId ?? '';
   const rankMod = getGameModule(gameId);

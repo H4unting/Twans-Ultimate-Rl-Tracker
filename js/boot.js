@@ -24,6 +24,9 @@ import { showToast, showLoading, showLoginScreen, renderAuthBar, showPage } from
 import { getAuthUser } from './auth.js';
 import { loadProfileCache, saveProfileCache } from './profile-cache.js';
 import { renderDashboardShell } from './home.js';
+import {
+  applyTrackerLevelsFromSettings, syncTrackerLevelsFromGames, getTrackerLevelsForSettings,
+} from './tracker-level.js';
 
 let bootPromise = null;
 let initialBootDone = false;
@@ -173,7 +176,7 @@ export async function bootApp() {
     const {
       profile, games, goals, groups, bio, rlDisplayName,
       primaryColor, secondaryColor, activeGame, riotId, riotRegion,
-      rankBaselines, rankBaselinesComplete,
+      rankBaselines, rankBaselinesComplete, trackerLevels,
     } = userData;
 
     setProfile({
@@ -207,6 +210,11 @@ export async function bootApp() {
     }
     setGames(allGames);
     markBoot('hydrate-state');
+
+    applyTrackerLevelsFromSettings(trackerLevels);
+    if (syncTrackerLevelsFromGames(allGames)) {
+      await saveSettings(ctx.getSettingsPayload(getTrackerLevelsForSettings()));
+    }
 
     applyRankBaselinesFromSettings({ rankBaselines, rankBaselinesComplete });
     if (allGames.length > 0 && !rankBaselinesComplete) {

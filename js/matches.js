@@ -9,6 +9,7 @@ import { getRankDiff, GAME_IDS } from './games.js';
 import { getGameModule } from './games/registry.js';
 import { getActiveGameModule } from './games/router.js';
 import { getStoredRankBaseline } from './rank-baseline-store.js';
+import { maybeBumpTrackerLevel } from './tracker-level.js';
 
 function notifySessionUIRefresh() {
   // Quiet: match-save callers run refreshAfterGameDataChange (coalesced targeted refresh).
@@ -49,6 +50,7 @@ export async function addGame(formData, selectedTags, onSuccess) {
   const game = mod.buildGameFromForm(formData, games, selectedTags);
   games.push(game);
   await persistActiveGames(games);
+  void maybeBumpTrackerLevel(state.activeGame, state.games);
   const diff = getRankDiff(game, state.activeGame);
   showToast(`${mod.META.matchSingularCap} logged! ${diff >= 0 ? '+' : ''}${diff} ${mod.META.diffLabel}`);
   notifySessionUIRefresh();
