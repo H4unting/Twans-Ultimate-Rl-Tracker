@@ -20,6 +20,7 @@ import { routeActiveGame } from './games/router.js';
 import { DEFAULT_FILTERS } from './filters.js';
 import { resetQuickFilter } from './match-logs-ui.js';
 import { invalidateHomeMmrCache } from './home.js';
+import { getGameIcon } from './nav-icons.js';
 
 let onGameChange = null;
 let getSettingsPayloadFn = null;
@@ -81,7 +82,7 @@ function renderGameSwitcher() {
   const html = Object.values(GAMES).map(g => `
     <button type="button" class="game-switch-btn${state.activeGame === g.id ? ' active' : ''}"
       data-game="${g.id}" aria-pressed="${state.activeGame === g.id}">
-      <span class="game-switch-emoji">${g.emoji}</span>
+      <span class="game-switch-icon" aria-hidden="true">${getGameIcon(g.id)}</span>
       <span class="game-switch-label">${g.shortLabel}</span>
     </button>
   `).join('');

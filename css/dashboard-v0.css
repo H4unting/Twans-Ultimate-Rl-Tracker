@@ -182,6 +182,23 @@ body:not(.logged-out) .game-switch-btn.active::before {
   vertical-align: middle;
 }
 
+body:not(.logged-out) .game-switch-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: inherit;
+  opacity: 0.85;
+}
+
+body:not(.logged-out) .game-switch-btn.active .game-switch-icon { opacity: 1; }
+
+body:not(.logged-out) .game-switch-icon svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
 .v0-topbar-actions { margin-left: auto; }
 
 /* ── Sidebar ── */

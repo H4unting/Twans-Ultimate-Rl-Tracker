@@ -12,8 +12,18 @@ const ICONS = {
   default: `<svg ${SVG}><circle cx="12" cy="12" r="1"/></svg>`,
 };
 
+/** RL / Val game switcher — Lucide-style, currentColor */
+const GAME_ICONS = {
+  rocket_league: `<svg ${SVG}><path d="M5 17h14"/><path d="M17 17h2v-6l-2-5H7l-2 5v6h2"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="16.5" cy="17.5" r="2.5"/></svg>`,
+  valorant: `<svg ${SVG}><circle cx="12" cy="12" r="10"/><line x1="22" x2="18" y1="12" y2="12"/><line x1="6" x2="2" y1="12" y2="12"/><line x1="12" x2="12" y1="6" y2="2"/><line x1="12" x2="12" y1="22" y2="18"/></svg>`,
+};
+
 export function getNavIcon(id) {
   return ICONS[id] ?? ICONS.default;
+}
+
+export function getGameIcon(gameId) {
+  return GAME_ICONS[gameId] ?? ICONS.default;
 }
 
 export function syncMobileNavIcons() {
