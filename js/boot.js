@@ -1,7 +1,7 @@
 /** App boot — load user data, repair chains, first-run rank setup */
 
 import { applyAppMode, isDesktopHost, isLocalTrackerHost } from './env.js';
-import { isBridgeReachable, endBridgeStartupPhase } from './bridge-client.js';
+import { isBridgeReachable } from './bridge-client.js';
 import { STATUS } from './status-copy.js';
 import { state, setGames, setSyncStatus, setGoals, setProfile, getActiveGames } from './state.js';
 import { loadUserData, saveSettings, saveGames } from './supabase.js';
@@ -271,7 +271,6 @@ export async function bootApp() {
   } finally {
     showLoading(false);
     initialBootDone = true;
-    endBridgeStartupPhase();
     markBoot('boot-finished');
   }
 }

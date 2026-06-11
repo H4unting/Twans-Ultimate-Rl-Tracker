@@ -36,6 +36,7 @@ let wasEverOnline = false;
 let reconnecting = false;
 let inStartupPhase = true;
 let startupPhaseTimer = null;
+let lastBridgeStatusSig = '';
 
 export function endBridgeStartupPhase() {
   inStartupPhase = false;
@@ -43,6 +44,10 @@ export function endBridgeStartupPhase() {
     clearTimeout(startupPhaseTimer);
     startupPhaseTimer = null;
   }
+}
+
+export function isBridgeInStartupPhase() {
+  return inStartupPhase;
 }
 
 /** @typedef {'connecting'|'tracking'|'waiting'|'error'} BridgeStatusPhase */
@@ -172,16 +177,39 @@ export function isBridgeReconnecting() {
 /** High-level status for UI pills — Tracking / Waiting / Error / Reconnecting */
 export function getBridgeStatusPhase() {
   if (reconnecting) return 'reconnecting';
-  if (!bridgeProbeDone && (isOnTrackerPort() || window.location.hostname === 'localhost')) {
-    return 'connecting';
-  }
+  const local = isOnTrackerPort();
+  if (inStartupPhase && local) return 'connecting';
+  if (!bridgeProbeDone && local) return 'connecting';
   if (!isBridgeReachable()) {
+    if (local && connectAttempts <= 5) return 'connecting';
     return 'error';
   }
   if (!bridgeOnline) {
     return connectAttempts > 3 ? 'error' : 'connecting';
   }
   return 'waiting';
+}
+
+/** Stable signature for bridge /status JSON — skip UI work when unchanged. */
+export function bridgeStatusSig(json) {
+  if (!json || typeof json !== 'object') return '';
+  return [
+    json.inMatch ? 1 : 0,
+    json.version ?? '',
+    json.bridgeVersion ?? '',
+    json.valorantRunning ? 1 : 0,
+  ].join(':');
+}
+
+export function noteBridgeStatus(json) {
+  const sig = bridgeStatusSig(json);
+  const changed = sig !== lastBridgeStatusSig;
+  lastBridgeStatusSig = sig;
+  return changed;
+}
+
+export function resetBridgeStatusSig() {
+  lastBridgeStatusSig = '';
 }
 
 async function pingBridgeOnce() {
@@ -203,6 +231,7 @@ async function pingBridgeOnce() {
   }
   const json = await res.json();
   if (json.authToken) bridgeAuthToken = json.authToken;
+  noteBridgeStatus(json);
   lastBridgeFailure = null;
   bridgeProcessOnDirectPort = false;
   return json;
@@ -308,6 +337,7 @@ export function stopBridgeHeartbeat() {
   lastReachableEmitted = false;
   reconnecting = false;
   wasEverOnline = false;
+  resetBridgeStatusSig();
   setBridgeOnline(false);
   emitReachableIfChanged();
 }

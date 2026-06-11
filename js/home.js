@@ -9,19 +9,27 @@ import { getTagLossCorrelations } from './insights.js';
 import { getActionFocusTips, getGameMeta, GAME_IDS, getTagCat, getRankDiff, getQueueLabel } from './games.js';
 import { formatRankDisplay } from './games/valorant/rank-ladder.js';
 import { formatRRDelta } from './games/valorant/ranks.js';
-import { state } from './state.js';
+import { state, getActiveGames } from './state.js';
+import { getActiveGoals } from './goals.js';
 import { getGamesVersion } from './perf-cache.js';
 import { launchGame } from './game-launcher.js';
 import { shouldHideManualSessionControls } from './env.js';
 import { getLoggingSessionNum } from './core/logging-session.js';
 import { weekRankGain } from './goals.js';
 import { rankIndex, RANK_LADDER } from './games/valorant/rank-ladder.js';
+import { isDashboardIdle } from './dash-context.js';
 
 const DASH_PERF = typeof window !== 'undefined'
   && (window.__DASH_PERF || localStorage?.getItem('dash-perf') === '1');
 
 let mmrRowsRenderKey = '';
 let mmrRowsRenderCache = null;
+let mmrRowsGamesRef = null;
+
+const DASH_RENDER_HARD_MS = 500;
+let lastHomeRenderExec = 0;
+let homeRenderQueued = null;
+let homeRenderQueuedOpts = null;
 
 function gamesTailKey(games) {
   if (!games?.length) return '0';
@@ -32,13 +40,18 @@ function gamesTailKey(games) {
 function resetMmrRowsRenderCache() {
   mmrRowsRenderKey = '';
   mmrRowsRenderCache = null;
+  mmrRowsGamesRef = null;
 }
 
 function getCachedPlaylistMMRRows(games, gameId) {
+  if (games === mmrRowsGamesRef && mmrRowsRenderCache && mmrRowsRenderKey.startsWith(`${getGamesVersion()}|${gameId}|`)) {
+    return mmrRowsRenderCache;
+  }
   const key = `${getGamesVersion()}|${gameId}|${gamesTailKey(games)}`;
   if (mmrRowsRenderKey === key && mmrRowsRenderCache) return mmrRowsRenderCache;
   mmrRowsRenderCache = getPlaylistMMRRows(games, gameId);
   mmrRowsRenderKey = key;
+  mmrRowsGamesRef = games;
   return mmrRowsRenderCache;
 }
 
@@ -69,6 +82,13 @@ function wireHomeLinksOnce() {
   if (homeLinksWired) return;
   homeLinksWired = true;
   document.getElementById('page-dashboard')?.addEventListener('click', (e) => {
+    const modeBtn = e.target.closest('[data-home-mode]');
+    if (modeBtn) {
+      state.homeChartMode = modeBtn.dataset.homeMode;
+      window.__allowImmediateDashRender?.();
+      window.__refreshHome?.();
+      return;
+    }
     const link = e.target.closest('[data-goto], .home-link[data-goto]');
     if (!link) return;
     e.preventDefault();
@@ -82,13 +102,8 @@ function wireHomeLinks(el) {
   wireHomeLinksOnce();
 }
 
-function wireQueuePicker(container, games) {
-  container.querySelectorAll('[data-home-mode]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      state.homeChartMode = btn.dataset.homeMode;
-      window.__refreshHome?.();
-    });
-  });
+function wireQueuePicker(_container, _games) {
+  /* queue clicks delegated on #page-dashboard — see wireHomeLinksOnce */
 }
 
 function wireQuickActions(container) {
@@ -991,10 +1006,17 @@ function updateDashPerfModeLabel(mode) {
 }
 
 let homeDeferredIdleId = null;
+const FOCUS_IDLE_MIN_MS = 30000;
+let lastFocusIdleRender = 0;
 
 function runHomeDeferred(games, goals, allRows, chartMode, chartGames) {
   homeDeferredIdleId = null;
-  renderHomeFocus(games);
+  const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  const focusDue = !isDashboardIdle() || now - lastFocusIdleRender >= FOCUS_IDLE_MIN_MS;
+  if (focusDue) {
+    renderHomeFocus(games);
+    if (isDashboardIdle()) lastFocusIdleRender = now;
+  }
   updateDashPerfModeLabel(chartMode);
   renderDashPerfStats(chartGames);
   renderHomeActivity(games);
@@ -1010,10 +1032,42 @@ function scheduleHomeDeferred(games, goals, allRows, chartMode, chartGames) {
   }
 }
 
-/** @param {{ criticalOnly?: boolean, skipDeferred?: boolean }} [opts] */
-export function renderHome(games, goals, opts = {}) {
-  const t0 = DASH_PERF ? performance.now() : 0;
+/** Invalidate MMR row cache — call on game switch or explicit data reset only. */
+export function invalidateHomeMmrCache() {
   resetMmrRowsRenderCache();
+}
+
+function flushQueuedHomeRender() {
+  if (!homeRenderQueuedOpts) return;
+  const queued = { ...homeRenderQueuedOpts, force: true };
+  homeRenderQueuedOpts = null;
+  renderHome(getActiveGames(), getActiveGoals(), queued);
+}
+
+/** @param {{ criticalOnly?: boolean, skipDeferred?: boolean, force?: boolean }} [opts] */
+export function renderHome(games, goals, opts = {}) {
+  const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  if (!opts.force && now - lastHomeRenderExec < DASH_RENDER_HARD_MS) {
+    homeRenderQueuedOpts = opts;
+    if (!homeRenderQueued) {
+      homeRenderQueued = setTimeout(() => {
+        homeRenderQueued = null;
+        flushQueuedHomeRender();
+      }, DASH_RENDER_HARD_MS - (now - lastHomeRenderExec));
+    }
+    return;
+  }
+  if (homeRenderQueued) {
+    clearTimeout(homeRenderQueued);
+    homeRenderQueued = null;
+    homeRenderQueuedOpts = null;
+  }
+
+  const t0 = DASH_PERF ? performance.now() : 0;
+  lastHomeRenderExec = now;
+  if (typeof window !== 'undefined') {
+    window.__DASH_RENDER_COUNT = (window.__DASH_RENDER_COUNT || 0) + 1;
+  }
   wireHomeLinksOnce();
   const allRows = getCachedPlaylistMMRRows(games, state.activeGame);
   const isVal = state.activeGame === GAME_IDS.VALORANT;

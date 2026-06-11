@@ -5,7 +5,7 @@ import { loadPrefs, savePrefs, isAutoLogEnabled } from './quicklog.js';
 import { isDashboardIdle } from './dash-context.js';
 import { state } from './state.js';
 import { GAME_IDS } from './games.js';
-import { isBridgeUp, getBridgeUrl, fetchBridgeStatus, bridgeFetch } from './bridge-client.js';
+import { isBridgeUp, getBridgeUrl, fetchBridgeStatus, bridgeFetch, bridgeStatusSig, noteBridgeStatus } from './bridge-client.js';
 import { setCachedRlInMatch, refreshBridgeStatusUI } from './bridge-ui.js';
 import { DESKTOP_APP } from './config.js';
 
@@ -19,23 +19,54 @@ let wasBridgeUp = false;
 let lastAppliedEnd = 0;
 let autoLogInFlight = false;
 let onVisibilityChange = null;
+let dashEventWired = false;
+let lastRlBridgeSig = '';
 
 const callbacks = { onMatchStats: null, onStatusChange: null, onAutoLog: null };
 
+function shouldPeriodicPoll() {
+  if (document.visibilityState === 'hidden') return false;
+  if (isDashboardIdle()) return false;
+  return true;
+}
+
 function getPollIntervalMs() {
-  if (document.visibilityState === 'hidden') return POLL_HIDDEN_MS;
   if (state.activeGame !== GAME_IDS.ROCKET_LEAGUE) return POLL_IDLE_MS;
-  if (isDashboardIdle()) return POLL_DASH_IDLE_MS;
   if (!isBridgeUp()) return POLL_IDLE_MS;
   return POLL_ACTIVE_MS;
 }
 
 function schedulePoll() {
   if (pollTimer) clearTimeout(pollTimer);
+  if (!shouldPeriodicPoll()) {
+    pollTimer = null;
+    return;
+  }
   pollTimer = setTimeout(async () => {
     await pollBridge();
     if (pollTimer !== null) schedulePoll();
   }, getPollIntervalMs());
+}
+
+function wireDashIdleResume() {
+  if (dashEventWired) return;
+  dashEventWired = true;
+  const onDashEvent = () => {
+    void pollBridge({ forceUi: true });
+    schedulePoll();
+  };
+  document.addEventListener('tracker-data-changed', onDashEvent);
+  document.addEventListener('rl-session-start', onDashEvent);
+  document.addEventListener('rl-session-ui-refresh', onDashEvent);
+}
+
+function refreshRlBridgeUI(status, { force = false } = {}) {
+  const sig = status ? bridgeStatusSig(status) : 'offline';
+  if (!force && sig === lastRlBridgeSig && state.activeGame === GAME_IDS.ROCKET_LEAGUE) return;
+  lastRlBridgeSig = sig;
+  if (status) noteBridgeStatus(status);
+  setCachedRlInMatch(Boolean(status?.inMatch));
+  refreshBridgeStatusUI();
 }
 
 function stopPolling() {
@@ -48,6 +79,7 @@ export function initRlLive(onMatchStats, onStatusChange, onAutoLog) {
   callbacks.onStatusChange = onStatusChange;
   callbacks.onAutoLog = onAutoLog;
   stopRlLive();
+  wireDashIdleResume();
   schedulePoll();
   void pollBridge();
   onVisibilityChange = () => {
@@ -56,7 +88,7 @@ export function initRlLive(onMatchStats, onStatusChange, onAutoLog) {
       return;
     }
     schedulePoll();
-    void pollBridge();
+    void pollBridge({ forceUi: true });
   };
   document.addEventListener('visibilitychange', onVisibilityChange);
 }
@@ -71,7 +103,7 @@ export function stopRlLive() {
   refreshBridgeStatusUI();
 }
 
-async function pollBridge() {
+async function pollBridge({ forceUi = false } = {}) {
   const online = isBridgeUp();
 
   if (online !== wasBridgeUp) {
@@ -83,26 +115,23 @@ async function pollBridge() {
   }
 
   if (state.activeGame !== GAME_IDS.ROCKET_LEAGUE) {
-    refreshBridgeStatusUI();
+    refreshRlBridgeUI(null, { force: forceUi });
     return;
   }
 
   if (!online) {
-    setCachedRlInMatch(false);
-    refreshBridgeStatusUI();
+    refreshRlBridgeUI(null, { force: forceUi || !lastRlBridgeSig });
     return;
   }
 
   try {
     const status = await fetchBridgeStatus();
     if (!status) {
-      setCachedRlInMatch(false);
-      refreshBridgeStatusUI();
+      refreshRlBridgeUI(null, { force: forceUi || !lastRlBridgeSig });
       return;
     }
 
-    setCachedRlInMatch(status.inMatch);
-    refreshBridgeStatusUI();
+    refreshRlBridgeUI(status, { force: forceUi });
 
     const lastRes = await fetch(`${getBridgeUrl()}/last-match`, { signal: AbortSignal.timeout(3000) });
     const last = await lastRes.json();
@@ -139,7 +168,7 @@ async function pollBridge() {
 }
 
 export function refreshLiveStatus() {
-  refreshBridgeStatusUI();
+  void pollBridge({ forceUi: true });
 }
 
 export { isBridgeUp };

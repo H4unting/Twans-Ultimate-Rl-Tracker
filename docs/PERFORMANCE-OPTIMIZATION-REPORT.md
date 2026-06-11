@@ -241,6 +241,62 @@ node --check tools/launcher/src/main.cjs
 
 ---
 
+## Lag fix pass 2 (2026-06-10)
+
+Urgent follow-up after user-reported dashboard lag persisting post-sprint.
+
+### Root cause (confirmed)
+
+| Issue | File:line | Impact |
+|-------|-----------|--------|
+| **`resetMmrRowsRenderCache()` still called at top of every `renderHome`** | `js/home.js:1016` (was) | Defeated `getCachedPlaylistMMRRows` — full `getPlaylistMMRRows` recompute on every `renderAll('core')` / session widget refresh |
+| **No render storm throttle beyond rAF** | `js/app.js:527` | Bursts within 500ms still stacked hero + chart + deferred sections |
+| **RL/Valorant polls continued on idle dashboard** | `js/rl-live.js`, `js/valorant-live.js` | ~0.12–0.2 fetches/s + `refreshBridgeStatusUI` DOM churn while browsing dashboard with no session |
+| **Chart.js animations enabled** | `js/charts.js:68` | Layout/animation cost on every chart patch |
+| **Per-rebuild queue picker listeners** | `js/home.js:85` | Duplicate click handlers when hero innerHTML rebuilt |
+
+### Fixes applied
+
+| # | Change |
+|---|--------|
+| 1 | Removed per-render MMR cache reset; `invalidateHomeMmrCache()` only on game switch |
+| 2 | `scheduleRenderAll` + `renderHomePage`: max **1 dashboard render / 500ms** unless user action (`dashRenderBypass`) |
+| 3 | Chart.js: `animation: false`, `responsiveAnimationDuration: 0`, `pointRadius: 2` |
+| 4 | Idle dashboard: **zero periodic RL/Valorant polls**; one-shot refresh on `tracker-data-changed`, `rl-session-start`, `rl-session-ui-refresh` |
+| 5 | Bridge status sig (`bridgeStatusSig`) — skip redundant status pill DOM when JSON unchanged |
+| 6 | `renderHomeFocus` throttled to **30s** when `isDashboardIdle()` |
+| 7 | Queue picker clicks delegated on `#page-dashboard` (no duplicate listeners) |
+| 8 | `content-visibility: auto` on below-fold dashboard sections |
+| 9 | Charts skipped on idle dashboard unless chart data sig changed |
+| 10 | Dev counter: `window.__DASH_RENDER_COUNT` incremented in `renderHome` |
+
+### Dev instrumentation
+
+In DevTools console while on dashboard:
+
+```js
+window.__DASH_RENDER_COUNT   // total renderHome invocations since load
+```
+
+Watch while idle 30s — count should stay flat (was climbing every poll/tick). After logging a match, count should bump once (user-action bypass).
+
+### Expected improvement
+
+| Scenario | Before pass 2 | After pass 2 |
+|----------|---------------|--------------|
+| Idle dashboard 30s | 15–40 `renderHome` calls | **0–2** |
+| Active session tick | Full MMR recompute + deferred sections | Cached MMR + timer text patch only |
+| Chart refresh | Animated relayout | Instant `update('none')` |
+| Bridge idle polls | 8s interval + UI refresh | **0 polls** until match/session event |
+
+### Verification
+
+```text
+node --check js/home.js js/app.js js/charts.js js/bridge-client.js js/rl-live.js js/valorant-live.js js/game-ui.js
+```
+
+---
+
 ## Remaining bottlenecks (Phase 2)
 
 | Item | File | Impact | Effort |

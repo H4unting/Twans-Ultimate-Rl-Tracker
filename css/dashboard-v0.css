@@ -279,6 +279,14 @@ body:not(.logged-out) .top-bar > .review-sub-nav:not(.v0-sidebar-sub) { display:
 /* ── Dashboard page ── */
 .dash-page { padding-top: 8px !important; }
 
+/* backdrop-filter on many cards forces full-viewport repaints — disable on dashboard */
+#page-dashboard .v0-glass,
+#page-dashboard .dash-stat-card,
+#page-dashboard .dash-hero {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
 .dash-hero,
 .dash-priority-row,
 .dash-grid,
@@ -286,6 +294,16 @@ body:not(.logged-out) .top-bar > .review-sub-nav:not(.v0-sidebar-sub) { display:
 .dash-col-side,
 .dash-section {
   contain: content;
+}
+
+/* Below-fold sections skip paint until near viewport */
+#dash-rank-progress,
+#dash-session-panel,
+#home-focus,
+#dash-performance,
+#dash-activity {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 280px;
 }
 
 .dash-hero {

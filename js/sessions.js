@@ -88,7 +88,23 @@ export function getSessionDurationMs(sessionNum) {
   return entry?.durationMs ?? null;
 }
 
+const SESSION_TICK_MS = 1000;
+let globalSessionTickId = null;
+
+function startGlobalSessionTick() {
+  if (globalSessionTickId) return;
+  globalSessionTickId = setInterval(tickSessionTimer, SESSION_TICK_MS);
+}
+
+function stopGlobalSessionTick() {
+  if (globalSessionTickId) {
+    clearInterval(globalSessionTickId);
+    globalSessionTickId = null;
+  }
+}
+
 function clearSessionTimer() {
+  stopGlobalSessionTick();
   if (state.session.timerId) {
     clearInterval(state.session.timerId);
     state.session.timerId = null;
@@ -132,8 +148,10 @@ function activateSession(sessionNum, { startTime = Date.now(), startMMR = null, 
     startTime,
     startMMR: startMMR ?? (activeGames.length ? getRankValue(activeGames[activeGames.length - 1], state.activeGame) : null),
     sessionNum,
-    timerId: setInterval(tickSessionTimer, 1000),
+    timerId: null,
   };
+
+  startGlobalSessionTick();
 
   syncSessionField(sessionNum);
   const prev = loadStoredSession();
@@ -266,10 +284,7 @@ export function endSession(onCompleteOrOptions, maybeOnComplete) {
       showToast(`No ${copy.matchLabel} in this ${copy.blockLabel.toLowerCase()} yet`, 'error');
       return;
     }
-    if (state.session.timerId) {
-      clearInterval(state.session.timerId);
-      state.session.timerId = null;
-    }
+    clearSessionTimer();
     const nextSession = sessionNum + 1;
     state.session.active = false;
     state.session.startTime = null;
@@ -298,10 +313,7 @@ export function endSession(onCompleteOrOptions, maybeOnComplete) {
   const mmrGain = sumSessionRankDiff(sg);
   const wr = sg.length ? Math.round(wins / sg.length * 100) : 0;
 
-  if (state.session.timerId) {
-    clearInterval(state.session.timerId);
-    state.session.timerId = null;
-  }
+  clearSessionTimer();
 
   const nextSession = sessionNum + 1;
   state.session.active = false;
@@ -381,6 +393,84 @@ function renderRankConfirmBadge() {
   return `<span class="session-mmr-badge" title="Last ${label} not confirmed">${label}?</span>`;
 }
 
+function liveSessionBarSig(live, copy) {
+  const tilt = detectTilt(live.sessionGames, 6);
+  const needsMmr = lastGameNeedsMmrConfirm(getActiveGames()) ? 1 : 0;
+  return [
+    live.sessionNum, live.games, live.wins, live.losses, live.mmrGain,
+    tilt.active ? tilt.lossStreak : 0, needsMmr, copy.isVal ? 1 : 0, copy.rankLabel,
+  ].join(':');
+}
+
+function patchLiveSessionBar(stats, live, copy) {
+  const wlClass = live.wins > live.losses ? 'pos' : live.losses > live.wins ? 'neg' : 'neutral';
+  const tilt = detectTilt(live.sessionGames, 6);
+  let nudge = stats.querySelector('.session-tilt-nudge');
+  if (tilt.active && tilt.lossStreak >= 3) {
+    const html = `💀 ${tilt.lossStreak} losses in a row — take 5 min, review tags, then queue again.`;
+    if (nudge) nudge.textContent = html;
+    else {
+      nudge = document.createElement('div');
+      nudge.className = 'session-tilt-nudge';
+      nudge.setAttribute('role', 'status');
+      nudge.textContent = html;
+      stats.prepend(nudge);
+    }
+  } else if (nudge) {
+    nudge.remove();
+  }
+
+  let metrics = stats.querySelector('.session-live-metrics');
+  if (!metrics) return false;
+
+  const timerEl = metrics.querySelector('#session-timer');
+  const gameIcon = copy.isVal ? '◆' : '🎮';
+  const items = metrics.querySelectorAll('.slive-item');
+  if (items[1]) {
+    items[1].className = 'slive-item neutral';
+    const slv = items[1].querySelector('.slv');
+    if (slv) slv.textContent = `${live.games} ${copy.matchLabel}`;
+    const iconNode = items[1].childNodes[0];
+    if (iconNode?.nodeType === Node.TEXT_NODE) {
+      items[1].childNodes[0].textContent = `${gameIcon} `;
+    }
+  }
+  if (items[2]) {
+    items[2].className = `slive-item ${wlClass}`;
+    const slv = items[2].querySelector('.slv');
+    if (slv) slv.textContent = `${live.wins}/${live.losses}`;
+  }
+  if (items[3]) {
+    items[3].className = `slive-item ${live.mmrGain >= 0 ? 'pos' : 'neg'}`;
+    const slv = items[3].querySelector('.slv');
+    if (slv) slv.textContent = `${live.mmrGain >= 0 ? '+' : ''}${live.mmrGain}`;
+    const labelPrefix = items[3].childNodes[0];
+    if (labelPrefix?.nodeType === Node.TEXT_NODE) {
+      labelPrefix.textContent = `${copy.rankLabel}: `;
+    }
+  }
+
+  let badge = metrics.querySelector('.session-mmr-badge');
+  if (lastGameNeedsMmrConfirm(getActiveGames())) {
+    const label = getGameMeta(state.activeGame).rankLabel;
+    if (badge) badge.title = `Last ${label} not confirmed`;
+    else {
+      badge = document.createElement('span');
+      badge.className = 'session-mmr-badge';
+      badge.title = `Last ${label} not confirmed`;
+      badge.textContent = `${label}?`;
+      metrics.appendChild(badge);
+    }
+  } else if (badge) {
+    badge.remove();
+  }
+
+  if (timerEl && state.session.startTime) {
+    timerEl.textContent = formatDuration(Date.now() - state.session.startTime);
+  }
+  return true;
+}
+
 export function updateSessionBar() {
   const bar = document.getElementById('session-bar');
   const dot = document.getElementById('session-live-dot');
@@ -394,6 +484,11 @@ export function updateSessionBar() {
   if (numLabel) numLabel.textContent = `${copy.blockLabel} #`;
 
   if (!state.session.active) {
+    const statsEl = document.getElementById('session-live-stats');
+    if (statsEl) {
+      statsEl.dataset.liveWired = '';
+      statsEl.dataset.liveSig = '';
+    }
     bar.classList.remove('active');
     dot?.classList.remove('active');
     document.querySelector('.quick-dock-inner')?.classList.remove('session-live');
@@ -443,6 +538,7 @@ export function updateSessionBar() {
 
   const live = getLiveSessionStats();
   const elapsed = Date.now() - state.session.startTime;
+  const liveSig = liveSessionBarSig(live, copy);
 
   bar.classList.add('active');
   dot?.classList.add('active');
@@ -450,16 +546,22 @@ export function updateSessionBar() {
   title?.classList.add('active');
   if (title) title.textContent = `${copy.blockLabel} ${live.sessionNum} — Live`;
   if (stats) {
-    const wlClass = live.wins > live.losses ? 'pos' : live.losses > live.wins ? 'neg' : 'neutral';
-    stats.innerHTML = `
-      ${renderTiltNudge(live.sessionGames)}
-      <div class="session-live-metrics">
-        <span class="slive-item time">⏱ <span class="slv" id="session-timer">${formatDuration(elapsed)}</span></span>
-        <span class="slive-item neutral">${copy.isVal ? '◆' : '🎮'} <span class="slv">${live.games} ${copy.matchLabel}</span></span>
-        <span class="slive-item ${wlClass}">W/L: <span class="slv">${live.wins}/${live.losses}</span></span>
-        <span class="slive-item ${live.mmrGain >= 0 ? 'pos' : 'neg'}">${copy.rankLabel}: <span class="slv">${live.mmrGain >= 0 ? '+' : ''}${live.mmrGain}</span></span>
-        ${renderRankConfirmBadge()}
-      </div>`;
+    if (stats.dataset.liveSig === liveSig && stats.dataset.liveWired === '1') {
+      patchLiveSessionBar(stats, live, copy);
+    } else {
+      const wlClass = live.wins > live.losses ? 'pos' : live.losses > live.wins ? 'neg' : 'neutral';
+      stats.dataset.liveWired = '1';
+      stats.dataset.liveSig = liveSig;
+      stats.innerHTML = `
+        ${renderTiltNudge(live.sessionGames)}
+        <div class="session-live-metrics">
+          <span class="slive-item time">⏱ <span class="slv" id="session-timer">${formatDuration(elapsed)}</span></span>
+          <span class="slive-item neutral">${copy.isVal ? '◆' : '🎮'} <span class="slv">${live.games} ${copy.matchLabel}</span></span>
+          <span class="slive-item ${wlClass}">W/L: <span class="slv">${live.wins}/${live.losses}</span></span>
+          <span class="slive-item ${live.mmrGain >= 0 ? 'pos' : 'neg'}">${copy.rankLabel}: <span class="slv">${live.mmrGain >= 0 ? '+' : ''}${live.mmrGain}</span></span>
+          ${renderRankConfirmBadge()}
+        </div>`;
+    }
   }
   if (startBtn) {
     startBtn.classList.remove('hidden');
@@ -533,7 +635,7 @@ function showSessionModal(sessionNum, sg, elapsed) {
   document.getElementById('session-modal').classList.add('open');
 }
 
-export function refreshSessionUI() {
+export function refreshSessionUI({ quiet = false } = {}) {
   updateSessionBar();
-  document.dispatchEvent(new CustomEvent('rl-session-ui-refresh'));
+  if (!quiet) document.dispatchEvent(new CustomEvent('rl-session-ui-refresh'));
 }

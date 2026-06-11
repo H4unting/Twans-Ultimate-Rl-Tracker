@@ -11,7 +11,6 @@ import { setCachedValorantStatus, refreshBridgeStatusUI } from './bridge-ui.js';
 let pollTimer = null;
 const POLL_ACTIVE_MS = 3000;
 const POLL_IDLE_MS = 5000;
-const POLL_DASH_IDLE_MS = 8000;
 const POLL_HIDDEN_MS = 10000;
 let wasBridgeUp = false;
 let autoLogInFlight = false;
@@ -21,6 +20,8 @@ let onStatus = null;
 let onAutoLog = null;
 let onVisibilityChange = null;
 let onSessionStart = null;
+let dashEventWired = false;
+let lastValStatusSig = '';
 
 async function fetchJson(path, timeoutMs = 4000) {
   const res = await fetch(`${getBridgeUrl()}${path}`, { signal: AbortSignal.timeout(timeoutMs) });
@@ -28,7 +29,22 @@ async function fetchJson(path, timeoutMs = 4000) {
   return res.json();
 }
 
-function setValorantLiveStatus(valStatus = null) {
+function valStatusSig(valStatus) {
+  if (!valStatus) return 'null';
+  return [
+    valStatus.configured ? 1 : 0,
+    valStatus.valorantRunning ? 1 : 0,
+    valStatus.pollingArmed ? 1 : 0,
+    valStatus.seeded ? 1 : 0,
+    valStatus.source ?? '',
+    valStatus.lastError ?? '',
+  ].join(':');
+}
+
+function setValorantLiveStatus(valStatus = null, { force = false } = {}) {
+  const sig = valStatusSig(valStatus);
+  if (!force && sig === lastValStatusSig) return;
+  lastValStatusSig = sig;
   if (valStatus) setCachedValorantStatus(valStatus);
   refreshBridgeStatusUI();
 }
@@ -55,7 +71,7 @@ async function ensurePollingArmed() {
   await armValorantPolling();
 }
 
-async function poll() {
+async function poll({ forceUi = false } = {}) {
   await ensurePollingArmed();
   let online = isBridgeUp();
 
@@ -67,8 +83,7 @@ async function poll() {
         online = true;
       }
     } catch {
-      setValorantLiveStatus(null);
-      refreshBridgeStatusUI();
+      setValorantLiveStatus(null, { force: forceUi });
       return;
     }
   }
@@ -79,17 +94,16 @@ async function poll() {
   }
 
   if (!online) {
-    setValorantLiveStatus(null);
-    refreshBridgeStatusUI();
+    setValorantLiveStatus(null, { force: forceUi || !lastValStatusSig });
     return;
   }
 
   let valStatus = null;
   try {
     valStatus = await fetchJson('/valorant/status');
-    setValorantLiveStatus(valStatus);
+    setValorantLiveStatus(valStatus, { force: forceUi });
   } catch {
-    refreshBridgeStatusUI();
+    if (forceUi) refreshBridgeStatusUI();
     return;
   }
 
@@ -142,20 +156,40 @@ async function poll() {
   }
 }
 
+function shouldPeriodicPoll() {
+  if (document.visibilityState === 'hidden') return false;
+  if (isDashboardIdle()) return false;
+  return true;
+}
+
 function getPollMs() {
-  if (document.visibilityState === 'hidden') return POLL_HIDDEN_MS;
   if (state.activeGame !== GAME_IDS.VALORANT) return POLL_IDLE_MS;
-  if (isDashboardIdle()) return POLL_DASH_IDLE_MS;
   if (!isBridgeUp()) return POLL_IDLE_MS;
   return POLL_ACTIVE_MS;
 }
 
 function schedulePoll() {
   if (pollTimer) clearTimeout(pollTimer);
+  if (!shouldPeriodicPoll()) {
+    pollTimer = null;
+    return;
+  }
   pollTimer = setTimeout(async () => {
     await poll();
     if (pollTimer !== null) schedulePoll();
   }, getPollMs());
+}
+
+function wireDashIdleResume() {
+  if (dashEventWired) return;
+  dashEventWired = true;
+  const onDashEvent = () => {
+    void poll({ forceUi: true });
+    schedulePoll();
+  };
+  document.addEventListener('tracker-data-changed', onDashEvent);
+  document.addEventListener('rl-session-start', onDashEvent);
+  document.addEventListener('rl-session-ui-refresh', onDashEvent);
 }
 
 export function initValorantLive(applyStats, statusCb, autoLogCb) {
@@ -164,6 +198,7 @@ export function initValorantLive(applyStats, statusCb, autoLogCb) {
   onAutoLog = autoLogCb;
   stopValorantLive();
   pollingArmSent = false;
+  wireDashIdleResume();
   schedulePoll();
   void poll();
   onVisibilityChange = () => {
@@ -174,7 +209,7 @@ export function initValorantLive(applyStats, statusCb, autoLogCb) {
     }
     schedulePoll();
     void ensurePollingArmed();
-    void poll();
+    void poll({ forceUi: true });
   };
   onSessionStart = () => {
     if (state.activeGame === GAME_IDS.VALORANT) void armValorantPolling();
@@ -198,14 +233,12 @@ export function stopValorantLive() {
 
 export async function refreshValorantStatus() {
   if (!isBridgeUp()) {
-    setCachedValorantStatus(null);
-    refreshBridgeStatusUI();
+    setValorantLiveStatus(null, { force: true });
     return null;
   }
   try {
     const status = await fetchJson('/valorant/status');
-    setCachedValorantStatus(status);
-    refreshBridgeStatusUI();
+    setValorantLiveStatus(status, { force: true });
     return status;
   } catch {
     refreshBridgeStatusUI();

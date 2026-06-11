@@ -18,7 +18,7 @@ import {
   getLastBridgeFailure,
   isBridgeProcessDetected,
 } from './bridge-client.js';
-import { getLocalTrackerUrl } from './env.js';
+import { getLocalTrackerUrl, getAssetUrl, isTwansAppHost } from './env.js';
 import { openRankSetupModal } from './rank-setup-ui.js';
 
 const SETUP_KEY = 'rl-grind-setup';
@@ -172,8 +172,12 @@ function renderBridgeStep(bridge, stepNum = 1, gameId = GAME_IDS.ROCKET_LEAGUE) 
         <p>Double-click <code>${launcher}</code> in your tracker folder — leave it running while you play:</p>
         <pre class="setup-code setup-code-highlight" id="setup-bridge-cmd">${launcher}</pre>
         ${isVal
-    ? `<p class="setup-hint">Open <code>${trackerUrl}</code> in the tab the .bat opens — not Live Server, not GitHub Pages.</p>`
-    : '<p class="setup-hint">Or double-click <code>' + DESKTOP_APP.exe + '</code> — no console window (build once with <code>build-tray-app.bat</code>).</p>'}
+    ? (isTwansAppHost()
+      ? `<p class="setup-hint">Keep <strong>${DESKTOP_APP.name}</strong> running while you play.</p>`
+      : `<p class="setup-hint">Open <code>${trackerUrl}</code> in the tab the .bat opens — not Live Server, not GitHub Pages.</p>`)
+    : (isTwansAppHost()
+      ? `<p class="setup-hint">You're in <strong>${DESKTOP_APP.name}</strong> — leave it open while you play.</p>`
+      : `<p class="setup-hint">Or double-click <code>${DESKTOP_APP.exe}</code> — no console window (build once with <code>build-tray-app.bat</code>).</p>`)}
         ${wrongTab ? `
         <p class="setup-callout setup-callout-important">Bridge is running, but this tab is not served by <code>${launcher}</code>. Close Live Server on port 8080, restart the .bat, then use the tab it opens.</p>
         <a href="${trackerUrl}" class="btn btn-secondary" id="setup-open-tracker-tab" target="_blank" rel="noopener">Open correct tracker tab</a>
@@ -217,7 +221,7 @@ function renderValSteps(riotIdValue, riotRegionValue, bridge, allReady, overwolf
         <span class="setup-step-num">3</span>
         <div class="setup-step-body">
           <strong>Play with Auto-log ON</strong>
-          <p>At <code>http://localhost:8080</code>, turn <strong>Auto-log</strong> on in the dock, then play a Competitive match. Finished matches auto-log in 1–3 minutes.</p>
+          <p>Turn <strong>Auto-log</strong> on in the dock below, then play a Competitive match. Finished matches auto-log in 1–3 minutes.</p>
         </div>
       </li>
     </ol>
@@ -325,8 +329,8 @@ export function renderSetupWizard(displayName = '') {
         <div>
           <strong>One-time setup on your PC — ${isVal ? 'Valorant' : 'Rocket League'}</strong>
           <p>${isVal
-    ? `Run <code>${launcher}</code>, open <code>http://localhost:8080</code>, add Riot ID + Henrik key, Apply &amp; Go.`
-    : `Run <code>${launcher}</code>, then click <strong>Apply &amp; Go</strong>.`}</p>
+    ? `Open <strong>${DESKTOP_APP.name}</strong>, add Riot ID + Henrik key, then <strong>Apply &amp; Go</strong>.`
+    : `Open <strong>${DESKTOP_APP.name}</strong>, then click <strong>Apply &amp; Go</strong>.`}</p>
         </div>
       </div>`}
       <div class="setup-wizard-head">
@@ -340,8 +344,8 @@ export function renderSetupWizard(displayName = '') {
         : 'Henrik API linked. Turn Auto-log ON and play — matches auto-log after they end.')
       : 'G/A/S fill in automatically. You pick W/L and enter End MMR after each game.')
     : (isVal
-      ? `Start ${launcher}, open http://localhost:8080, add Riot ID + Henrik key, Apply & Go.`
-      : `Rocket League only — enter your RL name, start ${launcher}, then Apply & Go.`)}
+      ? `Open ${DESKTOP_APP.name}, add Riot ID + Henrik key, then Apply & Go.`
+      : `Rocket League only — enter your RL name, keep ${DESKTOP_APP.name} running, then Apply & Go.`)}
           </p>
         ${allReady ? `<button type="button" class="setup-dismiss" id="setup-dismiss">Got it</button>` : ''}
       </div>
@@ -703,7 +707,7 @@ function renderProfileNameStep(profile) {
     <strong>Your in-game name</strong>
     <p class="setup-name-intro">This is the name at the top of your profile — copy it <em>exactly</em> into the box below.</p>
     <figure class="setup-name-example">
-      <img src="assets/setup/profile-name-example.png" alt="Profile example — the name next to your avatar is your display name" width="960" height="auto" loading="lazy">
+      <img src="${getAssetUrl('assets/setup/profile-name-example.svg')}" alt="Profile example — the name next to your avatar is your display name" width="960" height="auto" loading="lazy">
       <figcaption>↑ Use this name — same spelling and caps as shown.</figcaption>
     </figure>
     <div class="setup-name-field-row">
