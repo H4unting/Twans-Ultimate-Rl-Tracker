@@ -5,6 +5,8 @@
 **Priority:** Performance only — no new features  
 **Related:** [DESKTOP-PERFORMANCE-AUDIT.md](./DESKTOP-PERFORMANCE-AUDIT.md)
 
+> **See [PERFORMANCE-FORENSIC-REPORT.md](./PERFORMANCE-FORENSIC-REPORT.md) — optimization paused pending root cause.**
+
 ---
 
 ## Executive summary

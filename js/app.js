@@ -4,6 +4,7 @@
 
 import { isDashboardPage, isDashboardIdle } from './dash-context.js';
 import { DESKTOP_APP, getDesktopLauncherBat } from './config.js';
+import { applyAppMode } from './env.js';
 import { state, subscribe, setGames, setSyncStatus, setGoals, setProfile, getUserDisplay, getActiveGames, resetAppState } from './state.js';
 import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, sendPasswordReset, signOut, onAuthChange, getAuthUser, hasPendingAuthHash, clearAuthHashFromUrl } from './auth.js';
 import { saveSettings, createGroup, joinGroup, leaveGroup, loadUserGroups, saveProfile, uploadProfileAvatar, deleteOwnAccount } from './supabase.js';
@@ -51,7 +52,8 @@ import { renderSessionsPage } from './sessions-ui.js';
 import { exportGamesCSV } from './export.js';
 import { wireNavigation as wireSectionNav, updateNavUI, mountDock, getSectionForPage } from './nav.js';
 import {
-  renderHome, getHomeChartGames, getHomeChartModeLabel, refreshDashSessionWidgets, invalidateHomeMmrCache,
+  renderHome, getHomeChartGames, getHomeChartModeLabel, refreshDashSessionWidgets,
+  refreshAfterMatchSaved, invalidateHomeMmrCache,
 } from './home.js';
 import {
   renderQuickFilters, applyQuickFilter,
@@ -91,6 +93,7 @@ let dashRenderThrottleTimer = null;
 let dashRenderQueued = null;
 let dashRenderBypass = false;
 let trackerDataListenerWired = false;
+let gameDataRefreshRaf = null;
 let perfSectionVisible = false;
 let perfSectionObserver = null;
 
@@ -530,11 +533,41 @@ function renderAll(scope = 'full') {
   }
 }
 
+function refreshAfterGameDataChange() {
+  if (insideRenderAll) return;
+  const page = state.activePage || 'dashboard';
+  const games = getActiveGames();
+  const goals = getActiveGoals();
+
+  dashRenderBypass = true;
+
+  if (page === 'dashboard') {
+    refreshAfterMatchSaved(games, goals);
+  } else if (page === 'log') {
+    renderMatchLogs();
+    wireLogTableActions();
+  }
+
+  refreshSessionUI({ quiet: true });
+  rerenderQuickTags();
+  updateNavUI(page);
+  mountDock();
+}
+
+/** Coalesce burst updates (match save + session notify) into one targeted refresh per frame. */
+function scheduleRefreshAfterGameDataChange() {
+  if (gameDataRefreshRaf != null) return;
+  gameDataRefreshRaf = requestAnimationFrame(() => {
+    gameDataRefreshRaf = null;
+    refreshAfterGameDataChange();
+  });
+}
+
 function renderAllInner(scope = 'full') {
   const games = getActiveGames();
   const page = state.activePage || 'dashboard';
-  const touchDashboard = scope === 'core' || page === 'dashboard';
-  const touchLog = scope === 'core' || page === 'log';
+  const touchDashboard = page === 'dashboard';
+  const touchLog = page === 'log';
 
   if (touchDashboard) renderHomePage();
   if (touchLog) renderMatchLogs();
@@ -605,8 +638,7 @@ function scheduleRenderAll(scope = 'full', opts = {}) {
     return;
   }
 
-  const touchDashboard = pendingRenderScope === 'core' || isDashboardPage();
-  if (!dashRenderBypass && touchDashboard && shouldDeferDashRender(false)) {
+  if (!dashRenderBypass && isDashboardPage() && shouldDeferDashRender(false)) {
     if (!dashRenderThrottleTimer) {
       const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
       dashRenderThrottleTimer = setTimeout(() => {
@@ -631,6 +663,13 @@ function renderDashboard() {
 }
 
 function renderMatchLogs() {
+  const page = state.activePage || 'dashboard';
+  if (page !== 'log') return;
+
+  if (typeof window !== 'undefined') {
+    window.__MATCHLOG_RENDER_COUNT = (window.__MATCHLOG_RENDER_COUNT || 0) + 1;
+  }
+
   renderLogSetupNudge();
   renderQuickFilters('matchlogs-quick-filters', () => renderMatchLogs());
   renderFilterBar('matchlogs-filters', getActiveGames(), state.matchLogFilters, filters => {
@@ -1003,7 +1042,7 @@ async function submitGameLog(source = 'form') {
       resetQuickAfterLog();
     });
     dashRenderBypass = true;
-    renderAll(source === 'auto' || source === 'quick' ? 'core' : 'full');
+    scheduleRefreshAfterGameDataChange();
     if (saved) {
       state.homeChartMode = saved.mode;
       showPostMatchCard(saved, { estimated: isMmrEstimated(saved) });
@@ -1165,7 +1204,7 @@ async function handleSaveEdit() {
     }, state.ui.editTags);
     if (!updated) return;
     closeEditModal();
-    renderAll('core');
+    scheduleRefreshAfterGameDataChange();
   } catch (err) {
     console.error('Save edit failed:', err);
     showToast(err?.message || 'Save failed', 'error');
@@ -1189,7 +1228,7 @@ function wireLogTableActions() {
     if (delBtn) {
       void (async () => {
         const ok = await deleteGame(parseInt(delBtn.dataset.match, 10));
-        if (ok) renderAll('core');
+        if (ok) scheduleRefreshAfterGameDataChange();
       })();
     }
   });
@@ -1287,33 +1326,33 @@ async function init() {
     initPostMatch({
       onConfirmMMR: async (mmr) => {
         const game = await patchLastGame({ endMMR: mmr });
-        if (game) { renderAll('core'); return true; }
+        if (game) { scheduleRefreshAfterGameDataChange(); return true; }
         return false;
       },
       onTags: async (tags) => {
         await patchLastGame({ tags });
-        renderAll('core');
+        scheduleRefreshAfterGameDataChange();
         return true;
       },
       onUndo: async () => {
         const ok = await undoLastGame(true);
-        if (ok) renderAll('core');
+        if (ok) scheduleRefreshAfterGameDataChange();
         return ok;
       },
-      onOpen: () => refreshSessionUI(),
-      onClose: () => refreshSessionUI(),
+      onOpen: () => refreshSessionUI({ quiet: true }),
+      onClose: () => refreshSessionUI({ quiet: true }),
     });
     if (!trackerDataListenerWired) {
       trackerDataListenerWired = true;
       document.addEventListener('rl-session-ui-refresh', () => {
-        if (insideRenderAll) return;
+        if (insideRenderAll || gameDataRefreshRaf != null) return;
         dashRenderBypass = true;
         if ((state.activePage || 'dashboard') === 'dashboard') {
           refreshDashSessionWidgets(getActiveGames());
         }
       });
       document.addEventListener('tracker-data-changed', () => {
-        scheduleRenderAll('core');
+        scheduleRefreshAfterGameDataChange();
       });
     }
     ensureBridgeServices();
