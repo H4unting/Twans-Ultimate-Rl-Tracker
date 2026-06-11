@@ -1,18 +1,10 @@
 /** Unified navigation — sidebar (desktop) + mobile bottom nav */
 
 import { getNavSections } from './games.js';
+import { getNavIcon, syncMobileNavIcons } from './nav-icons.js';
 import { state } from './state.js';
 
 const TOP_BAR_PAGE_IDS = new Set(['profile']);
-
-const NAV_ICONS = {
-  dashboard: '🏠',
-  log: '📋',
-  sessions: '⏱',
-  setup: '⚙',
-  review: '📊',
-  squad: '👥',
-};
 /** Top-level nav order (home pages + section shortcuts). */
 const TOP_NAV_ORDER = [
   { kind: 'page', pageId: 'dashboard' },
@@ -64,7 +56,7 @@ function renderMainNav(pageId, gameId) {
       ? pageId === item.id
       : section === item.id;
     const activeClass = active ? ' active' : '';
-    const icon = NAV_ICONS[item.id] ?? '•';
+    const icon = getNavIcon(item.id);
 
     if (item.type === 'page') {
       return `<button type="button" class="tab main-nav-tab v0-nav-item${activeClass}" data-page="${item.id}"><span class="v0-nav-icon">${icon}</span>${item.label}</button>`;
@@ -204,6 +196,7 @@ export function updateNavUI(pageId, gameId = state.activeGame) {
   document.getElementById('top-profile-btn')?.classList.toggle('active', pageId === 'profile');
 
   syncMobileNavLabels(allSections);
+  syncMobileNavIcons();
   syncMobileNavActive(pageId, section);
 
   document.body.dataset.section = section;

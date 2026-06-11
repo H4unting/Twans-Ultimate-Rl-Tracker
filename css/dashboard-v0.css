@@ -236,10 +236,24 @@ body:not(.logged-out) .game-switch-btn.active::before {
 }
 
 .v0-sidebar-nav .v0-nav-icon {
-  font-size: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 22px;
-  text-align: center;
+  height: 22px;
   flex-shrink: 0;
+  color: inherit;
+  opacity: 0.85;
+}
+
+.v0-sidebar-nav .v0-nav-item.active .v0-nav-icon {
+  opacity: 1;
+}
+
+.v0-sidebar-nav .v0-nav-icon svg {
+  width: 16px;
+  height: 16px;
+  display: block;
 }
 
 .v0-sidebar-sub {

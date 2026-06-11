@@ -967,7 +967,23 @@ body.has-quick-dock.quick-dock-collapsed .mobile-nav { bottom: 52px; }
   color: var(--dim); font-size: 9px; font-weight: 600; cursor: pointer;
   border-radius: 8px; transition: all 0.15s;
 }
-.mobile-nav-btn span { font-size: 16px; line-height: 1; }
+.mobile-nav-btn .mobile-nav-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: inherit;
+  opacity: 0.75;
+}
+
+.mobile-nav-btn.active .mobile-nav-icon { opacity: 1; }
+
+.mobile-nav-btn .mobile-nav-icon svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
 .mobile-nav-btn:hover { color: var(--muted); background: #ffffff06; }
 .mobile-nav-btn.active {
   color: var(--accent);
