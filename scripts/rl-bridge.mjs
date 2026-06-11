@@ -320,6 +320,7 @@ export function startBridge(options = {}) {
           authRequired: true,
           rocketLeagueRunning: processes.rocketLeagueRunning,
           valorantProcessRunning: processes.valorantProcessRunning,
+          valorantRunning: processes.valorantProcessRunning,
         };
         const origin = req.headers.origin;
         if (!origin || ALLOWED_ORIGINS.has(origin) || isLocalDevOrigin(origin)) {
@@ -384,7 +385,7 @@ export function startBridge(options = {}) {
       }
 
       const valBridge = await loadValorantBridge();
-      if (valBridge?.handleValorantRequest(req, res)) return;
+      if (await valBridge?.handleValorantRequest(req, res)) return;
 
       res.writeHead(404);
       res.end('Not found');

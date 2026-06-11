@@ -203,7 +203,7 @@ export function bridgeStatusSig(json) {
     json.inMatch ? 1 : 0,
     json.version ?? '',
     json.bridgeVersion ?? '',
-    json.valorantRunning ? 1 : 0,
+    json.valorantRunning || json.valorantProcessRunning ? 1 : 0,
   ].join(':');
 }
 

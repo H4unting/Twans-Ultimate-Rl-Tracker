@@ -165,6 +165,21 @@ Electron shell adds `[startup +Nms]` in `config/bridge.log` (`main.cjs`) before 
 
 ---
 
+## Valorant tracking pill (process-gated)
+
+`valorantRunning` on `/api/bridge/status` and `/valorant/status` is **true only** when `tasklist` finds `VALORANT-Win64-Shipping.exe`. Riot Client, Play/launch, armed Henrik polling, and cached UI state do **not** show **Tracking**.
+
+| Phase | Pill label |
+|-------|------------|
+| Bridge offline | Connection issue / Starting… |
+| Bridge up, Val not running | Waiting for Valorant |
+| `VALORANT-Win64-Shipping.exe` running | Tracking |
+| Process exited | Waiting for Valorant (session may auto-end) |
+
+Client clears in-memory Val status on startup; Henrik polls skip when the game exe is absent.
+
+---
+
 ## Related docs
 
 - [`ARCHITECTURE.md`](./ARCHITECTURE.md) — startup flow diagram

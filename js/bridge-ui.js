@@ -43,6 +43,10 @@ export function setCachedValorantStatus(status) {
   cachedValStatus = status;
 }
 
+export function clearCachedValorantStatus() {
+  cachedValStatus = null;
+}
+
 export function getCachedValorantStatus() {
   return cachedValStatus;
 }
