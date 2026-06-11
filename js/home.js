@@ -800,6 +800,21 @@ export function refreshDashSessionWidgets(games) {
   renderDashSessionPanel(games, allRows);
 }
 
+/** Patch dashboard widgets after a match save — no full renderHome/renderAll. */
+export function refreshAfterMatchSaved(games, goals) {
+  const allRows = getCachedPlaylistMMRRows(games, state.activeGame);
+  const isVal = state.activeGame === GAME_IDS.VALORANT;
+  const rows = isVal ? allRows.filter(r => r.mode === 'Competitive') : allRows;
+  const chartMode = ensureHomeChartMode(games);
+  const activeRow = rows.find(r => r.mode === chartMode) ?? rows[0];
+
+  renderDashHero(games, goals, rows, activeRow);
+  renderDashRankProgress(activeRow, goals, games);
+  refreshDashSessionWidgets(games);
+  renderHomeFocus(games);
+  renderHomeActivity(games);
+}
+
 function focusSig(games, gameId) {
   if (games.length < 2) return `${gameId}:empty:${games.length}`;
   const correlations = getTagLossCorrelations(games);

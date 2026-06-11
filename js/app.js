@@ -52,7 +52,8 @@ import { renderSessionsPage } from './sessions-ui.js';
 import { exportGamesCSV } from './export.js';
 import { wireNavigation as wireSectionNav, updateNavUI, mountDock, getSectionForPage } from './nav.js';
 import {
-  renderHome, getHomeChartGames, getHomeChartModeLabel, refreshDashSessionWidgets, invalidateHomeMmrCache,
+  renderHome, getHomeChartGames, getHomeChartModeLabel, refreshDashSessionWidgets,
+  refreshAfterMatchSaved, invalidateHomeMmrCache,
 } from './home.js';
 import {
   renderQuickFilters, applyQuickFilter,
@@ -531,11 +532,33 @@ function renderAll(scope = 'full') {
   }
 }
 
+function refreshAfterGameDataChange() {
+  if (insideRenderAll) return;
+  const page = state.activePage || 'dashboard';
+  const games = getActiveGames();
+  const goals = getActiveGoals();
+
+  dashRenderBypass = true;
+
+  if (page === 'dashboard') {
+    refreshAfterMatchSaved(games, goals);
+  }
+  if (page === 'log') {
+    renderMatchLogs();
+    wireLogTableActions();
+  }
+
+  refreshSessionUI({ quiet: true });
+  rerenderQuickTags();
+  updateNavUI(page);
+  mountDock();
+}
+
 function renderAllInner(scope = 'full') {
   const games = getActiveGames();
   const page = state.activePage || 'dashboard';
-  const touchDashboard = scope === 'core' || page === 'dashboard';
-  const touchLog = scope === 'core' || page === 'log';
+  const touchDashboard = page === 'dashboard';
+  const touchLog = page === 'log';
 
   if (touchDashboard) renderHomePage();
   if (touchLog) renderMatchLogs();
@@ -606,8 +629,7 @@ function scheduleRenderAll(scope = 'full', opts = {}) {
     return;
   }
 
-  const touchDashboard = pendingRenderScope === 'core' || isDashboardPage();
-  if (!dashRenderBypass && touchDashboard && shouldDeferDashRender(false)) {
+  if (!dashRenderBypass && isDashboardPage() && shouldDeferDashRender(false)) {
     if (!dashRenderThrottleTimer) {
       const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
       dashRenderThrottleTimer = setTimeout(() => {
@@ -1004,7 +1026,7 @@ async function submitGameLog(source = 'form') {
       resetQuickAfterLog();
     });
     dashRenderBypass = true;
-    renderAll(source === 'auto' || source === 'quick' ? 'core' : 'full');
+    refreshAfterGameDataChange();
     if (saved) {
       state.homeChartMode = saved.mode;
       showPostMatchCard(saved, { estimated: isMmrEstimated(saved) });
@@ -1166,7 +1188,7 @@ async function handleSaveEdit() {
     }, state.ui.editTags);
     if (!updated) return;
     closeEditModal();
-    renderAll('core');
+    refreshAfterGameDataChange();
   } catch (err) {
     console.error('Save edit failed:', err);
     showToast(err?.message || 'Save failed', 'error');
@@ -1190,7 +1212,7 @@ function wireLogTableActions() {
     if (delBtn) {
       void (async () => {
         const ok = await deleteGame(parseInt(delBtn.dataset.match, 10));
-        if (ok) renderAll('core');
+        if (ok) refreshAfterGameDataChange();
       })();
     }
   });
@@ -1288,17 +1310,17 @@ async function init() {
     initPostMatch({
       onConfirmMMR: async (mmr) => {
         const game = await patchLastGame({ endMMR: mmr });
-        if (game) { renderAll('core'); return true; }
+        if (game) { refreshAfterGameDataChange(); return true; }
         return false;
       },
       onTags: async (tags) => {
         await patchLastGame({ tags });
-        renderAll('core');
+        refreshAfterGameDataChange();
         return true;
       },
       onUndo: async () => {
         const ok = await undoLastGame(true);
-        if (ok) renderAll('core');
+        if (ok) refreshAfterGameDataChange();
         return ok;
       },
       onOpen: () => refreshSessionUI(),
@@ -1314,7 +1336,7 @@ async function init() {
         }
       });
       document.addEventListener('tracker-data-changed', () => {
-        scheduleRenderAll('core');
+        refreshAfterGameDataChange();
       });
     }
     ensureBridgeServices();
