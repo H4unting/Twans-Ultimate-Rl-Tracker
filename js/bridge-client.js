@@ -37,6 +37,9 @@ let reconnecting = false;
 let inStartupPhase = true;
 let startupPhaseTimer = null;
 let lastBridgeStatusSig = '';
+/** Latest VALORANT-Win64-Shipping.exe state from bridge heartbeat /status (null = unknown). */
+let heartbeatValorantProcessRunning = null;
+const processStateListeners = new Set();
 
 function noteBridgeRequest() {
   if (typeof window === 'undefined') return;
@@ -218,6 +221,30 @@ export function resetBridgeStatusSig() {
   lastBridgeStatusSig = '';
 }
 
+/** Authoritative game-process flag while bridge heartbeat is up (tasklist-gated). */
+export function getHeartbeatValorantProcessRunning() {
+  return heartbeatValorantProcessRunning;
+}
+
+export function subscribeBridgeProcessState(fn) {
+  processStateListeners.add(fn);
+  if (heartbeatValorantProcessRunning !== null) {
+    fn({ valorantProcessRunning: heartbeatValorantProcessRunning });
+  }
+  return () => processStateListeners.delete(fn);
+}
+
+function updateHeartbeatValorantProcess(json) {
+  const next = Boolean(json?.valorantProcessRunning ?? json?.valorantRunning);
+  const prev = heartbeatValorantProcessRunning;
+  heartbeatValorantProcessRunning = next;
+  if (prev === next) return;
+  const payload = { valorantProcessRunning: next };
+  processStateListeners.forEach((fn) => {
+    try { fn(payload); } catch { /* ignore */ }
+  });
+}
+
 async function pingBridgeOnce() {
   noteBridgeRequest();
   const res = await fetch(`${bridgeBase()}/status`, { signal: AbortSignal.timeout(PING_TIMEOUT_MS) });
@@ -238,6 +265,7 @@ async function pingBridgeOnce() {
   }
   const json = await res.json();
   if (json.authToken) bridgeAuthToken = json.authToken;
+  updateHeartbeatValorantProcess(json);
   noteBridgeStatus(json);
   lastBridgeFailure = null;
   bridgeProcessOnDirectPort = false;
@@ -346,6 +374,7 @@ export function stopBridgeHeartbeat() {
   reconnecting = false;
   wasEverOnline = false;
   resetBridgeStatusSig();
+  heartbeatValorantProcessRunning = null;
   setBridgeOnline(false);
   emitReachableIfChanged();
 }

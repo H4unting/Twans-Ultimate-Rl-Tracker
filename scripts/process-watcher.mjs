@@ -19,7 +19,14 @@ async function isProcessRunning(imageName) {
   if (process.platform !== 'win32') return false;
   try {
     const { stdout } = await execAsync(`tasklist /FI "IMAGENAME eq ${imageName}" /NH`, { windowsHide: true });
-    return stdout.toLowerCase().includes(imageName.toLowerCase());
+    const target = imageName.toLowerCase();
+    for (const line of stdout.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || /^info:/i.test(trimmed)) continue;
+      const image = trimmed.split(/\s+/)[0]?.toLowerCase();
+      if (image === target) return true;
+    }
+    return false;
   } catch {
     return false;
   }

@@ -5,6 +5,7 @@ import { GAME_IDS, getGameMeta } from './games.js';
 import {
   isBridgeUp, isBridgeProbeDone, getLastBridgeFailure, getBridgeStatusPhase,
   getBridgeConnectAttempts, isBridgeInStartupPhase,
+  getHeartbeatValorantProcessRunning,
   subscribeBridgeResumed,
 } from './bridge-client.js';
 import { isAutoLogEnabled, loadPrefs, syncAutoLogToggleUI } from './quicklog.js';
@@ -49,6 +50,25 @@ export function clearCachedValorantStatus() {
 
 export function getCachedValorantStatus() {
   return cachedValStatus;
+}
+
+/** Process-gated Tracking — heartbeat /status wins over stale /valorant/status cache. */
+export function isValorantGameProcessRunning(valStatus) {
+  const hb = getHeartbeatValorantProcessRunning();
+  if (hb !== null) return hb;
+  return Boolean(valStatus?.valorantProcessRunning ?? valStatus?.valorantRunning);
+}
+
+export function patchCachedValorantProcessRunning(running) {
+  if (!cachedValStatus) return;
+  const next = Boolean(running);
+  const cached = Boolean(cachedValStatus.valorantProcessRunning ?? cachedValStatus.valorantRunning);
+  if (cached === next) return;
+  cachedValStatus = {
+    ...cachedValStatus,
+    valorantRunning: next,
+    valorantProcessRunning: next,
+  };
 }
 
 export function setCachedRlInMatch(inMatch) {
@@ -133,7 +153,8 @@ export function refreshBridgeStatusUI() {
 }
 
 function renderValorantPill(el, valStatus, meta) {
-  el.classList.toggle('in-match', Boolean(valStatus?.valorantRunning));
+  const valProcessRunning = isValorantGameProcessRunning(valStatus);
+  el.classList.toggle('in-match', valProcessRunning);
 
   if (!valStatus) {
     applyUnifiedStatusLabel(el, 'connecting', `${DESKTOP_APP.name} — checking Valorant link`);
@@ -152,10 +173,10 @@ function renderValorantPill(el, valStatus, meta) {
   }
 
   if (valStatus.source === 'overwolf') {
-    if (valStatus.valorantRunning && isAutoLogEnabled()) {
+    if (valProcessRunning && isAutoLogEnabled()) {
       el.textContent = '● Auto-log ON';
       el.title = 'Overwolf linked — finished matches save automatically';
-    } else if (valStatus.valorantRunning) {
+    } else if (valProcessRunning) {
       el.textContent = '● Valorant live';
       el.title = 'Overwolf sees Valorant — turn on auto-log or tap LOG after the match';
     } else if (isAutoLogEnabled()) {
@@ -191,10 +212,10 @@ function renderValorantPill(el, valStatus, meta) {
     return;
   }
 
-  if (valStatus.valorantRunning && isAutoLogEnabled()) {
+  if (valProcessRunning && isAutoLogEnabled()) {
     applyUnifiedStatusLabel(el, 'tracking', 'Auto-log ON — finished matches save in 1–3 min');
     el.textContent = formatStatusPill('tracking');
-  } else if (valStatus.valorantRunning) {
+  } else if (valProcessRunning) {
     applyUnifiedStatusLabel(el, 'tracking', 'Valorant is running — turn on auto-log or tap LOG after the match');
     el.textContent = formatStatusPill('tracking');
   } else if (isAutoLogEnabled()) {

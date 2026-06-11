@@ -39,7 +39,7 @@ async function pollGameProcesses() {
   if (!status) return;
 
   const rlRunning = Boolean(status.rocketLeagueRunning || status.rlConnected);
-  const valRunning = Boolean(status.valorantProcessRunning || status.valorantRunning);
+  const valRunning = Boolean(status.valorantProcessRunning);
 
   const rlStarted = rlRunning && !lastRlRunning;
   const valStarted = valRunning && !lastValRunning;

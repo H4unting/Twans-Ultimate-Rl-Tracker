@@ -292,10 +292,6 @@ function getBridgeConfig() {
   };
 }
 
-function isValorantRunning() {
-  return isValorantReady();
-}
-
 function splitRiotId(riotId) {
   if (!riotId.includes('#')) throw new Error('Set Riot ID as Name#TAG in setup');
   const hash = riotId.indexOf('#');

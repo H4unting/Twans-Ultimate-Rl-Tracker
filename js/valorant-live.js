@@ -5,8 +5,13 @@ import { state } from './state.js';
 import { GAME_IDS } from './games.js';
 import { showToast } from './ui.js';
 import { isAutoLogEnabled } from './quicklog.js';
-import { isBridgeUp, getBridgeUrl, setBridgeOnline, bridgeFetch } from './bridge-client.js';
-import { setCachedValorantStatus, clearCachedValorantStatus, refreshBridgeStatusUI } from './bridge-ui.js';
+import {
+  isBridgeUp, getBridgeUrl, setBridgeOnline, bridgeFetch, subscribeBridgeProcessState,
+} from './bridge-client.js';
+import {
+  setCachedValorantStatus, clearCachedValorantStatus, refreshBridgeStatusUI,
+  patchCachedValorantProcessRunning,
+} from './bridge-ui.js';
 
 let pollTimer = null;
 const POLL_TRACKING_MS = 3000;
@@ -24,6 +29,7 @@ let onSessionStart = null;
 let dashEventWired = false;
 let lastValStatusSig = '';
 let lastValorantProcessRunning = false;
+let unsubBridgeProcess = null;
 
 async function fetchJson(path, timeoutMs = 4000) {
   const res = await fetch(`${getBridgeUrl()}${path}`, { signal: AbortSignal.timeout(timeoutMs) });
@@ -35,7 +41,7 @@ function valStatusSig(valStatus) {
   if (!valStatus) return 'null';
   return [
     valStatus.configured ? 1 : 0,
-    valStatus.valorantRunning ? 1 : 0,
+    (valStatus.valorantProcessRunning ?? valStatus.valorantRunning) ? 1 : 0,
     valStatus.pollingArmed ? 1 : 0,
     valStatus.seeded ? 1 : 0,
     valStatus.source ?? '',
@@ -161,6 +167,7 @@ async function poll({ forceUi = false } = {}) {
 
 function shouldPeriodicPoll() {
   if (document.visibilityState === 'hidden') return false;
+  if (state.activeGame === GAME_IDS.VALORANT) return true;
   if (isDashboardIdle()) return false;
   return true;
 }
@@ -196,6 +203,14 @@ function wireDashIdleResume() {
   document.addEventListener('rl-session-ui-refresh', onDashEvent);
 }
 
+function onBridgeValorantProcessChange({ valorantProcessRunning }) {
+  const next = Boolean(valorantProcessRunning);
+  if (next === lastValorantProcessRunning) return;
+  lastValorantProcessRunning = next;
+  patchCachedValorantProcessRunning(next);
+  refreshBridgeStatusUI();
+}
+
 export function initValorantLive(applyStats, statusCb, autoLogCb) {
   onStats = applyStats;
   onStatus = statusCb;
@@ -205,6 +220,7 @@ export function initValorantLive(applyStats, statusCb, autoLogCb) {
   lastValStatusSig = '';
   lastValorantProcessRunning = false;
   pollingArmSent = false;
+  unsubBridgeProcess = subscribeBridgeProcessState(onBridgeValorantProcessChange);
   wireDashIdleResume();
   schedulePoll();
   void poll();
@@ -226,6 +242,10 @@ export function initValorantLive(applyStats, statusCb, autoLogCb) {
 }
 
 export function stopValorantLive() {
+  if (unsubBridgeProcess) {
+    unsubBridgeProcess();
+    unsubBridgeProcess = null;
+  }
   if (pollTimer) clearTimeout(pollTimer);
   pollTimer = null;
   if (onVisibilityChange) {

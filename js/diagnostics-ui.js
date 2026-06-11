@@ -11,7 +11,9 @@ import {
   subscribeBridgeOnline,
   subscribeBridgeReachable,
 } from './bridge-client.js';
-import { getCachedValorantStatus, getCachedRlInMatch } from './bridge-ui.js';
+import {
+  getCachedValorantStatus, getCachedRlInMatch, isValorantGameProcessRunning,
+} from './bridge-ui.js';
 import { STATUS, waitingForGameLabel } from './status-copy.js';
 import { needsLocalTrackerForAutoLog } from './env.js';
 
@@ -66,7 +68,7 @@ function overallStatus() {
   const isVal = state.activeGame === GAME_IDS.VALORANT;
   if (isVal) {
     const val = getCachedValorantStatus();
-    if (val?.valorantRunning) {
+    if (isValorantGameProcessRunning(val)) {
       return { label: STATUS.tracking, cls: 'ok', hint: 'Match tracking is active for Valorant.' };
     }
     if (val?.configured && val?.seeded) {
@@ -119,7 +121,8 @@ function matchTrackingRow() {
     if (!val.seeded) {
       return { label: 'Syncing…', cls: 'pending', hint: 'Establishing match baseline.' };
     }
-    return { label: val.valorantRunning ? 'Watching' : 'Waiting', cls: val.valorantRunning ? 'ok' : 'pending', hint: 'Finished matches auto-log via match history API.' };
+    const watching = isValorantGameProcessRunning(val);
+    return { label: watching ? 'Watching' : 'Waiting', cls: watching ? 'ok' : 'pending', hint: 'Finished matches auto-log via match history API.' };
   }
 
   const inMatch = getCachedRlInMatch();
