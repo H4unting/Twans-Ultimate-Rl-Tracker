@@ -2,10 +2,15 @@
  * Valorant auto-log via HenrikDev API (match history).
  * Riot dev keys (RGAPI-…) cannot access Val match endpoints (403) — Henrik is required for personal auto-log.
  * Requires riotId (Name#TAG), riotRegion, and henrikApiKey in config/grind-config.json.
+ *
+ * UI "Tracking" state machine (valorantRunning = VALORANT-Win64-Shipping.exe only):
+ * NOT RUNNING → Play → Launch → WAITING FOR PROCESS → process detected → TRACKING
+ * → process exits → match complete / NOT RUNNING (Riot Client alone never counts as Tracking).
  */
 
 import { loadGrindConfig, loadValorantBridgeState, saveValorantBridgeState, clearValorantBridgeState } from './local-setup.mjs';
 import { checkHenrikRateLimit, readJsonBody, validateOverwolfMatch } from './bridge-security.mjs';
+import { getGameProcessState } from './process-watcher.mjs';
 
 const HENRIK_BASE = 'https://api.henrikdev.xyz';
 const HENRIK_POLL_MS = 12000;
@@ -36,7 +41,6 @@ let seenMatchIds = new Set();
 let pollTimer = null;
 let deferTimer = null;
 let pollingArmed = false;
-let valorantRunning = false;
 let configured = false;
 let lastError = null;
 let lastOverwolfPing = 0;
@@ -44,8 +48,14 @@ let overwolfActive = false;
 
 const OVERWOLF_TTL_MS = 45000;
 
-/** Ready to auto-log next finished match (no tasklist — scanning Val during load-in caused freezes). */
-function isValorantReady() {
+/** True only when VALORANT-Win64-Shipping.exe is in the Windows process list (not Riot Client). */
+async function isValorantProcessRunning() {
+  const { valorantProcessRunning } = await getGameProcessState();
+  return Boolean(valorantProcessRunning);
+}
+
+/** Henrik polling may run — separate from UI "Tracking" (process-gated). */
+function isValorantPollingReady() {
   if (isOverwolfConnected()) return true;
   if (!pollingArmed) return false;
   const cfg = getBridgeConfig();
@@ -409,20 +419,19 @@ async function fetchLatestHenrikMatch() {
 }
 
 async function pollLatestMatch() {
-  if (isOverwolfConnected()) {
-    valorantRunning = true;
-    return;
-  }
+  if (isOverwolfConnected()) return;
+
+  const processRunning = await isValorantProcessRunning();
+  if (!processRunning) return;
 
   const cfg = getBridgeConfig();
   configured = Boolean(cfg.henrikApiKey && cfg.riotId)
     || (Boolean(cfg.legacyRiotKey) && !cfg.legacyRiotKey.startsWith('RGAPI-') && cfg.riotId);
-  valorantRunning = isValorantReady();
   if (!configured && cfg.legacyRiotKey.startsWith('RGAPI-') && cfg.riotId) {
     lastError = formatHenrikError('RGAPI-key-blocked');
     return;
   }
-  if (!configured) return;
+  if (!configured || !isValorantPollingReady()) return;
 
   try {
     const latest = await fetchLatestHenrikMatch();
@@ -550,7 +559,7 @@ export function startValorantBridge(options = {}) {
   }
 }
 
-export function handleValorantRequest(req, res) {
+export async function handleValorantRequest(req, res) {
   const url = req.url?.split('?')[0];
 
   if (url === '/valorant/reset-baseline' && req.method === 'POST') {
@@ -571,7 +580,6 @@ export function handleValorantRequest(req, res) {
 
   if (url === '/valorant/overwolf/ping' && req.method === 'POST') {
     markOverwolfPing();
-    valorantRunning = true;
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ok: true }));
     return true;
@@ -593,7 +601,7 @@ export function handleValorantRequest(req, res) {
   }
 
   if (url === '/valorant/status') {
-    valorantRunning = isValorantReady();
+    const valorantRunning = await isValorantProcessRunning();
     const cfg = getBridgeConfig();
     const hasHenrik = Boolean(cfg.henrikApiKey)
       || (Boolean(cfg.legacyRiotKey) && !cfg.legacyRiotKey.startsWith('RGAPI-'));
@@ -603,6 +611,7 @@ export function handleValorantRequest(req, res) {
       configured: ow || Boolean(hasHenrik && cfg.riotId),
       seeded: seeded || ow,
       valorantRunning,
+      valorantProcessRunning: valorantRunning,
       riotId: cfg.riotId || null,
       lastError: ow ? null : lastError,
       needsHenrikKey: !ow && Boolean(cfg.legacyRiotKey.startsWith('RGAPI-') && cfg.riotId && !cfg.henrikApiKey),

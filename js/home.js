@@ -779,6 +779,32 @@ function renderDashSessionPanel(games, allRows) {
   wireHomeLinks(el);
 }
 
+/** Instant dashboard skeleton while loadUserData runs — uses cached profile in auth bar. */
+export function renderDashboardShell() {
+  wireHomeLinksOnce();
+  renderDashQuickActions();
+  renderDashSessionPanel([], getCachedPlaylistMMRRows([], state.activeGame));
+
+  const hero = document.getElementById('dash-hero');
+  if (hero) {
+    hero.dataset.heroSig = 'shell';
+    hero.dataset.wired = '';
+    hero.innerHTML = `
+      <div class="dash-empty dash-shell-loading" aria-busy="true">
+        Loading your stats…
+      </div>`;
+  }
+
+  const rank = document.getElementById('dash-rank-progress');
+  if (rank) rank.innerHTML = '';
+
+  const focus = document.getElementById('home-focus');
+  if (focus) {
+    focus.innerHTML = '';
+    focus.dataset.focusSig = '';
+  }
+}
+
 /** @deprecated legacy sinks — kept for compatibility */
 export function renderHomeSummary(games, goals) {
   const legacy = document.getElementById('home-summary');

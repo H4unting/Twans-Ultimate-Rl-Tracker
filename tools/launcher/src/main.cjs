@@ -532,6 +532,7 @@ function createMainWindow() {
 
     void mainWindow.loadURL(getSplashDataUrl());
     logStartup('splash loaded');
+    logStartup('window-visible');
     return mainWindow;
   } catch (err) {
     appendBridgeLog(app.dataRoot, `[window create failed] ${err}\n`);

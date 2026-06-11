@@ -18,10 +18,14 @@ import {
   getLastBridgeFailure,
   isBridgeProcessDetected,
 } from './bridge-client.js';
-import { getLocalTrackerUrl, getAssetUrl, isTwansAppHost } from './env.js';
+import { getLocalTrackerUrl, isTwansAppHost } from './env.js';
+import { renderDiagnosticsPanel } from './diagnostics-ui.js';
 import { openRankSetupModal } from './rank-setup-ui.js';
 
 const SETUP_KEY = 'rl-grind-setup';
+
+/** Inline SVG — reliable in dev + twans:// packaged exe (no external asset path). */
+const PROFILE_NAME_EXAMPLE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 280" role="img" aria-label="Rocket League profile example — display name twan"><defs><linearGradient id="banner" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#1e3a5f"/><stop offset="55%" stop-color="#162238"/><stop offset="100%" stop-color="#0d1520"/></linearGradient><linearGradient id="avatar" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#c49a6c"/><stop offset="100%" stop-color="#8b5e3c"/></linearGradient><filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000" flood-opacity="0.45"/></filter></defs><rect width="960" height="280" fill="#0a0e14"/><rect x="0" y="0" width="960" height="170" fill="url(#banner)"/><rect x="0" y="170" width="960" height="110" fill="#111820"/><circle cx="118" cy="170" r="54" fill="#0a0e14"/><circle cx="118" cy="170" r="48" fill="url(#avatar)" filter="url(#shadow)"/><ellipse cx="108" cy="162" rx="8" ry="10" fill="#2a1810"/><ellipse cx="128" cy="162" rx="8" ry="10" fill="#2a1810"/><ellipse cx="108" cy="163" rx="4" ry="5" fill="#f0e6d8"/><ellipse cx="128" cy="163" rx="4" ry="5" fill="#f0e6d8"/><ellipse cx="118" cy="178" rx="14" ry="10" fill="#5a3820"/><path d="M104 186 Q118 196 132 186" fill="none" stroke="#3a2418" stroke-width="2"/><text x="190" y="148" fill="#8fa4bc" font-family="Segoe UI, Arial, sans-serif" font-size="13" letter-spacing="0.5">ROCKET LEAGUE</text><rect x="186" y="158" width="108" height="38" rx="6" fill="#e65c0028" stroke="#ff9944" stroke-width="2"/><text x="198" y="186" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="600">twan</text><path d="M300 176 L318 176 L310 168 Z" fill="#ff9944"/><text x="330" y="186" fill="#6a7f96" font-family="Segoe UI, Arial, sans-serif" font-size="18">#2847</text><text x="190" y="218" fill="#7d92a8" font-family="Segoe UI, Arial, sans-serif" font-size="14">Online · PC</text><rect x="24" y="24" width="140" height="28" rx="4" fill="#00000055"/><text x="36" y="44" fill="#b8c4d4" font-family="Segoe UI, Arial, sans-serif" font-size="12">Profile</text><rect x="720" y="196" width="200" height="56" rx="8" fill="#1a2430" stroke="#ffffff18"/><text x="740" y="222" fill="#8fa4bc" font-family="Segoe UI, Arial, sans-serif" font-size="12">Display name</text><text x="740" y="244" fill="#ffcc88" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="600">Copy this exactly ↓</text></svg>`;
 
 export function renderLogSetupNudge() {
   const el = document.getElementById('log-setup-nudge');
@@ -72,6 +76,11 @@ function renderRlPanel(profile, { compact = false } = {}) {
     : 'Your Rocket League display name is sent to the local auto-log app when a match ends.'}</p>
       ${renderProfileNameStep(profile)}
       ${renderApplySection(true)}
+      <div class="setup-danger-zone">
+        <strong>Wrong match count?</strong>
+        <p class="setup-hint">Removes every Rocket League match from your account and resets auto-log baseline. Valorant stats are not touched.</p>
+        <button type="button" class="btn btn-cancel" id="setup-clear-rl-history">Clear all RL match history</button>
+      </div>
       ${renderRankBaselinesPanel()}
     </div>`;
 }
@@ -314,6 +323,7 @@ export function renderSetupWizard(displayName = '') {
       </div>`;
     wireSetupWizard();
     wireSetupApplyGo();
+    renderDiagnosticsPanel();
     if (bridge) {
       prefillRiotFromBridge();
       void updateOverwolfSetupUI();
@@ -375,6 +385,7 @@ export function renderSetupWizard(displayName = '') {
 
   wireSetupWizard();
   updateBridgePill(bridge);
+  renderDiagnosticsPanel();
   if (bridge) {
     prefillRiotFromBridge();
     void updateOverwolfSetupUI();
@@ -538,19 +549,25 @@ function wireSetupWizard() {
   wireRankBaselinesButton();
   wireOverwolfSetupActions();
 
-  const clearBtn = document.getElementById('setup-clear-val-history');
-  if (clearBtn && !clearBtn.dataset.wired) {
-    clearBtn.dataset.wired = '1';
-    clearBtn.addEventListener('click', async () => {
-      const ok = await clearGameHistory(GAME_IDS.VALORANT);
-      if (!ok) return;
-      try {
-        await bridgeFetch('/valorant/reset-baseline', { method: 'POST' });
-      } catch { /* bridge optional */ }
-      refreshValorantStatus();
-      document.dispatchEvent(new CustomEvent('tracker-data-changed'));
-    });
-  }
+  wireClearHistoryButton('setup-clear-val-history', GAME_IDS.VALORANT, '/valorant/reset-baseline', () => {
+    refreshValorantStatus();
+  });
+  wireClearHistoryButton('setup-clear-rl-history', GAME_IDS.ROCKET_LEAGUE, '/rocket-league/reset-baseline');
+}
+
+function wireClearHistoryButton(btnId, gameId, bridgePath, afterClear) {
+  const btn = document.getElementById(btnId);
+  if (!btn || btn.dataset.wired) return;
+  btn.dataset.wired = '1';
+  btn.addEventListener('click', async () => {
+    const ok = await clearGameHistory(gameId);
+    if (!ok) return;
+    try {
+      await bridgeFetch(bridgePath, { method: 'POST' });
+    } catch { /* bridge optional */ }
+    afterClear?.();
+    document.dispatchEvent(new CustomEvent('tracker-data-changed'));
+  });
 }
 
 function wireRankBaselinesButton() {
@@ -707,7 +724,7 @@ function renderProfileNameStep(profile) {
     <strong>Your in-game name</strong>
     <p class="setup-name-intro">This is the name at the top of your profile — copy it <em>exactly</em> into the box below.</p>
     <figure class="setup-name-example">
-      <img src="${getAssetUrl('assets/setup/profile-name-example.svg')}" alt="Profile example — the name next to your avatar is your display name" width="960" height="auto" loading="lazy">
+      ${PROFILE_NAME_EXAMPLE_SVG}
       <figcaption>↑ Use this name — same spelling and caps as shown.</figcaption>
     </figure>
     <div class="setup-name-field-row">

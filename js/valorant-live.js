@@ -6,10 +6,11 @@ import { GAME_IDS } from './games.js';
 import { showToast } from './ui.js';
 import { isAutoLogEnabled } from './quicklog.js';
 import { isBridgeUp, getBridgeUrl, setBridgeOnline, bridgeFetch } from './bridge-client.js';
-import { setCachedValorantStatus, refreshBridgeStatusUI } from './bridge-ui.js';
+import { setCachedValorantStatus, clearCachedValorantStatus, refreshBridgeStatusUI } from './bridge-ui.js';
 
 let pollTimer = null;
-const POLL_ACTIVE_MS = 3000;
+const POLL_TRACKING_MS = 3000;
+const POLL_WAITING_MS = 15000;
 const POLL_IDLE_MS = 5000;
 const POLL_HIDDEN_MS = 10000;
 let wasBridgeUp = false;
@@ -22,6 +23,7 @@ let onVisibilityChange = null;
 let onSessionStart = null;
 let dashEventWired = false;
 let lastValStatusSig = '';
+let lastValorantProcessRunning = false;
 
 async function fetchJson(path, timeoutMs = 4000) {
   const res = await fetch(`${getBridgeUrl()}${path}`, { signal: AbortSignal.timeout(timeoutMs) });
@@ -101,6 +103,7 @@ async function poll({ forceUi = false } = {}) {
   let valStatus = null;
   try {
     valStatus = await fetchJson('/valorant/status');
+    lastValorantProcessRunning = Boolean(valStatus?.valorantProcessRunning ?? valStatus?.valorantRunning);
     setValorantLiveStatus(valStatus, { force: forceUi });
   } catch {
     if (forceUi) refreshBridgeStatusUI();
@@ -165,7 +168,8 @@ function shouldPeriodicPoll() {
 function getPollMs() {
   if (state.activeGame !== GAME_IDS.VALORANT) return POLL_IDLE_MS;
   if (!isBridgeUp()) return POLL_IDLE_MS;
-  return POLL_ACTIVE_MS;
+  if (lastValorantProcessRunning) return POLL_TRACKING_MS;
+  return POLL_WAITING_MS;
 }
 
 function schedulePoll() {
@@ -197,6 +201,9 @@ export function initValorantLive(applyStats, statusCb, autoLogCb) {
   onStatus = statusCb;
   onAutoLog = autoLogCb;
   stopValorantLive();
+  clearCachedValorantStatus();
+  lastValStatusSig = '';
+  lastValorantProcessRunning = false;
   pollingArmSent = false;
   wireDashIdleResume();
   schedulePoll();

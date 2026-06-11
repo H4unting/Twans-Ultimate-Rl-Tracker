@@ -296,14 +296,22 @@ body:not(.logged-out) .top-bar > .review-sub-nav:not(.v0-sidebar-sub) { display:
   contain: content;
 }
 
-/* Below-fold sections skip paint until near viewport */
+.dash-shell-loading {
+  animation: dash-shell-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes dash-shell-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+/* Lazy init via JS (IntersectionObserver + scheduleHomeDeferred) — no content-visibility delay */
 #dash-rank-progress,
 #dash-session-panel,
 #home-focus,
 #dash-performance,
 #dash-activity {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 280px;
+  contain: layout style;
 }
 
 .dash-hero {

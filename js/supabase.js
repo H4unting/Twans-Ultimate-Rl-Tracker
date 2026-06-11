@@ -327,6 +327,7 @@ export async function loadSettings() {
       secondaryColor: '',
       rankBaselines: {},
       rankBaselinesComplete: false,
+      trackerLevels: {},
     };
   }
   try {
@@ -343,6 +344,7 @@ export async function loadSettings() {
       secondaryColor: data.secondaryColor ?? '',
       rankBaselines: data.rankBaselines ?? {},
       rankBaselinesComplete: Boolean(data.rankBaselinesComplete),
+      trackerLevels: data.trackerLevels ?? {},
     };
   } catch (e) {
     logError('loadSettings', e);
@@ -364,6 +366,7 @@ export async function loadSettings() {
     secondaryColor: '',
     rankBaselines: {},
     rankBaselinesComplete: false,
+    trackerLevels: {},
   };
 }
 
@@ -639,6 +642,7 @@ export async function loadUserData() {
       secondaryColor: settings.secondaryColor, activeGame: settings.activeGame,
       riotId: settings.riotId, riotRegion: settings.riotRegion,
       rankBaselines: settings.rankBaselines, rankBaselinesComplete: settings.rankBaselinesComplete,
+      trackerLevels: settings.trackerLevels ?? {},
     };
   } catch (e) {
     setSyncStatus('error');

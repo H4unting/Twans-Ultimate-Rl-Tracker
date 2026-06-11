@@ -1,4 +1,4 @@
-/** Connection diagnostics — player-friendly status on Profile (no ports / taskkill) */
+/** Connection diagnostics — player-friendly status on Auto-Log Setup (no ports / taskkill) */
 
 import { state } from './state.js';
 import { GAME_IDS } from './games.js';
@@ -141,7 +141,7 @@ function renderRow(name, row) {
 }
 
 export function renderDiagnosticsPanel() {
-  const host = document.getElementById('profile-diagnostics');
+  const host = document.getElementById('setup-diagnostics');
   if (!host) return;
 
   const overall = overallStatus();
@@ -150,8 +150,8 @@ export function renderDiagnosticsPanel() {
   const tracking = matchTrackingRow();
 
   host.innerHTML = `
-    <section class="profile-diagnostics" aria-labelledby="profile-diagnostics-heading">
-      <p class="section-title" id="profile-diagnostics-heading">Connection</p>
+    <section class="setup-diagnostics" aria-labelledby="setup-diagnostics-heading">
+      <p class="section-title" id="setup-diagnostics-heading">Connection</p>
       <p class="form-hint setup-hint">Status of match tracking on this device. No technical details — reopen the app from the tray if something stays stuck.</p>
       <div class="diag-card">
         <div class="diag-overall diag-status-${overall.cls}">
@@ -170,7 +170,7 @@ export function wireDiagnosticsPanel() {
   wired = true;
 
   const refresh = () => {
-    if (document.getElementById('profile-diagnostics')) renderDiagnosticsPanel();
+    if (document.getElementById('setup-diagnostics')) renderDiagnosticsPanel();
   };
 
   unsubOnline = subscribeBridgeOnline(refresh);
@@ -205,9 +205,4 @@ export function stopDiagnosticsPanel() {
   unsubOnline = null;
   unsubReachable = null;
   wired = false;
-}
-
-export function mountProfileDiagnosticsSlot() {
-  return `
-    <div id="profile-diagnostics"></div>`;
 }

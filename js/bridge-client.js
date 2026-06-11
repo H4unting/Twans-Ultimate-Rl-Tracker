@@ -38,6 +38,11 @@ let inStartupPhase = true;
 let startupPhaseTimer = null;
 let lastBridgeStatusSig = '';
 
+function noteBridgeRequest() {
+  if (typeof window === 'undefined') return;
+  window.__BRIDGE_REQUEST_COUNT = (window.__BRIDGE_REQUEST_COUNT || 0) + 1;
+}
+
 export function endBridgeStartupPhase() {
   inStartupPhase = false;
   if (startupPhaseTimer) {
@@ -90,6 +95,7 @@ export function isBridgeProcessDetected() {
 
 async function probeDirectBridge() {
   try {
+    noteBridgeRequest();
     const res = await fetch(`http://127.0.0.1:${BRIDGE_PORT}/status`, { signal: AbortSignal.timeout(2000) });
     if (!res.ok) return false;
     try {
@@ -197,7 +203,7 @@ export function bridgeStatusSig(json) {
     json.inMatch ? 1 : 0,
     json.version ?? '',
     json.bridgeVersion ?? '',
-    json.valorantRunning ? 1 : 0,
+    json.valorantRunning || json.valorantProcessRunning ? 1 : 0,
   ].join(':');
 }
 
@@ -213,6 +219,7 @@ export function resetBridgeStatusSig() {
 }
 
 async function pingBridgeOnce() {
+  noteBridgeRequest();
   const res = await fetch(`${bridgeBase()}/status`, { signal: AbortSignal.timeout(PING_TIMEOUT_MS) });
   if (res.status === 404 && bridgeBase().includes('/api/bridge')) {
     bridgeProcessOnDirectPort = await probeDirectBridge();
@@ -249,6 +256,7 @@ export async function bridgeFetch(path, options = {}) {
   if (bridgeAuthToken && method !== 'GET' && method !== 'HEAD') {
     headers['X-Bridge-Token'] = bridgeAuthToken;
   }
+  noteBridgeRequest();
   return fetch(`${bridgeBase()}${path}`, { ...options, method, headers });
 }
 

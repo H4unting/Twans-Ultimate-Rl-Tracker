@@ -170,6 +170,15 @@ export function startBridge(options = {}) {
     pendingWinnerTeamNum = null;
   }
 
+  function resetRlAutoLogBaseline() {
+    lastMatch = null;
+    lastFinalizedGuid = null;
+    currentMatchGuid = null;
+    pendingWinnerTeamNum = null;
+    inMatch = false;
+    live = { goals: 0, assists: 0, saves: 0, score: 0 };
+  }
+
   function finalizeMatch(winnerTeamNum) {
     if (winnerTeamNum == null || playerTeamNum == null) return;
 
@@ -320,6 +329,7 @@ export function startBridge(options = {}) {
           authRequired: true,
           rocketLeagueRunning: processes.rocketLeagueRunning,
           valorantProcessRunning: processes.valorantProcessRunning,
+          valorantRunning: processes.valorantProcessRunning,
         };
         const origin = req.headers.origin;
         if (!origin || ALLOWED_ORIGINS.has(origin) || isLocalDevOrigin(origin)) {
@@ -375,6 +385,13 @@ export function startBridge(options = {}) {
         return;
       }
 
+      if (urlPath === '/rocket-league/reset-baseline' && req.method === 'POST') {
+        resetRlAutoLogBaseline();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true }));
+        return;
+      }
+
       if (urlPath === '/last-match/consume' && req.method === 'POST') {
         const out = lastMatch;
         if (lastMatch) lastMatch = { ...lastMatch, consumed: true };
@@ -384,7 +401,7 @@ export function startBridge(options = {}) {
       }
 
       const valBridge = await loadValorantBridge();
-      if (valBridge?.handleValorantRequest(req, res)) return;
+      if (await valBridge?.handleValorantRequest(req, res)) return;
 
       res.writeHead(404);
       res.end('Not found');

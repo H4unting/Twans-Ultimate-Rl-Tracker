@@ -1,6 +1,10 @@
 /**
  * Generate multi-size Windows icon.ico from source PNG.
- * Source: ../../integrations/overwolf/icon.png (canonical brand asset)
+ *
+ * Master source (first match wins):
+ *   1. ../../assets/brand/logo-master.png
+ *   2. ../../integrations/overwolf/icon.png  (canonical Overwolf export, 512px)
+ *
  * Output: ../assets/icon.ico (+ sync ../assets/icon.png)
  */
 import fs from 'fs';
@@ -11,7 +15,9 @@ import pngToIco from 'png-to-ico';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const launcherRoot = path.resolve(__dirname, '..');
 const repoRoot = path.resolve(launcherRoot, '..', '..');
-const sourcePng = path.join(repoRoot, 'integrations', 'overwolf', 'icon.png');
+const brandMaster = path.join(repoRoot, 'assets', 'brand', 'logo-master.png');
+const overwolfMaster = path.join(repoRoot, 'integrations', 'overwolf', 'icon.png');
+const sourcePng = fs.existsSync(brandMaster) ? brandMaster : overwolfMaster;
 const assetsDir = path.join(launcherRoot, 'assets');
 const destPng = path.join(assetsDir, 'icon.png');
 const destIco = path.join(assetsDir, 'icon.ico');

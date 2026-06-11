@@ -3,7 +3,6 @@
 import { state } from './state.js';
 import { GAME_IDS } from './games.js';
 import { fetchBridgeStatus, isBridgeUp } from './bridge-client.js';
-import { getCachedValorantStatus } from './bridge-ui.js';
 import { startSession, endSession } from './sessions.js';
 import { showToast } from './ui.js';
 
@@ -40,8 +39,7 @@ async function pollGameProcesses() {
   if (!status) return;
 
   const rlRunning = Boolean(status.rocketLeagueRunning || status.rlConnected);
-  const valRunning = Boolean(status.valorantProcessRunning)
-    || Boolean(getCachedValorantStatus()?.valorantRunning);
+  const valRunning = Boolean(status.valorantProcessRunning || status.valorantRunning);
 
   const rlStarted = rlRunning && !lastRlRunning;
   const valStarted = valRunning && !lastValRunning;
