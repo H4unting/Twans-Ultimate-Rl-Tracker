@@ -5,7 +5,10 @@ import { loadPrefs, savePrefs, isAutoLogEnabled } from './quicklog.js';
 import { isDashboardIdle } from './dash-context.js';
 import { state } from './state.js';
 import { GAME_IDS } from './games.js';
-import { isBridgeUp, getBridgeUrl, fetchBridgeStatus, bridgeFetch, bridgeStatusSig, noteBridgeStatus } from './bridge-client.js';
+import {
+  isBridgeUp, getBridgeUrl, fetchBridgeStatus, bridgeFetch, bridgeStatusSig, noteBridgeStatus,
+  subscribeBridgeProcessState,
+} from './bridge-client.js';
 import { setCachedRlInMatch, refreshBridgeStatusUI } from './bridge-ui.js';
 import { DESKTOP_APP } from './config.js';
 
@@ -21,6 +24,8 @@ let autoLogInFlight = false;
 let onVisibilityChange = null;
 let dashEventWired = false;
 let lastRlBridgeSig = '';
+let lastRlProcessActive = false;
+let unsubBridgeProcess = null;
 
 const callbacks = { onMatchStats: null, onStatusChange: null, onAutoLog: null };
 
@@ -46,6 +51,13 @@ function schedulePoll() {
     await pollBridge();
     if (pollTimer !== null) schedulePoll();
   }, getPollIntervalMs());
+}
+
+function onBridgeRlProcessChange({ rocketLeagueRunning, rlConnected }) {
+  const next = Boolean(rocketLeagueRunning || rlConnected);
+  if (next === lastRlProcessActive) return;
+  lastRlProcessActive = next;
+  refreshBridgeStatusUI();
 }
 
 function wireDashIdleResume() {
@@ -79,6 +91,8 @@ export function initRlLive(onMatchStats, onStatusChange, onAutoLog) {
   callbacks.onStatusChange = onStatusChange;
   callbacks.onAutoLog = onAutoLog;
   stopRlLive();
+  lastRlProcessActive = false;
+  unsubBridgeProcess = subscribeBridgeProcessState(onBridgeRlProcessChange);
   wireDashIdleResume();
   schedulePoll();
   void pollBridge();
@@ -94,11 +108,16 @@ export function initRlLive(onMatchStats, onStatusChange, onAutoLog) {
 }
 
 export function stopRlLive() {
+  if (unsubBridgeProcess) {
+    unsubBridgeProcess();
+    unsubBridgeProcess = null;
+  }
   stopPolling();
   if (onVisibilityChange) {
     document.removeEventListener('visibilitychange', onVisibilityChange);
     onVisibilityChange = null;
   }
+  lastRlProcessActive = false;
   setCachedRlInMatch(false);
   refreshBridgeStatusUI();
 }

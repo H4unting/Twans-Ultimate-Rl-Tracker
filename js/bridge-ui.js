@@ -6,6 +6,8 @@ import {
   isBridgeUp, isBridgeProbeDone, getLastBridgeFailure, getBridgeStatusPhase,
   getBridgeConnectAttempts, isBridgeInStartupPhase,
   getHeartbeatValorantProcessRunning,
+  getHeartbeatRocketLeagueRunning,
+  getHeartbeatRlConnected,
   subscribeBridgeResumed,
 } from './bridge-client.js';
 import { isAutoLogEnabled, loadPrefs, syncAutoLogToggleUI } from './quicklog.js';
@@ -69,6 +71,16 @@ export function patchCachedValorantProcessRunning(running) {
     valorantRunning: next,
     valorantProcessRunning: next,
   };
+}
+
+/** Process-gated RL sync — heartbeat /status wins over stale poller cache. */
+export function isRocketLeagueGameActive(status) {
+  const hbRl = getHeartbeatRocketLeagueRunning();
+  const hbConn = getHeartbeatRlConnected();
+  if (hbRl !== null || hbConn !== null) {
+    return Boolean(hbRl) || Boolean(hbConn);
+  }
+  return Boolean(status?.rocketLeagueRunning || status?.rlConnected);
 }
 
 export function setCachedRlInMatch(inMatch) {
@@ -229,12 +241,26 @@ function renderValorantPill(el, valStatus, meta) {
 }
 
 function renderRocketLeaguePill(el, inMatch, meta) {
-  el.classList.toggle('in-match', inMatch);
+  const rlActive = isRocketLeagueGameActive();
+  el.classList.toggle('in-match', inMatch || rlActive);
 
   if (inMatch) {
     applyUnifiedStatusLabel(el, 'tracking', `Live match — reading stats from ${meta.label}`);
     el.textContent = formatStatusPill('tracking');
     el.dataset.bridgeState = 'in-match';
+    return;
+  }
+
+  if (rlActive) {
+    if (isAutoLogEnabled()) {
+      applyUnifiedStatusLabel(el, 'tracking', 'Auto-log ON — Rocket League is running');
+      el.textContent = formatStatusPill('tracking');
+      el.title = 'Rocket League detected — matches auto-log when they end';
+    } else {
+      applyUnifiedStatusLabel(el, 'tracking', 'Rocket League is running — turn on auto-log or tap LOG after the match');
+      el.textContent = formatStatusPill('tracking');
+    }
+    el.dataset.bridgeState = 'ready';
     return;
   }
 

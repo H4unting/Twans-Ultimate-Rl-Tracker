@@ -37,8 +37,10 @@ let reconnecting = false;
 let inStartupPhase = true;
 let startupPhaseTimer = null;
 let lastBridgeStatusSig = '';
-/** Latest VALORANT-Win64-Shipping.exe state from bridge heartbeat /status (null = unknown). */
+/** Latest game-process flags from bridge heartbeat /status (null = unknown). */
 let heartbeatValorantProcessRunning = null;
+let heartbeatRocketLeagueRunning = null;
+let heartbeatRlConnected = null;
 const processStateListeners = new Set();
 
 function noteBridgeRequest() {
@@ -204,6 +206,8 @@ export function bridgeStatusSig(json) {
   if (!json || typeof json !== 'object') return '';
   return [
     json.inMatch ? 1 : 0,
+    json.rocketLeagueRunning ? 1 : 0,
+    json.rlConnected ? 1 : 0,
     json.version ?? '',
     json.bridgeVersion ?? '',
     json.valorantRunning || json.valorantProcessRunning ? 1 : 0,
@@ -221,25 +225,49 @@ export function resetBridgeStatusSig() {
   lastBridgeStatusSig = '';
 }
 
-/** Authoritative game-process flag while bridge heartbeat is up (tasklist-gated). */
+/** Authoritative game-process flags while bridge heartbeat is up (tasklist-gated). */
 export function getHeartbeatValorantProcessRunning() {
   return heartbeatValorantProcessRunning;
 }
 
+export function getHeartbeatRocketLeagueRunning() {
+  return heartbeatRocketLeagueRunning;
+}
+
+export function getHeartbeatRlConnected() {
+  return heartbeatRlConnected;
+}
+
 export function subscribeBridgeProcessState(fn) {
   processStateListeners.add(fn);
-  if (heartbeatValorantProcessRunning !== null) {
-    fn({ valorantProcessRunning: heartbeatValorantProcessRunning });
+  if (heartbeatValorantProcessRunning !== null
+    || heartbeatRocketLeagueRunning !== null
+    || heartbeatRlConnected !== null) {
+    fn({
+      valorantProcessRunning: heartbeatValorantProcessRunning,
+      rocketLeagueRunning: heartbeatRocketLeagueRunning,
+      rlConnected: heartbeatRlConnected,
+    });
   }
   return () => processStateListeners.delete(fn);
 }
 
-function updateHeartbeatValorantProcess(json) {
-  const next = Boolean(json?.valorantProcessRunning ?? json?.valorantRunning);
-  const prev = heartbeatValorantProcessRunning;
-  heartbeatValorantProcessRunning = next;
-  if (prev === next) return;
-  const payload = { valorantProcessRunning: next };
+function updateHeartbeatGameProcess(json) {
+  const nextVal = Boolean(json?.valorantProcessRunning ?? json?.valorantRunning);
+  const nextRl = Boolean(json?.rocketLeagueRunning);
+  const nextConn = Boolean(json?.rlConnected);
+  const prevVal = heartbeatValorantProcessRunning;
+  const prevRl = heartbeatRocketLeagueRunning;
+  const prevConn = heartbeatRlConnected;
+  heartbeatValorantProcessRunning = nextVal;
+  heartbeatRocketLeagueRunning = nextRl;
+  heartbeatRlConnected = nextConn;
+  if (prevVal === nextVal && prevRl === nextRl && prevConn === nextConn) return;
+  const payload = {
+    valorantProcessRunning: nextVal,
+    rocketLeagueRunning: nextRl,
+    rlConnected: nextConn,
+  };
   processStateListeners.forEach((fn) => {
     try { fn(payload); } catch { /* ignore */ }
   });
@@ -265,7 +293,7 @@ async function pingBridgeOnce() {
   }
   const json = await res.json();
   if (json.authToken) bridgeAuthToken = json.authToken;
-  updateHeartbeatValorantProcess(json);
+  updateHeartbeatGameProcess(json);
   noteBridgeStatus(json);
   lastBridgeFailure = null;
   bridgeProcessOnDirectPort = false;
@@ -375,6 +403,8 @@ export function stopBridgeHeartbeat() {
   wasEverOnline = false;
   resetBridgeStatusSig();
   heartbeatValorantProcessRunning = null;
+  heartbeatRocketLeagueRunning = null;
+  heartbeatRlConnected = null;
   setBridgeOnline(false);
   emitReachableIfChanged();
 }

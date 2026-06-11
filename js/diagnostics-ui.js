@@ -13,6 +13,7 @@ import {
 } from './bridge-client.js';
 import {
   getCachedValorantStatus, getCachedRlInMatch, isValorantGameProcessRunning,
+  isRocketLeagueGameActive,
 } from './bridge-ui.js';
 import { STATUS, waitingForGameLabel } from './status-copy.js';
 import { needsLocalTrackerForAutoLog } from './env.js';
@@ -84,6 +85,9 @@ function overallStatus() {
   if (inMatch) {
     return { label: STATUS.tracking, cls: 'ok', hint: 'Live match — stats update from the game export.' };
   }
+  if (isRocketLeagueGameActive()) {
+    return { label: STATUS.tracking, cls: 'ok', hint: 'Rocket League is running — play a match to track stats.' };
+  }
   if (up) {
     return { label: waitingForGameLabel(GAME_IDS.ROCKET_LEAGUE), cls: 'pending', hint: 'Ready — launch Rocket League or tap Play.' };
   }
@@ -129,8 +133,11 @@ function matchTrackingRow() {
   if (inMatch) {
     return { label: 'Live match', cls: 'ok', hint: 'Reading stats from the approved game export.' };
   }
+  if (isRocketLeagueGameActive()) {
+    return { label: 'Watching', cls: 'ok', hint: 'Rocket League is running — stats auto-log when matches end.' };
+  }
   if (isBridgeUp()) {
-    return { label: 'Waiting', cls: 'pending', hint: 'Rocket League export connected — play a match to track.' };
+    return { label: 'Waiting', cls: 'pending', hint: 'Ready — launch Rocket League or tap Play.' };
   }
   return { label: 'Offline', cls: 'warn', hint: 'Start the desktop app and enable Stats API in setup.' };
 }
