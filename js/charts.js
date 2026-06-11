@@ -34,6 +34,12 @@ const perfChartOptions = {
   transitions: { active: { animation: { duration: 0 } } },
 };
 
+function bumpChartRender() {
+  if (typeof window !== 'undefined') {
+    window.__CHARTS_RENDER_COUNT = (window.__CHARTS_RENDER_COUNT || 0) + 1;
+  }
+}
+
 function updateLineChart(chart, labels, data, color) {
   chart.data.labels = labels;
   chart.data.datasets[0].data = data;
@@ -56,6 +62,7 @@ export function mmrChart(id, games, color, label = 'MMR', rankField = 'endMMR') 
 
   if (charts[id]?.$sig === sig) return;
 
+  bumpChartRender();
   if (charts[id]) {
     charts[id].$sig = sig;
     updateLineChart(charts[id], labels, data, color);
@@ -95,6 +102,7 @@ export function wlChart(id, stats) {
 
   if (charts[id]?.$sig === sig) return;
 
+  bumpChartRender();
   if (charts[id]) {
     charts[id].$sig = sig;
     charts[id].data.datasets[0].data = [wins, losses];
@@ -140,6 +148,7 @@ export function rollingChart(id, games, primaryColor = '#e65c00') {
 
   if (charts[id]?.$sig === sig) return;
 
+  bumpChartRender();
   if (charts[id]) {
     charts[id].$sig = sig;
     charts[id].data.labels = labels;
@@ -197,6 +206,7 @@ export function trendChart(id, buckets, gameId = 'rocket_league') {
 
   if (charts[id]?.$sig === sig) return;
 
+  bumpChartRender();
   if (charts[id]) {
     charts[id].$sig = sig;
     charts[id].data.labels = buckets.map(b => b.label);

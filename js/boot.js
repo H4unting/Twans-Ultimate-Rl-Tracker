@@ -34,6 +34,9 @@ function markBoot(phase) {
     ? Math.round(performance.now() - bootT0)
     : 0;
   console.info(`[boot +${elapsed}ms] ${phase}`);
+  if (typeof window !== 'undefined') {
+    (window.__BOOT_MARKS ||= []).push({ phase, ms: elapsed });
+  }
 }
 
 export function wireBootContext(next) {
