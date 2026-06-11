@@ -93,6 +93,7 @@ let dashRenderThrottleTimer = null;
 let dashRenderQueued = null;
 let dashRenderBypass = false;
 let trackerDataListenerWired = false;
+let gameDataRefreshRaf = null;
 let perfSectionVisible = false;
 let perfSectionObserver = null;
 
@@ -542,8 +543,7 @@ function refreshAfterGameDataChange() {
 
   if (page === 'dashboard') {
     refreshAfterMatchSaved(games, goals);
-  }
-  if (page === 'log') {
+  } else if (page === 'log') {
     renderMatchLogs();
     wireLogTableActions();
   }
@@ -552,6 +552,15 @@ function refreshAfterGameDataChange() {
   rerenderQuickTags();
   updateNavUI(page);
   mountDock();
+}
+
+/** Coalesce burst updates (match save + session notify) into one targeted refresh per frame. */
+function scheduleRefreshAfterGameDataChange() {
+  if (gameDataRefreshRaf != null) return;
+  gameDataRefreshRaf = requestAnimationFrame(() => {
+    gameDataRefreshRaf = null;
+    refreshAfterGameDataChange();
+  });
 }
 
 function renderAllInner(scope = 'full') {
@@ -654,6 +663,13 @@ function renderDashboard() {
 }
 
 function renderMatchLogs() {
+  const page = state.activePage || 'dashboard';
+  if (page !== 'log') return;
+
+  if (typeof window !== 'undefined') {
+    window.__MATCHLOG_RENDER_COUNT = (window.__MATCHLOG_RENDER_COUNT || 0) + 1;
+  }
+
   renderLogSetupNudge();
   renderQuickFilters('matchlogs-quick-filters', () => renderMatchLogs());
   renderFilterBar('matchlogs-filters', getActiveGames(), state.matchLogFilters, filters => {
@@ -1026,7 +1042,7 @@ async function submitGameLog(source = 'form') {
       resetQuickAfterLog();
     });
     dashRenderBypass = true;
-    refreshAfterGameDataChange();
+    scheduleRefreshAfterGameDataChange();
     if (saved) {
       state.homeChartMode = saved.mode;
       showPostMatchCard(saved, { estimated: isMmrEstimated(saved) });
@@ -1188,7 +1204,7 @@ async function handleSaveEdit() {
     }, state.ui.editTags);
     if (!updated) return;
     closeEditModal();
-    refreshAfterGameDataChange();
+    scheduleRefreshAfterGameDataChange();
   } catch (err) {
     console.error('Save edit failed:', err);
     showToast(err?.message || 'Save failed', 'error');
@@ -1212,7 +1228,7 @@ function wireLogTableActions() {
     if (delBtn) {
       void (async () => {
         const ok = await deleteGame(parseInt(delBtn.dataset.match, 10));
-        if (ok) refreshAfterGameDataChange();
+        if (ok) scheduleRefreshAfterGameDataChange();
       })();
     }
   });
@@ -1310,33 +1326,33 @@ async function init() {
     initPostMatch({
       onConfirmMMR: async (mmr) => {
         const game = await patchLastGame({ endMMR: mmr });
-        if (game) { refreshAfterGameDataChange(); return true; }
+        if (game) { scheduleRefreshAfterGameDataChange(); return true; }
         return false;
       },
       onTags: async (tags) => {
         await patchLastGame({ tags });
-        refreshAfterGameDataChange();
+        scheduleRefreshAfterGameDataChange();
         return true;
       },
       onUndo: async () => {
         const ok = await undoLastGame(true);
-        if (ok) refreshAfterGameDataChange();
+        if (ok) scheduleRefreshAfterGameDataChange();
         return ok;
       },
-      onOpen: () => refreshSessionUI(),
-      onClose: () => refreshSessionUI(),
+      onOpen: () => refreshSessionUI({ quiet: true }),
+      onClose: () => refreshSessionUI({ quiet: true }),
     });
     if (!trackerDataListenerWired) {
       trackerDataListenerWired = true;
       document.addEventListener('rl-session-ui-refresh', () => {
-        if (insideRenderAll) return;
+        if (insideRenderAll || gameDataRefreshRaf != null) return;
         dashRenderBypass = true;
         if ((state.activePage || 'dashboard') === 'dashboard') {
           refreshDashSessionWidgets(getActiveGames());
         }
       });
       document.addEventListener('tracker-data-changed', () => {
-        refreshAfterGameDataChange();
+        scheduleRefreshAfterGameDataChange();
       });
     }
     ensureBridgeServices();

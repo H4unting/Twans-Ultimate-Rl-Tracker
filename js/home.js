@@ -802,6 +802,9 @@ export function refreshDashSessionWidgets(games) {
 
 /** Patch dashboard widgets after a match save — no full renderHome/renderAll. */
 export function refreshAfterMatchSaved(games, goals) {
+  if (typeof window !== 'undefined') {
+    window.__MATCH_SAVE_DASH_RENDERS = (window.__MATCH_SAVE_DASH_RENDERS || 0) + 1;
+  }
   const allRows = getCachedPlaylistMMRRows(games, state.activeGame);
   const isVal = state.activeGame === GAME_IDS.VALORANT;
   const rows = isVal ? allRows.filter(r => r.mode === 'Competitive') : allRows;

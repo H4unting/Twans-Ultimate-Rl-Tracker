@@ -6,7 +6,7 @@
 **Method:** Read-only static audit + existing instrumentation + limited runtime probes  
 **Status:** Fix applied — targeted match-save refresh (see note below). Prior pass was read-only documentation only.
 
-**Fix applied (2026-06-11):** Match save and `tracker-data-changed` now call `refreshAfterGameDataChange()` / `refreshAfterMatchSaved()` instead of `renderAll('core')`. `renderAll` scope flags: `touchLog` and `touchDashboard` are page-gated only (`page === 'log'` / `page === 'dashboard'`), not `scope === 'core'`.
+**Fix applied (2026-06-11):** Match save and `tracker-data-changed` now call `scheduleRefreshAfterGameDataChange()` → coalesced `refreshAfterMatchSaved()` instead of `renderAll('core')`. `renderAll` scope flags: `touchLog` and `touchDashboard` are page-gated only (`page === 'log'` / `page === 'dashboard'`), not `scope === 'core'`. Match-save coalesce (same pass): `addGame` uses quiet session refresh; post-match card uses quiet session refresh; `rl-session-ui-refresh` skips dashboard widgets while a coalesced refresh is pending — target **1** `window.__MATCH_SAVE_DASH_RENDERS` per save on dashboard.
 
 **Related:** [PERFORMANCE-OPTIMIZATION-REPORT.md](./PERFORMANCE-OPTIMIZATION-REPORT.md) (prior sprint fixes), [PERFORMANCE-AUDIT.md](./PERFORMANCE-AUDIT.md) (June 7 baseline)
 

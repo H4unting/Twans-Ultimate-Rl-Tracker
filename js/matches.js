@@ -11,7 +11,8 @@ import { getActiveGameModule } from './games/router.js';
 import { getStoredRankBaseline } from './rank-baseline-store.js';
 
 function notifySessionUIRefresh() {
-  void import('./sessions.js').then(m => m.refreshSessionUI());
+  // Quiet: match-save callers run refreshAfterGameDataChange (coalesced targeted refresh).
+  void import('./sessions.js').then(m => m.refreshSessionUI({ quiet: true }));
 }
 
 function requireSignedIn() {
