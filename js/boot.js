@@ -20,8 +20,10 @@ import { saveRlDisplayName } from './rl-live.js';
 import { renderSetupWizard, refreshSetupWizard, renderLogSetupNudge } from './setup-wizard.js';
 import { initGameSwitcher, restoreActiveGameFromPrefs } from './game-ui.js';
 import { restoreSessionFromStorage } from './sessions.js';
-import { showToast, showLoading, showLoginScreen, renderAuthBar } from './ui.js';
+import { showToast, showLoading, showLoginScreen, renderAuthBar, showPage } from './ui.js';
 import { getAuthUser } from './auth.js';
+import { loadProfileCache, saveProfileCache } from './profile-cache.js';
+import { renderDashboardShell } from './home.js';
 
 let bootPromise = null;
 let initialBootDone = false;
@@ -136,16 +138,27 @@ export async function bootApp() {
   markBoot('shell-visible');
   showLoginScreen(false);
   applyAppMode();
+
+  const cached = loadProfileCache();
+  if (cached?.profile) {
+    setProfile(cached.profile);
+    if (cached.activeGame) restoreActiveGameFromPrefs(cached.activeGame);
+  }
+
   renderAuthBar(ctx.getDisplay(), ctx.handleSignOut, () => ctx.navigate('profile', 'home'));
   showQuickDock();
   state.activePage = 'dashboard';
+  showPage('dashboard');
   ctx.ensureBridgeServices?.();
 
   showLoading(false);
+  renderDashboardShell();
+  markBoot('shell-painted');
+
   await waitForFirstPaint();
   markBoot('first-paint');
+  markBoot('interactive');
 
-  showLoading(true);
   void waitForDesktopServices();
 
   try {
@@ -168,6 +181,7 @@ export async function bootApp() {
       primary_color: profile?.primary_color || primaryColor || profile?.accent_color || '#e65c00',
       secondary_color: profile?.secondary_color || secondaryColor || '#4a2060',
     });
+    saveProfileCache(state.profile, { activeGame });
 
     markBoot('repair-chains-start');
     const { games: repaired, changed } = RL.repairPlaylistMMRChain(

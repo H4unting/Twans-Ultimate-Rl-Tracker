@@ -7,6 +7,7 @@ import { DESKTOP_APP, getDesktopLauncherBat } from './config.js';
 import { applyAppMode, isDesktopHost } from './env.js';
 import { state, subscribe, setGames, setSyncStatus, setGoals, setProfile, getUserDisplay, getActiveGames, resetAppState } from './state.js';
 import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, sendPasswordReset, signOut, onAuthChange, getAuthUser, hasPendingAuthHash, clearAuthHashFromUrl } from './auth.js';
+import { saveProfileCache } from './profile-cache.js';
 import { saveSettings, createGroup, joinGroup, leaveGroup, loadUserGroups, saveProfile, uploadProfileAvatar, deleteOwnAccount } from './supabase.js';
 import { applyFilters, DEFAULT_FILTERS } from './filters.js';
 import { calcStats } from './utils.js';
@@ -539,6 +540,9 @@ function renderAll(scope = 'full') {
 
 function refreshAfterGameDataChange() {
   if (insideRenderAll) return;
+  if (typeof window !== 'undefined') {
+    window.__REFRESH_AFTER_GAME_DATA_CHANGE_COUNT = (window.__REFRESH_AFTER_GAME_DATA_CHANGE_COUNT || 0) + 1;
+  }
   const page = state.activePage || 'dashboard';
   const games = getActiveGames();
   const goals = getActiveGoals();
@@ -879,6 +883,7 @@ async function handleProfileSave({
     accent_color: primaryColor,
     avatar_url: nextAvatarUrl,
   });
+  saveProfileCache(state.profile, { activeGame: state.activeGame });
 
   saveRlDisplayName(rlName);
   savePrefs({ rlDisplayName: rlName });

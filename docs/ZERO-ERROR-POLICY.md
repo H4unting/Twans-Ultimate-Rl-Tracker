@@ -94,8 +94,13 @@ Audited exported helpers called from `app.js` against import block. No additiona
 | Supabase requests | `window.__SUPABASE_REQUEST_COUNT` (`supabase.js` `sbFetch`) |
 | Memory | `performance.memory.usedJSHeapSize` (Chrome/Electron only) |
 | Last match save | `window.__LAST_MATCH_SAVE_MS` (`submitGameLog`) |
+| Bridge requests | `window.__BRIDGE_REQUEST_COUNT` (`bridge-client.js`) |
+| Save refresh path | `window.__REFRESH_AFTER_GAME_DATA_CHANGE_COUNT` (`refreshAfterGameDataChange`) |
+| Analyze / guardrail | **Analyze Performance** + **Test save guardrail** buttons in overlay |
 
 **Timer limitation:** Counts only timers/intervals created **after** overlay patches run (post `initDevOverlay`). Pre-existing timers (Chart.js, bridge heartbeat) are not retroactively tracked.
+
+See also [`PREMIUM-DESKTOP-POLISH.md`](./PREMIUM-DESKTOP-POLISH.md) for full success criteria.
 
 ---
 
@@ -139,6 +144,8 @@ Console marks: `[boot +Nms] <phase>` and `window.__BOOT_MARKS`.
 | 3 | `auth-ready` | `app.js` — `initAuth()` complete |
 | 4 | `shell-visible` | `boot.js` — overlay off, quick dock |
 | 5 | `first-paint` | `boot.js` — after `waitForFirstPaint()` |
+| 5b | `interactive` | `boot.js` — shell skeleton painted, before `loadUserData` |
+| 5c | `shell-painted` | `boot.js` — `renderDashboardShell()` |
 | 6 | `load-user-data-start` | `boot.js` — parallel Supabase + bridge |
 | 7 | `data-loaded` | `boot.js` — `loadUserData()` resolved |
 | 8 | `first-render-complete` | `boot.js` — initial `renderAll()` |
@@ -161,5 +168,6 @@ Electron shell adds `[startup +Nms]` in `config/bridge.log` (`main.cjs`) before 
 ## Related docs
 
 - [`ARCHITECTURE.md`](./ARCHITECTURE.md) — startup flow diagram
+- [`PREMIUM-DESKTOP-POLISH.md`](./PREMIUM-DESKTOP-POLISH.md) — polish pass checklist
 - [`PERFORMANCE-OPTIMIZATION-REPORT.md`](./PERFORMANCE-OPTIMIZATION-REPORT.md) — render/throttle details
 - [`RELEASE-CHECKLIST.md`](./RELEASE-CHECKLIST.md) — ship gates
