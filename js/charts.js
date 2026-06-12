@@ -1,6 +1,26 @@
 /** Chart.js wrappers — centralized chart lifecycle management */
 
 const charts = {};
+let chartJsPromise = null;
+
+function ensureChartJs() {
+  if (typeof Chart !== 'undefined') return Promise.resolve();
+  if (chartJsPromise) return chartJsPromise;
+  chartJsPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js';
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Chart.js failed to load'));
+    document.head.appendChild(script);
+  });
+  return chartJsPromise;
+}
+
+function chartJsReady() {
+  if (typeof Chart !== 'undefined') return true;
+  void ensureChartJs().catch(() => {});
+  return false;
+}
 
 function chartDataSig(games, rankField) {
   if (!games?.length) return '0';
@@ -50,6 +70,7 @@ function updateLineChart(chart, labels, data, color) {
 }
 
 export function mmrChart(id, games, color, label = 'MMR', rankField = 'endMMR') {
+  if (!chartJsReady()) return;
   const el = document.getElementById(id);
   if (!el || !games.length) {
     destroyChart(id);
@@ -90,6 +111,7 @@ export function mmrChart(id, games, color, label = 'MMR', rankField = 'endMMR') 
 }
 
 export function wlChart(id, stats) {
+  if (!chartJsReady()) return;
   const el = document.getElementById(id);
   if (!el) {
     destroyChart(id);

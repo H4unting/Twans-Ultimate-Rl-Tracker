@@ -7,7 +7,7 @@ import { DESKTOP_APP, getDesktopLauncherBat } from './config.js';
 import { applyAppMode, isDesktopHost } from './env.js';
 import { state, subscribe, setGames, setSyncStatus, setGoals, setProfile, getUserDisplay, getActiveGames, resetAppState } from './state.js';
 import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, sendPasswordReset, signOut, onAuthChange, getAuthUser, hasPendingAuthHash, clearAuthHashFromUrl } from './auth.js';
-import { saveProfileCache } from './profile-cache.js';
+import { saveProfileCache, loadProfileCache, clearProfileCache } from './profile-cache.js';
 import { saveSettings, createGroup, joinGroup, leaveGroup, loadUserGroups, saveProfile, uploadProfileAvatar, deleteOwnAccount } from './supabase.js';
 import { applyFilters, DEFAULT_FILTERS } from './filters.js';
 import { calcStats } from './utils.js';
@@ -46,6 +46,7 @@ import {
 } from './tracker-level.js';
 import {
   wireBootContext, bootApp, getBootPromise, setBootPromise, isInitialBootDone, resetBootState,
+  paintCachedShellEarly,
 } from './boot.js';
 import { wireAutoLogHandlers, handleAutoLog, handleValorantAutoLog } from './auto-log-handlers.js';
 import { GAME_IDS, getTagGroups, getGameMeta } from './games.js';
@@ -1304,7 +1305,7 @@ async function init() {
       document.body.classList.remove('logged-out');
       const overlayLabel = document.querySelector('#loading-overlay span');
       if (overlayLabel) overlayLabel.textContent = 'Finishing sign-in…';
-    } else {
+    } else if (!loadProfileCache()?.profile) {
       showLoggedOut();
     }
 
@@ -1323,6 +1324,7 @@ async function init() {
       ensureBridgeServices,
       renderAll,
     });
+    const paintedCachedShell = paintCachedShellEarly();
     wireAutoLogHandlers({ submitGameLog });
 
     wireNavigation();
@@ -1390,25 +1392,20 @@ async function init() {
         scheduleRefreshAfterGameDataChange();
       });
     }
-    ensureBridgeServices();
+    if (paintedCachedShell) {
+      requestAnimationFrame(() => ensureBridgeServices());
+    } else {
+      ensureBridgeServices();
+    }
     if (appT0 && typeof performance !== 'undefined') {
       const ms = Math.round(performance.now() - appT0);
       console.info(`[boot +${ms}ms] bridge-services-started`);
       (window.__BOOT_MARKS ||= []).push({ phase: 'bridge-services-started', ms });
     }
-    onAuthChange(async (session) => {
+    onAuthChange((session) => {
       if (session) {
         if (!isInitialBootDone() && !getBootPromise()) {
           setBootPromise(bootApp().finally(() => { setBootPromise(null); }));
-        }
-        const promise = getBootPromise();
-        if (promise) {
-          try {
-            await promise;
-          } catch (e) {
-            console.error(e);
-            showToast(e?.message || 'Could not load after sign-in — try refreshing', 'error');
-          }
         }
       } else if (!hasPendingAuthHash()) {
         resetBootState();
@@ -1416,43 +1413,63 @@ async function init() {
       }
     });
 
-    await withTimeout(initAuth(), 20000, 'Sign-in check timed out — refresh and try again');
-    if (appT0 && typeof performance !== 'undefined') {
-      const ms = Math.round(performance.now() - appT0);
-      console.info(`[boot +${ms}ms] auth-ready`);
-      (window.__BOOT_MARKS ||= []).push({ phase: 'auth-ready', ms });
-    }
-    window.__appReady = true;
     initDevOverlay();
+    window.__appReady = true;
 
-    if (getAuthUser()) {
-      if (!getBootPromise()) {
-        setBootPromise(bootApp().finally(() => { setBootPromise(null); }));
-      }
+    void (async () => {
       try {
-        await getBootPromise();
+        await withTimeout(initAuth(), 20000, 'Sign-in check timed out — refresh and try again');
+        if (appT0 && typeof performance !== 'undefined') {
+          const ms = Math.round(performance.now() - appT0);
+          console.info(`[boot +${ms}ms] auth-ready`);
+          (window.__BOOT_MARKS ||= []).push({ phase: 'auth-ready', ms });
+        }
+
+        if (getAuthUser()) {
+          if (!getBootPromise() && !isInitialBootDone()) {
+            setBootPromise(bootApp().finally(() => { setBootPromise(null); }));
+          }
+        } else if (hasPendingAuthHash()) {
+          showLoading(false);
+          clearAuthHashFromUrl();
+          showLoginScreen(true);
+          wireLoginScreen();
+          clearProfileCache();
+          const note = document.getElementById('boot-failure-note');
+          if (note) {
+            note.textContent = isDesktopHost()
+              ? `Sign-in did not finish. Quit and reopen ${DESKTOP_APP.name}, then try Google sign-in again.`
+              : `Sign-in did not finish. Restart ${getDesktopLauncherBat(GAME_IDS.ROCKET_LEAGUE)}, then try Google sign-in again.`;
+            note.classList.remove('hidden');
+          }
+        } else {
+          if (paintedCachedShell) clearProfileCache();
+          showLoggedOut();
+        }
       } catch (e) {
         console.error(e);
-        showToast(e?.message || 'Could not load your data — try refreshing', 'error');
-        showLoading(false);
-        showLoginScreen(true);
-        wireLoginScreen();
+        if (hasPendingAuthHash()) {
+          showLoading(false);
+          clearAuthHashFromUrl();
+          showLoginScreen(true);
+          wireLoginScreen();
+          const note = document.getElementById('boot-failure-note');
+          if (note) {
+            note.textContent = e?.message
+              || (isDesktopHost()
+                ? `Sign-in failed. Quit and reopen ${DESKTOP_APP.name}, then sign in again.`
+                : `Sign-in failed. Restart ${getDesktopLauncherBat(GAME_IDS.ROCKET_LEAGUE)}, then sign in again.`);
+            note.classList.remove('hidden');
+          }
+        } else if (getAuthUser()) {
+          showToast(e?.message || 'Could not load your data — try refreshing', 'error');
+        } else {
+          if (paintedCachedShell) clearProfileCache();
+          showLoggedOut();
+          showToast(e?.message || 'Tracker failed to start — refresh the page', 'error');
+        }
       }
-    } else if (hasPendingAuthHash()) {
-      showLoading(false);
-      clearAuthHashFromUrl();
-      showLoginScreen(true);
-      wireLoginScreen();
-      const note = document.getElementById('boot-failure-note');
-      if (note) {
-        note.textContent = isDesktopHost()
-          ? `Sign-in did not finish. Quit and reopen ${DESKTOP_APP.name}, then try Google sign-in again.`
-          : `Sign-in did not finish. Restart ${getDesktopLauncherBat(GAME_IDS.ROCKET_LEAGUE)}, then try Google sign-in again.`;
-        note.classList.remove('hidden');
-      }
-    } else {
-      showLoggedOut();
-    }
+    })();
   } catch (e) {
     console.error(e);
     if (hasPendingAuthHash()) {

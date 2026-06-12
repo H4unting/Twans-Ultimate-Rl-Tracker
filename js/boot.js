@@ -65,6 +65,36 @@ export function resetBootState() {
   bootPromise = null;
 }
 
+/** Paint signed-in shell from localStorage before auth/network — instant warm boot. */
+export function paintCachedShellEarly() {
+  if (!ctx.getDisplay) return false;
+  const cached = loadProfileCache();
+  if (!cached?.profile) return false;
+
+  markBoot('shell-visible');
+  showLoginScreen(false);
+  document.body.classList.remove('logged-out');
+  applyAppMode();
+  setProfile(cached.profile);
+  if (cached.activeGame) restoreActiveGameFromPrefs(cached.activeGame);
+
+  renderAuthBar(ctx.getDisplay(), ctx.handleSignOut, () => ctx.navigate('profile', 'home'));
+  showQuickDock();
+  state.activePage = 'dashboard';
+  showPage('dashboard');
+  showLoading(false);
+  renderDashboardShell();
+  markBoot('shell-painted');
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      markBoot('first-paint');
+      markBoot('interactive');
+    });
+  });
+  return true;
+}
+
 function withTimeout(promise, ms, message = 'Timed out') {
   return Promise.race([
     promise,
@@ -193,34 +223,34 @@ export async function bootApp() {
     const valSlice = games.filter(g => (g.game ?? GAME_IDS.ROCKET_LEAGUE) === GAME_IDS.VALORANT);
     const { games: valRepaired, changed: valChanged } = VAL.repairRankChain(valSlice);
     let allGames = games;
+    const deferredSaves = [];
 
     if (changed) {
       allGames = [
         ...games.filter(g => (g.game ?? GAME_IDS.ROCKET_LEAGUE) !== GAME_IDS.ROCKET_LEAGUE),
         ...repaired,
       ];
-      await saveGames(repaired, GAME_IDS.ROCKET_LEAGUE);
+      deferredSaves.push(() => saveGames(repaired, GAME_IDS.ROCKET_LEAGUE));
     }
     if (valChanged) {
       allGames = [
         ...allGames.filter(g => (g.game ?? GAME_IDS.ROCKET_LEAGUE) !== GAME_IDS.VALORANT),
         ...valRepaired,
       ];
-      await saveGames(valRepaired, GAME_IDS.VALORANT);
+      deferredSaves.push(() => saveGames(valRepaired, GAME_IDS.VALORANT));
     }
     setGames(allGames);
     markBoot('hydrate-state');
 
     applyTrackerLevelsFromSettings(trackerLevels);
-    if (syncTrackerLevelsFromGames(allGames)) {
-      await saveSettings(ctx.getSettingsPayload(getTrackerLevelsForSettings()));
-    }
+    const trackerLevelsDirty = syncTrackerLevelsFromGames(allGames);
 
     applyRankBaselinesFromSettings({ rankBaselines, rankBaselinesComplete });
+    let rankBaselinesDirty = false;
     if (allGames.length > 0 && !rankBaselinesComplete) {
       const inferred = inferRankBaselinesFromGames(allGames);
       applyRankBaselinesFromSettings({ rankBaselines: inferred, rankBaselinesComplete: true });
-      await saveSettings(ctx.getSettingsPayload(rankBaselinesForSettings()));
+      rankBaselinesDirty = true;
     }
 
     setGoals(normalizeGoalsStorage(goals));
@@ -255,6 +285,23 @@ export async function bootApp() {
     ctx.ensureBridgeServices();
     ctx.renderAll();
     markBoot('first-render-complete');
+
+    if (deferredSaves.length || trackerLevelsDirty || rankBaselinesDirty) {
+      void (async () => {
+        try {
+          for (const save of deferredSaves) await save();
+          if (trackerLevelsDirty) {
+            await saveSettings(ctx.getSettingsPayload(getTrackerLevelsForSettings()));
+          }
+          if (rankBaselinesDirty) {
+            await saveSettings(ctx.getSettingsPayload(rankBaselinesForSettings()));
+          }
+          markBoot('repair-chains-saved');
+        } catch (e) {
+          console.warn('[boot] deferred repair save failed', e);
+        }
+      })();
+    }
 
     runDeferredMaintenance();
 
