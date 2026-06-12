@@ -31,7 +31,6 @@ Orchestrator: `review-agents` — routes multi-domain release gates.
 | Desktop Engineer | `desktop-engineer` | Implements EXE/launcher packaging; twans://, bridge auto-start |
 | Auto-Logging Specialist | `auto-logging-specialist` | Implements RL/Val process detection and auto-log ingest |
 | Security Engineer | `security-engineer` | Implements RLS, XSS guards, validation, rate limits, secrets hygiene |
-| Auto-Logging Specialist | `auto-logging-specialist` | Implements RL/Valorant detection, bridge auto-log, match-completion ingest |
 
 ## Development workflow
 
