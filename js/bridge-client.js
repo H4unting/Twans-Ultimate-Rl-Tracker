@@ -210,7 +210,7 @@ export function bridgeStatusSig(json) {
     json.rlConnected ? 1 : 0,
     json.version ?? '',
     json.bridgeVersion ?? '',
-    json.valorantRunning || json.valorantProcessRunning ? 1 : 0,
+    json.valorantProcessRunning ? 1 : 0,
   ].join(':');
 }
 
@@ -253,7 +253,9 @@ export function subscribeBridgeProcessState(fn) {
 }
 
 function updateHeartbeatGameProcess(json) {
-  const nextVal = Boolean(json?.valorantProcessRunning ?? json?.valorantRunning);
+  const nextVal = json?.valorantProcessRunning != null
+    ? Boolean(json.valorantProcessRunning)
+    : Boolean(json?.valorantRunning);
   const nextRl = Boolean(json?.rocketLeagueRunning);
   const nextConn = Boolean(json?.rlConnected);
   const prevVal = heartbeatValorantProcessRunning;

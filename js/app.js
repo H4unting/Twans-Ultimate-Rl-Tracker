@@ -14,7 +14,7 @@ import { calcStats } from './utils.js';
 import { cachedCalcStats, cachedApplyFilters } from './perf-cache.js';
 import { getActiveGameModule } from './games/router.js';
 import { addGame, updateGame, deleteGame, getLastMMR, patchLastGame, undoLastGame, isMmrEstimated, purgeGhostValorantMatches, countGhostValorantMatches, clearGameHistory, collapseDuplicateValorantMatchesInState, countDuplicateValorantMatches } from './matches.js';
-import { startSession, endSession, closeSessionModal, closeSessionModalAndContinue, initSessionUI, refreshSessionUI, restoreSessionFromStorage, getLoggingSessionNum, clearSessionTimer } from './sessions.js';
+import { startSession, endSession, closeSessionModal, closeSessionModalAndContinue, initSessionUI, refreshSessionUI, restoreSessionFromStorage, getLoggingSessionNum, clearSessionTimer, clearPersistedSessionsOnSignOut } from './sessions.js';
 import {
   initQuickLog, showQuickDock, hideQuickDock, getQuickLogPayload,
   resetQuickAfterLog, loadPrefs, savePrefs, syncFormFromQuick, applyLiveStats,
@@ -350,6 +350,7 @@ async function refreshGroupsPage() {
 
 async function handleSignOut() {
   clearSessionTimer();
+  clearPersistedSessionsOnSignOut();
   await signOut();
   resetTrackerLevels();
   resetAppState();
@@ -818,13 +819,14 @@ function renderProfilePageContent() {
 }
 
 async function handleDeleteAccount() {
+  clearSessionTimer();
+  clearPersistedSessionsOnSignOut();
   await deleteOwnAccount();
   try {
     await signOut();
   } catch {
     /* session may already be invalid after server-side user delete */
   }
-  clearSessionTimer();
   resetTrackerLevels();
   resetAppState();
   resetGroupsUI();
@@ -1323,6 +1325,7 @@ async function init() {
       getSettingsPayload,
       ensureBridgeServices,
       renderAll,
+      scheduleRefreshAfterGameDataChange,
     });
     const paintedCachedShell = paintCachedShellEarly();
     wireAutoLogHandlers({ submitGameLog });

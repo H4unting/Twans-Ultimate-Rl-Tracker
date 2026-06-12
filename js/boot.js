@@ -30,6 +30,7 @@ import {
 
 let bootPromise = null;
 let initialBootDone = false;
+let shellEarlyPainted = false;
 let ctx = {};
 let bootT0 = 0;
 
@@ -63,6 +64,11 @@ export function setBootPromise(promise) {
 export function resetBootState() {
   initialBootDone = false;
   bootPromise = null;
+  shellEarlyPainted = false;
+}
+
+export function wasShellEarlyPainted() {
+  return shellEarlyPainted;
 }
 
 /** Paint signed-in shell from localStorage before auth/network — instant warm boot. */
@@ -92,6 +98,7 @@ export function paintCachedShellEarly() {
       markBoot('interactive');
     });
   });
+  shellEarlyPainted = true;
   return true;
 }
 
@@ -141,7 +148,11 @@ function runDeferredMaintenance() {
     const dupesRemoved = await collapseDuplicateValorantMatchesInState({ silent: true });
     if (dupesRemoved > 0) {
       showToast(`Removed ${dupesRemoved} duplicate ${dupesRemoved === 1 ? 'match' : 'matches'}`);
-      ctx.renderAll?.('core');
+      if (ctx.scheduleRefreshAfterGameDataChange) {
+        ctx.scheduleRefreshAfterGameDataChange();
+      } else {
+        ctx.renderAll?.('core');
+      }
     }
     markBoot('deferred-maintenance-done');
   };
@@ -168,29 +179,35 @@ function bootErrorMessage(msg) {
 export async function bootApp() {
   if (initialBootDone) return;
 
-  markBoot('shell-visible');
-  showLoginScreen(false);
-  applyAppMode();
+  const reuseEarlyShell = shellEarlyPainted;
 
-  const cached = loadProfileCache();
-  if (cached?.profile) {
-    setProfile(cached.profile);
-    if (cached.activeGame) restoreActiveGameFromPrefs(cached.activeGame);
+  if (!reuseEarlyShell) {
+    markBoot('shell-visible');
+    showLoginScreen(false);
+    applyAppMode();
+
+    const cached = loadProfileCache();
+    if (cached?.profile) {
+      setProfile(cached.profile);
+      if (cached.activeGame) restoreActiveGameFromPrefs(cached.activeGame);
+    }
+
+    renderAuthBar(ctx.getDisplay(), ctx.handleSignOut, () => ctx.navigate('profile', 'home'));
+    showQuickDock();
+    state.activePage = 'dashboard';
+    showPage('dashboard');
+    ctx.ensureBridgeServices?.();
+
+    showLoading(false);
+    renderDashboardShell();
+    markBoot('shell-painted');
+
+    await waitForFirstPaint();
+    markBoot('first-paint');
+    markBoot('interactive');
+  } else {
+    markBoot('cached-shell-reuse');
   }
-
-  renderAuthBar(ctx.getDisplay(), ctx.handleSignOut, () => ctx.navigate('profile', 'home'));
-  showQuickDock();
-  state.activePage = 'dashboard';
-  showPage('dashboard');
-  ctx.ensureBridgeServices?.();
-
-  showLoading(false);
-  renderDashboardShell();
-  markBoot('shell-painted');
-
-  await waitForFirstPaint();
-  markBoot('first-paint');
-  markBoot('interactive');
 
   void waitForDesktopServices();
 

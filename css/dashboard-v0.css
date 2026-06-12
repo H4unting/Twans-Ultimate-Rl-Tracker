@@ -531,7 +531,7 @@ body:not(.logged-out) .top-bar > .review-sub-nav:not(.v0-sidebar-sub) { display:
 
 @media (min-width: 900px) {
   .dash-priority-row {
-    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+    grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
     align-items: stretch;
   }
 }
@@ -1152,10 +1152,15 @@ body:not(.logged-out) .home-focus-card-featured {
   padding: 20px 22px 22px;
   background: linear-gradient(
     135deg,
-    color-mix(in oklch, var(--v0-primary) 12%, transparent),
+    color-mix(in oklch, var(--v0-primary) 14%, transparent),
     color-mix(in oklch, var(--v0-card) 88%, transparent)
   );
-  box-shadow: 0 0 32px color-mix(in oklch, var(--v0-primary) 12%, transparent);
+  box-shadow: 0 0 40px color-mix(in oklch, var(--v0-primary) 16%, transparent);
+}
+
+body:not(.logged-out) .home-focus-card-featured .home-focus-label {
+  font-size: 11px;
+  letter-spacing: 0.12em;
 }
 
 body:not(.logged-out) .home-focus-card-featured .home-focus-tag-name {

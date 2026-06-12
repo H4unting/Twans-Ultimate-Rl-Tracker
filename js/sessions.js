@@ -79,6 +79,21 @@ function saveStoredSession(data, gameId = state.activeGame) {
   } catch { /* quota / private mode */ }
 }
 
+/** Persist inactive session before auth clears — prevents restore after re-login. */
+export function clearPersistedSessionsOnSignOut() {
+  for (const gameId of [GAME_IDS.ROCKET_LEAGUE, GAME_IDS.VALORANT]) {
+    const stored = loadStoredSession(gameId);
+    if (!stored?.active) continue;
+    saveStoredSession({
+      active: false,
+      startTime: null,
+      startMMR: null,
+      sessionNum: stored.sessionNum ?? stored.nextSessionNum ?? 1,
+      nextSessionNum: stored.nextSessionNum ?? stored.sessionNum ?? 1,
+    }, gameId);
+  }
+}
+
 export function getSessionHistoryMap() {
   return loadStoredSession()?.history ?? {};
 }

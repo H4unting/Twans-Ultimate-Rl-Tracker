@@ -50,3 +50,7 @@ Five read-only review agents for `rl-grind-tracker`. Each agent **documents find
 ## Cross-agent handoff
 
 When one agent finds a blocker, note it in their report and flag for Release Manager. Security P0/Critical items must appear in `docs/RELEASE-STATUS.md` under **Blockers**.
+
+## Implementation counterpart
+
+Read-only agents **document**; they do not apply fixes. For minimal code changes, route to `implementation-agents` (or the owning skill: `security-engineer`, `logic-validator`, etc.). See [`AGENTS.md`](../../AGENTS.md).
