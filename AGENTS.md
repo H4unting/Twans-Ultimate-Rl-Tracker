@@ -1,16 +1,15 @@
-# Review Agents
+# Twans Ultimate Tracker — Agent Skills
 
-Specialized read-only agents for pre-release review of **Twans Ultimate Tracker**.  
-Skills live in `.cursor/skills/`. Invoke by name in chat (e.g. *"Run the Security Auditor"*).
+Skills live in `.cursor/skills/`. Invoke by name in chat (e.g. *"Run the Security Auditor"*, *"Run Code Quality Auditor"*).
 
 ## Global rules
 
-- Agents **do not implement features** — they document findings.
+- **Review agents** document findings — they do not implement features (report updates only unless you explicitly request a fix).
+- **Implementation skills** apply minimal diffs in owned domains.
 - **Security findings** take priority over UX findings.
-- **Release blockers** take priority over feature requests.
-- **Minimal diffs** only (report updates unless you explicitly request a fix).
+- **Release blockers** take priority over feature requests and cleanup.
 
-## Agents
+## Review agents (read-only)
 
 | # | Agent | Skill | Output |
 |---|--------|-------|--------|
@@ -27,10 +26,12 @@ Orchestrator: `review-agents` — routes multi-domain release gates.
 | Agent | Skill | Notes |
 |-------|-------|-------|
 | Performance Engineer (Highest Priority) | `performance-engineer` | Implements perf fixes; measure before changing |
+| Code Quality Auditor | `code-quality-auditor` | Implements cleanup; dead code, dupes, unused CSS, stale imports |
 | UI / UX Designer | `ui-ux-designer` | Implements layout/spacing polish; premium hierarchy |
 | Desktop Engineer | `desktop-engineer` | Implements EXE/launcher packaging; twans://, bridge auto-start |
-| Auto-Logging Specialist | `auto-logging-specialist` | Implements RL/Val process detection and auto-log ingest |
+| Auto-Logging Specialist | `auto-logging-specialist` | Implements RL/Valorant detection, bridge auto-log, match-completion ingest |
 | Security Engineer | `security-engineer` | Implements RLS, XSS guards, validation, rate limits, secrets hygiene |
+| Data Engineer | `data-engineer` | Implements stats, rank chain, RR/MMR math, sync integrity fixes |
 
 ## Development workflow
 
@@ -39,7 +40,7 @@ Role-based implementation and priority order live in:
 - [`docs/TEAM-WORKFLOW.md`](docs/TEAM-WORKFLOW.md) — roles, ownership, Audit→Verify workflow
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) — Product Owner priorities
 
-Review agents document only; feature work goes through the owning role in TEAM-WORKFLOW.
+Review agents document only; feature work and cleanup go through the owning implementation skill in TEAM-WORKFLOW.
 
 ## Recommended release gate order
 
