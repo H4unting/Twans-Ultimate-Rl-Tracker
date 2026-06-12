@@ -505,11 +505,8 @@ function createMainWindow() {
 
     wireWindowNavigation(mainWindow);
 
-    mainWindow.on('close', (e) => {
-      if (!appQuitting) {
-        e.preventDefault();
-        mainWindow.hide();
-      }
+    mainWindow.on('close', () => {
+      if (!appQuitting) app.quit();
     });
 
     mainWindow.webContents.on('did-finish-load', () => {
@@ -785,4 +782,3 @@ app.on('before-quit', () => {
   stopBridge();
 });
 
-app.on('window-all-closed', (e) => e.preventDefault());
