@@ -27,6 +27,8 @@ Orchestrator: `review-agents` — routes multi-domain release gates.
 | Agent | Skill | Notes |
 |-------|-------|-------|
 | Performance Engineer (Highest Priority) | `performance-engineer` | Implements perf fixes; measure before changing |
+| UI / UX Designer | `ui-ux-designer` | Implements layout/spacing polish; premium hierarchy |
+| Desktop Engineer | `desktop-engineer` | Implements EXE/launcher packaging; twans://, bridge auto-start |
 
 ## Development workflow
 
