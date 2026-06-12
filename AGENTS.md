@@ -22,6 +22,12 @@ Skills live in `.cursor/skills/`. Invoke by name in chat (e.g. *"Run the Securit
 
 Orchestrator: `review-agents` — routes multi-domain release gates.
 
+## Implementation skills
+
+| Agent | Skill | Notes |
+|-------|-------|-------|
+| Performance Engineer (Highest Priority) | `performance-engineer` | Implements perf fixes; measure before changing |
+
 ## Development workflow
 
 Role-based implementation and priority order live in:
