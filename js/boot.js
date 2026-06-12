@@ -75,14 +75,22 @@ export function wasShellEarlyPainted() {
 export function paintCachedShellEarly() {
   if (!ctx.getDisplay) return false;
   const cached = loadProfileCache();
-  if (!cached?.profile) return false;
+  const inlineReuse = typeof window !== 'undefined' && window.__INLINE_SHELL_PAINTED;
+  if (!cached?.profile && !inlineReuse) return false;
 
-  markBoot('shell-visible');
-  showLoginScreen(false);
-  document.body.classList.remove('logged-out');
-  applyAppMode();
-  setProfile(cached.profile);
-  if (cached.activeGame) restoreActiveGameFromPrefs(cached.activeGame);
+  if (inlineReuse) {
+    markBoot('inline-shell-reuse');
+  } else {
+    markBoot('shell-visible');
+    showLoginScreen(false);
+    document.body.classList.remove('logged-out');
+    applyAppMode();
+  }
+
+  if (cached?.profile) {
+    setProfile(cached.profile);
+    if (cached.activeGame) restoreActiveGameFromPrefs(cached.activeGame);
+  }
 
   renderAuthBar(ctx.getDisplay(), ctx.handleSignOut, () => ctx.navigate('profile', 'home'));
   showQuickDock();
@@ -98,6 +106,11 @@ export function paintCachedShellEarly() {
       markBoot('interactive');
     });
   });
+
+  void import('./rank-preload.js').then(({ preloadCommonRankIcons }) => {
+    preloadCommonRankIcons();
+  }).catch(() => { /* optional */ });
+
   shellEarlyPainted = true;
   return true;
 }

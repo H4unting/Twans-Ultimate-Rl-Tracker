@@ -1328,151 +1328,162 @@ async function init() {
       scheduleRefreshAfterGameDataChange,
     });
     const paintedCachedShell = paintCachedShellEarly();
-    wireAutoLogHandlers({ submitGameLog });
+    const deferInteractiveWiring = paintedCachedShell
+      || (typeof window !== 'undefined' && window.__INLINE_SHELL_PAINTED);
 
-    wireNavigation();
-    wireDashboardScrollPause();
-    wirePerfSectionObserver();
-    document.getElementById('logo-home-btn')?.addEventListener('click', () => navigate('dashboard', 'home'));
-    wireBridgeStatusClick(() => navigate('setup', 'home'));
-    subscribeBridgeOnline((online) => {
-      onBridgeStatusChange();
-      if (online && state.activeGame === GAME_IDS.VALORANT) refreshValorantStatus();
-    });
-    subscribeBridgeReachable(() => onBridgeStatusChange());
-    wireKeyboardShortcuts();
-    document.getElementById('dash-view-all-logs')?.addEventListener('click', () => {
-      navigate('log', 'home');
-    });
-    document.getElementById('matchlogs-export-btn')?.addEventListener('click', () => {
-      exportGamesCSV(getMatchLogsGames(), getDisplay().name, state.activeGame);
-      showToast('CSV downloaded');
-    });
-    wireLogForm();
-    wireEditModal();
-    bindModalA11y('edit-modal', { onClose: closeEditModal, initialFocusId: 'e-date' });
-    bindModalA11y('session-modal', { onClose: closeSessionModal });
-    initSessionUI();
-    initQuickLog({
-      submitQuick: () => submitGameLog('quick'),
-      getLastMMR: (mode) => getLastMMR(mode),
-      setFormResult: setResult,
-      setSelectedTags: tags => { state.ui.selectedTags = tags; },
-      onAutoLogToggle: () => {
-        if (state.activeGame === GAME_IDS.VALORANT) refreshValorantStatus();
-        else refreshLiveStatus();
-      },
-    });
-    initPostMatch({
-      onConfirmMMR: async (mmr) => {
-        const game = await patchLastGame({ endMMR: mmr });
-        if (game) { scheduleRefreshAfterGameDataChange(); return true; }
-        return false;
-      },
-      onTags: async (tags) => {
-        await patchLastGame({ tags });
-        scheduleRefreshAfterGameDataChange();
-        return true;
-      },
-      onUndo: async () => {
-        const ok = await undoLastGame(true);
-        if (ok) scheduleRefreshAfterGameDataChange();
-        return ok;
-      },
-      onOpen: () => refreshSessionUI({ quiet: true }),
-      onClose: () => refreshSessionUI({ quiet: true }),
-    });
-    if (!trackerDataListenerWired) {
-      trackerDataListenerWired = true;
-      document.addEventListener('rl-session-ui-refresh', () => {
-        if (insideRenderAll || gameDataRefreshRaf != null) return;
-        dashRenderBypass = true;
-        if ((state.activePage || 'dashboard') === 'dashboard') {
-          refreshDashSessionWidgets(getActiveGames());
-        }
+    const wireInteractiveApp = () => {
+      wireAutoLogHandlers({ submitGameLog });
+
+      wireNavigation();
+      wireDashboardScrollPause();
+      wirePerfSectionObserver();
+      document.getElementById('logo-home-btn')?.addEventListener('click', () => navigate('dashboard', 'home'));
+      wireBridgeStatusClick(() => navigate('setup', 'home'));
+      subscribeBridgeOnline((online) => {
+        onBridgeStatusChange();
+        if (online && state.activeGame === GAME_IDS.VALORANT) refreshValorantStatus();
       });
-      document.addEventListener('tracker-data-changed', () => {
-        scheduleRefreshAfterGameDataChange();
+      subscribeBridgeReachable(() => onBridgeStatusChange());
+      wireKeyboardShortcuts();
+      document.getElementById('dash-view-all-logs')?.addEventListener('click', () => {
+        navigate('log', 'home');
       });
-    }
-    if (paintedCachedShell) {
-      requestAnimationFrame(() => ensureBridgeServices());
-    } else {
-      ensureBridgeServices();
-    }
-    if (appT0 && typeof performance !== 'undefined') {
-      const ms = Math.round(performance.now() - appT0);
-      console.info(`[boot +${ms}ms] bridge-services-started`);
-      (window.__BOOT_MARKS ||= []).push({ phase: 'bridge-services-started', ms });
-    }
-    onAuthChange((session) => {
-      if (session) {
-        if (!isInitialBootDone() && !getBootPromise()) {
-          setBootPromise(bootApp().finally(() => { setBootPromise(null); }));
-        }
-      } else if (!hasPendingAuthHash()) {
-        resetBootState();
-        showLoggedOut();
+      document.getElementById('matchlogs-export-btn')?.addEventListener('click', () => {
+        exportGamesCSV(getMatchLogsGames(), getDisplay().name, state.activeGame);
+        showToast('CSV downloaded');
+      });
+      wireLogForm();
+      wireEditModal();
+      bindModalA11y('edit-modal', { onClose: closeEditModal, initialFocusId: 'e-date' });
+      bindModalA11y('session-modal', { onClose: closeSessionModal });
+      initSessionUI();
+      initQuickLog({
+        submitQuick: () => submitGameLog('quick'),
+        getLastMMR: (mode) => getLastMMR(mode),
+        setFormResult: setResult,
+        setSelectedTags: tags => { state.ui.selectedTags = tags; },
+        onAutoLogToggle: () => {
+          if (state.activeGame === GAME_IDS.VALORANT) refreshValorantStatus();
+          else refreshLiveStatus();
+        },
+      });
+      initPostMatch({
+        onConfirmMMR: async (mmr) => {
+          const game = await patchLastGame({ endMMR: mmr });
+          if (game) { scheduleRefreshAfterGameDataChange(); return true; }
+          return false;
+        },
+        onTags: async (tags) => {
+          await patchLastGame({ tags });
+          scheduleRefreshAfterGameDataChange();
+          return true;
+        },
+        onUndo: async () => {
+          const ok = await undoLastGame(true);
+          if (ok) scheduleRefreshAfterGameDataChange();
+          return ok;
+        },
+        onOpen: () => refreshSessionUI({ quiet: true }),
+        onClose: () => refreshSessionUI({ quiet: true }),
+      });
+      if (!trackerDataListenerWired) {
+        trackerDataListenerWired = true;
+        document.addEventListener('rl-session-ui-refresh', () => {
+          if (insideRenderAll || gameDataRefreshRaf != null) return;
+          dashRenderBypass = true;
+          if ((state.activePage || 'dashboard') === 'dashboard') {
+            refreshDashSessionWidgets(getActiveGames());
+          }
+        });
+        document.addEventListener('tracker-data-changed', () => {
+          scheduleRefreshAfterGameDataChange();
+        });
       }
-    });
-
-    initDevOverlay();
-    window.__appReady = true;
-
-    void (async () => {
-      try {
-        await withTimeout(initAuth(), 20000, 'Sign-in check timed out — refresh and try again');
-        if (appT0 && typeof performance !== 'undefined') {
-          const ms = Math.round(performance.now() - appT0);
-          console.info(`[boot +${ms}ms] auth-ready`);
-          (window.__BOOT_MARKS ||= []).push({ phase: 'auth-ready', ms });
-        }
-
-        if (getAuthUser()) {
-          if (!getBootPromise() && !isInitialBootDone()) {
+      if (deferInteractiveWiring) {
+        requestAnimationFrame(() => ensureBridgeServices());
+      } else {
+        ensureBridgeServices();
+      }
+      if (appT0 && typeof performance !== 'undefined') {
+        const ms = Math.round(performance.now() - appT0);
+        console.info(`[boot +${ms}ms] bridge-services-started`);
+        (window.__BOOT_MARKS ||= []).push({ phase: 'bridge-services-started', ms });
+      }
+      onAuthChange((session) => {
+        if (session) {
+          if (!isInitialBootDone() && !getBootPromise()) {
             setBootPromise(bootApp().finally(() => { setBootPromise(null); }));
           }
-        } else if (hasPendingAuthHash()) {
-          showLoading(false);
-          clearAuthHashFromUrl();
-          showLoginScreen(true);
-          wireLoginScreen();
-          clearProfileCache();
-          const note = document.getElementById('boot-failure-note');
-          if (note) {
-            note.textContent = isDesktopHost()
-              ? `Sign-in did not finish. Quit and reopen ${DESKTOP_APP.name}, then try Google sign-in again.`
-              : `Sign-in did not finish. Restart ${getDesktopLauncherBat(GAME_IDS.ROCKET_LEAGUE)}, then try Google sign-in again.`;
-            note.classList.remove('hidden');
-          }
-        } else {
-          if (paintedCachedShell) clearProfileCache();
+        } else if (!hasPendingAuthHash()) {
+          resetBootState();
           showLoggedOut();
         }
-      } catch (e) {
-        console.error(e);
-        if (hasPendingAuthHash()) {
-          showLoading(false);
-          clearAuthHashFromUrl();
-          showLoginScreen(true);
-          wireLoginScreen();
-          const note = document.getElementById('boot-failure-note');
-          if (note) {
-            note.textContent = e?.message
-              || (isDesktopHost()
-                ? `Sign-in failed. Quit and reopen ${DESKTOP_APP.name}, then sign in again.`
-                : `Sign-in failed. Restart ${getDesktopLauncherBat(GAME_IDS.ROCKET_LEAGUE)}, then sign in again.`);
-            note.classList.remove('hidden');
+      });
+
+      initDevOverlay();
+      window.__appReady = true;
+
+      void (async () => {
+        try {
+          await withTimeout(initAuth(), 20000, 'Sign-in check timed out — refresh and try again');
+          if (appT0 && typeof performance !== 'undefined') {
+            const ms = Math.round(performance.now() - appT0);
+            console.info(`[boot +${ms}ms] auth-ready`);
+            (window.__BOOT_MARKS ||= []).push({ phase: 'auth-ready', ms });
           }
-        } else if (getAuthUser()) {
-          showToast(e?.message || 'Could not load your data — try refreshing', 'error');
-        } else {
-          if (paintedCachedShell) clearProfileCache();
-          showLoggedOut();
-          showToast(e?.message || 'Tracker failed to start — refresh the page', 'error');
+
+          if (getAuthUser()) {
+            if (!getBootPromise() && !isInitialBootDone()) {
+              setBootPromise(bootApp().finally(() => { setBootPromise(null); }));
+            }
+          } else if (hasPendingAuthHash()) {
+            showLoading(false);
+            clearAuthHashFromUrl();
+            showLoginScreen(true);
+            wireLoginScreen();
+            clearProfileCache();
+            const note = document.getElementById('boot-failure-note');
+            if (note) {
+              note.textContent = isDesktopHost()
+                ? `Sign-in did not finish. Quit and reopen ${DESKTOP_APP.name}, then try Google sign-in again.`
+                : `Sign-in did not finish. Restart ${getDesktopLauncherBat(GAME_IDS.ROCKET_LEAGUE)}, then try Google sign-in again.`;
+              note.classList.remove('hidden');
+            }
+          } else {
+            if (deferInteractiveWiring) clearProfileCache();
+            showLoggedOut();
+          }
+        } catch (e) {
+          console.error(e);
+          if (hasPendingAuthHash()) {
+            showLoading(false);
+            clearAuthHashFromUrl();
+            showLoginScreen(true);
+            wireLoginScreen();
+            const note = document.getElementById('boot-failure-note');
+            if (note) {
+              note.textContent = e?.message
+                || (isDesktopHost()
+                  ? `Sign-in failed. Quit and reopen ${DESKTOP_APP.name}, then sign in again.`
+                  : `Sign-in failed. Restart ${getDesktopLauncherBat(GAME_IDS.ROCKET_LEAGUE)}, then sign in again.`);
+              note.classList.remove('hidden');
+            }
+          } else if (getAuthUser()) {
+            showToast(e?.message || 'Could not load your data — try refreshing', 'error');
+          } else {
+            if (deferInteractiveWiring) clearProfileCache();
+            showLoggedOut();
+            showToast(e?.message || 'Tracker failed to start — refresh the page', 'error');
+          }
         }
-      }
-    })();
+      })();
+    };
+
+    if (deferInteractiveWiring) {
+      requestAnimationFrame(() => requestAnimationFrame(wireInteractiveApp));
+    } else {
+      wireInteractiveApp();
+    }
   } catch (e) {
     console.error(e);
     if (hasPendingAuthHash()) {

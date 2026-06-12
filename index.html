@@ -12,12 +12,92 @@
 <link rel="stylesheet" href="css/legal.css?v=20260602e">
 <script>
 (function () {
-  if (!location.hash.includes('access_token=')) return;
-  document.documentElement.classList.add('oauth-callback');
-  document.addEventListener('DOMContentLoaded', function () {
-    var span = document.querySelector('#loading-overlay span');
-    if (span) span.textContent = 'Finishing sign-in…';
-  });
+  if (location.hash.includes('access_token=')) {
+    document.documentElement.classList.add('oauth-callback');
+    document.addEventListener('DOMContentLoaded', function () {
+      var span = document.querySelector('#loading-overlay span');
+      if (span) span.textContent = 'Finishing sign-in…';
+    });
+    return;
+  }
+  try {
+    var raw = localStorage.getItem('twans-profile-cache');
+    if (!raw) return;
+    var parsed = JSON.parse(raw);
+    if (!parsed || !parsed.profile) return;
+
+    function safeAvatarUrl(url) {
+      if (!url || typeof url !== 'string') return null;
+      try {
+        var u = new URL(url, location.href);
+        if (u.protocol === 'https:' || u.protocol === 'http:') return u.href;
+      } catch (e) { /* ignore */ }
+      return null;
+    }
+
+    function paintInlineShell() {
+      document.body.classList.remove('is-loading', 'logged-out');
+      var login = document.getElementById('login-screen');
+      var shell = document.getElementById('app-shell');
+      if (login) login.classList.add('hidden');
+      if (shell) shell.classList.remove('hidden');
+
+      var hero = document.getElementById('dash-hero');
+      if (hero) {
+        hero.innerHTML = '<div class="dash-empty dash-shell-loading" aria-busy="true">Loading your stats…</div>';
+      }
+
+      var bar = document.getElementById('user-bar');
+      var profile = parsed.profile;
+      if (bar && profile && profile.display_name) {
+        bar.textContent = '';
+        var profileBtn = document.createElement('button');
+        profileBtn.type = 'button';
+        profileBtn.className = 'user-bar-profile';
+        profileBtn.id = 'user-bar-profile';
+        profileBtn.setAttribute('aria-label', 'Open profile');
+        var avatarUrl = safeAvatarUrl(profile.avatar_url);
+        if (avatarUrl) {
+          var img = document.createElement('img');
+          img.className = 'user-avatar';
+          img.src = avatarUrl;
+          img.alt = '';
+          profileBtn.appendChild(img);
+        } else {
+          var fallback = document.createElement('span');
+          fallback.className = 'user-avatar user-avatar-fallback';
+          fallback.textContent = profile.display_name.charAt(0) || '?';
+          profileBtn.appendChild(fallback);
+        }
+        var name = document.createElement('span');
+        name.className = 'user-name';
+        name.textContent = profile.display_name;
+        profileBtn.appendChild(name);
+        var caret = document.createElement('span');
+        caret.className = 'user-bar-caret';
+        caret.setAttribute('aria-hidden', 'true');
+        caret.textContent = '▼';
+        profileBtn.appendChild(caret);
+        bar.appendChild(profileBtn);
+        var signOut = document.createElement('button');
+        signOut.className = 'btn-signout';
+        signOut.type = 'button';
+        signOut.id = 'sign-out-btn';
+        signOut.textContent = 'Sign out';
+        bar.appendChild(signOut);
+      }
+
+      window.__INLINE_SHELL_PAINTED = true;
+      (window.__BOOT_MARKS = window.__BOOT_MARKS || []).push({ phase: 'inline-shell-visible', ms: 0 });
+      console.info('[boot +0ms] inline-shell-visible');
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', paintInlineShell);
+    } else {
+      paintInlineShell();
+    }
+  } catch (e) { /* quota / private mode */ }
 })();
 </script>
 </head>
