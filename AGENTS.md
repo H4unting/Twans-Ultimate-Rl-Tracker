@@ -25,13 +25,17 @@ Orchestrator: `review-agents` — routes multi-domain release gates.
 
 | Agent | Skill | Notes |
 |-------|-------|-------|
-| Performance Engineer (Highest Priority) | `performance-engineer` | Implements perf fixes; measure before changing |
+| Startup Optimizer (Highest Priority) | `startup-optimizer` | Implements first-paint/boot path; window instant, sync deferred |
+| Performance Engineer | `performance-engineer` | Implements post-boot perf fixes; measure before changing; pair with startup-optimizer on boot |
+| Logic Validator | `logic-validator` | Implements invariant fixes; tracking, RR ladder, session reset, sanity checks |
 | Code Quality Auditor | `code-quality-auditor` | Implements cleanup; dead code, dupes, unused CSS, stale imports |
 | UI / UX Designer | `ui-ux-designer` | Implements layout/spacing polish; premium hierarchy |
 | Desktop Engineer | `desktop-engineer` | Implements EXE/launcher packaging; twans://, bridge auto-start |
 | Auto-Logging Specialist | `auto-logging-specialist` | Implements RL/Valorant detection, bridge auto-log, match-completion ingest |
 | Security Engineer | `security-engineer` | Implements RLS, XSS guards, validation, rate limits, secrets hygiene |
 | Data Engineer | `data-engineer` | Implements stats, rank chain, RR/MMR math, sync integrity fixes |
+| Dev Overlay Engineer | `dev-overlay-engineer` | Implements ?dev=1 overlay; FPS, render counts, bridge/Supabase metrics |
+| Performance Hunter | `performance-hunter` | Diagnoses lag/jank; measure-first perf fixes (legacy alias of performance-engineer) |
 
 ## Development workflow
 
