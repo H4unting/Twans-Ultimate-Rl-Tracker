@@ -68,6 +68,7 @@ function onBridgeRlProcessChange({ rocketLeagueRunning, rlConnected, inMatch }) 
   if (lastInMatch && !nextInMatch) {
     matchEndBurstUntil = Date.now() + MATCH_END_BURST_MS;
     markMatchEndPending();
+    refreshBridgeStatusUI();
     void pollBridge({ forceUi: true });
     schedulePoll();
   }

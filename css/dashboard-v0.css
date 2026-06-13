@@ -531,9 +531,17 @@ body:not(.logged-out) .top-bar > .review-sub-nav:not(.v0-sidebar-sub) { display:
 
 @media (min-width: 900px) {
   .dash-priority-row {
-    grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+    grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr);
     align-items: stretch;
   }
+}
+
+@media (max-width: 899px) {
+  .dash-priority-row {
+    display: flex;
+    flex-direction: column;
+  }
+  .dash-focus-slot { order: -1; }
 }
 
 .dash-focus-slot { min-width: 0; }

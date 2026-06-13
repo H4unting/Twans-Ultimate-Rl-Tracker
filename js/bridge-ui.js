@@ -8,7 +8,7 @@ import {
   getHeartbeatValorantProcessRunning,
   getHeartbeatRocketLeagueRunning,
   getHeartbeatRlConnected,
-  subscribeBridgeResumed,
+  subscribeBridgeResumed, isMatchEndPending,
 } from './bridge-client.js';
 import { isAutoLogEnabled, loadPrefs, syncAutoLogToggleUI } from './quicklog.js';
 import {
@@ -168,6 +168,14 @@ function renderValorantPill(el, valStatus, meta) {
   const valProcessRunning = isValorantGameProcessRunning(valStatus);
   el.classList.toggle('in-match', valProcessRunning);
 
+  if (isMatchEndPending() && isAutoLogEnabled() && !valProcessRunning) {
+    applyUnifiedStatusLabel(el, 'tracking', STATUS.processingMatch);
+    el.textContent = `● ${STATUS.processingMatch}`;
+    el.title = 'Match ended — fetching stats and saving automatically';
+    el.dataset.bridgeState = 'processing';
+    return;
+  }
+
   if (!valStatus) {
     applyUnifiedStatusLabel(el, 'connecting', `${DESKTOP_APP.name} — checking Valorant link`);
     el.textContent = formatStatusPill('connecting');
@@ -243,6 +251,14 @@ function renderValorantPill(el, valStatus, meta) {
 function renderRocketLeaguePill(el, inMatch, meta) {
   const rlActive = isRocketLeagueGameActive();
   el.classList.toggle('in-match', inMatch || rlActive);
+
+  if (isMatchEndPending() && isAutoLogEnabled() && !inMatch) {
+    applyUnifiedStatusLabel(el, 'tracking', STATUS.processingMatch);
+    el.textContent = `● ${STATUS.processingMatch}`;
+    el.title = 'Match ended — reading stats and saving automatically';
+    el.dataset.bridgeState = 'processing';
+    return;
+  }
 
   if (inMatch) {
     applyUnifiedStatusLabel(el, 'tracking', `Live match — reading stats from ${meta.label}`);
@@ -340,13 +356,15 @@ export function wireBridgeStatusClick(onOpenSetup) {
   document.getElementById('live-bridge-status')?.addEventListener('click', () => {
     const pill = document.getElementById('live-bridge-status');
     const bridgeState = pill?.dataset.bridgeState;
-    if (!pill || bridgeState === 'ready' || bridgeState === 'in-match' || bridgeState === 'syncing') return;
+    if (!pill || bridgeState === 'ready' || bridgeState === 'in-match' || bridgeState === 'syncing' || bridgeState === 'processing') return;
     onOpenSetup?.();
   });
 
   document.getElementById('bridge-hint-banner')?.addEventListener('click', (e) => {
     if (e.target.closest('#bridge-hint-setup-link')) onOpenSetup?.();
   });
+
+  document.addEventListener('match-end-pending', () => refreshBridgeStatusUI());
 
   if (!resumeWired) {
     resumeWired = true;

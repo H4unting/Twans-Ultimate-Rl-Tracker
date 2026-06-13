@@ -15,6 +15,7 @@ export const STATUS = {
   starting: 'Starting…',
   reconnecting: 'Reconnecting…',
   trackingResumed: 'Tracking resumed',
+  processingMatch: 'Processing match…',
 };
 
 export function formatStatusPill(phase, gameId = state.activeGame) {

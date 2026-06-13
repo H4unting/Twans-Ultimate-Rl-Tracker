@@ -18,7 +18,7 @@ import {
   getLastBridgeFailure,
   isBridgeProcessDetected,
 } from './bridge-client.js';
-import { getLocalTrackerUrl, getAssetUrl, isTwansAppHost } from './env.js';
+import { getLocalTrackerUrl, getAssetUrl, isTwansAppHost, getUserFacingTrackerLabel } from './env.js';
 import { renderDiagnosticsPanel } from './diagnostics-ui.js';
 import { openRankSetupModal } from './rank-setup-ui.js';
 
@@ -168,28 +168,25 @@ function renderValPanel(riotIdValue, riotRegionValue, { compact = false, overwol
 function renderBridgeStep(bridge, stepNum = 1, gameId = GAME_IDS.ROCKET_LEAGUE) {
   const launcher = getDesktopLauncher(gameId);
   const isVal = gameId === GAME_IDS.VALORANT;
-  const wrongTab = bridge && isWrongTrackerTab();
-  const trackerUrl = getLocalTrackerUrl();
+  const wrongTab = !isTwansAppHost() && bridge && isWrongTrackerTab();
+  const trackerLabel = getUserFacingTrackerLabel();
+  const desktop = isTwansAppHost();
   return `
     <li class="setup-step${bridge ? ' done' : ''}" data-step="bridge">
       <span class="setup-step-num">${stepNum}</span>
       <div class="setup-step-body">
         <strong>Run ${DESKTOP_APP.name}</strong>
-        <p>Double-click <code>${launcher}</code> in your tracker folder — leave it running while you play:</p>
+        ${desktop
+    ? `<p class="setup-hint">You're in <strong>${DESKTOP_APP.name}</strong> — leave it open while you play.</p>`
+    : `<p>Double-click <code>${launcher}</code> in your tracker folder — leave it running while you play:</p>
         <pre class="setup-code setup-code-highlight" id="setup-bridge-cmd">${launcher}</pre>
-        ${isVal
-    ? (isTwansAppHost()
-      ? `<p class="setup-hint">Keep <strong>${DESKTOP_APP.name}</strong> running while you play.</p>`
-      : `<p class="setup-hint">Open <code>${trackerUrl}</code> in the tab the .bat opens — not Live Server, not GitHub Pages.</p>`)
-    : (isTwansAppHost()
-      ? `<p class="setup-hint">You're in <strong>${DESKTOP_APP.name}</strong> — leave it open while you play.</p>`
-      : `<p class="setup-hint">Or double-click <code>${DESKTOP_APP.exe}</code> — no console window (build once with <code>build-tray-app.bat</code>).</p>`)}
+        <p class="setup-hint">Or double-click <code>${DESKTOP_APP.exe}</code> — no console window.</p>`}
         ${wrongTab ? `
-        <p class="setup-callout setup-callout-important">Bridge is running, but this tab is not served by <code>${launcher}</code>. Close Live Server on port 8080, restart the .bat, then use the tab it opens.</p>
-        <a href="${trackerUrl}" class="btn btn-secondary" id="setup-open-tracker-tab" target="_blank" rel="noopener">Open correct tracker tab</a>
+        <p class="setup-callout setup-callout-important">Auto-log bridge is running, but this browser tab cannot reach it. Open the tracker from <code>${launcher}</code> instead of Live Server or GitHub Pages.</p>
+        <a href="${getLocalTrackerUrl()}" class="btn btn-secondary" id="setup-open-tracker-tab" target="_blank" rel="noopener">Open tracker</a>
         ` : ''}
         <span class="setup-status-pill${bridge ? ' ok' : ''}" id="setup-bridge-pill">${wrongTab
-    ? `● Bridge running — open ${trackerUrl} for auto-log`
+    ? `● Bridge running — open ${trackerLabel} for auto-log`
     : bridge
       ? `● ${DESKTOP_APP.name} is running — ready for Apply & Go`
       : `○ Waiting for ${launcher}…`}</span>

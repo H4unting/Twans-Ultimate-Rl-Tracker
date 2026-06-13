@@ -224,6 +224,7 @@ function onBridgeValorantProcessChange({ valorantProcessRunning }) {
   if (lastValorantProcessRunning && !next) {
     postMatchPollUntil = Date.now() + POST_MATCH_WINDOW_MS;
     markMatchEndPending();
+    refreshBridgeStatusUI();
     void poll({ forceUi: true });
     schedulePoll();
   }

@@ -1,6 +1,6 @@
 /** Single unified app — no separate glance/grind sites */
 
-import { LOCAL_TRACKER_URL, USER_SETUP_DOC_URL } from './config.js';
+import { LOCAL_TRACKER_URL, USER_SETUP_DOC_URL, DESKTOP_APP } from './config.js';
 
 /** Internal HTTP origin for bridge proxy — never shown in the UI */
 export const INTERNAL_TRACKER_API = 'http://127.0.0.1:8080';
@@ -63,6 +63,12 @@ export function getLocalTrackerUrl() {
   return LOCAL_TRACKER_URL;
 }
 
+/** Player-facing label — never expose loopback URL in the desktop shell. */
+export function getUserFacingTrackerLabel() {
+  if (isTwansAppHost()) return DESKTOP_APP.name;
+  return LOCAL_TRACKER_URL;
+}
+
 export function getUserSetupDocUrl() {
   return USER_SETUP_DOC_URL;
 }
@@ -78,10 +84,8 @@ export function getAssetUrl(relativePath) {
 
 /** Banner copy when opened from GitHub Pages / non-localhost (manual log only). */
 export function getWebOnlyHostBannerHtml(launcher) {
-  const localUrl = getLocalTrackerUrl();
   const setupUrl = getUserSetupDocUrl();
   return `This web bookmark supports <strong>manual logging only</strong> — auto-log needs `
-    + `<code>${launcher}</code> on your gaming PC at `
-    + `<a href="${localUrl}" class="btn-link">${localUrl}</a>. `
+    + `<strong>${launcher || DESKTOP_APP.name}</strong> on your gaming PC. `
     + `<a href="${setupUrl}" class="btn-link" target="_blank" rel="noopener">Player setup guide →</a>`;
 }

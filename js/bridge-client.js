@@ -50,9 +50,23 @@ function noteBridgeRequest() {
 }
 
 /** Dev overlay + live pollers — time from game/match end signal to bridge payload seen. */
+const MATCH_END_PENDING_MAX_MS = 180000;
+
 export function markMatchEndPending() {
   if (typeof window === 'undefined') return;
   window.__MATCH_END_PENDING_AT = Date.now();
+  document.dispatchEvent(new CustomEvent('match-end-pending'));
+}
+
+export function isMatchEndPending(maxAgeMs = MATCH_END_PENDING_MAX_MS) {
+  if (typeof window === 'undefined') return false;
+  const at = window.__MATCH_END_PENDING_AT;
+  if (!at) return false;
+  if (Date.now() - at > maxAgeMs) {
+    window.__MATCH_END_PENDING_AT = null;
+    return false;
+  }
+  return true;
 }
 
 export function noteMatchEndDetected() {

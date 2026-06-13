@@ -77,6 +77,7 @@ function ensureHomeChartMode(games) {
 }
 
 let homeLinksWired = false;
+let quickActionsWired = false;
 
 function wireHomeLinksOnce() {
   if (homeLinksWired) return;
@@ -106,17 +107,19 @@ function wireQueuePicker(_container, _games) {
   /* queue clicks delegated on #page-dashboard — see wireHomeLinksOnce */
 }
 
-function wireQuickActions(container) {
-  container.querySelectorAll('[data-dash-action]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const action = btn.dataset.dashAction;
-      if (action === 'play') void launchGame(state.activeGame);
-      else if (action === 'log') window.__navigate?.('log', 'home');
-      else if (action === 'review') window.__navigate?.('focus', 'review');
-      else if (action === 'session') {
-        document.getElementById('session-start-btn')?.click();
-      }
-    });
+function wireQuickActionsOnce() {
+  if (quickActionsWired) return;
+  quickActionsWired = true;
+  document.getElementById('dash-quick-actions')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-dash-action]');
+    if (!btn) return;
+    const action = btn.dataset.dashAction;
+    if (action === 'play') void launchGame(state.activeGame);
+    else if (action === 'log') window.__navigate?.('log', 'home');
+    else if (action === 'review') window.__navigate?.('focus', 'review');
+    else if (action === 'session') {
+      document.getElementById('session-start-btn')?.click();
+    }
   });
 }
 
@@ -538,7 +541,7 @@ function renderDashQuickActions() {
       <span><span class="dash-action-label">Focus</span><span class="dash-action-desc">Coaching tips</span></span>
     </button>`;
 
-  wireQuickActions(el);
+  wireQuickActionsOnce();
 }
 
 function perfStatsSig(games, isVal) {
@@ -782,24 +785,28 @@ function renderDashSessionPanel(games, allRows) {
 /** Instant dashboard skeleton while loadUserData runs — uses cached profile in auth bar. */
 export function renderDashboardShell() {
   wireHomeLinksOnce();
+  wireQuickActionsOnce();
   renderDashQuickActions();
   renderDashSessionPanel([], getCachedPlaylistMMRRows([], state.activeGame));
 
   const hero = document.getElementById('dash-hero');
   if (hero) {
-    hero.dataset.heroSig = 'shell';
-    hero.dataset.wired = '';
-    hero.innerHTML = `
+    const hasRealHero = hero.dataset.heroSig && hero.dataset.heroSig !== 'shell' && hero.dataset.wired === '1';
+    if (!hasRealHero && !hero.querySelector('.dash-shell-loading')) {
+      hero.dataset.heroSig = 'shell';
+      hero.dataset.wired = '';
+      hero.innerHTML = `
       <div class="dash-empty dash-shell-loading" aria-busy="true">
         Loading your stats…
       </div>`;
+    }
   }
 
   const rank = document.getElementById('dash-rank-progress');
-  if (rank) rank.innerHTML = '';
+  if (rank && !rank.dataset.wired) rank.innerHTML = '';
 
   const focus = document.getElementById('home-focus');
-  if (focus) {
+  if (focus && !focus.dataset.wired) {
     focus.innerHTML = '';
     focus.dataset.focusSig = '';
   }
@@ -955,6 +962,64 @@ function activitySig(games, limit, gameId) {
   return `${gameId}:${games.length}:${last?.match}:${last?.result}`;
 }
 
+function buildActivityItemHtml(g, gameId) {
+  const diff = getRankDiff(g, gameId);
+  const diffCls = diff >= 0 ? 'up' : 'down';
+  if (gameId === GAME_IDS.VALORANT) {
+    const agent = g.agent || 'Unknown Agent';
+    const map = g.map || 'Unknown Map';
+    const k = g.kills ?? g.goals ?? 0;
+    const d = g.deaths ?? 0;
+    const a = g.valAssists ?? g.assists ?? 0;
+    return `
+          <li class="val-match-card dash-activity-item">
+            <div class="val-match-result dash-activity-badge ${g.result}">${g.result}</div>
+            <div class="dash-activity-main">
+              <div class="val-match-queue dash-activity-mode">${getQueueLabel(g.mode, GAME_IDS.VALORANT)}</div>
+              <div class="dash-activity-sub val-match-kda">${agent} · ${map} · ${k}/${d}/${a}</div>
+            </div>
+            <div class="dash-activity-side">
+              <div class="val-match-rr dash-activity-mmr ${diffCls}">${formatRRDelta(diff)}</div>
+              <div class="val-match-date dash-activity-date">${g.date}</div>
+            </div>
+          </li>`;
+  }
+  const tags = (g.tags || []).slice(0, 2).map(t =>
+    `<span class="home-activity-tag ${getTagCat(t, gameId)}">${t}</span>`,
+  ).join('');
+  return `
+        <li class="dash-activity-item">
+          <span class="dash-activity-badge ${g.result}">${g.result}</span>
+          <div class="dash-activity-main">
+            <div class="dash-activity-mode">${g.mode} · S${g.session}</div>
+            <div class="dash-activity-sub">${tags || '—'}</div>
+          </div>
+          <div class="dash-activity-side">
+            <div class="dash-activity-mmr ${diffCls}">${diff >= 0 ? '+' : ''}${diff}</div>
+            <div class="dash-activity-date">${g.date}</div>
+          </div>
+        </li>`;
+}
+
+function tryPrependActivityItem(host, games, limit, gameId) {
+  const prevSig = host.dataset.activitySig;
+  if (!prevSig || prevSig === '0') return false;
+  const prevLen = parseInt(prevSig.split(':')[1], 10);
+  if (!Number.isFinite(prevLen) || games.length !== prevLen + 1) return false;
+
+  const list = host.querySelector('.dash-activity-list, .val-match-feed-list');
+  if (!list) return false;
+
+  const newest = games[games.length - 1];
+  const frag = document.createRange().createContextualFragment(buildActivityItemHtml(newest, gameId));
+  list.insertBefore(frag, list.firstChild);
+  while (list.children.length > limit) {
+    list.lastElementChild?.remove();
+  }
+  host.dataset.activitySig = activitySig(games, limit, gameId);
+  return true;
+}
+
 export function renderHomeActivity(games, limit = 10) {
   const el = document.getElementById('home-activity');
   const valFeed = document.getElementById('val-match-feed');
@@ -976,31 +1041,16 @@ export function renderHomeActivity(games, limit = 10) {
     return;
   }
 
+  if (tryPrependActivityItem(host, games, limit, state.activeGame)) {
+    if (host !== el) el.dataset.activitySig = sig;
+    return;
+  }
+
   if (state.activeGame === GAME_IDS.VALORANT && valFeed) {
     el.innerHTML = '';
     valFeed.innerHTML = `
       <ul class="val-match-feed-list">
-        ${recent.map(g => {
-          const diff = getRankDiff(g, GAME_IDS.VALORANT);
-          const diffCls = diff >= 0 ? 'up' : 'down';
-          const agent = g.agent || 'Unknown Agent';
-          const map = g.map || 'Unknown Map';
-          const k = g.kills ?? g.goals ?? 0;
-          const d = g.deaths ?? 0;
-          const a = g.valAssists ?? g.assists ?? 0;
-          return `
-          <li class="val-match-card dash-activity-item">
-            <div class="val-match-result dash-activity-badge ${g.result}">${g.result}</div>
-            <div class="dash-activity-main">
-              <div class="val-match-queue dash-activity-mode">${getQueueLabel(g.mode, GAME_IDS.VALORANT)}</div>
-              <div class="dash-activity-sub val-match-kda">${agent} · ${map} · ${k}/${d}/${a}</div>
-            </div>
-            <div class="dash-activity-side">
-              <div class="val-match-rr dash-activity-mmr ${diffCls}">${formatRRDelta(diff)}</div>
-              <div class="val-match-date dash-activity-date">${g.date}</div>
-            </div>
-          </li>`;
-        }).join('')}
+        ${recent.map(g => buildActivityItemHtml(g, GAME_IDS.VALORANT)).join('')}
       </ul>`;
     valFeed.dataset.activitySig = sig;
     return;
@@ -1011,25 +1061,7 @@ export function renderHomeActivity(games, limit = 10) {
     valFeed.dataset.activitySig = '';
   }
 
-  const listHtml = recent.map(g => {
-    const diff = getRankDiff(g, state.activeGame);
-    const diffCls = diff >= 0 ? 'up' : 'down';
-    const tags = (g.tags || []).slice(0, 2).map(t =>
-      `<span class="home-activity-tag ${getTagCat(t, state.activeGame)}">${t}</span>`,
-    ).join('');
-    return `
-        <li class="dash-activity-item">
-          <span class="dash-activity-badge ${g.result}">${g.result}</span>
-          <div class="dash-activity-main">
-            <div class="dash-activity-mode">${g.mode} · S${g.session}</div>
-            <div class="dash-activity-sub">${tags || '—'}</div>
-          </div>
-          <div class="dash-activity-side">
-            <div class="dash-activity-mmr ${diffCls}">${diff >= 0 ? '+' : ''}${diff}</div>
-            <div class="dash-activity-date">${g.date}</div>
-          </div>
-        </li>`;
-  }).join('');
+  const listHtml = recent.map(g => buildActivityItemHtml(g, state.activeGame)).join('');
 
   const frag = document.createRange().createContextualFragment(
     `<ul class="dash-activity-list">${listHtml}</ul>`,
