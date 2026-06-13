@@ -91,8 +91,8 @@ export function renderStats(containerId, stats, playlist = 'all', gameId = state
       val: stats.currentMMR,
       cls: 'gold',
       extra: !isVal && stats.currentMMR
-        ? rankBadgeHTML(stats.currentMMR, 18, rankMode)
-        : (isVal && stats.currentRankDisplay ? rankBadgeHTML(stats.currentRankDisplay, 18, rankMode) : ''),
+        ? rankBadgeHTML(stats.currentMMR, 18, rankMode, gameId)
+        : (isVal && stats.currentRankDisplay ? rankBadgeHTML(stats.currentRankDisplay, 18, rankMode, gameId) : ''),
     },
     { label: isVal ? 'Matches' : 'Total Games', val: stats.totalGames, cls: 'teal' },
     { label: 'Wins', val: stats.wins, cls: 'green' },
@@ -166,7 +166,7 @@ function logTableRowHTML(g, editable, gameId, isVal) {
         <td><span class="badge ${g.result}">${g.result === 'W' ? 'WIN' : 'LOSS'}</span></td>
         <td>${g.goals}</td><td>${g.saves}</td>
         <td>${startRank}</td>
-        <td><span style="margin-right:4px">${endRank}</span>${rankIconHTML(getRank(endRank, g.mode), 22)}</td>
+        <td><span style="margin-right:4px">${endRank}</span>${rankIconHTML(getRank(endRank, g.mode, gameId), 22, gameId)}</td>
         <td class="${diff >= 0 ? 'pos' : 'neg'}">${diff >= 0 ? '+' : ''}${diff}</td>
         <td class="log-table-cell-notes">${renderInlineTags(g.tags, gameId)}${noteHtml}</td>
         <td style="white-space:nowrap">${actions}</td>

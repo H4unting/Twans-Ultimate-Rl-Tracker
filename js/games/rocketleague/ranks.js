@@ -83,22 +83,75 @@ function modeToKey(mode) {
   return '2s';
 }
 
-export function getRank(mmr, mode = "2's") {
-  const table = RANK_DATA[modeToKey(mode)] ?? RANK_DATA['2s'];
-  if (!mmr) return table[0];
+function rankTable(mode) {
+  return RANK_DATA[modeToKey(mode)] ?? RANK_DATA['2s'];
+}
+
+function coerceMMR(value) {
+  if (value == null || value === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function findRankByName(name, mode = "2's") {
+  if (!name) return null;
+  const s = String(name).trim();
+  const hit = rankTable(mode).find(r => r.name === s);
+  if (hit) return hit;
+  for (const key of ['2s', '3s', '1s']) {
+    const row = RANK_DATA[key].find(r => r.name === s);
+    if (row) return row;
+  }
+  return null;
+}
+
+function getRankFromMMR(mmr, mode = "2's") {
+  const table = rankTable(mode);
+  const n = coerceMMR(mmr);
+  if (n == null || n <= 0) return table[0];
   for (let i = table.length - 1; i >= 0; i--) {
-    if (mmr >= table[i].mmr) return table[i];
+    if (n >= table[i].mmr) return table[i];
   }
   return table[0];
 }
 
-export function getRankForPlaylist(mmr, playlist) {
-  const table = RANK_DATA[playlist] ?? RANK_DATA['2s'];
-  if (!mmr) return table[0];
-  for (let i = table.length - 1; i >= 0; i--) {
-    if (mmr >= table[i].mmr) return table[i];
+/** @param {number|string|{endMMR?:number,mmr?:number,endRank?:string,rank?:string,name?:string}} value */
+export function getRank(value, mode = "2's") {
+  if (value != null && typeof value === 'object') {
+    const mmr = coerceMMR(value.endMMR ?? value.mmr);
+    if (mmr != null) return getRankFromMMR(mmr, mode);
+    const byName = findRankByName(value.endRank ?? value.rank ?? value.name, mode);
+    if (byName) return byName;
+    return rankTable(mode)[0];
   }
-  return table[0];
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    const byName = findRankByName(trimmed, mode);
+    if (byName) return byName;
+    const mmr = coerceMMR(trimmed);
+    if (mmr != null) return getRankFromMMR(mmr, mode);
+    return rankTable(mode)[0];
+  }
+  return getRankFromMMR(value, mode);
+}
+
+export function getRankForPlaylist(value, playlist) {
+  if (value != null && typeof value === 'object') {
+    const mmr = coerceMMR(value.endMMR ?? value.mmr);
+    if (mmr != null) return getRankFromMMR(mmr, playlist);
+    const byName = findRankByName(value.endRank ?? value.rank ?? value.name, playlist);
+    if (byName) return byName;
+    return (RANK_DATA[playlist] ?? RANK_DATA['2s'])[0];
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    const byName = findRankByName(trimmed, playlist);
+    if (byName) return byName;
+    const mmr = coerceMMR(trimmed);
+    if (mmr != null) return getRankFromMMR(mmr, playlist);
+    return (RANK_DATA[playlist] ?? RANK_DATA['2s'])[0];
+  }
+  return getRankFromMMR(value, playlist);
 }
 
 const DIVISION_NUM = { I: 1, II: 2, III: 3 };
@@ -132,13 +185,19 @@ const RANK_ICON_SRC = {
 };
 
 export function getRankIconKey(rankName) {
-  if (rankName === 'Supersonic Legend') return 'supersonic-legend';
-  if (rankName.startsWith('Grand Champion')) {
-    const div = rankName.replace('Grand Champion ', '');
+  if (rankName == null || rankName === '') return 'bronze-1';
+  const s = String(rankName).trim();
+  if (/^supersonic legend$/i.test(s)) return 'supersonic-legend';
+  if (/^grand champion/i.test(s)) {
+    const div = s.replace(/^grand champion\s*/i, '');
     return `grand-champion-${DIVISION_NUM[div] || 1}`;
   }
-  const [tier, div] = rankName.split(' ');
-  return `${tier.toLowerCase()}-${DIVISION_NUM[div] || 1}`;
+  const [tier, div] = s.split(' ');
+  const key = `${tier.toLowerCase()}-${DIVISION_NUM[div] || 1}`;
+  if (RANK_ICON_SRC[key]) return key;
+  const canonical = findRankByName(s)?.name;
+  if (canonical && canonical !== s) return getRankIconKey(canonical);
+  return 'bronze-1';
 }
 
 export function getRankIconSrc(rankName) {
@@ -146,10 +205,32 @@ export function getRankIconSrc(rankName) {
   return RANK_ICON_SRC[key] ?? RANK_ICON_SRC['bronze-1'];
 }
 
+/** URLs warmed after first paint — must match RANK_ICON_SRC keys above */
+export const RL_RANK_ICON_PRELOAD_URLS = [
+  RANK_ICON_SRC['gold-3'],
+  RANK_ICON_SRC['grand-champion-1'],
+  RANK_ICON_SRC['supersonic-legend'],
+];
+
+function resolveRankDisplayName(rankOrName) {
+  if (typeof rankOrName === 'string') {
+    return findRankByName(rankOrName)?.name ?? rankOrName;
+  }
+  if (rankOrName?.name) return rankOrName.name;
+  if (rankOrName?.tier) {
+    const tierNames = {
+      bronze: 'Bronze I', silver: 'Silver I', gold: 'Gold I', plat: 'Platinum I',
+      diamond: 'Diamond I', champ: 'Champion I', gc: 'Grand Champion I', ssl: 'Supersonic Legend',
+    };
+    return tierNames[rankOrName.tier] ?? 'Bronze I';
+  }
+  return 'Bronze I';
+}
+
 export function rankIconHTML(rankOrName, size = 20) {
-  const name = typeof rankOrName === 'string' ? rankOrName : rankOrName.name;
+  const name = resolveRankDisplayName(rankOrName);
   const src = getRankIconSrc(name);
-  const fallback = RANK_ICON_SRC['bronze-1'];
+  const fallback = getRankIconSrc(name);
   return `<img class="rank-icon" src="${src}" alt="${name}" width="${size}" height="${size}" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${fallback}'">`;
 }
 

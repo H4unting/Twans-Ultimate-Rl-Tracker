@@ -151,7 +151,7 @@ function matchRowHTML(g, gameNum, editable, gameId) {
                ${g.agent ? `<span><b>Agent</b> ${escapeHtml(g.agent)}</span>` : ''}
                ${g.map ? `<span><b>Map</b> ${escapeHtml(g.map)}</span>` : ''}`
             : `<span><b>G/A/S</b> ${g.goals}/${g.assists || 0}/${g.saves}</span>
-               <span><b>MMR</b> ${g.startMMR} → ${g.endMMR} ${rankIconHTML(getRank(g.endMMR, g.mode), 18)}</span>`}
+               <span><b>MMR</b> ${g.startMMR} → ${g.endMMR} ${rankIconHTML(getRank(g.endMMR, g.mode, gameId), 18, gameId)}</span>`}
         </div>
         ${g.notes ? `<p class="match-log-notes">${escapeHtml(g.notes)}</p>` : ''}
         ${editable ? `
