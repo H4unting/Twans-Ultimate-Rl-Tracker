@@ -15,6 +15,7 @@ let onVisibilityChange = null;
 let lastRlRunning = false;
 let lastValRunning = false;
 let wiredPrefs = false;
+let initialProbeDone = false;
 
 function loadAutoSessionPref() {
   try {
@@ -40,6 +41,20 @@ async function pollGameProcesses() {
 
   const rlRunning = Boolean(status.rocketLeagueRunning || status.rlConnected);
   const valRunning = Boolean(status.valorantProcessRunning);
+
+  if (!initialProbeDone) {
+    initialProbeDone = true;
+    lastRlRunning = rlRunning;
+    lastValRunning = valRunning;
+    if (!state.session.active) {
+      if (state.activeGame === GAME_IDS.VALORANT && valRunning) {
+        startSession({ silent: true });
+      } else if (state.activeGame === GAME_IDS.ROCKET_LEAGUE && rlRunning) {
+        startSession({ silent: true });
+      }
+    }
+    return;
+  }
 
   const rlStarted = rlRunning && !lastRlRunning;
   const valStarted = valRunning && !lastValRunning;
@@ -110,4 +125,5 @@ export function stopProcessSessionWatcher() {
   }
   lastRlRunning = false;
   lastValRunning = false;
+  initialProbeDone = false;
 }

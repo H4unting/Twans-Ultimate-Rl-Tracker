@@ -28,7 +28,13 @@ export async function launchGame(gameId = state.activeGame) {
       return false;
     }
     const label = gameId === GAME_IDS.VALORANT ? 'Valorant' : 'Rocket League';
-    showToast(`Launching ${label}…`);
+    if (json.alreadyRunning) {
+      showToast(json.focused
+        ? `${label} is already running — switched to game`
+        : `${label} is already running`);
+    } else {
+      showToast(`Launching ${label}…`);
+    }
     if (!state.session.active) startSession({ silent: true });
     return true;
   } catch {

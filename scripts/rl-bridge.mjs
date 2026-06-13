@@ -330,6 +330,7 @@ export function startBridge(options = {}) {
           rocketLeagueRunning: processes.rocketLeagueRunning,
           valorantProcessRunning: processes.valorantProcessRunning,
           valorantRunning: processes.valorantProcessRunning,
+          riotClientRunning: processes.riotClientRunning,
         };
         const origin = req.headers.origin;
         if (!origin || ALLOWED_ORIGINS.has(origin) || isLocalDevOrigin(origin)) {
@@ -447,7 +448,27 @@ export function startBridge(options = {}) {
           launcherMode: valLauncherMode,
         });
       });
-      startProcessWatcher(4000);
+      startProcessWatcher(4000, async (next) => {
+        if (next.valorantProcessRunning) {
+          const valBridge = await loadValorantBridge();
+          valBridge?.armValorantPolling?.();
+        }
+      });
+      getGameProcessState(true).then(async (processes) => {
+        console.log(`[Startup] Rocket League detected: ${processes.rocketLeagueRunning ? 'YES' : 'NO'}`);
+        console.log(`[Startup] Valorant detected: ${processes.valorantProcessRunning ? 'YES' : 'NO'}`);
+        if (processes.riotClientRunning && !processes.valorantProcessRunning) {
+          console.log('[Startup] Riot Client only - waiting for Valorant');
+        }
+        if (processes.rocketLeagueRunning || processes.valorantProcessRunning) {
+          console.log('[Startup] Attached to existing session');
+          console.log('[Startup] Tracking enabled');
+          if (processes.valorantProcessRunning) {
+            const valBridge = await loadValorantBridge();
+            valBridge?.armValorantPolling?.();
+          }
+        }
+      });
       resolve(server);
     });
   });

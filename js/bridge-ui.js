@@ -8,7 +8,7 @@ import {
   getHeartbeatValorantProcessRunning,
   getHeartbeatRocketLeagueRunning,
   getHeartbeatRlConnected,
-  subscribeBridgeResumed, isMatchEndPending,
+  subscribeBridgeResumed,
 } from './bridge-client.js';
 import { isAutoLogEnabled, loadPrefs, syncAutoLogToggleUI } from './quicklog.js';
 import {
@@ -20,8 +20,14 @@ import {
   STATUS,
   waitingForGameLabel,
   formatStatusPill,
+  trackingLabel,
   logStatusDebug,
 } from './status-copy.js';
+import {
+  getGameTrackingPhase,
+  TrackingPhase,
+  isRiotClientOnlyWaiting,
+} from './game-tracking.js';
 
 let cachedValStatus = null;
 let cachedRlInMatch = false;
@@ -166,9 +172,10 @@ export function refreshBridgeStatusUI() {
 
 function renderValorantPill(el, valStatus, meta) {
   const valProcessRunning = isValorantGameProcessRunning(valStatus);
+  const trackPhase = getGameTrackingPhase(GAME_IDS.VALORANT);
   el.classList.toggle('in-match', valProcessRunning);
 
-  if (isMatchEndPending() && isAutoLogEnabled() && !valProcessRunning) {
+  if (trackPhase === TrackingPhase.PROCESSING && isAutoLogEnabled() && !valProcessRunning) {
     applyUnifiedStatusLabel(el, 'tracking', STATUS.processingMatch);
     el.textContent = `● ${STATUS.processingMatch}`;
     el.title = 'Match ended — fetching stats and saving automatically';
@@ -218,6 +225,21 @@ function renderValorantPill(el, valStatus, meta) {
     return;
   }
 
+  if (isRiotClientOnlyWaiting() && !valProcessRunning) {
+    applyUnifiedStatusLabel(el, 'waiting', waitingForGameLabel(GAME_IDS.VALORANT));
+    el.textContent = formatStatusPill('waiting', GAME_IDS.VALORANT);
+    el.title = 'Riot Client is open — launch Valorant to start tracking';
+    el.dataset.bridgeState = 'waiting';
+    return;
+  }
+
+  if (trackPhase === TrackingPhase.ATTACHING) {
+    applyUnifiedStatusLabel(el, 'connecting', 'Attaching to Valorant…');
+    el.textContent = formatStatusPill('connecting');
+    el.dataset.bridgeState = 'syncing';
+    return;
+  }
+
   if (valStatus.pollingArmed === false) {
     applyUnifiedStatusLabel(el, 'waiting', waitingForGameLabel(GAME_IDS.VALORANT));
     el.textContent = formatStatusPill('waiting', GAME_IDS.VALORANT);
@@ -233,11 +255,11 @@ function renderValorantPill(el, valStatus, meta) {
   }
 
   if (valProcessRunning && isAutoLogEnabled()) {
-    applyUnifiedStatusLabel(el, 'tracking', 'Auto-log ON — finished matches save in 1–3 min');
-    el.textContent = formatStatusPill('tracking');
-  } else if (valProcessRunning) {
-    applyUnifiedStatusLabel(el, 'tracking', 'Valorant is running — turn on auto-log or tap LOG after the match');
-    el.textContent = formatStatusPill('tracking');
+    applyUnifiedStatusLabel(el, 'tracking', `${trackingLabel(GAME_IDS.VALORANT)} — finished matches save in 1–3 min`);
+    el.textContent = formatStatusPill('tracking', GAME_IDS.VALORANT);
+  } else if (valProcessRunning || trackPhase === TrackingPhase.TRACKING) {
+    applyUnifiedStatusLabel(el, 'tracking', trackingLabel(GAME_IDS.VALORANT));
+    el.textContent = formatStatusPill('tracking', GAME_IDS.VALORANT);
   } else if (isAutoLogEnabled()) {
     applyUnifiedStatusLabel(el, 'waiting', waitingForGameLabel(GAME_IDS.VALORANT));
     el.textContent = formatStatusPill('waiting', GAME_IDS.VALORANT);
@@ -250,9 +272,10 @@ function renderValorantPill(el, valStatus, meta) {
 
 function renderRocketLeaguePill(el, inMatch, meta) {
   const rlActive = isRocketLeagueGameActive();
+  const trackPhase = getGameTrackingPhase(GAME_IDS.ROCKET_LEAGUE);
   el.classList.toggle('in-match', inMatch || rlActive);
 
-  if (isMatchEndPending() && isAutoLogEnabled() && !inMatch) {
+  if (trackPhase === TrackingPhase.PROCESSING && isAutoLogEnabled() && !inMatch) {
     applyUnifiedStatusLabel(el, 'tracking', STATUS.processingMatch);
     el.textContent = `● ${STATUS.processingMatch}`;
     el.title = 'Match ended — reading stats and saving automatically';
@@ -260,21 +283,27 @@ function renderRocketLeaguePill(el, inMatch, meta) {
     return;
   }
 
+  if (trackPhase === TrackingPhase.ATTACHING) {
+    applyUnifiedStatusLabel(el, 'connecting', 'Attaching to Rocket League…');
+    el.textContent = formatStatusPill('connecting');
+    el.dataset.bridgeState = 'syncing';
+    return;
+  }
+
   if (inMatch) {
-    applyUnifiedStatusLabel(el, 'tracking', `Live match — reading stats from ${meta.label}`);
-    el.textContent = formatStatusPill('tracking');
+    applyUnifiedStatusLabel(el, 'tracking', `${trackingLabel(GAME_IDS.ROCKET_LEAGUE)} — live match`);
+    el.textContent = formatStatusPill('tracking', GAME_IDS.ROCKET_LEAGUE);
     el.dataset.bridgeState = 'in-match';
     return;
   }
 
-  if (rlActive) {
+  if (rlActive || trackPhase === TrackingPhase.TRACKING) {
     if (isAutoLogEnabled()) {
-      applyUnifiedStatusLabel(el, 'tracking', 'Auto-log ON — Rocket League is running');
-      el.textContent = formatStatusPill('tracking');
-      el.title = 'Rocket League detected — matches auto-log when they end';
+      applyUnifiedStatusLabel(el, 'tracking', `${trackingLabel(GAME_IDS.ROCKET_LEAGUE)} — matches auto-log when they end`);
+      el.textContent = formatStatusPill('tracking', GAME_IDS.ROCKET_LEAGUE);
     } else {
-      applyUnifiedStatusLabel(el, 'tracking', 'Rocket League is running — turn on auto-log or tap LOG after the match');
-      el.textContent = formatStatusPill('tracking');
+      applyUnifiedStatusLabel(el, 'tracking', trackingLabel(GAME_IDS.ROCKET_LEAGUE));
+      el.textContent = formatStatusPill('tracking', GAME_IDS.ROCKET_LEAGUE);
     }
     el.dataset.bridgeState = 'ready';
     return;

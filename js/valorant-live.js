@@ -221,6 +221,13 @@ function wireDashIdleResume() {
 
 function onBridgeValorantProcessChange({ valorantProcessRunning }) {
   const next = Boolean(valorantProcessRunning);
+  if (next && !lastValorantProcessRunning) {
+    void ensurePollingArmed();
+    if (state.activeGame === GAME_IDS.VALORANT) {
+      void poll({ forceUi: true });
+      schedulePoll();
+    }
+  }
   if (lastValorantProcessRunning && !next) {
     postMatchPollUntil = Date.now() + POST_MATCH_WINDOW_MS;
     markMatchEndPending();

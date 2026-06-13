@@ -61,8 +61,13 @@ function schedulePoll() {
 function onBridgeRlProcessChange({ rocketLeagueRunning, rlConnected, inMatch }) {
   const next = Boolean(rocketLeagueRunning || rlConnected);
   if (next !== lastRlProcessActive) {
+    const started = next && !lastRlProcessActive;
     lastRlProcessActive = next;
     refreshBridgeStatusUI();
+    if (started) {
+      void pollBridge({ forceUi: true });
+      schedulePoll();
+    }
   }
   const nextInMatch = Boolean(inMatch);
   if (lastInMatch && !nextInMatch) {
