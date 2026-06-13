@@ -10,6 +10,7 @@ const HEARTBEAT_IDLE_MS = 4000;
 const HEARTBEAT_HIDDEN_MS = 5000;
 const HEARTBEAT_STARTUP_MS = 400;
 const HEARTBEAT_DASH_IDLE_MS = 6000;
+const HEARTBEAT_MATCH_END_MS = 1200;
 const STARTUP_PHASE_MAX_MS = 8000;
 const PING_TIMEOUT_MS = 4000;
 /** Consecutive failed pings before going offline (after grace expires) */
@@ -415,6 +416,7 @@ async function heartbeatTick() {
 }
 
 function getHeartbeatMs() {
+  if (isMatchEndPending()) return HEARTBEAT_MATCH_END_MS;
   if (document.visibilityState === 'hidden') return HEARTBEAT_HIDDEN_MS;
   if (inStartupPhase) return HEARTBEAT_STARTUP_MS;
   if (reconnecting || !bridgeOnline) return HEARTBEAT_ACTIVE_MS;
@@ -449,6 +451,9 @@ export function startBridgeHeartbeat() {
   if (startupPhaseTimer) clearTimeout(startupPhaseTimer);
   startupPhaseTimer = setTimeout(endBridgeStartupPhase, STARTUP_PHASE_MAX_MS);
   wireVisibilityRefresh();
+  document.addEventListener('match-end-pending', () => {
+    if (heartbeatTimer !== null) scheduleHeartbeat();
+  });
   void heartbeatTick();
   scheduleHeartbeat();
 }

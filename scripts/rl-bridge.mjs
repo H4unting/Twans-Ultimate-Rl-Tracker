@@ -448,11 +448,16 @@ export function startBridge(options = {}) {
           launcherMode: valLauncherMode,
         });
       });
-      startProcessWatcher(4000, async (next) => {
+      let prevProcesses = { valorantProcessRunning: false };
+      startProcessWatcher(3000, async (next) => {
         if (next.valorantProcessRunning) {
           const valBridge = await loadValorantBridge();
           valBridge?.armValorantPolling?.();
+        } else if (prevProcesses.valorantProcessRunning && !next.valorantProcessRunning) {
+          const valBridge = await loadValorantBridge();
+          valBridge?.kickValorantPostMatchPoll?.();
         }
+        prevProcesses = next;
       });
       getGameProcessState(true).then(async (processes) => {
         console.log(`[Startup] Rocket League detected: ${processes.rocketLeagueRunning ? 'YES' : 'NO'}`);

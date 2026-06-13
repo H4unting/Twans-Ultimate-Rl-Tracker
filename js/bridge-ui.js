@@ -20,6 +20,7 @@ import {
   STATUS,
   waitingForGameLabel,
   formatStatusPill,
+  playingLabel,
   trackingLabel,
   logStatusDebug,
 } from './status-copy.js';
@@ -103,6 +104,7 @@ function applyUnifiedStatusLabel(el, phase, detailTitle) {
     connecting: STATUS.starting,
     reconnecting: STATUS.reconnecting,
     waiting: waitingForGameLabel(gameId),
+    playing: playingLabel(gameId),
     tracking: STATUS.tracking,
     error: STATUS.connectionIssue,
   };
@@ -180,6 +182,7 @@ function renderValorantPill(el, valStatus, meta) {
     el.textContent = `● ${STATUS.processingMatch}`;
     el.title = 'Match ended — fetching stats and saving automatically';
     el.dataset.bridgeState = 'processing';
+    el.dataset.statusPhase = 'processing';
     return;
   }
 
@@ -200,12 +203,12 @@ function renderValorantPill(el, valStatus, meta) {
   }
 
   if (valStatus.source === 'overwolf') {
-    if (valProcessRunning && isAutoLogEnabled()) {
-      el.textContent = '● Auto-log ON';
-      el.title = 'Overwolf linked — finished matches save automatically';
-    } else if (valProcessRunning) {
-      el.textContent = '● Valorant live';
-      el.title = 'Overwolf sees Valorant — turn on auto-log or tap LOG after the match';
+    if (valProcessRunning) {
+      applyUnifiedStatusLabel(el, 'playing', playingLabel(GAME_IDS.VALORANT));
+      el.textContent = formatStatusPill('playing', GAME_IDS.VALORANT);
+      el.title = isAutoLogEnabled()
+        ? 'Overwolf linked — finished matches save automatically'
+        : 'Overwolf sees Valorant — turn on auto-log or tap LOG after the match';
     } else if (isAutoLogEnabled()) {
       el.textContent = '● Overwolf ready';
       el.title = 'Overwolf linked — launch Valorant and your next match will auto-log';
@@ -254,12 +257,12 @@ function renderValorantPill(el, valStatus, meta) {
     return;
   }
 
-  if (valProcessRunning && isAutoLogEnabled()) {
-    applyUnifiedStatusLabel(el, 'tracking', `${trackingLabel(GAME_IDS.VALORANT)} — finished matches save in 1–3 min`);
-    el.textContent = formatStatusPill('tracking', GAME_IDS.VALORANT);
-  } else if (valProcessRunning || trackPhase === TrackingPhase.TRACKING) {
-    applyUnifiedStatusLabel(el, 'tracking', trackingLabel(GAME_IDS.VALORANT));
-    el.textContent = formatStatusPill('tracking', GAME_IDS.VALORANT);
+  if (valProcessRunning) {
+    applyUnifiedStatusLabel(el, 'playing', playingLabel(GAME_IDS.VALORANT));
+    el.textContent = formatStatusPill('playing', GAME_IDS.VALORANT);
+    el.title = isAutoLogEnabled()
+      ? `${playingLabel(GAME_IDS.VALORANT)} — finished matches save in 1–3 min`
+      : playingLabel(GAME_IDS.VALORANT);
   } else if (isAutoLogEnabled()) {
     applyUnifiedStatusLabel(el, 'waiting', waitingForGameLabel(GAME_IDS.VALORANT));
     el.textContent = formatStatusPill('waiting', GAME_IDS.VALORANT);
@@ -280,6 +283,7 @@ function renderRocketLeaguePill(el, inMatch, meta) {
     el.textContent = `● ${STATUS.processingMatch}`;
     el.title = 'Match ended — reading stats and saving automatically';
     el.dataset.bridgeState = 'processing';
+    el.dataset.statusPhase = 'processing';
     return;
   }
 
@@ -290,22 +294,15 @@ function renderRocketLeaguePill(el, inMatch, meta) {
     return;
   }
 
-  if (inMatch) {
-    applyUnifiedStatusLabel(el, 'tracking', `${trackingLabel(GAME_IDS.ROCKET_LEAGUE)} — live match`);
-    el.textContent = formatStatusPill('tracking', GAME_IDS.ROCKET_LEAGUE);
-    el.dataset.bridgeState = 'in-match';
-    return;
-  }
-
-  if (rlActive || trackPhase === TrackingPhase.TRACKING) {
-    if (isAutoLogEnabled()) {
-      applyUnifiedStatusLabel(el, 'tracking', `${trackingLabel(GAME_IDS.ROCKET_LEAGUE)} — matches auto-log when they end`);
-      el.textContent = formatStatusPill('tracking', GAME_IDS.ROCKET_LEAGUE);
-    } else {
-      applyUnifiedStatusLabel(el, 'tracking', trackingLabel(GAME_IDS.ROCKET_LEAGUE));
-      el.textContent = formatStatusPill('tracking', GAME_IDS.ROCKET_LEAGUE);
-    }
-    el.dataset.bridgeState = 'ready';
+  if (inMatch || rlActive || trackPhase === TrackingPhase.TRACKING) {
+    applyUnifiedStatusLabel(el, 'playing', playingLabel(GAME_IDS.ROCKET_LEAGUE));
+    el.textContent = formatStatusPill('playing', GAME_IDS.ROCKET_LEAGUE);
+    el.title = inMatch
+      ? `${playingLabel(GAME_IDS.ROCKET_LEAGUE)} — live match`
+      : isAutoLogEnabled()
+        ? `${playingLabel(GAME_IDS.ROCKET_LEAGUE)} — matches auto-log when they end`
+        : playingLabel(GAME_IDS.ROCKET_LEAGUE);
+    el.dataset.bridgeState = inMatch ? 'in-match' : 'ready';
     return;
   }
 

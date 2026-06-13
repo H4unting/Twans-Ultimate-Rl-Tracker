@@ -18,6 +18,12 @@ export const STATUS = {
   processingMatch: 'Processing match…',
 };
 
+export function playingLabel(gameId = state.activeGame) {
+  return gameId === GAME_IDS.VALORANT
+    ? 'Playing Valorant'
+    : 'Playing Rocket League';
+}
+
 export function trackingLabel(gameId = state.activeGame) {
   return gameId === GAME_IDS.VALORANT
     ? 'Tracking Valorant'
@@ -25,6 +31,7 @@ export function trackingLabel(gameId = state.activeGame) {
 }
 
 export function formatStatusPill(phase, gameId = state.activeGame) {
+  if (phase === 'playing') return `● ${playingLabel(gameId)}`;
   if (phase === 'tracking') return `● ${trackingLabel(gameId)}`;
   if (phase === 'error') return `● ${STATUS.connectionIssue}`;
   if (phase === 'reconnecting') return `● ${STATUS.reconnecting}`;

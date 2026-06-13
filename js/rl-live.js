@@ -13,7 +13,9 @@ import { setCachedRlInMatch, refreshBridgeStatusUI } from './bridge-ui.js';
 import { DESKTOP_APP } from './config.js';
 
 const POLL_ACTIVE_MS = 1000;
-const POLL_MATCH_END_MS = 500;
+const POLL_MATCH_END_MS = 250;
+const POLL_MATCH_END_FAST_MS = 200;
+const MATCH_END_BURST_FAST_MS = 30000;
 const POLL_IDLE_MS = 5000;
 const POLL_DASH_IDLE_MS = 8000;
 const POLL_HIDDEN_MS = 10000;
@@ -42,7 +44,11 @@ function shouldPeriodicPoll() {
 function getPollIntervalMs() {
   if (state.activeGame !== GAME_IDS.ROCKET_LEAGUE) return POLL_IDLE_MS;
   if (!isBridgeUp()) return POLL_IDLE_MS;
-  if (Date.now() < matchEndBurstUntil) return POLL_MATCH_END_MS;
+  if (Date.now() < matchEndBurstUntil) {
+    const burstAge = matchEndBurstUntil - Date.now();
+    if (MATCH_END_BURST_MS - burstAge < MATCH_END_BURST_FAST_MS) return POLL_MATCH_END_FAST_MS;
+    return POLL_MATCH_END_MS;
+  }
   return POLL_ACTIVE_MS;
 }
 
@@ -175,7 +181,13 @@ async function pollBridge({ forceUi = false } = {}) {
     }
 
     refreshRlBridgeUI(status, { force: forceUi });
-    lastInMatch = Boolean(status.inMatch);
+    const nextInMatch = Boolean(status.inMatch);
+    if (lastInMatch && !nextInMatch) {
+      matchEndBurstUntil = Date.now() + MATCH_END_BURST_MS;
+      markMatchEndPending();
+      refreshBridgeStatusUI();
+    }
+    lastInMatch = nextInMatch;
 
     const lastRes = await fetch(`${getBridgeUrl()}/last-match`, { signal: AbortSignal.timeout(3000) });
     const last = await lastRes.json();

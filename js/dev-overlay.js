@@ -215,7 +215,7 @@ function runGuardrailCheck() {
     issues.push(`Last save: ${w.__LAST_MATCH_SAVE_MS}ms`);
   }
   if (w.__MATCH_END_DETECT_MS != null) {
-    issues.push(`Match-end detect: ${w.__MATCH_END_DETECT_MS}ms (process exit → bridge payload)`);
+    issues.push(`Match-end detect: ${w.__MATCH_END_DETECT_MS}ms (end signal → bridge payload)`);
   }
   if ((w.__MATCH_SAVE_DASH_RENDERS ?? 0) > 0) {
     issues.push(`Match-save dash patches: ${w.__MATCH_SAVE_DASH_RENDERS}`);

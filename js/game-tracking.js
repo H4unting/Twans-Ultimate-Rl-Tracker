@@ -11,6 +11,7 @@ import {
   subscribeBridgeOnline,
   fetchBridgeStatus,
   isMatchEndPending,
+  markMatchEndPending,
   getHeartbeatValorantProcessRunning,
   getHeartbeatRocketLeagueRunning,
   getHeartbeatRlConnected,
@@ -38,6 +39,7 @@ let started = false;
 let startupProbeDone = false;
 let unsubProcess = null;
 let unsubOnline = null;
+let lastHeartbeatInMatch = null;
 
 function logStartup(msg) {
   if (isDevOverlayEnabled()) console.info(`[Startup] ${msg}`);
@@ -54,6 +56,9 @@ export function getGameTrackingPhase(gameId) {
   if (phase === TrackingPhase.PROCESSING && !isMatchEndPending()) {
     phase = TrackingPhase.IDLE;
     phases[gameId] = TrackingPhase.IDLE;
+  }
+  if (phases[gameId] === TrackingPhase.PROCESSING && isMatchEndPending()) {
+    return TrackingPhase.PROCESSING;
   }
   if (gameId === state.activeGame && isMatchEndPending()) {
     const processUp = gameId === GAME_IDS.VALORANT
@@ -134,6 +139,16 @@ function onProcessChange(payload) {
   const valActive = Boolean(payload.valorantProcessRunning);
   const rlPhase = phases[GAME_IDS.ROCKET_LEAGUE];
   const valPhase = phases[GAME_IDS.VALORANT];
+  const inMatch = payload.inMatch != null ? Boolean(payload.inMatch) : null;
+
+  if (inMatch != null && lastHeartbeatInMatch && !inMatch && rlActive) {
+    markMatchEndPending();
+    if (state.activeGame === GAME_IDS.ROCKET_LEAGUE
+      && (rlPhase === TrackingPhase.TRACKING || rlPhase === TrackingPhase.PROCESSING)) {
+      setPhase(GAME_IDS.ROCKET_LEAGUE, TrackingPhase.PROCESSING);
+    }
+  }
+  if (inMatch != null) lastHeartbeatInMatch = inMatch;
 
   if (rlActive && rlPhase === TrackingPhase.IDLE) {
     if (state.activeGame === GAME_IDS.ROCKET_LEAGUE) {

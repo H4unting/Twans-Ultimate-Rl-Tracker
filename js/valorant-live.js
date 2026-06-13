@@ -16,7 +16,9 @@ import {
 
 let pollTimer = null;
 const POLL_TRACKING_MS = 2000;
-const POLL_POST_MATCH_MS = 1500;
+const POLL_POST_MATCH_FAST_MS = 600;
+const POLL_POST_MATCH_MS = 1200;
+const POST_MATCH_FAST_WINDOW_MS = 60000;
 const POLL_WAITING_MS = 15000;
 const POLL_IDLE_MS = 5000;
 const POLL_HIDDEN_MS = 10000;
@@ -34,6 +36,7 @@ let dashEventWired = false;
 let lastValStatusSig = '';
 let lastValorantProcessRunning = false;
 let postMatchPollUntil = 0;
+let postMatchStartedAt = 0;
 let unsubBridgeProcess = null;
 
 async function fetchJson(path, timeoutMs = 4000) {
@@ -188,7 +191,10 @@ function shouldWaitForRankEnrichment(last) {
 }
 
 function getPollMs() {
-  if (Date.now() < postMatchPollUntil) return POLL_POST_MATCH_MS;
+  if (Date.now() < postMatchPollUntil) {
+    const age = Date.now() - postMatchStartedAt;
+    return age < POST_MATCH_FAST_WINDOW_MS ? POLL_POST_MATCH_FAST_MS : POLL_POST_MATCH_MS;
+  }
   if (state.activeGame !== GAME_IDS.VALORANT) return POLL_IDLE_MS;
   if (!isBridgeUp()) return POLL_IDLE_MS;
   if (lastValorantProcessRunning) return POLL_TRACKING_MS;
@@ -230,6 +236,7 @@ function onBridgeValorantProcessChange({ valorantProcessRunning }) {
   }
   if (lastValorantProcessRunning && !next) {
     postMatchPollUntil = Date.now() + POST_MATCH_WINDOW_MS;
+    postMatchStartedAt = Date.now();
     markMatchEndPending();
     refreshBridgeStatusUI();
     void poll({ forceUi: true });
@@ -250,6 +257,7 @@ export function initValorantLive(applyStats, statusCb, autoLogCb) {
   lastValStatusSig = '';
   lastValorantProcessRunning = false;
   postMatchPollUntil = 0;
+  postMatchStartedAt = 0;
   pollingArmSent = false;
   unsubBridgeProcess = subscribeBridgeProcessState(onBridgeValorantProcessChange);
   wireDashIdleResume();

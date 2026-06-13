@@ -15,10 +15,13 @@ import { getGameProcessState } from './process-watcher.mjs';
 const HENRIK_BASE = 'https://api.henrikdev.xyz';
 /** Henrik poll while Val process is running (was 12s — too slow for post-scoreboard ingest). */
 const HENRIK_POLL_MS = 5000;
-/** Faster poll after process exit — Henrik often lags a few seconds behind scoreboard. */
+/** Aggressive poll for first minute after process exit — Henrik lags behind scoreboard. */
+const HENRIK_POST_EXIT_FAST_MS = 2500;
+/** Slower tail poll after the first minute post-exit. */
 const HENRIK_POST_EXIT_POLL_MS = 4000;
+const POST_EXIT_FAST_WINDOW_MS = 60000;
 /** Retry when Henrik lists the match before stats populate. */
-const HENRIK_STATS_RETRY_MS = 3000;
+const HENRIK_STATS_RETRY_MS = 2000;
 /** Keep polling Henrik briefly after Val exits so late API rows still auto-log. */
 const POST_EXIT_TAIL_MS = 180000;
 const HENRIK_IDLE_PROBE_MS = 8000;
@@ -52,6 +55,7 @@ let deferTimer = null;
 let pollingArmed = false;
 let valorantWasRunning = false;
 let postExitPollUntil = 0;
+let postExitStartedAt = 0;
 let configured = false;
 let lastError = null;
 let lastOverwolfPing = 0;
@@ -440,15 +444,29 @@ function clearHenrikPollTimer() {
   }
 }
 
+function henrikPollDelay(processRunning, inTail) {
+  if (processRunning) return HENRIK_POLL_MS;
+  if (!inTail) return HENRIK_IDLE_PROBE_MS;
+  const age = Date.now() - postExitStartedAt;
+  return age < POST_EXIT_FAST_WINDOW_MS ? HENRIK_POST_EXIT_FAST_MS : HENRIK_POST_EXIT_POLL_MS;
+}
+
 function scheduleHenrikPoll(processRunning, inTail) {
   clearHenrikPollTimer();
-  let delay = HENRIK_IDLE_PROBE_MS;
-  if (processRunning) delay = HENRIK_POLL_MS;
-  else if (inTail) delay = HENRIK_POST_EXIT_POLL_MS;
   pollTimer = setTimeout(() => {
     pollTimer = null;
     void pollLatestMatch();
-  }, delay);
+  }, henrikPollDelay(processRunning, inTail));
+}
+
+/** Process watcher / client — burst Henrik immediately after Val exits. */
+export function kickValorantPostMatchPoll() {
+  const now = Date.now();
+  postExitPollUntil = now + POST_EXIT_TAIL_MS;
+  if (!postExitStartedAt || now >= postExitPollUntil) postExitStartedAt = now;
+  valorantWasRunning = false;
+  clearHenrikPollTimers();
+  void pollLatestMatch();
 }
 
 function scheduleStatsRetry() {
@@ -469,9 +487,17 @@ async function pollLatestMatch() {
   const now = Date.now();
   if (processRunning) {
     valorantWasRunning = true;
+    postExitStartedAt = 0;
   } else if (valorantWasRunning) {
     postExitPollUntil = now + POST_EXIT_TAIL_MS;
+    postExitStartedAt = now;
     valorantWasRunning = false;
+    clearHenrikPollTimer();
+    if (statsRetryTimer) {
+      clearTimeout(statsRetryTimer);
+      statsRetryTimer = null;
+    }
+    setImmediate(() => { void pollLatestMatch(); });
   }
   const inTail = now < postExitPollUntil;
   if (!processRunning && !inTail) {
@@ -715,6 +741,7 @@ export async function handleValorantRequest(req, res) {
 export function resetValorantCache({ full = false } = {}) {
   clearHenrikPollTimers();
   postExitPollUntil = 0;
+  postExitStartedAt = 0;
   valorantWasRunning = false;
   lastMatch = null;
   lastError = null;
