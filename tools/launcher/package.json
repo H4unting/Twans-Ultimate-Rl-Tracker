@@ -6,8 +6,9 @@
   "main": "src/main.cjs",
   "private": true,
   "scripts": {
+    "generate-brand": "node scripts/generate-brand-assets.mjs",
     "generate-icon": "node scripts/generate-icon.mjs",
-    "prebuild": "node scripts/prepare-build.cjs && node scripts/generate-icon.mjs",
+    "prebuild": "node scripts/prepare-build.cjs && node scripts/generate-brand-assets.mjs && node scripts/generate-icon.mjs",
     "start": "electron .",
     "build": "node scripts/electron-build.cjs",
     "build:portable": "electron-builder --win portable",
@@ -17,7 +18,8 @@
   "devDependencies": {
     "electron": "^33.2.1",
     "electron-builder": "^25.1.8",
-    "png-to-ico": "^2.1.8"
+    "png-to-ico": "^2.1.8",
+    "sharp": "^0.33.5"
   },
   "build": {
     "appId": "com.twans.rl-tracker-bridge",

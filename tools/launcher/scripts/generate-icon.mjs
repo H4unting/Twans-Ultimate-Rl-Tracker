@@ -1,9 +1,13 @@
 /**
- * Generate multi-size Windows icon.ico from source PNG.
+ * Generate multi-size Windows icon.ico from brand master PNG.
  *
  * Master source (first match wins):
- *   1. ../../assets/brand/logo-master.png
- *   2. ../../integrations/overwolf/icon.png  (canonical Overwolf export, 512px)
+ *   1. tracker/assets/brand/logo-master.png  (from logo-universal.svg via generate-brand-assets.mjs)
+ *   2. assets/brand/logo-master.png
+ *   3. tracker/integrations/overwolf/icon.png  (512px fallback)
+ *
+ * Regenerate master PNGs first:
+ *   node scripts/generate-brand-assets.mjs
  *
  * Output: ../assets/icon.ico (+ sync ../assets/icon.png)
  */
