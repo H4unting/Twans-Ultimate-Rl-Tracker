@@ -12,10 +12,12 @@ import {
 import { setCachedRlInMatch, refreshBridgeStatusUI } from './bridge-ui.js';
 import { DESKTOP_APP } from './config.js';
 
-const POLL_ACTIVE_MS = 1500;
+const POLL_ACTIVE_MS = 1000;
+const POLL_MATCH_END_MS = 500;
 const POLL_IDLE_MS = 5000;
 const POLL_DASH_IDLE_MS = 8000;
 const POLL_HIDDEN_MS = 10000;
+const MATCH_END_BURST_MS = 45000;
 
 let pollTimer = null;
 let wasBridgeUp = false;
@@ -25,6 +27,8 @@ let onVisibilityChange = null;
 let dashEventWired = false;
 let lastRlBridgeSig = '';
 let lastRlProcessActive = false;
+let lastInMatch = false;
+let matchEndBurstUntil = 0;
 let unsubBridgeProcess = null;
 
 const callbacks = { onMatchStats: null, onStatusChange: null, onAutoLog: null };
@@ -38,6 +42,7 @@ function shouldPeriodicPoll() {
 function getPollIntervalMs() {
   if (state.activeGame !== GAME_IDS.ROCKET_LEAGUE) return POLL_IDLE_MS;
   if (!isBridgeUp()) return POLL_IDLE_MS;
+  if (Date.now() < matchEndBurstUntil) return POLL_MATCH_END_MS;
   return POLL_ACTIVE_MS;
 }
 
@@ -53,11 +58,19 @@ function schedulePoll() {
   }, getPollIntervalMs());
 }
 
-function onBridgeRlProcessChange({ rocketLeagueRunning, rlConnected }) {
+function onBridgeRlProcessChange({ rocketLeagueRunning, rlConnected, inMatch }) {
   const next = Boolean(rocketLeagueRunning || rlConnected);
-  if (next === lastRlProcessActive) return;
-  lastRlProcessActive = next;
-  refreshBridgeStatusUI();
+  if (next !== lastRlProcessActive) {
+    lastRlProcessActive = next;
+    refreshBridgeStatusUI();
+  }
+  const nextInMatch = Boolean(inMatch);
+  if (lastInMatch && !nextInMatch) {
+    matchEndBurstUntil = Date.now() + MATCH_END_BURST_MS;
+    void pollBridge({ forceUi: true });
+    schedulePoll();
+  }
+  lastInMatch = nextInMatch;
 }
 
 function wireDashIdleResume() {
@@ -92,6 +105,8 @@ export function initRlLive(onMatchStats, onStatusChange, onAutoLog) {
   callbacks.onAutoLog = onAutoLog;
   stopRlLive();
   lastRlProcessActive = false;
+  lastInMatch = false;
+  matchEndBurstUntil = 0;
   unsubBridgeProcess = subscribeBridgeProcessState(onBridgeRlProcessChange);
   wireDashIdleResume();
   schedulePoll();
@@ -118,6 +133,8 @@ export function stopRlLive() {
     onVisibilityChange = null;
   }
   lastRlProcessActive = false;
+  lastInMatch = false;
+  matchEndBurstUntil = 0;
   setCachedRlInMatch(false);
   refreshBridgeStatusUI();
 }
@@ -151,6 +168,7 @@ async function pollBridge({ forceUi = false } = {}) {
     }
 
     refreshRlBridgeUI(status, { force: forceUi });
+    lastInMatch = Boolean(status.inMatch);
 
     const lastRes = await fetch(`${getBridgeUrl()}/last-match`, { signal: AbortSignal.timeout(3000) });
     const last = await lastRes.json();

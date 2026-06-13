@@ -13,7 +13,15 @@ import { checkHenrikRateLimit, readJsonBody, validateOverwolfMatch } from './bri
 import { getGameProcessState } from './process-watcher.mjs';
 
 const HENRIK_BASE = 'https://api.henrikdev.xyz';
-const HENRIK_POLL_MS = 12000;
+/** Henrik poll while Val process is running (was 12s — too slow for post-scoreboard ingest). */
+const HENRIK_POLL_MS = 5000;
+/** Faster poll after process exit — Henrik often lags a few seconds behind scoreboard. */
+const HENRIK_POST_EXIT_POLL_MS = 4000;
+/** Retry when Henrik lists the match before stats populate. */
+const HENRIK_STATS_RETRY_MS = 3000;
+/** Keep polling Henrik briefly after Val exits so late API rows still auto-log. */
+const POST_EXIT_TAIL_MS = 180000;
+const HENRIK_IDLE_PROBE_MS = 8000;
 const HENRIK_DEFER_MS = 45000;
 const AUTO_ARM_MS = 45000;
 const MAX_SEEN_IDS = 64;
@@ -39,8 +47,11 @@ let seeded = false;
 let baselineGameStart = 0;
 let seenMatchIds = new Set();
 let pollTimer = null;
+let statsRetryTimer = null;
 let deferTimer = null;
 let pollingArmed = false;
+let valorantWasRunning = false;
+let postExitPollUntil = 0;
 let configured = false;
 let lastError = null;
 let lastOverwolfPing = 0;
@@ -414,20 +425,72 @@ async function fetchLatestHenrikMatch() {
   return recent[0] ?? null;
 }
 
+function clearHenrikPollTimers() {
+  clearHenrikPollTimer();
+  if (statsRetryTimer) {
+    clearTimeout(statsRetryTimer);
+    statsRetryTimer = null;
+  }
+}
+
+function clearHenrikPollTimer() {
+  if (pollTimer) {
+    clearTimeout(pollTimer);
+    pollTimer = null;
+  }
+}
+
+function scheduleHenrikPoll(processRunning, inTail) {
+  clearHenrikPollTimer();
+  let delay = HENRIK_IDLE_PROBE_MS;
+  if (processRunning) delay = HENRIK_POLL_MS;
+  else if (inTail) delay = HENRIK_POST_EXIT_POLL_MS;
+  pollTimer = setTimeout(() => {
+    pollTimer = null;
+    void pollLatestMatch();
+  }, delay);
+}
+
+function scheduleStatsRetry() {
+  if (statsRetryTimer) return;
+  statsRetryTimer = setTimeout(() => {
+    statsRetryTimer = null;
+    void pollLatestMatch();
+  }, HENRIK_STATS_RETRY_MS);
+}
+
 async function pollLatestMatch() {
-  if (isOverwolfConnected()) return;
+  if (isOverwolfConnected()) {
+    scheduleHenrikPoll(false, false);
+    return;
+  }
 
   const processRunning = await isValorantProcessRunning();
-  if (!processRunning) return;
+  const now = Date.now();
+  if (processRunning) {
+    valorantWasRunning = true;
+  } else if (valorantWasRunning) {
+    postExitPollUntil = now + POST_EXIT_TAIL_MS;
+    valorantWasRunning = false;
+  }
+  const inTail = now < postExitPollUntil;
+  if (!processRunning && !inTail) {
+    scheduleHenrikPoll(false, false);
+    return;
+  }
 
   const cfg = getBridgeConfig();
   configured = Boolean(cfg.henrikApiKey && cfg.riotId)
     || (Boolean(cfg.legacyRiotKey) && !cfg.legacyRiotKey.startsWith('RGAPI-') && cfg.riotId);
   if (!configured && cfg.legacyRiotKey.startsWith('RGAPI-') && cfg.riotId) {
     lastError = formatHenrikError('RGAPI-key-blocked');
+    scheduleHenrikPoll(processRunning, inTail);
     return;
   }
-  if (!configured || !isValorantPollingReady()) return;
+  if (!configured || !isValorantPollingReady()) {
+    scheduleHenrikPoll(processRunning, inTail);
+    return;
+  }
 
   try {
     const latest = await fetchLatestHenrikMatch();
@@ -444,7 +507,8 @@ async function pollLatestMatch() {
 
     const activity = parsed.kills + parsed.deaths + parsed.valAssists;
     if (activity === 0) {
-      // Henrik often lists the match before stats are filled — retry on next poll
+      // Henrik often lists the match before stats are filled — retry sooner than full poll
+      scheduleStatsRetry();
       return;
     }
 
@@ -465,34 +529,49 @@ async function pollLatestMatch() {
       return;
     }
 
-    let ready = parsed;
-    ready = await attachRankData(ready, matchId);
-    lastMatch = ready;
+    lastMatch = { ...parsed, consumed: false };
     rememberMatchId(matchId);
     lastSeenMatchId = matchId;
-    baselineGameStart = Math.max(baselineGameStart, ready.gameStart || 0);
+    baselineGameStart = Math.max(baselineGameStart, parsed.gameStart || 0);
     lastError = null;
     persistState();
-    console.log(`Valorant match — ${ready.result} · ${ready.mode} · K:${ready.kills} D:${ready.deaths} A:${ready.valAssists} · ${ready.agent || 'Agent'} · ${ready.map || 'Map'}`);
+    console.log(`Valorant match — ${parsed.result} · ${parsed.mode} · K:${parsed.kills} D:${parsed.deaths} A:${parsed.valAssists} · ${parsed.agent || 'Agent'} · ${parsed.map || 'Map'}`);
+
+    if (parsed.isRanked) {
+      void attachRankData({ ...parsed }, matchId).then((enriched) => {
+        if (lastMatch?.matchId === matchId && !lastMatch.consumed && enriched) {
+          lastMatch = {
+            ...lastMatch,
+            rrChange: enriched.rrChange ?? lastMatch.rrChange,
+            endRR: enriched.endRR ?? lastMatch.endRR,
+            endRank: enriched.endRank ?? lastMatch.endRank,
+          };
+          persistState();
+        }
+      });
+    }
   } catch (e) {
     lastError = formatHenrikError(e.message, e.status);
+  } finally {
+    scheduleHenrikPoll(processRunning, inTail);
   }
 }
 
 export function armValorantPolling(options = {}) {
-  if (pollTimer) return { ok: true, already: true };
+  if (pollingArmed) {
+    if (!pollTimer && !statsRetryTimer) void pollLatestMatch();
+    return { ok: true, already: true };
+  }
   pollingArmed = true;
   if (deferTimer) {
     clearTimeout(deferTimer);
     deferTimer = null;
   }
-  const pollMs = Number(options.pollMs ?? HENRIK_POLL_MS);
   console.log('Valorant match polling armed — will check Henrik for new finished matches');
 
   const startLoop = () => {
     if (pollTimer) return;
-    pollTimer = setInterval(pollLatestMatch, pollMs);
-    pollLatestMatch();
+    void pollLatestMatch();
   };
 
   fetchRecentHenrikMatches(RECENT_MATCHES_SIZE)
@@ -530,7 +609,6 @@ export function startValorantBridge(options = {}) {
 
   pollingArmed = true;
   const deferMs = Number(options.deferPollMs ?? HENRIK_DEFER_MS);
-  const pollMs = Number(options.pollMs ?? HENRIK_POLL_MS);
   const beginPolling = () => {
     if (pollTimer) return;
     if (launcherMode) {
@@ -540,8 +618,7 @@ export function startValorantBridge(options = {}) {
         console.log('[valorant-launcher] Polling armed — seeding baseline from Henrik');
       }
     }
-    pollTimer = setInterval(pollLatestMatch, pollMs);
-    pollLatestMatch();
+    void pollLatestMatch();
   };
 
   if (launcherMode) {
@@ -636,6 +713,9 @@ export async function handleValorantRequest(req, res) {
 }
 
 export function resetValorantCache({ full = false } = {}) {
+  clearHenrikPollTimers();
+  postExitPollUntil = 0;
+  valorantWasRunning = false;
   lastMatch = null;
   lastError = null;
   if (!full) return;

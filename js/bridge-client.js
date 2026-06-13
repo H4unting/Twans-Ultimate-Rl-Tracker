@@ -37,7 +37,8 @@ let reconnecting = false;
 let inStartupPhase = true;
 let startupPhaseTimer = null;
 let lastBridgeStatusSig = '';
-/** Latest game-process flags from bridge heartbeat /status (null = unknown). */
+/** Latest RL in-match flag from heartbeat /status (null = unknown). */
+let heartbeatInMatch = null;
 let heartbeatValorantProcessRunning = null;
 let heartbeatRocketLeagueRunning = null;
 let heartbeatRlConnected = null;
@@ -46,6 +47,21 @@ const processStateListeners = new Set();
 function noteBridgeRequest() {
   if (typeof window === 'undefined') return;
   window.__BRIDGE_REQUEST_COUNT = (window.__BRIDGE_REQUEST_COUNT || 0) + 1;
+}
+
+/** Dev overlay + live pollers — time from game/match end signal to bridge payload seen. */
+export function markMatchEndPending() {
+  if (typeof window === 'undefined') return;
+  window.__MATCH_END_PENDING_AT = Date.now();
+}
+
+export function noteMatchEndDetected() {
+  if (typeof window === 'undefined') return;
+  const pending = window.__MATCH_END_PENDING_AT;
+  if (pending) {
+    window.__MATCH_END_DETECT_MS = Date.now() - pending;
+    window.__MATCH_END_PENDING_AT = null;
+  }
 }
 
 export function endBridgeStartupPhase() {
@@ -238,15 +254,21 @@ export function getHeartbeatRlConnected() {
   return heartbeatRlConnected;
 }
 
+export function getHeartbeatInMatch() {
+  return heartbeatInMatch;
+}
+
 export function subscribeBridgeProcessState(fn) {
   processStateListeners.add(fn);
   if (heartbeatValorantProcessRunning !== null
     || heartbeatRocketLeagueRunning !== null
-    || heartbeatRlConnected !== null) {
+    || heartbeatRlConnected !== null
+    || heartbeatInMatch !== null) {
     fn({
       valorantProcessRunning: heartbeatValorantProcessRunning,
       rocketLeagueRunning: heartbeatRocketLeagueRunning,
       rlConnected: heartbeatRlConnected,
+      inMatch: heartbeatInMatch,
     });
   }
   return () => processStateListeners.delete(fn);
@@ -258,17 +280,21 @@ function updateHeartbeatGameProcess(json) {
     : Boolean(json?.valorantRunning);
   const nextRl = Boolean(json?.rocketLeagueRunning);
   const nextConn = Boolean(json?.rlConnected);
+  const nextInMatch = Boolean(json?.inMatch);
   const prevVal = heartbeatValorantProcessRunning;
   const prevRl = heartbeatRocketLeagueRunning;
   const prevConn = heartbeatRlConnected;
+  const prevInMatch = heartbeatInMatch;
   heartbeatValorantProcessRunning = nextVal;
   heartbeatRocketLeagueRunning = nextRl;
   heartbeatRlConnected = nextConn;
-  if (prevVal === nextVal && prevRl === nextRl && prevConn === nextConn) return;
+  heartbeatInMatch = nextInMatch;
+  if (prevVal === nextVal && prevRl === nextRl && prevConn === nextConn && prevInMatch === nextInMatch) return;
   const payload = {
     valorantProcessRunning: nextVal,
     rocketLeagueRunning: nextRl,
     rlConnected: nextConn,
+    inMatch: nextInMatch,
   };
   processStateListeners.forEach((fn) => {
     try { fn(payload); } catch { /* ignore */ }
@@ -407,6 +433,7 @@ export function stopBridgeHeartbeat() {
   heartbeatValorantProcessRunning = null;
   heartbeatRocketLeagueRunning = null;
   heartbeatRlConnected = null;
+  heartbeatInMatch = null;
   setBridgeOnline(false);
   emitReachableIfChanged();
 }

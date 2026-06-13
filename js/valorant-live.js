@@ -7,6 +7,7 @@ import { showToast } from './ui.js';
 import { isAutoLogEnabled } from './quicklog.js';
 import {
   isBridgeUp, getBridgeUrl, setBridgeOnline, bridgeFetch, subscribeBridgeProcessState,
+  markMatchEndPending, noteMatchEndDetected,
 } from './bridge-client.js';
 import {
   setCachedValorantStatus, clearCachedValorantStatus, refreshBridgeStatusUI,
@@ -14,10 +15,12 @@ import {
 } from './bridge-ui.js';
 
 let pollTimer = null;
-const POLL_TRACKING_MS = 3000;
+const POLL_TRACKING_MS = 2000;
+const POLL_POST_MATCH_MS = 1500;
 const POLL_WAITING_MS = 15000;
 const POLL_IDLE_MS = 5000;
 const POLL_HIDDEN_MS = 10000;
+const POST_MATCH_WINDOW_MS = 180000;
 let wasBridgeUp = false;
 let autoLogInFlight = false;
 let pollingArmSent = false;
@@ -29,6 +32,8 @@ let onSessionStart = null;
 let dashEventWired = false;
 let lastValStatusSig = '';
 let lastValorantProcessRunning = false;
+let postExitBurstUntil = 0;
+let postMatchPollUntil = 0;
 let unsubBridgeProcess = null;
 
 async function fetchJson(path, timeoutMs = 4000) {
@@ -124,6 +129,9 @@ async function poll({ forceUi = false } = {}) {
   try {
     const last = await fetchJson('/valorant/last-match');
     if (!last || last.consumed || !last.matchId) return;
+    if (shouldWaitForRankEnrichment(last)) return;
+
+    noteMatchEndDetected();
 
     onStats?.({
       kills: last.kills,
@@ -173,6 +181,7 @@ function shouldPeriodicPoll() {
 }
 
 function getPollMs() {
+  if (Date.now() < postMatchPollUntil) return POLL_POST_MATCH_MS;
   if (state.activeGame !== GAME_IDS.VALORANT) return POLL_IDLE_MS;
   if (!isBridgeUp()) return POLL_IDLE_MS;
   if (lastValorantProcessRunning) return POLL_TRACKING_MS;
@@ -205,6 +214,11 @@ function wireDashIdleResume() {
 
 function onBridgeValorantProcessChange({ valorantProcessRunning }) {
   const next = Boolean(valorantProcessRunning);
+  if (lastValorantProcessRunning && !next) {
+    postMatchPollUntil = Date.now() + POST_MATCH_WINDOW_MS;
+    void poll({ forceUi: true });
+    schedulePoll();
+  }
   if (next === lastValorantProcessRunning) return;
   lastValorantProcessRunning = next;
   patchCachedValorantProcessRunning(next);
@@ -219,6 +233,7 @@ export function initValorantLive(applyStats, statusCb, autoLogCb) {
   clearCachedValorantStatus();
   lastValStatusSig = '';
   lastValorantProcessRunning = false;
+  postMatchPollUntil = 0;
   pollingArmSent = false;
   unsubBridgeProcess = subscribeBridgeProcessState(onBridgeValorantProcessChange);
   wireDashIdleResume();
