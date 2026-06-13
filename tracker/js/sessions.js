@@ -14,9 +14,9 @@ import {
   getLoggingSessionNum, getMaxSessionNum, getNextSessionNum,
 } from './core/logging-session.js';
 import { isBridgeUp } from './bridge-client.js';
-import { getCachedValorantStatus } from './bridge-ui.js';
+import { getCachedValorantStatus, isValorantGameProcessRunning } from './bridge-ui.js';
 import { DESKTOP_APP } from './config.js';
-import { STATUS, waitingForGameLabel } from './status-copy.js';
+import { STATUS, waitingForGameLabel, playingLabel, logStatusDebug } from './status-copy.js';
 import { shouldHideManualSessionControls } from './env.js';
 
 export { getLoggingSessionNum, getMaxSessionNum, getNextSessionNum };
@@ -521,12 +521,17 @@ export function updateSessionBar() {
           stats.innerHTML = `<span class="slive-item neutral">${STATUS.connectionIssue} — reopen ${DESKTOP_APP.name} from the tray</span>`;
         } else {
         const vs = getCachedValorantStatus();
-        if (vs?.configured && vs?.seeded) {
-          stats.innerHTML = '<span class="slive-item neutral">Auto-log ON — saves when the match ends</span>';
+        const valLive = isValorantGameProcessRunning(vs);
+        if (valLive) {
+          stats.innerHTML = `<span class="slive-item neutral">● ${playingLabel(GAME_IDS.VALORANT)}</span>`;
+        } else if (vs?.configured && vs?.seeded) {
+          stats.innerHTML = `<span class="slive-item neutral">${waitingForGameLabel(GAME_IDS.VALORANT)}</span>`;
+          logStatusDebug('dock-waiting', { seeded: true, heartbeat: false, configured: true });
         } else if (vs?.configured && !vs?.seeded && vs?.source !== 'overwolf') {
           stats.innerHTML = '<span class="slive-item neutral">Play one full match to finish setup, then auto-log works</span>';
         } else if (vs?.configured) {
           stats.innerHTML = `<span class="slive-item neutral">${waitingForGameLabel(GAME_IDS.VALORANT)}</span>`;
+          logStatusDebug('dock-waiting', { seeded: vs?.seeded, source: vs?.source, heartbeat: false });
         } else {
           stats.innerHTML = '<span class="slive-item neutral">Finish Auto-Log Setup (Riot ID + Henrik key)</span>';
         }

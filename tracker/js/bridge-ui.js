@@ -9,6 +9,7 @@ import {
   getHeartbeatRocketLeagueRunning,
   getHeartbeatRlConnected,
   subscribeBridgeResumed,
+  subscribeBridgeProcessState,
 } from './bridge-client.js';
 import { isAutoLogEnabled, loadPrefs, syncAutoLogToggleUI } from './quicklog.js';
 import {
@@ -34,6 +35,34 @@ let cachedValStatus = null;
 let cachedRlInMatch = false;
 let clickWired = false;
 let resumeWired = false;
+let processRefreshWired = false;
+
+function logValorantUiMismatch(context, renderedPhase, valProcessRunning) {
+  const hb = getHeartbeatValorantProcessRunning();
+  if (renderedPhase === 'waiting' && hb === true) {
+    console.warn('[tracker-status] Valorant UI shows waiting but heartbeat reports process running', {
+      context,
+      heartbeat: hb,
+      valProcessRunning,
+      cached: Boolean(cachedValStatus?.valorantProcessRunning ?? cachedValStatus?.valorantRunning),
+    });
+  } else if (renderedPhase === 'playing' && hb === false) {
+    console.warn('[tracker-status] Valorant UI shows playing but heartbeat reports process stopped', {
+      context,
+      heartbeat: hb,
+      valProcessRunning,
+    });
+  }
+  logStatusDebug('valorant-render', { context, renderedPhase, heartbeat: hb, valProcessRunning });
+}
+
+function wireBridgeProcessRefresh() {
+  if (processRefreshWired) return;
+  processRefreshWired = true;
+  subscribeBridgeProcessState(() => {
+    refreshBridgeStatusUI();
+  });
+}
 
 function formatValApiErrorForUser(message) {
   const raw = String(message ?? '');
@@ -119,6 +148,7 @@ function applyUnifiedStatusLabel(el, phase, detailTitle) {
 }
 
 export function refreshBridgeStatusUI() {
+  wireBridgeProcessRefresh();
   const el = document.getElementById('live-bridge-status');
   if (!el) return;
 
@@ -177,6 +207,11 @@ function renderValorantPill(el, valStatus, meta) {
   const trackPhase = getGameTrackingPhase(GAME_IDS.VALORANT);
   el.classList.toggle('in-match', valProcessRunning);
 
+  const finishValorantPill = (phase, apply) => {
+    apply();
+    logValorantUiMismatch('pill', phase, valProcessRunning);
+  };
+
   if (trackPhase === TrackingPhase.PROCESSING && isAutoLogEnabled() && !valProcessRunning) {
     applyUnifiedStatusLabel(el, 'tracking', STATUS.processingMatch);
     el.textContent = `● ${STATUS.processingMatch}`;
@@ -211,11 +246,14 @@ function renderValorantPill(el, valStatus, meta) {
 
   if (valStatus.source === 'overwolf') {
     if (valProcessRunning) {
-      applyUnifiedStatusLabel(el, 'playing', playingLabel(GAME_IDS.VALORANT));
-      el.textContent = formatStatusPill('playing', GAME_IDS.VALORANT);
-      el.title = isAutoLogEnabled()
-        ? 'Overwolf linked — finished matches save automatically'
-        : 'Overwolf sees Valorant — turn on auto-log or tap LOG after the match';
+      finishValorantPill('playing', () => {
+        applyUnifiedStatusLabel(el, 'playing', playingLabel(GAME_IDS.VALORANT));
+        el.textContent = formatStatusPill('playing', GAME_IDS.VALORANT);
+        el.title = isAutoLogEnabled()
+          ? 'Overwolf linked — finished matches save automatically'
+          : 'Overwolf sees Valorant — turn on auto-log or tap LOG after the match';
+        el.dataset.bridgeState = 'in-match';
+      });
     } else if (isAutoLogEnabled()) {
       el.textContent = '● Overwolf ready';
       el.title = 'Overwolf linked — launch Valorant and your next match will auto-log';
@@ -223,7 +261,19 @@ function renderValorantPill(el, valStatus, meta) {
       el.textContent = '● Overwolf linked';
       el.title = 'Overwolf feeds match data — enable auto-log in the dock or log manually';
     }
-    el.dataset.bridgeState = 'ready';
+    el.dataset.bridgeState = valProcessRunning ? 'in-match' : 'ready';
+    return;
+  }
+
+  if (valProcessRunning) {
+    finishValorantPill('playing', () => {
+      applyUnifiedStatusLabel(el, 'playing', playingLabel(GAME_IDS.VALORANT));
+      el.textContent = formatStatusPill('playing', GAME_IDS.VALORANT);
+      el.title = isAutoLogEnabled()
+        ? `${playingLabel(GAME_IDS.VALORANT)} — finished matches save in 1–3 min`
+        : playingLabel(GAME_IDS.VALORANT);
+      el.dataset.bridgeState = 'in-match';
+    });
     return;
   }
 
@@ -235,53 +285,48 @@ function renderValorantPill(el, valStatus, meta) {
     return;
   }
 
-  if (valProcessRunning) {
-    applyUnifiedStatusLabel(el, 'playing', playingLabel(GAME_IDS.VALORANT));
-    el.textContent = formatStatusPill('playing', GAME_IDS.VALORANT);
-    el.title = isAutoLogEnabled()
-      ? `${playingLabel(GAME_IDS.VALORANT)} — finished matches save in 1–3 min`
-      : playingLabel(GAME_IDS.VALORANT);
-    el.dataset.bridgeState = 'in-match';
-    return;
-  }
-
   if (isRiotClientOnlyWaiting() && !valProcessRunning) {
-    applyUnifiedStatusLabel(el, 'waiting', waitingForGameLabel(GAME_IDS.VALORANT));
-    el.textContent = formatStatusPill('waiting', GAME_IDS.VALORANT);
-    el.title = 'Riot Client is open — launch Valorant to start tracking';
-    el.dataset.bridgeState = 'waiting';
+    finishValorantPill('waiting', () => {
+      applyUnifiedStatusLabel(el, 'waiting', waitingForGameLabel(GAME_IDS.VALORANT));
+      el.textContent = formatStatusPill('waiting', GAME_IDS.VALORANT);
+      el.title = 'Riot Client is open — launch Valorant to start tracking';
+      el.dataset.bridgeState = 'waiting';
+    });
     return;
   }
 
   if (trackPhase === TrackingPhase.ATTACHING) {
-    applyUnifiedStatusLabel(el, 'connecting', 'Attaching to Valorant…');
-    el.textContent = formatStatusPill('connecting');
-    el.dataset.bridgeState = 'syncing';
+    finishValorantPill('connecting', () => {
+      applyUnifiedStatusLabel(el, 'connecting', 'Attaching to Valorant…');
+      el.textContent = formatStatusPill('connecting');
+      el.dataset.bridgeState = 'syncing';
+    });
     return;
   }
 
   if (valStatus.pollingArmed === false) {
-    applyUnifiedStatusLabel(el, 'waiting', waitingForGameLabel(GAME_IDS.VALORANT));
-    el.textContent = formatStatusPill('waiting', GAME_IDS.VALORANT);
-    el.dataset.bridgeState = 'syncing';
+    finishValorantPill('waiting', () => {
+      applyUnifiedStatusLabel(el, 'waiting', waitingForGameLabel(GAME_IDS.VALORANT));
+      el.textContent = formatStatusPill('waiting', GAME_IDS.VALORANT);
+      el.dataset.bridgeState = 'syncing';
+    });
     return;
   }
 
   if (!valStatus.seeded) {
-    el.textContent = '● Syncing…';
-    el.title = `${DESKTOP_APP.name} is setting your match baseline — finish one game, then the next auto-logs`;
-    el.dataset.bridgeState = 'syncing';
+    finishValorantPill('syncing', () => {
+      el.textContent = '● Syncing…';
+      el.title = `${DESKTOP_APP.name} is setting your match baseline — finish one game, then the next auto-logs`;
+      el.dataset.bridgeState = 'syncing';
+    });
     return;
   }
 
-  if (isAutoLogEnabled()) {
+  finishValorantPill('waiting', () => {
     applyUnifiedStatusLabel(el, 'waiting', waitingForGameLabel(GAME_IDS.VALORANT));
     el.textContent = formatStatusPill('waiting', GAME_IDS.VALORANT);
-  } else {
-    applyUnifiedStatusLabel(el, 'waiting', waitingForGameLabel(GAME_IDS.VALORANT));
-    el.textContent = formatStatusPill('waiting', GAME_IDS.VALORANT);
-  }
-  el.dataset.bridgeState = 'ready';
+    el.dataset.bridgeState = 'ready';
+  });
 }
 
 function renderRocketLeaguePill(el, inMatch, meta) {
@@ -372,6 +417,11 @@ function updateDesktopAppBanner(isVal, appUp, valStatus) {
     return;
   }
 
+  if (appUp && isVal && valStatus?.configured && isValorantGameProcessRunning(valStatus)) {
+    banner.classList.add('hidden');
+    return;
+  }
+
   if (appUp && isVal && valStatus?.configured && valStatus?.pollingArmed === false) {
     banner.classList.remove('hidden');
     badge.textContent = waitingForGameLabel(GAME_IDS.VALORANT);
@@ -387,6 +437,7 @@ function updateDesktopAppBanner(isVal, appUp, valStatus) {
 }
 
 export function wireBridgeStatusClick(onOpenSetup) {
+  wireBridgeProcessRefresh();
   if (clickWired) return;
   clickWired = true;
 

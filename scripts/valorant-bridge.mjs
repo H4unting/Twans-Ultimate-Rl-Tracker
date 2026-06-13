@@ -70,8 +70,8 @@ let overwolfActive = false;
 const OVERWOLF_TTL_MS = 45000;
 
 /** True only when VALORANT-Win64-Shipping.exe is in the Windows process list (not Riot Client). */
-async function isValorantProcessRunning() {
-  const { valorantProcessRunning } = await getGameProcessState();
+async function isValorantProcessRunning(force = false) {
+  const { valorantProcessRunning } = await getGameProcessState(force);
   return Boolean(valorantProcessRunning);
 }
 
@@ -736,7 +736,7 @@ export async function handleValorantRequest(req, res) {
   }
 
   if (url === '/valorant/status') {
-    const valorantRunning = await isValorantProcessRunning();
+    const valorantRunning = await isValorantProcessRunning(true);
     const cfg = getBridgeConfig();
     const hasHenrik = Boolean(cfg.henrikApiKey)
       || (Boolean(cfg.legacyRiotKey) && !cfg.legacyRiotKey.startsWith('RGAPI-'));

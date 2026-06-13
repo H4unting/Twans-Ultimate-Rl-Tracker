@@ -242,10 +242,11 @@ function onBridgeValorantProcessChange({ valorantProcessRunning }) {
     void poll({ forceUi: true });
     schedulePoll();
   }
-  if (next === lastValorantProcessRunning) return;
-  lastValorantProcessRunning = next;
   patchCachedValorantProcessRunning(next);
-  refreshBridgeStatusUI();
+  if (next !== lastValorantProcessRunning) {
+    lastValorantProcessRunning = next;
+    refreshBridgeStatusUI();
+  }
 }
 
 export function initValorantLive(applyStats, statusCb, autoLogCb) {
