@@ -1,9 +1,10 @@
 /** Post-match card — confirm RR/MMR, tags, undo after auto/manual log */
 
-import { GAME_IDS, getGameMeta, getTagGroups, getRankDiff } from './games.js';
+import { GAME_IDS, getGameMeta, getTagGroups, getRankDiff, getRankValue } from './games.js';
 import { state } from './state.js';
 import { showToast } from './ui.js';
 import { isDockCollapsed, expandDock, collapseDock } from './quicklog.js';
+import { rankLadderSelectHTML } from './games/valorant/rank-ladder.js';
 
 const RL_HOT_TAGS = ['Tilt', 'Autopilot', 'Bad Positioning', 'Overcommitting', 'Giving Away Possession', 'Hesitation'];
 const VAL_HOT_TAGS = ['Tilt', 'Autopilot', 'Bad Crosshair Placement', 'Overpeeking', 'Ego Peek', 'Bad Utility Timing'];
@@ -13,6 +14,9 @@ let currentMatch = null;
 let selectedTags = [];
 let needsMmrConfirm = false;
 let mmrConfirmed = false;
+let showRankEdit = false;
+let savedRankValue = null;
+let savedEndRank = null;
 let callbacks = {};
 let wired = false;
 let restoreDockCollapsed = false;
@@ -29,14 +33,17 @@ export function initPostMatch(cbs) {
   }
 }
 
-export function showPostMatchCard(game, { estimated = false } = {}) {
+export function showPostMatchCard(game, { estimated = false, autoLogged = false } = {}) {
   const el = document.getElementById('post-match-card');
   if (!el || !game) return;
 
-  currentMatch = game.match;
+  currentMatch = game;
   selectedTags = [...(game.tags || [])];
   needsMmrConfirm = estimated;
   mmrConfirmed = !estimated;
+  showRankEdit = autoLogged || estimated;
+  savedRankValue = estimated ? null : getRankValue(game, state.activeGame);
+  savedEndRank = game.endRank ?? null;
 
   renderCard(el, game, estimated);
   el.classList.remove('hidden');
@@ -75,6 +82,9 @@ export function hidePostMatchCard(force = false) {
   selectedTags = [];
   needsMmrConfirm = false;
   mmrConfirmed = false;
+  showRankEdit = false;
+  savedRankValue = null;
+  savedEndRank = null;
   callbacks.onClose?.();
 }
 
@@ -84,7 +94,6 @@ function renderCard(el, game, estimated) {
   const win = game.result === 'W';
   const delta = getRankDiff(game, state.activeGame);
   const matchLabel = isVal ? 'Match' : 'Game';
-  const showRankConfirm = estimated;
 
   el.innerHTML = `
     <div class="post-match-inner ${win ? 'pm-win' : 'pm-loss'}${estimated ? ' pm-needs-mmr' : ''}">
@@ -110,20 +119,7 @@ function renderCard(el, game, estimated) {
              <div class="pm-stat"><span class="pm-stat-val">${game.saves}</span><span class="pm-stat-lbl">Saves</span></div>`}
       </div>
 
-      ${showRankConfirm ? `
-      <div class="post-match-section post-match-mmr-section" id="pm-mmr-section">
-        <div class="post-match-section-head">
-          <span>Required — confirm ${meta.rankLabel}</span>
-          <span class="post-match-section-sub">from ranked screen</span>
-        </div>
-        <div class="post-match-mmr-input-row">
-          <input type="number" id="pm-mmr" class="post-match-mmr-input"
-            placeholder="e.g. ${isVal ? '45' : '807'}" value="" min="0" inputmode="numeric"
-            aria-label="${meta.rankLabel} from ranked screen">
-          <button type="button" class="btn btn-primary" id="pm-mmr-save">Confirm &amp; continue</button>
-        </div>
-        <p class="post-match-mmr-hint">Auto-log estimated ${meta.diffLabel} — enter the real number from your ranked screen.</p>
-      </div>` : ''}
+      ${showRankEdit ? renderRankSection(game, estimated) : ''}
 
       <div class="post-match-section">
         <div class="post-match-section-head">What went wrong?</div>
@@ -132,11 +128,41 @@ function renderCard(el, game, estimated) {
 
       <div class="post-match-foot">
         <button type="button" class="btn btn-cancel" id="pm-undo">Undo log</button>
-        ${showRankConfirm
+        ${estimated
     ? ''
     : `<button type="button" class="btn btn-primary" id="pm-next">Continue →</button>`}
       </div>
     </div>`;
+}
+
+function renderRankSection(game, estimated) {
+  const meta = getGameMeta(state.activeGame);
+  const isVal = state.activeGame === GAME_IDS.VALORANT;
+  const isComp = isVal && game.mode === 'Competitive';
+  const prefilled = !estimated && savedRankValue != null ? savedRankValue : '';
+
+  return `
+      <div class="post-match-section post-match-mmr-section" id="pm-mmr-section">
+        <div class="post-match-section-head">
+          <span>${estimated ? `Required — confirm ${meta.rankLabel}` : `End ${meta.rankLabel}`}</span>
+          <span class="post-match-section-sub">${estimated ? 'from ranked screen' : 'correct if wrong'}</span>
+        </div>
+        ${isComp ? `
+        <div class="post-match-mmr-input-row">
+          <select id="pm-endrank" class="post-match-val-rank" aria-label="End rank">
+            ${rankLadderSelectHTML(savedEndRank || 'Iron 1')}
+          </select>
+        </div>` : ''}
+        <div class="post-match-mmr-input-row">
+          <input type="number" id="pm-mmr" class="post-match-mmr-input"
+            placeholder="e.g. ${isVal ? '45' : '807'}" value="${prefilled}" min="0" inputmode="numeric"
+            aria-label="${meta.rankLabel}${isComp ? ' within tier' : ''}">
+          ${estimated ? '<button type="button" class="btn btn-primary" id="pm-mmr-save">Confirm &amp; continue</button>' : ''}
+        </div>
+        <p class="post-match-mmr-hint">${estimated
+    ? `Auto-log estimated ${meta.diffLabel} — enter the real number from your ranked screen.`
+    : `Auto-logged ${meta.diffLabel} — adjust if the ranked screen shows a different value.`}</p>
+      </div>`;
 }
 
 function pulseMmrSection() {
@@ -163,7 +189,13 @@ function wirePostMatch() {
 
 function wireCardEvents() {
   document.getElementById('pm-dismiss')?.addEventListener('click', () => hidePostMatchCard());
-  document.getElementById('pm-next')?.addEventListener('click', () => hidePostMatchCard());
+  document.getElementById('pm-next')?.addEventListener('click', async () => {
+    if (showRankEdit) {
+      const ok = await applyRankCorrection(false);
+      if (!ok) return;
+    }
+    hidePostMatchCard(true);
+  });
 
   document.getElementById('pm-undo')?.addEventListener('click', async () => {
     const ok = await callbacks.onUndo?.();
@@ -189,19 +221,49 @@ function wireCardEvents() {
   });
 }
 
-async function saveMMR() {
+async function applyRankCorrection(required) {
   const meta = getGameMeta(state.activeGame);
+  const isVal = state.activeGame === GAME_IDS.VALORANT;
   const val = parseInt(document.getElementById('pm-mmr')?.value, 10);
+  const endRank = isVal ? document.getElementById('pm-endrank')?.value : undefined;
+
+  if (!showRankEdit) return true;
+
+  if (required || needsMmrConfirm) {
+    if (!val || Number.isNaN(val)) {
+      showToast(`Enter your ${meta.rankLabel} from the ranked screen`, 'error');
+      pulseMmrSection();
+      return false;
+    }
+    const ok = await callbacks.onConfirmRank?.(val, endRank);
+    if (ok) {
+      mmrConfirmed = true;
+      needsMmrConfirm = false;
+      showToast(`${meta.rankLabel} confirmed — ${val}`);
+      return true;
+    }
+    return false;
+  }
+
+  const rrChanged = val !== savedRankValue;
+  const rankChanged = isVal && endRank && endRank !== savedEndRank;
+  if (!rrChanged && !rankChanged) return true;
+
   if (!val || Number.isNaN(val)) {
-    showToast(`Enter your ${meta.rankLabel} from the ranked screen`, 'error');
+    showToast(`Enter your ${meta.rankLabel}`, 'error');
     pulseMmrSection();
-    return;
+    return false;
   }
-  const ok = await callbacks.onConfirmMMR?.(val);
+
+  const ok = await callbacks.onConfirmRank?.(val, endRank);
   if (ok) {
-    mmrConfirmed = true;
-    needsMmrConfirm = false;
-    showToast(`${meta.rankLabel} confirmed — ${val}`);
-    hidePostMatchCard(true);
+    showToast(`${meta.rankLabel} updated — ${val}`);
+    return true;
   }
+  return false;
+}
+
+async function saveMMR() {
+  const ok = await applyRankCorrection(true);
+  if (ok) hidePostMatchCard(true);
 }

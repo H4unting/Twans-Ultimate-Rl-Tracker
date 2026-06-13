@@ -22,6 +22,9 @@ const HENRIK_POST_EXIT_POLL_MS = 4000;
 const POST_EXIT_FAST_WINDOW_MS = 60000;
 /** Retry when Henrik lists the match before stats populate. */
 const HENRIK_STATS_RETRY_MS = 2000;
+/** Retry when competitive match is listed before mmr-history row exists. */
+const HENRIK_RANK_RETRY_MS = 2500;
+const MAX_RANK_RETRIES = 12;
 /** Keep polling Henrik briefly after Val exits so late API rows still auto-log. */
 const POST_EXIT_TAIL_MS = 180000;
 const HENRIK_IDLE_PROBE_MS = 8000;
@@ -51,6 +54,9 @@ let baselineGameStart = 0;
 let seenMatchIds = new Set();
 let pollTimer = null;
 let statsRetryTimer = null;
+let rankRetryTimer = null;
+let rankRetryCount = 0;
+let rankRetryMatchId = null;
 let deferTimer = null;
 let pollingArmed = false;
 let valorantWasRunning = false;
@@ -407,7 +413,7 @@ async function fetchMmrHistoryForMatch(matchId) {
       rows = body.data ?? [];
       mmrHistoryCache = { fetchedAt: now, rows };
     }
-    return rows.find(r => String(r.match_id) === String(matchId)) ?? rows[0] ?? null;
+    return rows.find(r => String(r.match_id) === String(matchId)) ?? null;
   } catch {
     return null;
   }
@@ -434,6 +440,10 @@ function clearHenrikPollTimers() {
   if (statsRetryTimer) {
     clearTimeout(statsRetryTimer);
     statsRetryTimer = null;
+  }
+  if (rankRetryTimer) {
+    clearTimeout(rankRetryTimer);
+    rankRetryTimer = null;
   }
 }
 
@@ -477,6 +487,23 @@ function scheduleStatsRetry() {
   }, HENRIK_STATS_RETRY_MS);
 }
 
+function scheduleRankRetry(matchId) {
+  if (rankRetryMatchId !== matchId) {
+    rankRetryMatchId = matchId;
+    rankRetryCount = 0;
+  }
+  if (rankRetryTimer) return;
+  rankRetryTimer = setTimeout(() => {
+    rankRetryTimer = null;
+    rankRetryCount++;
+    void pollLatestMatch();
+  }, HENRIK_RANK_RETRY_MS);
+}
+
+function hasHenrikRankData(match) {
+  return match?.rrChange != null && match?.endRR != null;
+}
+
 async function pollLatestMatch() {
   if (isOverwolfConnected()) {
     scheduleHenrikPoll(false, false);
@@ -496,6 +523,10 @@ async function pollLatestMatch() {
     if (statsRetryTimer) {
       clearTimeout(statsRetryTimer);
       statsRetryTimer = null;
+    }
+    if (rankRetryTimer) {
+      clearTimeout(rankRetryTimer);
+      rankRetryTimer = null;
     }
     setImmediate(() => { void pollLatestMatch(); });
   }
@@ -555,27 +586,32 @@ async function pollLatestMatch() {
       return;
     }
 
-    lastMatch = { ...parsed, consumed: false, isRanked: Boolean(parsed.isRanked) };
+    let enriched = parsed;
+    if (parsed.isRanked) {
+      if (rankRetryMatchId !== matchId) {
+        rankRetryMatchId = matchId;
+        rankRetryCount = 0;
+      }
+      enriched = await attachRankData({ ...parsed }, matchId);
+      if (!hasHenrikRankData(enriched)) {
+        if (rankRetryCount < MAX_RANK_RETRIES) {
+          scheduleRankRetry(matchId);
+          return;
+        }
+        console.log('Valorant rank data unavailable after retries — estimated RR path');
+      } else {
+        rankRetryMatchId = null;
+        rankRetryCount = 0;
+      }
+    }
+
+    lastMatch = { ...enriched, consumed: false, isRanked: Boolean(parsed.isRanked) };
     rememberMatchId(matchId);
     lastSeenMatchId = matchId;
     baselineGameStart = Math.max(baselineGameStart, parsed.gameStart || 0);
     lastError = null;
     persistState();
-    console.log(`Valorant match — ${parsed.result} · ${parsed.mode} · K:${parsed.kills} D:${parsed.deaths} A:${parsed.valAssists} · ${parsed.agent || 'Agent'} · ${parsed.map || 'Map'}`);
-
-    if (parsed.isRanked) {
-      void attachRankData({ ...parsed }, matchId).then((enriched) => {
-        if (lastMatch?.matchId === matchId && !lastMatch.consumed && enriched) {
-          lastMatch = {
-            ...lastMatch,
-            rrChange: enriched.rrChange ?? lastMatch.rrChange,
-            endRR: enriched.endRR ?? lastMatch.endRR,
-            endRank: enriched.endRank ?? lastMatch.endRank,
-          };
-          persistState();
-        }
-      });
-    }
+    console.log(`Valorant match — ${parsed.result} · ${parsed.mode} · K:${parsed.kills} D:${parsed.deaths} A:${parsed.valAssists} · ${parsed.agent || 'Agent'} · ${parsed.map || 'Map'}${hasHenrikRankData(enriched) ? ` · RR:${enriched.endRR} (${enriched.rrChange >= 0 ? '+' : ''}${enriched.rrChange})` : ''}`);
   } catch (e) {
     lastError = formatHenrikError(e.message, e.status);
   } finally {

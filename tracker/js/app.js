@@ -1085,7 +1085,7 @@ async function submitGameLog(source = 'form') {
     scheduleRefreshAfterGameDataChange();
     if (saved) {
       state.homeChartMode = saved.mode;
-      showPostMatchCard(saved, { estimated: isMmrEstimated(saved) });
+      showPostMatchCard(saved, { estimated: isMmrEstimated(saved), autoLogged: source === 'auto' });
     }
     return true;
   } catch (e) {
@@ -1375,8 +1375,13 @@ async function init() {
         },
       });
       initPostMatch({
-        onConfirmMMR: async (mmr) => {
-          const game = await patchLastGame({ endMMR: mmr });
+        onConfirmRank: async (rankVal, endRankName) => {
+          const isVal = state.activeGame === GAME_IDS.VALORANT;
+          const game = await patchLastGame(
+            isVal
+              ? { endRR: rankVal, endRank: endRankName }
+              : { endMMR: rankVal },
+          );
           if (game) { scheduleRefreshAfterGameDataChange(); return true; }
           return false;
         },

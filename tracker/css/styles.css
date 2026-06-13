@@ -1237,6 +1237,11 @@ body.has-quick-dock.quick-dock-collapsed .mobile-nav { bottom: 52px; }
   border-radius: 10px;
 }
 .post-match-mmr-input-row { display: flex; gap: 8px; align-items: stretch; }
+.post-match-val-rank {
+  flex: 1 1 auto; min-width: 0; padding: 10px 12px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--surface2); color: var(--text);
+  font-size: 13px;
+}
 .post-match-mmr-input {
   flex: 1; min-width: 0;
   background: var(--bg); border: 1px solid var(--border); border-radius: 8px;

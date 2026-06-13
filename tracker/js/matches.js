@@ -77,17 +77,20 @@ export async function updateGame(matchNum, formData, selectedTags) {
   return repaired[idx];
 }
 
-export async function patchLastGame({ endMMR, endRR, tags, notes }) {
+export async function patchLastGame({ endMMR, endRR, endRank, tags, notes }) {
   if (!requireSignedIn()) return null;
   const mod = getActiveGameModule();
   const games = JSON.parse(JSON.stringify(getActiveGames()));
   if (!games.length) return null;
   const idx = games.length - 1;
   let g = { ...games[idx] };
-  const endRank = endRR ?? endMMR;
 
-  if (endRank != null) {
-    g = mod.patchLastGameRank(g, games, idx, endRank);
+  if (state.activeGame === GAME_IDS.VALORANT) {
+    if (endRR != null || endRank != null) {
+      g = mod.patchLastGameRank(g, games, idx, endRR ?? g.endRR, endRank ?? g.endRank);
+    }
+  } else if (endMMR != null) {
+    g = mod.patchLastGameRank(g, games, idx, endMMR);
   }
   if (tags) g.tags = [...tags];
   if (notes !== undefined) g.notes = notes;

@@ -7,7 +7,7 @@ import {
   applyPromotion,
   estimateRankDelta,
 } from './rank-chain.js';
-import { normalizeRankName } from './rank-ladder.js';
+import { applyRRDelta, normalizeRankName } from './rank-ladder.js';
 
 function buildEndState(games, draft, formData) {
   const start = resolveGameStartRankState(games, draft);
@@ -128,27 +128,29 @@ export function buildGameUpdate(formData, games, idx, selectedTags) {
   });
 }
 
+function resolveRRDiffFromEndpoints(startRank, startRR, endRank, endRR) {
+  const startName = normalizeRankName(startRank);
+  const endName = normalizeRankName(endRank);
+  if (!startName || !endName) return endRR - startRR;
+  if (startName === endName) return endRR - startRR;
+  for (let d = -60; d <= 60; d++) {
+    const applied = applyRRDelta(startName, startRR, d);
+    if (applied.rank === endName && applied.rr === endRR) return d;
+  }
+  return endRR - startRR;
+}
+
 export function patchLastGameRank(g, games, idx, endRR, endRank) {
   const start = resolveGameStartRankState(games.slice(0, idx), g);
-  const rr = parseInt(endRR, 10) || 0;
-  const rankName = normalizeRankName(endRank) ?? normalizeRankName(g.endRank);
+  const rr = parseInt(endRR, 10);
+  if (!Number.isFinite(rr)) return g;
+  const rankName = normalizeRankName(endRank) ?? normalizeRankName(g.endRank) ?? start.rank;
 
   g.startRank = start.rank;
   g.startRR = start.rr;
-
-  if (rankName) {
-    g.endRank = rankName;
-    g.endRR = rr;
-    if (!Number.isFinite(g.rrDiff)) {
-      g.rrDiff = rankName === start.rank ? rr - start.rr : estimateRankDelta(games.slice(0, idx), g.result, g.mode);
-    }
-  } else {
-    const delta = Number.isFinite(g.rrDiff) ? g.rrDiff : (rr - start.rr);
-    const applied = applyPromotion(start.rank, start.rr, delta);
-    g.endRank = applied.rank;
-    g.endRR = applied.rr;
-    g.rrDiff = applied.rrDiff;
-  }
+  g.endRank = rankName;
+  g.endRR = rr;
+  g.rrDiff = resolveRRDiffFromEndpoints(start.rank, start.rr, rankName, rr);
 
   g.notes = (g.notes || '').replace(/RR estimated/g, '').replace(/\s·\s·/g, ' · ').trim();
   return g;

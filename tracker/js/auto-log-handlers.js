@@ -135,6 +135,9 @@ export async function handleValorantAutoLog(match) {
       const applied = applyRRDelta(startRank, startRR, rrDiff);
       endRank = applied.rank;
       endRR = applied.rr;
+      if (logMode === 'Competitive') {
+        showToast('RR estimated — confirm on ranked screen in post-match card', 'error');
+      }
     } else {
       startRank = 'Iron 1';
       startRR = 0;
