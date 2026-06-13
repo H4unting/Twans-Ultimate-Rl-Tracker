@@ -5,8 +5,10 @@ REM ============================================================================
 title Build Twans Ultimate Tracker
 cd /d "%~dp0tools\launcher"
 echo.
-echo  Close Twans Ultimate Tracker before building if you see "file in use" errors.
-echo  The build will try to stop Twans Ultimate Tracker.exe automatically.
+echo  Builds always update the single app at repo root:
+echo    Twans Ultimate Tracker.exe
+echo.
+echo  The build stops a running copy automatically. If copy fails, close the app
+echo  and run this script again (no separate "-new" exe is created by default).
 echo.
 call build-bridge.bat
-

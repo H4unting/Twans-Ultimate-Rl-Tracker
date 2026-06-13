@@ -1,4 +1,4 @@
-﻿/** Stop running app instances and pick a writable electron-builder output dir. */
+/** Stop running app instances and pick a writable electron-builder output dir. */
 
 const { spawnSync } = require('child_process');
 const fs = require('fs');
@@ -7,6 +7,7 @@ const path = require('path');
 const launcherRoot = path.join(__dirname, '..');
 const distDir = path.join(launcherRoot, 'dist');
 const markerFile = path.join(launcherRoot, '.build-output-dir');
+const repoRootExe = path.join(launcherRoot, '..', '..', 'Twans Ultimate Tracker.exe');
 
 const APP_EXE = 'Twans Ultimate Tracker.exe';
 
@@ -15,16 +16,53 @@ function sleep(ms) {
   while (Date.now() < end) {}
 }
 
+function taskkillOutput(r) {
+  return (r.stdout || '') + (r.stderr || '');
+}
+
 function stopTrackerApp() {
-  for (const args of [['/IM', APP_EXE, '/T'], ['/IM', APP_EXE, '/T', '/F']]) {
-    const r = spawnSync('taskkill', args, { windowsHide: true, encoding: 'utf8' });
-    const out = (r.stdout || '') + (r.stderr || '');
-    if (r.status === 0) {
-      console.log('Stopped running', APP_EXE);
-      return;
-    }
-    if (/not found|no tasks/i.test(out)) return;
+  const graceful = spawnSync('taskkill', ['/IM', APP_EXE, '/T'], {
+    windowsHide: true,
+    encoding: 'utf8',
+  });
+  const gOut = taskkillOutput(graceful);
+  if (graceful.status === 0) {
+    console.log('Stopped running', APP_EXE, '(graceful)');
+    sleep(800);
+    return;
   }
+  if (/not found|no tasks/i.test(gOut)) return;
+
+  const forced = spawnSync('taskkill', ['/IM', APP_EXE, '/T', '/F'], {
+    windowsHide: true,
+    encoding: 'utf8',
+  });
+  const fOut = taskkillOutput(forced);
+  if (forced.status === 0) {
+    console.log('Stopped running', APP_EXE, '(forced)');
+    sleep(400);
+    return;
+  }
+  if (!/not found|no tasks/i.test(fOut)) {
+    console.warn('Could not stop all', APP_EXE, 'processes:', fOut.trim());
+  }
+}
+
+/** Wait until file can be opened for write or maxMs elapses. */
+function waitForFileUnlocked(filePath, maxMs = 10000) {
+  if (!filePath || !fs.existsSync(filePath)) return true;
+  const deadline = Date.now() + maxMs;
+  while (Date.now() < deadline) {
+    try {
+      const fd = fs.openSync(filePath, 'r+');
+      fs.closeSync(fd);
+      return true;
+    } catch (err) {
+      if (err.code !== 'EBUSY' && err.code !== 'EPERM') return true;
+      sleep(400);
+    }
+  }
+  return false;
 }
 
 function tryRemoveDist() {
@@ -50,16 +88,23 @@ function isDistLocked() {
 }
 
 function main() {
-  console.log('Preparing build (close', APP_EXE, 'if build fails on locked files)...');
+  console.log('Preparing build: stopping', APP_EXE, 'if running...');
   stopTrackerApp();
-  sleep(1200);
+  const rootReady = waitForFileUnlocked(repoRootExe, 10000);
+  if (!rootReady) {
+    console.warn(
+      'Repo root exe still locked after 10s:',
+      repoRootExe,
+      '— close Twans Ultimate Tracker and retry if copy fails.'
+    );
+  }
   if (tryRemoveDist()) {
     fs.writeFileSync(markerFile, 'dist', 'utf8');
     console.log('Using output directory: dist');
     return;
   }
   stopTrackerApp();
-  sleep(800);
+  waitForFileUnlocked(repoRootExe, 3000);
   if (tryRemoveDist()) {
     fs.writeFileSync(markerFile, 'dist', 'utf8');
     console.log('Using output directory: dist');

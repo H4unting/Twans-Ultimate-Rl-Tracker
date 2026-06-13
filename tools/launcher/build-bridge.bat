@@ -14,8 +14,8 @@ if errorlevel 1 (
 
 echo.
 echo  Building Twans Ultimate Tracker desktop app...
-echo  Close Twans Ultimate Tracker before building if a previous build failed
-echo  with "The process cannot access the file" on app.asar.
+echo  Output: repo root Twans Ultimate Tracker.exe (updated in place).
+echo  If the app is running, the build will try to close it first.
 echo.
 
 if not exist "node_modules" (
@@ -43,4 +43,3 @@ echo  tools\launcher\dist, then run this script again.
 echo.
 pause
 exit /b 1
-

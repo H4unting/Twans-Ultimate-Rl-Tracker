@@ -97,6 +97,16 @@ After `cd tools\launcher && npm run build`:
 
 ## Building locally (maintainers)
 
+### One EXE at repo root (maintainers)
+
+Double-click `build-tray-app.bat` at the repo root (or run `cd tools\launcher && npm run build`). The **only** desktop shortcut name you need is:
+
+`Twans Ultimate Tracker.exe` at the repository root.
+
+The build stops a running copy, waits for the file lock to clear, then **overwrites** that exe in place. It does **not** create `Twans Ultimate Tracker-new.exe` unless you opt in with `set TWANS_BUILD_ALT=1` before building (debug only). If copy fails, close the app and build again.
+
+You can delete any stray `Twans Ultimate Tracker-new.exe` from older builds.
+
 ```powershell
 cd tools\launcher
 npm run build          # portable + NSIS installer

@@ -1,5 +1,6 @@
 /** Copy built portable exe to tracker root for easy access. */
 
+const { spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
@@ -11,15 +12,16 @@ if (fs.existsSync(markerFile)) {
   if (v) outputDir = v;
 }
 
-const built = path.join(launcherRoot, outputDir, 'Twans Ultimate Tracker.exe');
-const dest = path.join(launcherRoot, '..', '..', 'Twans Ultimate Tracker.exe');
+const APP_EXE = 'Twans Ultimate Tracker.exe';
+const built = path.join(launcherRoot, outputDir, APP_EXE);
+const dest = path.join(launcherRoot, '..', '..', APP_EXE);
 const legacyDest = path.join(launcherRoot, '..', '..', 'Twans Auto-Log.exe');
 const legacyDest2 = path.join(launcherRoot, '..', '..', 'Twans-Tracker-Bridge.exe');
 
 if (!fs.existsSync(built)) {
   console.error('Build output not found:', built);
   if (outputDir !== 'dist') {
-    const fallback = path.join(launcherRoot, 'dist', 'Twans Ultimate Tracker.exe');
+    const fallback = path.join(launcherRoot, 'dist', APP_EXE);
     if (fs.existsSync(fallback)) {
       console.error('(Also checked default dist path:', fallback + ')');
     }
@@ -29,42 +31,72 @@ if (!fs.existsSync(built)) {
 
 function sleep(ms) {
   const end = Date.now() + ms;
-  while (Date.now() < end) { /* sync wait */ }
+  while (Date.now() < end) {}
 }
 
-function copyWithRetry(src, destPath, attempts = 5) {
-  for (let i = 0; i < attempts; i++) {
+function stopTrackerApp() {
+  spawnSync('taskkill', ['/IM', APP_EXE, '/T'], { windowsHide: true, encoding: 'utf8' });
+  sleep(600);
+  spawnSync('taskkill', ['/IM', APP_EXE, '/T', '/F'], { windowsHide: true, encoding: 'utf8' });
+  sleep(400);
+}
+
+function copyWithRetry(src, destPath, maxWaitMs = 12000) {
+  stopTrackerApp();
+  const delays = [300, 500, 800, 1200, 1500, 2000, 2500, 3000];
+  let waited = 0;
+  for (let i = 0; i < delays.length && waited < maxWaitMs; i++) {
     try {
       fs.copyFileSync(src, destPath);
       return true;
     } catch (err) {
-      if (err.code !== 'EBUSY' || i === attempts - 1) throw err;
-      sleep(500);
+      if (err.code !== 'EBUSY' && err.code !== 'EPERM') throw err;
+      if (i === 3) stopTrackerApp();
+      sleep(delays[i]);
+      waited += delays[i];
     }
   }
-  return false;
+  try {
+    fs.copyFileSync(src, destPath);
+    return true;
+  } catch (err) {
+    if (err.code === 'EBUSY' || err.code === 'EPERM') return false;
+    throw err;
+  }
 }
 
-try {
-  copyWithRetry(built, dest);
-  console.log('Copied to', dest);
-  for (const legacy of [legacyDest, legacyDest2]) {
+function failCopyLocked() {
+  const useAlt = process.env.TWANS_BUILD_ALT === '1';
+  if (useAlt) {
+    const alt = path.join(path.dirname(dest), 'Twans Ultimate Tracker-new.exe');
     try {
-      copyWithRetry(built, legacy);
-      console.log('Also copied legacy name:', legacy);
-    } catch {
-      /* old exe locked or unwanted — primary name is enough */
+      fs.copyFileSync(built, alt);
+      console.warn('TWANS_BUILD_ALT=1: saved locked overwrite as:', alt);
+      console.warn('Close Twans Ultimate Tracker.exe, delete/rename manually if needed.');
+      return;
+    } catch (err) {
+      console.error('Copy failed (alt path):', err.message);
+      process.exit(1);
     }
   }
-} catch (err) {
-  const alt = path.join(path.dirname(dest), 'Twans Ultimate Tracker-new.exe');
+  console.error('');
+  console.error('Could not update repo root exe — file is in use.');
+  console.error('Close Twans Ultimate Tracker and run build again.');
+  console.error('Built exe is at:', built);
+  process.exit(1);
+}
+
+if (!copyWithRetry(built, dest)) {
+  failCopyLocked();
+}
+console.log('Copied to', dest);
+
+for (const legacy of [legacyDest, legacyDest2]) {
   try {
-    copyWithRetry(built, alt);
-    console.warn('Could not overwrite locked exe. Saved as:', alt);
-    console.warn('Close Twans Ultimate Tracker.exe, then rename the new file.');
+    if (copyWithRetry(built, legacy, 4000)) {
+      console.log('Also copied legacy name:', legacy);
+    }
   } catch {
-    console.error('Copy failed:', err.message);
-    console.error('Built exe is at:', built);
-    process.exit(1);
+    /* legacy name optional */
   }
 }
