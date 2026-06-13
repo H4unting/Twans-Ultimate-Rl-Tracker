@@ -22,6 +22,8 @@
   "build": {
     "appId": "com.twans.rl-tracker-bridge",
     "productName": "Twans Ultimate Tracker",
+    "copyright": "Copyright © 2026 Anthony",
+    "publisherName": "Anthony",
     "directories": {
       "output": "dist"
     },
@@ -69,6 +71,8 @@
         }
       ],
       "icon": "assets/icon.ico",
+      "executableName": "Twans Ultimate Tracker",
+      "requestedExecutionLevel": "asInvoker",
       "signAndEditExecutable": false
     },
     "portable": {
