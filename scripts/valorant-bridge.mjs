@@ -529,7 +529,7 @@ async function pollLatestMatch() {
       return;
     }
 
-    lastMatch = { ...parsed, consumed: false };
+    lastMatch = { ...parsed, consumed: false, isRanked: Boolean(parsed.isRanked) };
     rememberMatchId(matchId);
     lastSeenMatchId = matchId;
     baselineGameStart = Math.max(baselineGameStart, parsed.gameStart || 0);

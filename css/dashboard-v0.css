@@ -545,6 +545,13 @@ body:not(.logged-out) .top-bar > .review-sub-nav:not(.v0-sidebar-sub) { display:
   opacity: 0.95;
 }
 
+#dash-activity.pm-activity-highlight {
+  opacity: 1;
+  border-color: var(--v0-accent, #e65c00);
+  box-shadow: 0 0 0 1px #e65c0044, 0 8px 28px #00000055;
+  transition: box-shadow 0.35s ease, border-color 0.35s ease;
+}
+
 .dash-quick-actions-compact .dash-action-btn {
   padding: 10px 12px;
 }

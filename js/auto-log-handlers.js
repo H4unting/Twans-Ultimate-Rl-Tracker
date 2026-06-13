@@ -9,6 +9,7 @@ import { VAL_DEFAULT_RR_SWING } from './valorant-config.js';
 import { applyRRDelta, normalizeRankName } from './games/valorant/rank-ladder.js';
 import { getStoredValorantBaseline } from './rank-baseline-store.js';
 import { bridgeFetch } from './bridge-client.js';
+import { validateRlMatchPayload, validateValorantMatchPayload } from './bridge-payload.js';
 import { getDockModePillsEl } from './dock-ui.js';
 import {
   applyLiveStats, flashAutoLogged, setQuickResult, setQuickMode,
@@ -59,6 +60,13 @@ function resolveValorantPriorState(mode) {
 
 export async function handleValorantAutoLog(match) {
   if (state.activeGame !== GAME_IDS.VALORANT) return false;
+
+  const safe = validateValorantMatchPayload(match);
+  if (!safe) {
+    showToast('Invalid match data from bridge — log manually', 'error');
+    return false;
+  }
+  match = safe;
 
   if (match.matchId && getActiveGames().some(g =>
     (g.game ?? GAME_IDS.ROCKET_LEAGUE) === GAME_IDS.VALORANT
@@ -172,6 +180,14 @@ export async function handleValorantAutoLog(match) {
 
 export async function handleAutoLog(match) {
   if (state.activeGame !== GAME_IDS.ROCKET_LEAGUE) return false;
+
+  const safe = validateRlMatchPayload(match);
+  if (!safe) {
+    showToast('Invalid match data from bridge — log manually', 'error');
+    return false;
+  }
+  match = safe;
+
   const logMode = match.mode || getQuickModeFromDock() || "2's";
   if (match.mode) setQuickMode(match.mode);
   if (match.result) setQuickResult(match.result);

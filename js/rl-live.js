@@ -7,7 +7,7 @@ import { state } from './state.js';
 import { GAME_IDS } from './games.js';
 import {
   isBridgeUp, getBridgeUrl, fetchBridgeStatus, bridgeFetch, bridgeStatusSig, noteBridgeStatus,
-  subscribeBridgeProcessState,
+  subscribeBridgeProcessState, markMatchEndPending, noteMatchEndDetected,
 } from './bridge-client.js';
 import { setCachedRlInMatch, refreshBridgeStatusUI } from './bridge-ui.js';
 import { DESKTOP_APP } from './config.js';
@@ -67,6 +67,7 @@ function onBridgeRlProcessChange({ rocketLeagueRunning, rlConnected, inMatch }) 
   const nextInMatch = Boolean(inMatch);
   if (lastInMatch && !nextInMatch) {
     matchEndBurstUntil = Date.now() + MATCH_END_BURST_MS;
+    markMatchEndPending();
     void pollBridge({ forceUi: true });
     schedulePoll();
   }
@@ -173,6 +174,7 @@ async function pollBridge({ forceUi = false } = {}) {
     const lastRes = await fetch(`${getBridgeUrl()}/last-match`, { signal: AbortSignal.timeout(3000) });
     const last = await lastRes.json();
     if (last && !last.consumed && last.endedAt > lastAppliedEnd) {
+      noteMatchEndDetected();
       callbacks.onMatchStats?.(last);
 
       let handled = false;

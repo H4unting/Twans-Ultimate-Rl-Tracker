@@ -21,6 +21,7 @@ const POLL_WAITING_MS = 15000;
 const POLL_IDLE_MS = 5000;
 const POLL_HIDDEN_MS = 10000;
 const POST_MATCH_WINDOW_MS = 180000;
+const RANK_ENRICH_WAIT_MS = 12000;
 let wasBridgeUp = false;
 let autoLogInFlight = false;
 let pollingArmSent = false;
@@ -32,7 +33,6 @@ let onSessionStart = null;
 let dashEventWired = false;
 let lastValStatusSig = '';
 let lastValorantProcessRunning = false;
-let postExitBurstUntil = 0;
 let postMatchPollUntil = 0;
 let unsubBridgeProcess = null;
 
@@ -180,6 +180,13 @@ function shouldPeriodicPoll() {
   return true;
 }
 
+function shouldWaitForRankEnrichment(last) {
+  if (!last?.isRanked) return false;
+  if (last.rrChange != null && last.endRR != null) return false;
+  const age = Date.now() - Number(last.endedAt || 0);
+  return age >= 0 && age < RANK_ENRICH_WAIT_MS;
+}
+
 function getPollMs() {
   if (Date.now() < postMatchPollUntil) return POLL_POST_MATCH_MS;
   if (state.activeGame !== GAME_IDS.VALORANT) return POLL_IDLE_MS;
@@ -216,6 +223,7 @@ function onBridgeValorantProcessChange({ valorantProcessRunning }) {
   const next = Boolean(valorantProcessRunning);
   if (lastValorantProcessRunning && !next) {
     postMatchPollUntil = Date.now() + POST_MATCH_WINDOW_MS;
+    markMatchEndPending();
     void poll({ forceUi: true });
     schedulePoll();
   }

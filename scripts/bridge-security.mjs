@@ -247,6 +247,28 @@ export function validateOverwolfMatch(body) {
   return sanitized;
 }
 
+/** Bridge last-match payloads served to the tracker (RL). */
+export function validateRlLastMatch(match) {
+  if (!match || typeof match !== 'object') return null;
+  const result = String(match.result ?? '');
+  if (result !== 'W' && result !== 'L') return null;
+  for (const key of ['goals', 'assists', 'saves']) {
+    const n = Number(match[key]);
+    if (!Number.isFinite(n) || n < 0 || n > 999) return null;
+  }
+  return match;
+}
+
+/** Bridge last-match payloads served to the tracker (Valorant). */
+export function validateValorantLastMatch(match) {
+  if (!match || typeof match !== 'object') return null;
+  const result = String(match.result ?? '');
+  if (result !== 'W' && result !== 'L') return null;
+  const activity = Number(match.kills ?? 0) + Number(match.deaths ?? 0) + Number(match.valAssists ?? match.assists ?? 0);
+  if (activity === 0) return null;
+  return match;
+}
+
 export function requireBridgeAuth(req, res, urlPath) {
   const path = urlPath.split('?')[0];
   const method = req.method || 'GET';

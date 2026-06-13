@@ -40,10 +40,13 @@ export function showPostMatchCard(game, { estimated = false } = {}) {
 
   renderCard(el, game, estimated);
   el.classList.remove('hidden');
+  el.classList.remove('pm-landed');
+  requestAnimationFrame(() => el.classList.add('pm-landed'));
   restoreDockCollapsed = isDockCollapsed();
   if (restoreDockCollapsed) expandDock();
   document.getElementById('quick-dock')?.classList.add('has-post-match');
   document.body.classList.add('post-match-open');
+  document.querySelector('#dash-activity')?.classList.add('pm-activity-highlight');
   wireCardEvents();
   clearTimeout(dismissTimer);
   if (!needsMmrConfirm) {
@@ -64,6 +67,7 @@ export function hidePostMatchCard(force = false) {
   document.getElementById('post-match-card')?.classList.add('hidden');
   document.getElementById('quick-dock')?.classList.remove('has-post-match');
   document.body.classList.remove('post-match-open');
+  document.querySelector('#dash-activity')?.classList.remove('pm-activity-highlight');
   if (restoreDockCollapsed) collapseDock();
   restoreDockCollapsed = false;
   clearTimeout(dismissTimer);

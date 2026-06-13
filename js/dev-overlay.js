@@ -214,6 +214,9 @@ function runGuardrailCheck() {
   if (w.__LAST_MATCH_SAVE_MS != null) {
     issues.push(`Last save: ${w.__LAST_MATCH_SAVE_MS}ms`);
   }
+  if (w.__MATCH_END_DETECT_MS != null) {
+    issues.push(`Match-end detect: ${w.__MATCH_END_DETECT_MS}ms (process exit → bridge payload)`);
+  }
   if ((w.__MATCH_SAVE_DASH_RENDERS ?? 0) > 0) {
     issues.push(`Match-save dash patches: ${w.__MATCH_SAVE_DASH_RENDERS}`);
   }
@@ -243,6 +246,7 @@ function refreshPanel() {
     ${row('Memory', memMb())}
     ${row('FPS', fpsValue || '…')}
     ${row('Last save', w.__LAST_MATCH_SAVE_MS != null ? `${w.__LAST_MATCH_SAVE_MS}ms` : '—')}
+    ${row('Match-end detect', w.__MATCH_END_DETECT_MS != null ? `${w.__MATCH_END_DETECT_MS}ms` : '—')}
     <div class="dev-overlay-actions">
       <button type="button" id="dev-overlay-analyze">Analyze Performance</button>
       <button type="button" id="dev-overlay-guardrail">Test save guardrail</button>

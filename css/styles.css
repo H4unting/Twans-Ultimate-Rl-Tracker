@@ -1144,6 +1144,13 @@ body.has-quick-dock.quick-dock-collapsed .mobile-nav { bottom: 52px; }
   order: -1;
 }
 .post-match-card:not(.hidden) { pointer-events: auto; }
+.post-match-card.pm-landed .post-match-inner {
+  animation: pm-land 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes pm-land {
+  from { transform: translateY(10px); opacity: 0.55; }
+  to { transform: translateY(0); opacity: 1; }
+}
 .post-match-inner {
   background: linear-gradient(160deg, #181836f8 0%, #0f1524f8 100%);
   border: 1px solid #ffffff18;
