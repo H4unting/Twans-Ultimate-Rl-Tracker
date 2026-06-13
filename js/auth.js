@@ -2,6 +2,7 @@
 
 import { SUPABASE_URL, SUPABASE_KEY, DESKTOP_APP } from './config.js';
 import { getInternalTrackerApiOrigin, isDesktopHost } from './env.js';
+import { markBoot } from './boot-marks.js';
 
 const SUPABASE_SOURCES = [
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/+esm',
@@ -40,8 +41,14 @@ async function loadSupabaseModule() {
   );
 }
 
+/** Warm Supabase client during cached-shell boot — overlaps CDN/module load with paint. */
+export function warmSupabaseClient() {
+  return getSupabaseClient();
+}
+
 async function getSupabaseClient() {
   if (supabase) return supabase;
+  markBoot('supabase-init-begin');
   const { createClient } = await loadSupabaseModule();
   supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
     auth: {
@@ -51,6 +58,7 @@ async function getSupabaseClient() {
       flowType: 'pkce',
     },
   });
+  markBoot('supabase-init-complete');
   return supabase;
 }
 
@@ -148,6 +156,7 @@ function wireSupabaseAuthListener(client) {
 }
 
 export async function initAuth() {
+  markBoot('auth-restore-begin');
   const client = await getSupabaseClient();
   wireSupabaseAuthListener(client);
 
@@ -159,6 +168,7 @@ export async function initAuth() {
   if (session) {
     notifyAuth(session);
     stripAuthHashFromUrl();
+    markBoot('auth-restore-complete');
     return session;
   }
 
@@ -168,6 +178,7 @@ export async function initAuth() {
       if (manual) {
         notifyAuth(manual);
         stripAuthHashFromUrl();
+        markBoot('auth-restore-complete');
         return manual;
       }
     } catch (e) {
@@ -177,10 +188,12 @@ export async function initAuth() {
     const recovered = await waitForSession(client, 8000);
     notifyAuth(recovered);
     if (recovered) stripAuthHashFromUrl();
+    markBoot('auth-restore-complete');
     return recovered;
   }
 
   notifyAuth(null);
+  markBoot('auth-restore-complete');
   return null;
 }
 

@@ -1,7 +1,10 @@
 /** Chart.js wrappers — centralized chart lifecycle management */
 
+import { markBoot } from './boot-marks.js';
+
 const charts = {};
 let chartJsPromise = null;
+let chartsBootMarked = false;
 
 function ensureChartJs() {
   if (typeof Chart !== 'undefined') return Promise.resolve();
@@ -57,6 +60,10 @@ const perfChartOptions = {
 function bumpChartRender() {
   if (typeof window !== 'undefined') {
     window.__CHARTS_RENDER_COUNT = (window.__CHARTS_RENDER_COUNT || 0) + 1;
+    if (!chartsBootMarked) {
+      chartsBootMarked = true;
+      markBoot('charts-init');
+    }
   }
 }
 

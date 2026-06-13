@@ -12,6 +12,16 @@
 <link rel="stylesheet" href="css/legal.css?v=20260602e">
 <script>
 (function () {
+  function markDomContentLoaded() {
+    (window.__BOOT_MARKS = window.__BOOT_MARKS || []).push({ phase: 'dom-content-loaded', ms: 0 });
+    console.info('[boot +0ms] dom-content-loaded');
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', markDomContentLoaded);
+  } else {
+    markDomContentLoaded();
+  }
+
   if (location.hash.includes('access_token=')) {
     document.documentElement.classList.add('oauth-callback');
     document.addEventListener('DOMContentLoaded', function () {

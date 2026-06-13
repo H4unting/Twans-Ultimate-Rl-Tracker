@@ -27,23 +27,12 @@ import { renderDashboardShell } from './home.js';
 import {
   applyTrackerLevelsFromSettings, syncTrackerLevelsFromGames, getTrackerLevelsForSettings,
 } from './tracker-level.js';
+import { markBoot } from './boot-marks.js';
 
 let bootPromise = null;
 let initialBootDone = false;
 let shellEarlyPainted = false;
 let ctx = {};
-let bootT0 = 0;
-
-function markBoot(phase) {
-  if (!bootT0 && typeof performance !== 'undefined') bootT0 = performance.now();
-  const elapsed = bootT0 && typeof performance !== 'undefined'
-    ? Math.round(performance.now() - bootT0)
-    : 0;
-  console.info(`[boot +${elapsed}ms] ${phase}`);
-  if (typeof window !== 'undefined') {
-    (window.__BOOT_MARKS ||= []).push({ phase, ms: elapsed });
-  }
-}
 
 export function wireBootContext(next) {
   ctx = next;
@@ -314,6 +303,7 @@ export async function bootApp() {
     });
     ctx.ensureBridgeServices();
     ctx.renderAll();
+    markBoot('dashboard-rendered');
     markBoot('first-render-complete');
 
     if (deferredSaves.length || trackerLevelsDirty || rankBaselinesDirty) {

@@ -48,7 +48,8 @@ let statusTimer = null;
 let restartAttempts = 0;
 let appQuitting = false;
 let trackerRoot = null;
-let startupT0 = 0;
+let startupT0 = Date.now();
+if (IS_DEV) console.log(`[startup +0ms] exe-process-start`);
 let bridgeState = {
   running: false,
   trackerUp: false,
@@ -75,7 +76,7 @@ if (!gotLock) {
 app.disableHardwareAcceleration();
 
 function logStartup(message) {
-  const elapsed = startupT0 ? Date.now() - startupT0 : 0;
+  const elapsed = Date.now() - startupT0;
   const line = `[startup +${elapsed}ms] ${message}`;
   if (IS_DEV) console.log(line);
   if (app.dataRoot) appendBridgeLog(app.dataRoot, `${line}\n`);
@@ -484,7 +485,7 @@ async function retryOpenTracker() {
 
 function createMainWindow() {
   try {
-    logStartup('creating main window');
+    logStartup('browser-window-create-begin');
     mainWindow = new BrowserWindow({
       width: 1280,
       height: 860,
@@ -503,6 +504,7 @@ function createMainWindow() {
       },
     });
 
+    logStartup('browser-window-created');
     wireWindowNavigation(mainWindow);
 
     mainWindow.on('close', () => {
@@ -659,6 +661,7 @@ function scheduleBridgeRestart(dataRoot, scriptsDir, nodePath) {
 
 function startBridge(dataRoot, scriptsDir, nodePath) {
   stopBridge();
+  logStartup('bridge-start-begin');
 
   const scriptPath = path.join(scriptsDir, 'start-grind.mjs');
   appendBridgeLog(dataRoot, `\n--- ${APP_TITLE} start v${APP_VERSION} ---\n`);
@@ -705,8 +708,7 @@ function showSetupError(message) {
 }
 
 app.whenReady().then(async () => {
-  startupT0 = Date.now();
-  logStartup('app ready');
+  logStartup('electron-main-ready');
 
   const dataRoot = findDataRoot();
   trackerRoot = findTrackerRoot(dataRoot);

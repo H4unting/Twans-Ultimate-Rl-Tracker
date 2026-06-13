@@ -224,14 +224,25 @@ function runGuardrailCheck() {
   return issues.join('\n');
 }
 
+function bootTimelineHtml() {
+  const marks = window.__BOOT_MARKS;
+  if (!marks?.length) return '';
+  const rows = marks.map(m => `<div class="dev-overlay-row dev-overlay-mark"><span>${m.phase}</span><span>${m.ms}ms</span></div>`).join('');
+  return `<div class="dev-overlay-section">Boot timeline</div>${rows}`;
+}
+
 function refreshPanel() {
   if (!panel) return;
   const w = window;
   panel.innerHTML = `
     <div class="dev-overlay-title">Dev overlay</div>
+    ${bootTimelineHtml()}
     ${row('Boot total', bootDurationMs())}
     ${row('First paint', markMs('first-paint'))}
     ${row('Interactive', markMs('interactive'))}
+    ${row('Auth ready', markMs('auth-ready'))}
+    ${row('Data loaded', markMs('data-loaded'))}
+    ${row('Dashboard', markMs('dashboard-rendered'))}
     ${row('Dash renders', w.__DASH_RENDER_COUNT ?? 0)}
     ${row('Match log', w.__MATCHLOG_RENDER_COUNT ?? 0)}
     ${row('Review', w.__REVIEW_RENDER_COUNT ?? 0)}
@@ -290,6 +301,11 @@ function injectStyles() {
       display: flex; justify-content: space-between; gap: 12px;
     }
     #dev-overlay-panel .dev-overlay-row span:last-child { color: #e8eaed; }
+    #dev-overlay-panel .dev-overlay-section {
+      font-weight: 600; color: #7a8699; margin: 6px 0 2px; font-size: 10px;
+      text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    #dev-overlay-panel .dev-overlay-mark span:first-child { color: #9aa0a6; max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
     #dev-overlay-panel .dev-overlay-actions {
       display: flex; flex-direction: column; gap: 4px; margin-top: 6px;
     }

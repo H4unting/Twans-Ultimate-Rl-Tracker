@@ -9,6 +9,7 @@ import { DEFAULT_GOALS } from './goals.js';
 import { getAccessToken, getAuthUser } from './auth.js';
 import { DEFAULT_GAME, GAME_IDS } from './games.js';
 import { logError } from './core/error-log.js';
+import { markBoot } from './boot-marks.js';
 import {
   enqueueOfflineWrite,
   flushOfflineQueue,
@@ -629,11 +630,25 @@ async function ensureFounderUid(profile) {
 export async function loadUserData() {
   setSyncStatus('connecting');
   try {
-    let profile = await loadProfile();
+    const profileP = loadProfile().then((p) => {
+      markBoot('profile-loaded');
+      return p;
+    });
+    const gamesP = loadGames().then((g) => {
+      markBoot('match-data-loaded');
+      return g;
+    });
+    const settingsP = loadSettings().then((s) => {
+      markBoot('settings-loaded');
+      return s;
+    });
+    const groupsP = loadUserGroups();
+
+    const [profileRaw, games, settings, groups] = await Promise.all([
+      profileP, gamesP, settingsP, groupsP,
+    ]);
+    let profile = profileRaw;
     profile = await ensureFounderUid(profile);
-    const games = await loadGames();
-    const settings = await loadSettings();
-    const groups = await loadUserGroups();
     setSyncStatus('live');
     void flushOfflineQueue({ saveGames, saveSettings });
     return {

@@ -6,7 +6,7 @@ import { isDashboardPage, isDashboardIdle } from './dash-context.js';
 import { DESKTOP_APP, getDesktopLauncherBat } from './config.js';
 import { applyAppMode, isDesktopHost } from './env.js';
 import { state, subscribe, setGames, setSyncStatus, setGoals, setProfile, getUserDisplay, getActiveGames, resetAppState } from './state.js';
-import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, sendPasswordReset, signOut, onAuthChange, getAuthUser, hasPendingAuthHash, clearAuthHashFromUrl } from './auth.js';
+import { initAuth, signInWithGoogle, signInWithEmail, signUpWithEmail, sendPasswordReset, signOut, onAuthChange, getAuthUser, hasPendingAuthHash, clearAuthHashFromUrl, warmSupabaseClient } from './auth.js';
 import { saveProfileCache, loadProfileCache, clearProfileCache } from './profile-cache.js';
 import { saveSettings, createGroup, joinGroup, leaveGroup, loadUserGroups, saveProfile, uploadProfileAvatar, deleteOwnAccount } from './supabase.js';
 import { applyFilters, DEFAULT_FILTERS } from './filters.js';
@@ -38,6 +38,7 @@ import { wireBridgeStatusClick, refreshBridgeStatusUI } from './bridge-ui.js';
 import { wireDiagnosticsPanel } from './diagnostics-ui.js';
 import { wirePlayButtons } from './game-launcher.js';
 import { startProcessSessionWatcher, stopProcessSessionWatcher } from './process-session.js';
+import { startGameTracking, stopGameTracking } from './game-tracking.js';
 import { initGameSwitcher, restoreActiveGameFromPrefs, applyGameShell, applyPageCopy, syncEditModal } from './game-ui.js';
 import { renderSetupWizard, refreshSetupWizard, onBridgeStatusChange, renderLogSetupNudge } from './setup-wizard.js';
 import { rankBaselinesForSettings } from './rank-baselines.js';
@@ -104,6 +105,7 @@ let perfSectionObserver = null;
 
 async function getReportsModule() {
   if (!reportsModule) {
+    markBoot('lazy-reports-init');
     reportsModule = await import('./reports-ui.js');
   }
   return reportsModule;
@@ -111,6 +113,7 @@ async function getReportsModule() {
 
 async function getFocusModule() {
   if (!focusModule) {
+    markBoot('lazy-focus-init');
     focusModule = await import('./focus.js');
   }
   return focusModule;
@@ -118,6 +121,7 @@ async function getFocusModule() {
 
 async function getGroupsModule() {
   if (!groupsModule) {
+    markBoot('lazy-squad-init');
     groupsModule = await import('./groups.js');
   }
   return groupsModule;
@@ -125,6 +129,7 @@ async function getGroupsModule() {
 
 async function getAnalyticsModule() {
   if (!analyticsModule) {
+    markBoot('lazy-analytics-init');
     analyticsModule = await import('./analytics.js');
   }
   return analyticsModule;
@@ -174,10 +179,12 @@ function getDisplay() {
 let bridgeServicesStarted = false;
 
 function ensureBridgeServices() {
+  markBoot('bridge-start-begin');
   startBridgeHeartbeat();
   wirePlayButtons();
   wireDiagnosticsPanel();
   startProcessSessionWatcher();
+  startGameTracking();
   if (bridgeServicesStarted) return;
   bridgeServicesStarted = true;
   initRlLive(applyLiveStats, onBridgeStatusChange, handleAutoLog);
@@ -186,6 +193,7 @@ function ensureBridgeServices() {
 
 function stopBridgeServices() {
   bridgeServicesStarted = false;
+  stopGameTracking();
   stopProcessSessionWatcher();
   stopRlLive();
   stopValorantLive();
@@ -1276,9 +1284,9 @@ function wireGoogleSignIn() {
 import { maybeEnableQaFromUrl, wireDevModeShortcut } from './qa/qa-gate.js';
 import { installGlobalErrorHandlers } from './core/error-log.js';
 import { initDevOverlay } from './dev-overlay.js';
+import { markBoot } from './boot-marks.js';
 
 async function init() {
-  const appT0 = typeof performance !== 'undefined' ? performance.now() : 0;
   window.__appBootstrapped = true;
   installGlobalErrorHandlers();
   try {
@@ -1296,10 +1304,9 @@ async function init() {
       })).catch(() => {});
     });
     applyAppMode();
-    if (appT0 && typeof performance !== 'undefined') {
-      const ms = Math.round(performance.now() - appT0);
-      console.info(`[boot +${ms}ms] dom-ready`);
-      (window.__BOOT_MARKS ||= []).push({ phase: 'dom-ready', ms });
+    markBoot('dom-ready');
+    if (loadProfileCache()?.profile) {
+      void warmSupabaseClient().catch(() => { /* paint continues */ });
     }
     wireLoginScreen();
     if (hasPendingAuthHash()) {
@@ -1404,11 +1411,7 @@ async function init() {
       } else {
         ensureBridgeServices();
       }
-      if (appT0 && typeof performance !== 'undefined') {
-        const ms = Math.round(performance.now() - appT0);
-        console.info(`[boot +${ms}ms] bridge-services-started`);
-        (window.__BOOT_MARKS ||= []).push({ phase: 'bridge-services-started', ms });
-      }
+      markBoot('bridge-services-started');
       onAuthChange((session) => {
         if (session) {
           if (!isInitialBootDone() && !getBootPromise()) {
@@ -1426,11 +1429,7 @@ async function init() {
       void (async () => {
         try {
           await withTimeout(initAuth(), 20000, 'Sign-in check timed out — refresh and try again');
-          if (appT0 && typeof performance !== 'undefined') {
-            const ms = Math.round(performance.now() - appT0);
-            console.info(`[boot +${ms}ms] auth-ready`);
-            (window.__BOOT_MARKS ||= []).push({ phase: 'auth-ready', ms });
-          }
+          markBoot('auth-ready');
 
           if (getAuthUser()) {
             if (!getBootPromise() && !isInitialBootDone()) {

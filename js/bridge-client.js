@@ -2,6 +2,7 @@
 
 import { getInternalTrackerApiOrigin, isTwansAppHost } from './env.js';
 import { isDashboardIdle } from './dash-context.js';
+import { markBoot } from './boot-marks.js';
 
 const BRIDGE_PORT = 49200;
 const HEARTBEAT_ACTIVE_MS = 2500;
@@ -42,6 +43,8 @@ let heartbeatInMatch = null;
 let heartbeatValorantProcessRunning = null;
 let heartbeatRocketLeagueRunning = null;
 let heartbeatRlConnected = null;
+let heartbeatRiotClientRunning = null;
+let bridgeReadyMarked = false;
 const processStateListeners = new Set();
 
 function noteBridgeRequest() {
@@ -241,6 +244,7 @@ export function bridgeStatusSig(json) {
     json.version ?? '',
     json.bridgeVersion ?? '',
     json.valorantProcessRunning ? 1 : 0,
+    json.riotClientRunning ? 1 : 0,
   ].join(':');
 }
 
@@ -268,6 +272,10 @@ export function getHeartbeatRlConnected() {
   return heartbeatRlConnected;
 }
 
+export function getHeartbeatRiotClientRunning() {
+  return heartbeatRiotClientRunning;
+}
+
 export function getHeartbeatInMatch() {
   return heartbeatInMatch;
 }
@@ -277,11 +285,13 @@ export function subscribeBridgeProcessState(fn) {
   if (heartbeatValorantProcessRunning !== null
     || heartbeatRocketLeagueRunning !== null
     || heartbeatRlConnected !== null
+    || heartbeatRiotClientRunning !== null
     || heartbeatInMatch !== null) {
     fn({
       valorantProcessRunning: heartbeatValorantProcessRunning,
       rocketLeagueRunning: heartbeatRocketLeagueRunning,
       rlConnected: heartbeatRlConnected,
+      riotClientRunning: heartbeatRiotClientRunning,
       inMatch: heartbeatInMatch,
     });
   }
@@ -295,19 +305,24 @@ function updateHeartbeatGameProcess(json) {
   const nextRl = Boolean(json?.rocketLeagueRunning);
   const nextConn = Boolean(json?.rlConnected);
   const nextInMatch = Boolean(json?.inMatch);
+  const nextRiot = json?.riotClientRunning != null ? Boolean(json.riotClientRunning) : null;
   const prevVal = heartbeatValorantProcessRunning;
   const prevRl = heartbeatRocketLeagueRunning;
   const prevConn = heartbeatRlConnected;
   const prevInMatch = heartbeatInMatch;
+  const prevRiot = heartbeatRiotClientRunning;
   heartbeatValorantProcessRunning = nextVal;
   heartbeatRocketLeagueRunning = nextRl;
   heartbeatRlConnected = nextConn;
   heartbeatInMatch = nextInMatch;
-  if (prevVal === nextVal && prevRl === nextRl && prevConn === nextConn && prevInMatch === nextInMatch) return;
+  if (nextRiot !== null) heartbeatRiotClientRunning = nextRiot;
+  if (prevVal === nextVal && prevRl === nextRl && prevConn === nextConn && prevInMatch === nextInMatch
+    && (nextRiot === null || prevRiot === nextRiot)) return;
   const payload = {
     valorantProcessRunning: nextVal,
     rocketLeagueRunning: nextRl,
     rlConnected: nextConn,
+    riotClientRunning: heartbeatRiotClientRunning,
     inMatch: nextInMatch,
   };
   processStateListeners.forEach((fn) => {
@@ -366,6 +381,10 @@ async function heartbeatTick() {
       lastSuccessAt = Date.now();
       failStreak = 0;
       connectAttempts = 0;
+      if (!bridgeReadyMarked) {
+        bridgeReadyMarked = true;
+        markBoot('bridge-ready');
+      }
       if (reconnecting) {
         reconnecting = false;
         notifyBridgeResumed();
@@ -447,6 +466,7 @@ export function stopBridgeHeartbeat() {
   heartbeatValorantProcessRunning = null;
   heartbeatRocketLeagueRunning = null;
   heartbeatRlConnected = null;
+  heartbeatRiotClientRunning = null;
   heartbeatInMatch = null;
   setBridgeOnline(false);
   emitReachableIfChanged();
