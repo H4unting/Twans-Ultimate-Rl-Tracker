@@ -318,7 +318,7 @@ export function startBridge(options = {}) {
       }
 
       if (urlPath === '/status') {
-        const processes = await getGameProcessState();
+        const processes = await getGameProcessState(true);
         const payload = {
           rlConnected,
           inMatch,

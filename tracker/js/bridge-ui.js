@@ -187,6 +187,13 @@ function renderValorantPill(el, valStatus, meta) {
   }
 
   if (!valStatus) {
+    if (valProcessRunning) {
+      applyUnifiedStatusLabel(el, 'playing', playingLabel(GAME_IDS.VALORANT));
+      el.textContent = formatStatusPill('playing', GAME_IDS.VALORANT);
+      el.title = playingLabel(GAME_IDS.VALORANT);
+      el.dataset.bridgeState = 'in-match';
+      return;
+    }
     applyUnifiedStatusLabel(el, 'connecting', `${DESKTOP_APP.name} — checking Valorant link`);
     el.textContent = formatStatusPill('connecting');
     el.dataset.bridgeState = 'syncing';
@@ -228,6 +235,16 @@ function renderValorantPill(el, valStatus, meta) {
     return;
   }
 
+  if (valProcessRunning) {
+    applyUnifiedStatusLabel(el, 'playing', playingLabel(GAME_IDS.VALORANT));
+    el.textContent = formatStatusPill('playing', GAME_IDS.VALORANT);
+    el.title = isAutoLogEnabled()
+      ? `${playingLabel(GAME_IDS.VALORANT)} — finished matches save in 1–3 min`
+      : playingLabel(GAME_IDS.VALORANT);
+    el.dataset.bridgeState = 'in-match';
+    return;
+  }
+
   if (isRiotClientOnlyWaiting() && !valProcessRunning) {
     applyUnifiedStatusLabel(el, 'waiting', waitingForGameLabel(GAME_IDS.VALORANT));
     el.textContent = formatStatusPill('waiting', GAME_IDS.VALORANT);
@@ -257,13 +274,7 @@ function renderValorantPill(el, valStatus, meta) {
     return;
   }
 
-  if (valProcessRunning) {
-    applyUnifiedStatusLabel(el, 'playing', playingLabel(GAME_IDS.VALORANT));
-    el.textContent = formatStatusPill('playing', GAME_IDS.VALORANT);
-    el.title = isAutoLogEnabled()
-      ? `${playingLabel(GAME_IDS.VALORANT)} — finished matches save in 1–3 min`
-      : playingLabel(GAME_IDS.VALORANT);
-  } else if (isAutoLogEnabled()) {
+  if (isAutoLogEnabled()) {
     applyUnifiedStatusLabel(el, 'waiting', waitingForGameLabel(GAME_IDS.VALORANT));
     el.textContent = formatStatusPill('waiting', GAME_IDS.VALORANT);
   } else {

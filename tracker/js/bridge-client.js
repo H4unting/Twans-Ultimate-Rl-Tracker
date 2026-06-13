@@ -140,6 +140,8 @@ async function probeDirectBridge() {
     try {
       const json = await res.json();
       if (json.authToken) bridgeAuthToken = json.authToken;
+      updateHeartbeatGameProcess(json);
+      noteBridgeStatus(json);
     } catch { /* ignore */ }
     return true;
   } catch {

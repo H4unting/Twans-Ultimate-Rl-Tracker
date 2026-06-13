@@ -198,6 +198,7 @@ export function startGameTracking() {
     if (online) void startupProbe();
   });
   unsubProcess = subscribeBridgeProcessState(onProcessChange);
+  void startupProbe();
 
   if (typeof document !== 'undefined') {
     document.addEventListener('match-end-pending', () => refreshTrackingUI());
