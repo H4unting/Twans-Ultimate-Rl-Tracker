@@ -1,6 +1,6 @@
 @echo off
 REM =============================================================================
-REM DEVELOPER ONLY — Build script for developers packaging the desktop app
+REM DEVELOPER ONLY - Build script for developers packaging the desktop app
 REM =============================================================================
 title Build Twans Ultimate Tracker
 cd /d "%~dp0"
@@ -14,6 +14,8 @@ if errorlevel 1 (
 
 echo.
 echo  Building Twans Ultimate Tracker desktop app...
+echo  Close Twans Ultimate Tracker before building if a previous build failed
+echo  with "The process cannot access the file" on app.asar.
 echo.
 
 if not exist "node_modules" (
@@ -36,6 +38,9 @@ exit /b 0
 
 :fail
 echo.
-echo  Build failed.
+echo  Build failed. Close Twans Ultimate Tracker and any copy running from
+echo  tools\launcher\dist, then run this script again.
+echo.
 pause
 exit /b 1
+

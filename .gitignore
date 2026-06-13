@@ -15,3 +15,5 @@ tools/launcher/dist/
 launcher/node_modules/
 launcher/dist/
 *.log
+tools/launcher/.build-output-dir
+tools/launcher/dist-build-*

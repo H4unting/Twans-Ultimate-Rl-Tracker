@@ -3,13 +3,27 @@
 const fs = require('fs');
 const path = require('path');
 
-const built = path.join(__dirname, '..', 'dist', 'Twans Ultimate Tracker.exe');
-const dest = path.join(__dirname, '..', '..', '..', 'Twans Ultimate Tracker.exe');
-const legacyDest = path.join(__dirname, '..', '..', '..', 'Twans Auto-Log.exe');
-const legacyDest2 = path.join(__dirname, '..', '..', '..', 'Twans-Tracker-Bridge.exe');
+const launcherRoot = path.join(__dirname, '..');
+const markerFile = path.join(launcherRoot, '.build-output-dir');
+let outputDir = 'dist';
+if (fs.existsSync(markerFile)) {
+  const v = fs.readFileSync(markerFile, 'utf8').trim();
+  if (v) outputDir = v;
+}
+
+const built = path.join(launcherRoot, outputDir, 'Twans Ultimate Tracker.exe');
+const dest = path.join(launcherRoot, '..', '..', 'Twans Ultimate Tracker.exe');
+const legacyDest = path.join(launcherRoot, '..', '..', 'Twans Auto-Log.exe');
+const legacyDest2 = path.join(launcherRoot, '..', '..', 'Twans-Tracker-Bridge.exe');
 
 if (!fs.existsSync(built)) {
   console.error('Build output not found:', built);
+  if (outputDir !== 'dist') {
+    const fallback = path.join(launcherRoot, 'dist', 'Twans Ultimate Tracker.exe');
+    if (fs.existsSync(fallback)) {
+      console.error('(Also checked default dist path:', fallback + ')');
+    }
+  }
   process.exit(1);
 }
 

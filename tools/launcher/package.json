@@ -7,9 +7,9 @@
   "private": true,
   "scripts": {
     "generate-icon": "node scripts/generate-icon.mjs",
-    "prebuild": "node scripts/generate-icon.mjs",
+    "prebuild": "node scripts/prepare-build.cjs && node scripts/generate-icon.mjs",
     "start": "electron .",
-    "build": "electron-builder --win portable nsis",
+    "build": "node scripts/electron-build.cjs",
     "build:portable": "electron-builder --win portable",
     "build:installer": "electron-builder --win nsis",
     "postbuild": "node scripts/copy-exe.cjs"
