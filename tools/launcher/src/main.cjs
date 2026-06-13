@@ -136,8 +136,13 @@ function findDataRoot() {
 function findTrackerRoot(dataRoot) {
   const bundled = path.join(process.resourcesPath, 'tracker-app');
   if (fs.existsSync(path.join(bundled, 'index.html'))) return bundled;
+  const devTracker = path.resolve(__dirname, '..', '..', '..', 'tracker');
+  if (fs.existsSync(path.join(devTracker, 'index.html'))) return devTracker;
+  if (fs.existsSync(path.join(dataRoot, 'tracker', 'index.html'))) {
+    return path.join(dataRoot, 'tracker');
+  }
   if (fs.existsSync(path.join(dataRoot, 'index.html'))) return dataRoot;
-  return dataRoot;
+  return devTracker;
 }
 
 function findBridgeScriptsDir(dataRoot) {

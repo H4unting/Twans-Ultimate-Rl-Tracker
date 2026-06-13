@@ -9,7 +9,7 @@ Rocket League + Valorant grind tracker — **premium Windows desktop app** with 
 | You want… | Start here |
 |-----------|------------|
 | **Play on your PC (auto-log)** | Install **`TwansUltimateTrackerSetup.exe`** or run **`Twans Ultimate Tracker.exe`** |
-| **Bookmark + manual logging only** | https://h4unting.github.io/Twans-Ultimate-Rl-Tracker/ |
+| **Download page** | https://h4unting.github.io/Twans-Ultimate-Rl-Tracker/ |
 | **Full desktop vision & roadmap** | **[docs/DESKTOP-VISION.md](docs/DESKTOP-VISION.md)** |
 | **Player setup help** | **[docs/USER-SETUP.md](docs/USER-SETUP.md)** |
 
@@ -39,4 +39,8 @@ Folder map: **[docs/STRUCTURE.md](docs/STRUCTURE.md)**
 
 ## Root folder (keep it simple)
 
-Launchers and the web app shell live at the top level. Keys and logs go in **`config/`**. Docs and extras live under **`docs/`**, **`integrations/`**, and **`tools/`**.
+**Public website:** root `index.html` + `css/download.css` — download landing for GitHub Pages.
+
+**Desktop app:** `tracker/` — full SPA bundled into Electron (`twans://app/index.html`).
+
+Launchers and bridge scripts live at the top level. Keys and logs go in **`config/`** at runtime. Docs and extras live under **`docs/`**, **`integrations/`** (in `tracker/`), and **`tools/`**.

@@ -6,7 +6,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const version = JSON.parse(fs.readFileSync(path.join(root, 'version.json'), 'utf8'));
+const trackerRoot = path.join(root, 'tracker');
+const version = JSON.parse(fs.readFileSync(path.join(trackerRoot, 'version.json'), 'utf8'));
 const cache = version.cache;
 
 if (!cache) {
@@ -14,12 +15,12 @@ if (!cache) {
   process.exit(1);
 }
 
-const htmlPath = path.join(root, 'index.html');
+const htmlPath = path.join(trackerRoot, 'index.html');
 let html = fs.readFileSync(htmlPath, 'utf8');
 html = html.replace(/\?v=[^"']+/g, `?v=${cache}`);
 fs.writeFileSync(htmlPath, html);
 
-const versionJsPath = path.join(root, 'js/core/version.js');
+const versionJsPath = path.join(trackerRoot, 'js/core/version.js');
 if (fs.existsSync(versionJsPath)) {
   let versionJs = fs.readFileSync(versionJsPath, 'utf8');
   versionJs = versionJs.replace(

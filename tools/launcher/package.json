@@ -40,18 +40,10 @@
         ]
       },
       {
-        "from": "../..",
+        "from": "../../tracker",
         "to": "tracker-app",
         "filter": [
-          "index.html",
-          "js/**/*",
-          "css/**/*",
-          "assets/**/*",
-          "public/**/*",
-          "legal/**/*",
-          "config/**/*",
-          "vendor/**/*",
-          "integrations/**/*"
+          "**/*"
         ]
       }
     ],

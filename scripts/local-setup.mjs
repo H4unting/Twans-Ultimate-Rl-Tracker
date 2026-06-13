@@ -203,7 +203,7 @@ export function getSetupStatus() {
     paths: {
       trackerRoot: ROOT,
       configDir: CONFIG_DIR,
-      overwolfExtension: path.join(ROOT, 'integrations', 'overwolf'),
+      overwolfExtension: path.join(ROOT, 'tracker', 'integrations', 'overwolf'),
       grindConfig: CONFIG_FILE,
       grindConfigExists: fs.existsSync(CONFIG_FILE),
       startGrindBat: path.join(ROOT, RL_LAUNCHER_BAT),

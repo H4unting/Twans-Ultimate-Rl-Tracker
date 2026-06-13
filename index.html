@@ -1,673 +1,98 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Twans Ultimate Tracker</title>
-<link rel="stylesheet" href="css/styles.css?v=20260602e">
-<link rel="stylesheet" href="css/valorant-theme.css?v=20260602e">
-<link rel="stylesheet" href="css/layout-polish.css?v=20260602e">
-<link rel="stylesheet" href="css/v0-design-system.css?v=20260602e">
-<link rel="stylesheet" href="css/dashboard-v0.css?v=20260602e">
-<link rel="stylesheet" href="css/legal.css?v=20260602e">
-<script>
-(function () {
-  function markDomContentLoaded() {
-    (window.__BOOT_MARKS = window.__BOOT_MARKS || []).push({ phase: 'dom-content-loaded', ms: 0 });
-    console.info('[boot +0ms] dom-content-loaded');
-  }
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', markDomContentLoaded);
-  } else {
-    markDomContentLoaded();
-  }
-
-  if (location.hash.includes('access_token=')) {
-    document.documentElement.classList.add('oauth-callback');
-    document.addEventListener('DOMContentLoaded', function () {
-      var span = document.querySelector('#loading-overlay span');
-      if (span) span.textContent = 'Finishing sign-in…';
-    });
-    return;
-  }
-  try {
-    var raw = localStorage.getItem('twans-profile-cache');
-    if (!raw) return;
-    var parsed = JSON.parse(raw);
-    if (!parsed || !parsed.profile) return;
-
-    function safeAvatarUrl(url) {
-      if (!url || typeof url !== 'string') return null;
-      try {
-        var u = new URL(url, location.href);
-        if (u.protocol === 'https:' || u.protocol === 'http:') return u.href;
-      } catch (e) { /* ignore */ }
-      return null;
-    }
-
-    function paintInlineShell() {
-      document.body.classList.remove('is-loading', 'logged-out');
-      var login = document.getElementById('login-screen');
-      var shell = document.getElementById('app-shell');
-      if (login) login.classList.add('hidden');
-      if (shell) shell.classList.remove('hidden');
-
-      var hero = document.getElementById('dash-hero');
-      if (hero) {
-        hero.innerHTML = '<div class="dash-empty dash-shell-loading" aria-busy="true">Loading your stats…</div>';
-      }
-
-      var bar = document.getElementById('user-bar');
-      var profile = parsed.profile;
-      if (bar && profile && profile.display_name) {
-        bar.textContent = '';
-        var profileBtn = document.createElement('button');
-        profileBtn.type = 'button';
-        profileBtn.className = 'user-bar-profile';
-        profileBtn.id = 'user-bar-profile';
-        profileBtn.setAttribute('aria-label', 'Open profile');
-        var avatarUrl = safeAvatarUrl(profile.avatar_url);
-        if (avatarUrl) {
-          var img = document.createElement('img');
-          img.className = 'user-avatar';
-          img.src = avatarUrl;
-          img.alt = '';
-          profileBtn.appendChild(img);
-        } else {
-          var fallback = document.createElement('span');
-          fallback.className = 'user-avatar user-avatar-fallback';
-          fallback.textContent = profile.display_name.charAt(0) || '?';
-          profileBtn.appendChild(fallback);
-        }
-        var name = document.createElement('span');
-        name.className = 'user-name';
-        name.textContent = profile.display_name;
-        profileBtn.appendChild(name);
-        var caret = document.createElement('span');
-        caret.className = 'user-bar-caret';
-        caret.setAttribute('aria-hidden', 'true');
-        caret.textContent = '▼';
-        profileBtn.appendChild(caret);
-        bar.appendChild(profileBtn);
-        var signOut = document.createElement('button');
-        signOut.className = 'btn-signout';
-        signOut.type = 'button';
-        signOut.id = 'sign-out-btn';
-        signOut.textContent = 'Sign out';
-        bar.appendChild(signOut);
-      }
-
-      window.__INLINE_SHELL_PAINTED = true;
-      (window.__BOOT_MARKS = window.__BOOT_MARKS || []).push({ phase: 'inline-shell-visible', ms: 0 });
-      console.info('[boot +0ms] inline-shell-visible');
-    }
-
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', paintInlineShell);
-    } else {
-      paintInlineShell();
-    }
-  } catch (e) { /* quota / private mode */ }
-})();
-</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Twans Ultimate Tracker — premium desktop grind tracker for Rocket League and Valorant. Auto-log sessions, rank progress, and cloud sync.">
+  <title>Twans Ultimate Tracker — Download for Windows</title>
+  <link rel="icon" type="image/png" href="assets/brand/logo-master.png">
+  <link rel="stylesheet" href="css/download.css">
 </head>
-<body class="is-loading logged-out">
-
-<div class="loading-overlay" id="loading-overlay">
-  <div class="loading-spinner"></div>
-  <span>Loading tracker...</span>
-</div>
-
-<!-- LOGIN -->
-<div id="login-screen" class="login-screen hidden">
-  <div class="login-card">
-    <div class="logo login-logo">Twans <span>Ultimate Tracker</span></div>
-    <p class="login-tagline">Track Rocket League &amp; Valorant in one place.<br>Sign in once — log, stats, and squads sync everywhere.</p>
-    <p id="boot-failure-note" class="login-boot-error hidden" role="alert"></p>
-
-    <form id="email-login-form" class="login-email-form" autocomplete="on">
-      <div class="form-group login-field">
-        <label for="login-email">Email</label>
-        <input type="email" id="login-email" name="email" autocomplete="email" required placeholder="you@example.com">
-      </div>
-      <div class="form-group login-field">
-        <label for="login-password">Password</label>
-        <input type="password" id="login-password" name="password" autocomplete="current-password" minlength="6" required placeholder="At least 6 characters">
-      </div>
-      <button type="submit" class="btn btn-primary login-submit-btn" id="email-auth-btn">Sign in with email</button>
-    </form>
-    <div class="login-auth-links">
-      <button type="button" class="btn-link login-mode-toggle" id="login-mode-toggle">Need an account? Create one</button>
-      <button type="button" class="btn-link login-forgot-btn" id="login-forgot-btn">Forgot password?</button>
-    </div>
-
-    <div class="login-divider" aria-hidden="true"><span>or</span></div>
-
-    <button class="btn-google" type="button" id="google-signin-btn">
-      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.07 13.09 17.62 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.56 2.95-2.26 5.48-4.78 7.18l7.73 6.01C42.44 39.24 46.98 32.55 46.98 24.55z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6.01c-2.15 1.45-4.92 2.3-8.16 2.3-6.38 0-11.79-4.29-13.71-10.09l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-      Sign in with Google
-    </button>
-    <footer class="login-legal-footer">
-      <nav aria-label="Legal">
-        <a href="legal/privacy.html">Privacy Policy</a>
-        <a href="legal/terms.html">Terms of Service</a>
-        <a href="legal/disclaimer.html">Disclaimer</a>
-      </nav>
-      <p>By signing in, you agree to our Terms and acknowledge our Privacy Policy.</p>
-    </footer>
-  </div>
-</div>
-
-<!-- APP -->
-<div id="app-shell" class="hidden">
-  <header class="top-bar v0-topbar">
-    <div class="top-bar-head v0-topbar-inner">
-      <div class="v0-brand">
-        <button type="button" class="v0-brand-home logo-home-btn" id="logo-home-btn" aria-label="Go to Dashboard">
-          <span class="v0-brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2l2.6 6.3L21 9l-5 4.2L17.4 20 12 16.4 6.6 20 8 13.2 3 9l6.4-.7z" fill="currentColor"/></svg>
-          </span>
-          <span class="v0-brand-text">
-            <span class="v0-brand-title">TWANS<span class="v0-brand-accent"> ULTIMATE</span></span>
-            <span class="v0-brand-sub">Tracker</span>
-          </span>
-        </button>
-      </div>
-      <div class="game-switcher v0-game-switch" id="game-switcher" role="group" aria-label="Game"></div>
-      <div class="top-bar-meta v0-topbar-actions">
-        <div class="sync-status">
-          <div class="sync-dot" id="sync-dot"></div>
-          <span id="sync-label">Connecting...</span>
-        </div>
-        <button type="button" class="top-profile-btn" id="top-profile-btn">Profile</button>
-      </div>
-      <div class="user-bar" id="user-bar"></div>
-    </div>
-    <div class="v0-mobile-game-switch" id="v0-mobile-game-switch" role="group" aria-label="Game"></div>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/">
+      <img src="assets/brand/logo-master.png" alt="" width="36" height="36">
+      TWANS <span>ULTIMATE</span>
+    </a>
+    <nav class="header-links" aria-label="Site">
+      <a href="#features">Features</a>
+      <a href="https://github.com/H4unting/Twans-Ultimate-Rl-Tracker/blob/main/docs/USER-SETUP.md">Setup guide</a>
+      <a href="https://github.com/H4unting/Twans-Ultimate-Rl-Tracker">GitHub</a>
+    </nav>
   </header>
 
-  <div class="v0-app-layout">
-    <aside class="v0-sidebar" aria-label="Sidebar">
-      <nav class="main-nav tabs v0-sidebar-nav" id="main-nav" aria-label="Main navigation"></nav>
-      <nav class="sub-nav review-sub-nav v0-sidebar-sub hidden" id="review-sub-nav" aria-label="Review pages"></nav>
-    </aside>
-
-    <div class="v0-main app-main">
-  <div id="bridge-hint-banner" class="bridge-hint-banner hidden">
-    <div class="bridge-hint-inner">
-      <span class="bridge-hint-badge">Auto-log off</span>
-      <p>Double-click <strong>Twans Ultimate Tracker</strong> on this PC while playing for automatic stats. <button type="button" class="btn-link bridge-hint-link" id="bridge-hint-setup-link">Auto-Log Setup →</button></p>
-    </div>
-  </div>
-
-  <!-- DASHBOARD / HOME -->
-  <div id="page-dashboard" class="page active dash-page">
-    <section id="dash-hero" class="dash-hero v0-glass" aria-label="Overview"></section>
-
-    <section id="dash-quick-actions" class="dash-quick-actions dash-quick-actions-compact" aria-label="Quick actions"></section>
-
-    <section id="dash-rank-progress" class="dash-section v0-glass dash-rank-featured" aria-label="Rank progress"></section>
-
-    <section class="dash-priority-row" aria-label="Session and focus">
-      <section id="dash-session-panel" class="dash-section v0-glass dash-session-featured"></section>
-      <div id="home-focus" class="dash-focus-slot"></div>
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <h1>Your grind, <em>tracked</em> — on desktop.</h1>
+        <p class="hero-lead">
+          Twans Ultimate Tracker is a native Windows app for Rocket League and Valorant.
+          Auto-log matches, track rank progress, and sync across devices — no browser tabs required.
+        </p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="https://github.com/H4unting/Twans-Ultimate-Rl-Tracker/releases/latest" id="download-installer">
+            Download for Windows
+          </a>
+          <a class="btn btn-secondary" href="https://github.com/H4unting/Twans-Ultimate-Rl-Tracker/releases/latest" id="download-portable">
+            Portable EXE
+          </a>
+        </div>
+        <p class="cta-note">
+          Requires Windows 10/11 ·
+          <a href="https://github.com/H4unting/Twans-Ultimate-Rl-Tracker/blob/main/docs/DESKTOP-INSTALL.md">Smart App Control note</a>
+        </p>
+      </div>
+      <div class="hero-visual">
+        <div class="hero-card">
+          <img src="assets/brand/logo-master.png" alt="Twans Ultimate Tracker">
+          <h2>Install → Sign in → Play</h2>
+          <p>Runs in the system tray. Auto-log starts when your game does. Close the window — tracking keeps going.</p>
+        </div>
+      </div>
     </section>
 
-    <div class="dash-grid">
-      <div class="dash-col-main">
-        <section id="dash-performance" class="dash-section v0-glass dash-performance-secondary">
-          <div class="dash-section-head">
-            <h2 class="dash-section-title"><span class="dash-section-icon">📈</span> Recent Performance</h2>
-            <span class="dash-stat-label" id="dash-perf-mode-label">Current playlist</span>
-          </div>
-          <div class="dash-perf-grid" id="dash-perf-stats"></div>
-          <div class="dash-perf-charts">
-            <div class="home-charts-row rl-only">
-              <p class="home-charts-label" id="home-charts-label"></p>
-              <div class="home-charts-inner">
-                <div class="home-chart-box"><canvas id="homeMMR"></canvas></div>
-                <div class="home-chart-box home-chart-wl"><canvas id="homeWL"></canvas></div>
-              </div>
-            </div>
-            <div class="val-charts-row hidden" data-game-ui="valorant">
-              <p class="val-charts-label" id="val-charts-label"></p>
-              <div class="val-charts-inner">
-                <div class="val-chart-box"><canvas id="valHomeRR"></canvas></div>
-                <div class="val-chart-box"><canvas id="valHomeWL"></canvas></div>
-              </div>
-            </div>
-          </div>
-        </section>
+    <section class="features" id="features">
+      <h2>Built for the grind</h2>
+      <div class="feature-grid">
+        <article class="feature">
+          <div class="feature-icon" aria-hidden="true">⚡</div>
+          <h3>Auto-log</h3>
+          <p>Detects Rocket League and Valorant sessions locally. Matches log in the background while you play.</p>
+        </article>
+        <article class="feature">
+          <div class="feature-icon" aria-hidden="true">📈</div>
+          <h3>Rank &amp; RR tracking</h3>
+          <p>MMR chains, rank progress, and session stats — RL and Valorant in one premium dashboard.</p>
+        </article>
+        <article class="feature">
+          <div class="feature-icon" aria-hidden="true">☁️</div>
+          <h3>Cloud sync</h3>
+          <p>Sign in once. Your grind data syncs via Supabase so you never lose progress.</p>
+        </article>
       </div>
+    </section>
 
-      <div class="dash-col-side">
-        <section id="dash-activity" class="dash-section v0-glass dash-activity-secondary" aria-label="Recent matches">
-          <div class="dash-recent-head">
-            <h2 class="dash-section-title"><span class="dash-section-icon">🕹</span> Recent Matches</h2>
-            <button type="button" class="section-link" id="dash-view-all-logs">View all →</button>
-          </div>
-          <div id="val-match-feed" class="val-match-feed"></div>
-          <div id="home-activity" class="home-activity"></div>
-        </section>
-      </div>
-    </div>
-
-    <!-- Legacy sinks (JS clears these) -->
-    <div id="val-dashboard" class="sr-only" aria-hidden="true"></div>
-    <div id="home-summary" class="sr-only" aria-hidden="true"></div>
-    <div id="home-context" class="sr-only" aria-hidden="true"></div>
-  </div>
-
-  <!-- LOG GAME + MATCH HISTORY -->
-  <div id="page-log" class="page">
-    <div class="log-page-header">
-      <div>
-        <h2 class="page-heading">Match Logs</h2>
-        <p class="page-desc">Log games from the dock below — filter, edit, or delete any match in your history.</p>
-      </div>
-    </div>
-    <div id="log-setup-nudge" class="log-setup-nudge hidden"></div>
-
-    <div class="log-history-section" id="log-match-history">
-      <div class="log-page-header log-page-header-row">
+    <section class="docs-strip">
+      <div class="docs-card">
         <div>
-          <p class="section-title">Match history</p>
-          <p class="page-desc">Filter, edit, or delete any logged game.</p>
+          <h3>First time setup</h3>
+          <p>Player guide, onboarding, and troubleshooting for the desktop app.</p>
         </div>
-        <div class="log-history-actions">
-          <button type="button" class="btn btn-cancel btn-sm hidden" id="matchlogs-purge-ghosts-btn">Remove invalid logs</button>
-          <button type="button" class="btn btn-cancel btn-sm hidden" id="matchlogs-dedupe-btn">Remove duplicates</button>
-          <button type="button" class="btn btn-cancel btn-sm hidden" id="matchlogs-clear-val-btn">Clear all Val history</button>
-          <button type="button" class="btn btn-secondary btn-sm" id="matchlogs-export-btn">Export CSV</button>
+        <div class="docs-links">
+          <a href="https://github.com/H4unting/Twans-Ultimate-Rl-Tracker/blob/main/docs/USER-SETUP.md">User setup</a>
+          <a href="https://github.com/H4unting/Twans-Ultimate-Rl-Tracker/blob/main/docs/DESKTOP-INSTALL.md">Desktop install &amp; SAC</a>
+          <a href="https://github.com/H4unting/Twans-Ultimate-Rl-Tracker/releases">All releases</a>
         </div>
       </div>
-      <div id="matchlogs-quick-filters"></div>
-      <div id="matchlogs-filters"></div>
-      <div class="table-wrap log-history-table-wrap">
-        <table class="log-table" id="log-history-table"></table>
-      </div>
-    </div>
+    </section>
+  </main>
 
-    <details class="full-log-details" id="full-log-form">
-      <summary>Full log form — all fields</summary>
-    <div class="add-form">
-      <div class="form-grid">
-        <div class="form-group"><label for="f-date">Date</label><input type="date" id="f-date"></div>
-        <div class="form-group"><label for="f-session">Session #</label><input type="number" id="f-session" min="1" value="1"></div>
-        <div class="form-group"><label for="f-mode">Mode</label>
-          <select id="f-mode"><option>1's</option><option>2's</option><option>3's</option></select>
-        </div>
-        <div class="form-group"><span class="label-text" id="f-result-label">Result</span>
-          <div class="wl-toggle" role="group" aria-labelledby="f-result-label">
-            <button class="wl-btn win active" id="wl-win" type="button">WIN</button>
-            <button class="wl-btn loss" id="wl-loss" type="button">LOSS</button>
-          </div>
-        </div>
-        <div class="form-group"><label for="f-goals">Goals</label><input type="number" id="f-goals" min="0" value="0"></div>
-        <div class="form-group"><label for="f-assists">Assists</label><input type="number" id="f-assists" min="0" value="0"></div>
-        <div class="form-group"><label for="f-saves">Saves</label><input type="number" id="f-saves" min="0" value="0"></div>
-        <div class="form-group hidden" data-game-ui="valorant"><label for="f-agent">Agent</label>
-          <select id="f-agent"><option value="">—</option></select></div>
-        <div class="form-group hidden" data-game-ui="valorant"><label for="f-map">Map</label>
-          <select id="f-map"><option value="">—</option></select></div>
-        <div class="form-group hidden" data-game-ui="valorant"><label for="f-startrank">Start rank</label><select id="f-startrank" aria-label="Start rank"></select></div>
-        <div class="form-group"><label for="f-startmmr">Starting MMR</label><input type="number" id="f-startmmr" min="0" max="100"></div>
-        <div class="form-group hidden" data-game-ui="valorant"><label for="f-endrank">End rank</label><select id="f-endrank" aria-label="End rank"></select></div>
-        <div class="form-group"><label for="f-endmmr">Ending MMR</label><input type="number" id="f-endmmr" min="0"></div>
-      </div>
-      <div id="log-tags"></div>
-      <div class="form-group form-notes"><label for="f-notes">Notes (optional)</label>
-        <input type="text" id="f-notes" placeholder="Any notes...">
-      </div>
-      <button class="btn btn-primary" id="add-btn" type="button">+ Log Game</button>
-    </div>
-    </details>
-  </div>
-
-  <!-- AUTO TRACKER SETUP -->
-  <div id="page-setup" class="page">
-    <div class="log-page-header">
-      <h2 class="page-heading">Auto Tracker Setup</h2>
-      <p class="page-desc">One-time setup on your PC — keep Twans Ultimate Tracker running while you play for automatic stats.</p>
-    </div>
-    <div id="setup-wizard"></div>
-    <div id="setup-diagnostics"></div>
-  </div>
-
-  <!-- PROFILE -->
-  <div id="page-profile" class="page">
-    <div id="profile-content"></div>
-  </div>
-
-  <!-- SESSION HISTORY -->
-  <div id="page-sessions" class="page">
-    <div class="log-page-header">
-      <h2 class="page-heading">Session History</h2>
-      <p class="page-desc">Every grind block — games, W/L, MMR change, and top mistake tags.</p>
-    </div>
-    <div id="sessions-content"></div>
-  </div>
-
-  <!-- ANALYTICS -->
-  <div id="page-analytics" class="page">
-    <div class="log-page-header">
-      <h2 class="page-heading">Analytics</h2>
-      <p class="page-desc">Stats, trends, and coaching insights.</p>
-    </div>
-    <div class="playlist-tabs" id="pl-tabs"></div>
-    <div class="stat-grid" id="analytics-stats"></div>
-    <div class="chart-row">
-      <div class="chart-box"><canvas id="dashMMR"></canvas></div>
-      <div class="chart-box"><canvas id="dashWL"></canvas></div>
-    </div>
-    <div id="analytics-filters"></div>
-    <div id="action-items"></div>
-    <p class="section-title">Insights</p>
-    <div class="insight-grid insight-grid-compact" id="insight-cards"></div>
-    <div id="coach-report"></div>
-    <div id="analytics-lock" class="hidden"></div>
-    <p class="section-title">Trends</p>
-    <div class="analytics-grid analytics-grid-compact" id="analytics-content"></div>
-    <div id="analytics-charts-wrap">
-      <p class="section-title section-title-sm">Rolling Win Rate</p>
-      <div class="chart-box chart-box-sm"><canvas id="rollingChart"></canvas></div>
-      <p class="section-title section-title-sm">Tag Trends (per 5 games)</p>
-      <div class="chart-box chart-box-sm"><canvas id="trendChart"></canvas></div>
-    </div>
-  </div>
-
-  <!-- REPORTS -->
-  <div id="page-reports" class="page">
-    <p class="section-title">Weekly Reports</p>
-    <div class="reports-week-nav" id="reports-week-nav"></div>
-    <div class="reports-weekly-grid" id="reports-weekly"></div>
-    <p class="section-title">Goals</p>
-    <div class="goals-editor" id="goals-editor"></div>
-  </div>
-
-  <!-- FOCUS (personal coaching) -->
-  <div id="page-focus" class="page">
-    <div class="log-page-header">
-      <h2 class="page-heading">Focus</h2>
-      <p class="page-desc">What to work on — auto-generated from your tagged mistakes.</p>
-    </div>
-    <div id="focus-content"></div>
-  </div>
-
-  <!-- GROUP -->
-  <div id="page-group" class="page">
-    <div id="group-content"></div>
-  </div>
-
-  <!-- QUICK LOG DOCK -->
-  <div id="quick-dock" class="quick-dock hidden" aria-label="Quick log">
-    <div id="post-match-card" class="post-match-card hidden" aria-live="polite"></div>
-    <button type="button" class="quick-dock-collapsed-tab" id="quick-dock-expand-btn" aria-label="Show log bar">
-      <span id="quick-dock-collapsed-label">Log</span>
-      <span class="quick-dock-expand-icon">▲</span>
-    </button>
-    <div class="quick-dock-inner">
-      <button type="button" class="quick-dock-minimize-row" id="dock-collapse-btn" title="Hide log bar">
-        <span class="quick-dock-minimize-grip"></span>
-        <span class="quick-dock-minimize-label">Hide log bar</span>
-      </button>
-      <div class="quick-dock-session session-bar" id="session-bar">
-        <div class="session-live-dot" id="session-live-dot"></div>
-        <div class="session-bar-info">
-          <div class="session-bar-title" id="session-bar-title">No active session</div>
-          <div class="session-live-stats" id="session-live-stats"></div>
-          <div class="session-num-setter" id="session-num-setter">
-            <label class="session-num-label" for="dock-session-num">Session #</label>
-            <input type="number" id="dock-session-num" class="session-num-input" min="1" value="1" inputmode="numeric" aria-label="Session number">
-            <button type="button" class="session-num-btn" id="session-num-apply">Set</button>
-          </div>
-        </div>
-        <span class="live-bridge-status" id="live-bridge-status" title="Twans Ultimate Tracker — automatic stats from your game">Starting…</span>
-        <button type="button" class="session-play-btn" id="session-play-btn" title="Launch game and start tracking">▶ Play</button>
-        <button type="button" class="auto-log-toggle active" id="auto-log-toggle" aria-pressed="true" title="Auto-save games when a match ends">Auto-log</button>
-        <button type="button" class="auto-log-sound-toggle active" id="auto-log-sound-toggle" aria-pressed="true" title="Sound on auto-log">🔔</button>
-        <button type="button" class="session-btn start" id="session-start-btn">▶ Start Session</button>
-      </div>
-      <div class="quick-dock-body quick-dock-rl" data-dock-game="rocket_league">
-        <div class="quick-dock-mode">
-          <span class="quick-mode-label">Mode</span>
-          <div class="quick-mode-pills" id="quick-mode-pills-rl"></div>
-        </div>
-        <div class="quick-dock-main">
-          <div class="quick-wl">
-            <button type="button" class="quick-wl-btn win active" id="quick-wl-win" aria-label="Win">W</button>
-            <button type="button" class="quick-wl-btn loss" id="quick-wl-loss" aria-label="Loss">L</button>
-          </div>
-          <input type="number" id="quick-endmmr" class="quick-mmr-input" placeholder="End MMR" min="0" inputmode="numeric" aria-label="End rank">
-          <button type="button" class="quick-log-btn" id="quick-log-btn">LOG</button>
-        </div>
-        <div class="quick-dock-tags">
-          <span class="quick-tags-label">Tags <span class="quick-tags-optional">optional</span></span>
-          <div class="quick-tags" id="quick-tags-rl"></div>
-        </div>
-        <details class="quick-advanced-stats">
-          <summary>Advanced stats ▼</summary>
-          <div class="quick-stats-row">
-            <div class="quick-stat-bump">
-              <span class="qs-label">G</span>
-              <button type="button" class="qs-btn" data-stat="goals" data-delta="-1" aria-label="Fewer goals">−</button>
-              <span id="quick-goals-val" class="qs-val">0</span>
-              <button type="button" class="qs-btn" data-stat="goals" data-delta="1" aria-label="More goals">+</button>
-            </div>
-            <div class="quick-stat-bump">
-              <span class="qs-label">A</span>
-              <button type="button" class="qs-btn" data-stat="assists" data-delta="-1">−</button>
-              <span id="quick-assists-val" class="qs-val">0</span>
-              <button type="button" class="qs-btn" data-stat="assists" data-delta="1">+</button>
-            </div>
-            <div class="quick-stat-bump">
-              <span class="qs-label">S</span>
-              <button type="button" class="qs-btn" data-stat="saves" data-delta="-1">−</button>
-              <span id="quick-saves-val" class="qs-val">0</span>
-              <button type="button" class="qs-btn" data-stat="saves" data-delta="1">+</button>
-            </div>
-          </div>
-        </details>
-      </div>
-
-      <div class="quick-dock-body quick-dock-val hidden" data-dock-game="valorant">
-        <div class="quick-dock-mode">
-          <span class="quick-mode-label">Queue</span>
-          <div class="quick-mode-pills" id="quick-mode-pills-val"></div>
-        </div>
-        <div class="quick-dock-main">
-          <div class="quick-wl">
-            <button type="button" class="quick-wl-btn win active" id="quick-wl-win-val" aria-label="Win">W</button>
-            <button type="button" class="quick-wl-btn loss" id="quick-wl-loss-val" aria-label="Loss">L</button>
-          </div>
-          <select id="quick-agent" class="quick-val-select" aria-label="Agent">
-            <option value="">Agent</option>
-          </select>
-          <select id="quick-map" class="quick-val-select" aria-label="Map">
-            <option value="">Map</option>
-          </select>
-          <select id="quick-endrank" class="quick-val-select" aria-label="End rank"></select>
-          <input type="number" id="quick-endrr" class="quick-mmr-input" placeholder="End RR" min="0" inputmode="numeric" aria-label="End RR">
-          <button type="button" class="quick-log-btn" id="quick-log-btn-val">LOG</button>
-        </div>
-        <div class="quick-dock-tags">
-          <span class="quick-tags-label">Tags <span class="quick-tags-optional">optional</span></span>
-          <div class="quick-tags" id="quick-tags-val"></div>
-        </div>
-        <details class="quick-advanced-stats">
-          <summary>Advanced stats ▼</summary>
-          <div class="quick-stats-row">
-            <div class="quick-stat-bump">
-              <span class="qs-label">K</span>
-              <button type="button" class="qs-btn" data-stat="goals" data-delta="-1">−</button>
-              <span id="quick-val-kills" class="qs-val">0</span>
-              <button type="button" class="qs-btn" data-stat="goals" data-delta="1">+</button>
-            </div>
-            <div class="quick-stat-bump">
-              <span class="qs-label">D</span>
-              <button type="button" class="qs-btn" data-stat="assists" data-delta="-1">−</button>
-              <span id="quick-val-deaths" class="qs-val">0</span>
-              <button type="button" class="qs-btn" data-stat="assists" data-delta="1">+</button>
-            </div>
-            <div class="quick-stat-bump">
-              <span class="qs-label">A</span>
-              <button type="button" class="qs-btn" data-stat="saves" data-delta="-1">−</button>
-              <span id="quick-val-assists-display" class="qs-val">0</span>
-              <button type="button" class="qs-btn" data-stat="saves" data-delta="1">+</button>
-            </div>
-          </div>
-        </details>
-      </div>
-
-      <input type="hidden" id="quick-notes" value="">
-      <input type="hidden" id="quick-val-assists" value="0">
-    </div>
-      <div class="quick-dock-hint">Match ends → auto-log saves · confirm rank on the card if prompted · tap tags</div>
-  </div>
-
-  <div id="dock-footer-slot"></div>
-
-  <nav class="mobile-nav" id="mobile-nav" aria-label="Mobile navigation">
-    <button type="button" class="mobile-nav-btn active" data-page="dashboard"><span class="mobile-nav-icon" data-nav-icon="dashboard" aria-hidden="true"></span>Dashboard</button>
-    <button type="button" class="mobile-nav-btn mobile-nav-log" data-page="log"><span class="mobile-nav-icon" data-nav-icon="log" aria-hidden="true"></span>Match Logs</button>
-    <button type="button" class="mobile-nav-btn mobile-nav-sessions" data-page="sessions"><span class="mobile-nav-icon" data-nav-icon="sessions" aria-hidden="true"></span>Sessions</button>
-    <button type="button" class="mobile-nav-btn" data-section="review"><span class="mobile-nav-icon" data-nav-icon="review" aria-hidden="true"></span>Review</button>
-    <button type="button" class="mobile-nav-btn" data-section="squad"><span class="mobile-nav-icon" data-nav-icon="squad" aria-hidden="true"></span>Squad</button>
-  </nav>
-    </div><!-- /.v0-main -->
-    </div><!-- /.v0-app-layout -->
-
-  <footer class="app-legal-footer" id="app-legal-footer">
-    <nav aria-label="Legal">
-      <a href="legal/privacy.html">Privacy Policy</a>
-      <a href="legal/terms.html">Terms of Service</a>
-      <a href="legal/disclaimer.html">Disclaimer</a>
-    </nav>
-    <p>Twans Ultimate Tracker — independent project. Not affiliated with Riot Games, Psyonix, or Epic Games.</p>
+  <footer class="site-footer">
+    <p>
+      Twans Ultimate Tracker · Not affiliated with Psyonix, Epic Games, or Riot Games ·
+      <a href="https://github.com/H4unting/Twans-Ultimate-Rl-Tracker/blob/main/tracker/legal/privacy.html">Privacy</a> ·
+      <a href="https://github.com/H4unting/Twans-Ultimate-Rl-Tracker/blob/main/tracker/legal/terms.html">Terms</a>
+    </p>
   </footer>
-</div>
-
-<div class="modal-overlay" id="session-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-  <div class="modal">
-    <h2 id="modal-title">Session Complete</h2>
-    <div class="sub" id="modal-sub"></div>
-    <div class="modal-stats" id="modal-stats"></div>
-    <div class="modal-games-row" id="modal-games-row"></div>
-    <div class="modal-coach" id="modal-coach"></div>
-    <div class="modal-top-tag" id="modal-top-tag"></div>
-    <div class="modal-btn-row">
-      <button class="btn btn-cancel" type="button" onclick="goToDashboardFromSession()">Back to Dashboard</button>
-      <button class="btn btn-primary" type="button" onclick="startNextSession()">Start Next Session</button>
-    </div>
-  </div>
-</div>
-
-<div class="modal-overlay" id="onboarding-modal" role="dialog" aria-modal="true" aria-labelledby="onboarding-title">
-  <div class="modal rank-setup-modal onboarding-modal">
-    <div class="modal-header">
-      <h2 id="onboarding-title">Welcome — quick setup</h2>
-      <p class="modal-sub">Pick your games and set starting ranks so your first match logs correctly.</p>
-    </div>
-    <div id="onboarding-body" class="rank-setup-body"></div>
-    <div class="modal-actions">
-      <button type="button" class="btn btn-primary" id="onboarding-continue">Continue →</button>
-    </div>
-  </div>
-</div>
-
-<div class="modal-overlay" id="rank-setup-modal" role="dialog" aria-modal="true" aria-labelledby="rank-setup-title">
-  <div class="modal modal-rank-setup">
-    <h2 id="rank-setup-title">Set your current ranks</h2>
-    <div class="sub">One-time setup — used when you log your first games</div>
-    <div id="rank-setup-body" class="rank-setup-body"></div>
-    <div class="modal-btn-row">
-      <button type="button" class="btn btn-cancel" id="rank-setup-skip">Skip for now</button>
-      <button type="button" class="btn btn-primary" id="rank-setup-save">Save &amp; continue</button>
-    </div>
-  </div>
-</div>
-
-<div class="modal-overlay" id="edit-modal" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
-  <div class="modal">
-    <h2 id="edit-modal-title">Edit Game</h2>
-    <div class="sub" id="edit-modal-sub">Match #</div>
-    <div class="edit-form-grid">
-      <div class="form-group"><label for="e-date">Date</label><input type="date" id="e-date"></div>
-      <div class="form-group"><label for="e-session">Session #</label><input type="number" id="e-session" min="1"></div>
-      <div class="form-group"><label for="e-mode">Mode</label>
-        <select id="e-mode"></select>
-      </div>
-      <div class="form-group"><span class="label-text" id="e-result-label">Result</span>
-        <div class="edit-wl" role="group" aria-labelledby="e-result-label">
-          <button class="edit-wl-btn win active" id="e-wl-win" type="button">WIN</button>
-          <button class="edit-wl-btn loss" id="e-wl-loss" type="button">LOSS</button>
-        </div>
-      </div>
-      <div class="form-group" data-game-ui="rl"><label for="e-goals">Goals</label><input type="number" id="e-goals" min="0"></div>
-      <div class="form-group" data-game-ui="rl"><label for="e-assists">Assists</label><input type="number" id="e-assists" min="0"></div>
-      <div class="form-group" data-game-ui="rl"><label for="e-saves">Saves</label><input type="number" id="e-saves" min="0"></div>
-      <div class="form-group" data-game-ui="valorant"><label for="e-kills">Kills</label><input type="number" id="e-kills" min="0"></div>
-      <div class="form-group" data-game-ui="valorant"><label for="e-deaths">Deaths</label><input type="number" id="e-deaths" min="0"></div>
-      <div class="form-group" data-game-ui="valorant"><label for="e-val-assists">Assists</label><input type="number" id="e-val-assists" min="0"></div>
-      <div class="form-group" data-game-ui="valorant"><label for="e-agent">Agent</label>
-        <select id="e-agent"><option value="">—</option></select>
-      </div>
-      <div class="form-group" data-game-ui="valorant"><label for="e-map">Map</label>
-        <select id="e-map"><option value="">—</option></select>
-      </div>
-      <div class="form-group hidden" data-game-ui="valorant"><label for="e-startrank">Start rank</label><select id="e-startrank" aria-label="Start rank"></select></div>
-      <div class="form-group"><label for="e-startmmr" id="e-start-label">Starting MMR</label><input type="number" id="e-startmmr" max="100"></div>
-      <div class="form-group hidden" data-game-ui="valorant"><label for="e-endrank">End rank</label><select id="e-endrank" aria-label="End rank"></select></div>
-      <div class="form-group form-span-2"><label for="e-endmmr" id="e-end-label">Ending MMR</label><input type="number" id="e-endmmr"></div>
-    </div>
-    <div id="edit-tags"></div>
-    <div class="form-group form-notes"><label for="e-notes">Notes</label>
-      <input type="text" id="e-notes" placeholder="Notes...">
-    </div>
-    <div class="modal-btn-row">
-      <button class="btn btn-cancel" id="edit-cancel-btn" type="button">Cancel</button>
-      <button class="btn btn-primary" id="save-edit-btn" type="button">Save Changes</button>
-    </div>
-  </div>
-</div>
-
-<div class="toast" id="toast"></div>
-
-<script>
-  function friendlyBootMessage(raw) {
-    const message = String(raw || '');
-    if (/SyntaxError|Illegal return/i.test(message)) {
-      return 'The tracker could not load its scripts. Hard refresh (Ctrl+F5) or restart Twans Ultimate Tracker from the tray.';
-    }
-    return message || 'The tracker could not start. Hard refresh (Ctrl+F5) or check the browser console (F12).';
-  }
-  function showBootFailure(message) {
-    document.body.classList.remove('is-loading');
-    document.getElementById('login-screen')?.classList.remove('hidden');
-    const note = document.getElementById('boot-failure-note');
-    if (note) {
-      note.textContent = friendlyBootMessage(message);
-      note.classList.remove('hidden');
-    }
-  }
-  window.addEventListener('error', (e) => {
-    if (window.__appReady) return;
-    showBootFailure(e.message || 'Script failed to load');
-  });
-  window.addEventListener('unhandledrejection', (e) => {
-    if (window.__appReady) return;
-    showBootFailure(e.reason?.message || 'Startup failed');
-  });
-  setTimeout(() => {
-    if (window.__appReady) return;
-    const msg = !window.__appBootstrapped
-      ? 'Script failed to load — hard refresh (Ctrl+F5). If using Brave, allow scripts for this app.'
-      : 'Loading timed out — hard refresh (Ctrl+F5). If it keeps happening, check your internet or disable Brave Shields for this app.';
-    if (!window.__appBootstrapped || document.body.classList.contains('is-loading')) {
-      showBootFailure(msg);
-    }
-  }, 30000);
-</script>
-<script type="module" src="js/app.js?v=20260602e"></script>
 </body>
 </html>

@@ -62,8 +62,8 @@ if not exist "scripts\rl-bridge.mjs" (
   exit /b 1
 )
 
-if not exist "index.html" (
-  echo ERROR: Missing index.html - download the full tracker folder.
+if not exist "tracker\index.html" (
+  echo ERROR: Missing tracker\index.html - download the full tracker folder.
   pause
   exit /b 1
 )

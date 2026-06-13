@@ -40,8 +40,8 @@ if not exist "scripts\start-grind.mjs" (
   exit /b 1
 )
 
-if not exist "index.html" (
-  echo ERROR: Missing index.html — run from the full tracker folder.
+if not exist "tracker\index.html" (
+  echo ERROR: Missing tracker\index.html — run from the full tracker folder.
   pause
   exit /b 1
 )

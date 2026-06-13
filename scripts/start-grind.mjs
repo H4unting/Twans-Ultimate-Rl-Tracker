@@ -38,21 +38,33 @@ initBridgeAuth({ token: BRIDGE_AUTH_TOKEN });
 
 
 
-function resolveTrackerRoot() {
-
-  if (process.env.TWANS_TRACKER_ROOT) {
-
-    return path.resolve(process.env.TWANS_TRACKER_ROOT);
-
-  }
-
+function resolveRepoRoot() {
   return path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-
 }
 
+function resolveDataRoot() {
+  if (process.env.TWANS_TRACKER_ROOT) {
+    return path.resolve(process.env.TWANS_TRACKER_ROOT);
+  }
+  return resolveRepoRoot();
+}
 
+function resolveStaticRoot(dataRoot) {
+  if (process.env.TRACKER_STATIC_ROOT) {
+    return path.resolve(process.env.TRACKER_STATIC_ROOT);
+  }
+  const trackerDir = path.join(resolveRepoRoot(), 'tracker');
+  if (fs.existsSync(path.join(trackerDir, 'index.html'))) {
+    return trackerDir;
+  }
+  if (fs.existsSync(path.join(dataRoot, 'index.html'))) {
+    return dataRoot;
+  }
+  return trackerDir;
+}
 
-const ROOT = resolveTrackerRoot();
+const DATA_ROOT = resolveDataRoot();
+const ROOT = resolveStaticRoot(DATA_ROOT);
 
 
 
